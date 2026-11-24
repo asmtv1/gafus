@@ -33,7 +33,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -196,6 +196,7 @@ jobs:
           GAFUS_OWNER_RELEASE_APPROVED_SHA: ${{ vars.GAFUS_OWNER_RELEASE_APPROVED_SHA }}
           DEPLOY_SCRIPT_1: |2+
             set -eo pipefail
+            SECONDS=0
             echo "🚀 Starting production deployment..."
 
             DEPLOY_ROOT="/root/gafus"
@@ -249,7 +250,12 @@ jobs:
                     ;;
                 esac
               done < <(docker image ls --format '{{.Repository}}:{{.Tag}}')
-              docker image prune -f || echo "DANGLING_IMAGE_PRUNE_DEFERRED"
+              if [ "${1:-}" = "preserve-recent" ]; then
+                # Keep recent digest-only downloads from interrupted releases.
+                docker image prune -f --filter "until=24h" || echo "DANGLING_IMAGE_PRUNE_DEFERRED"
+              else
+                docker image prune -f || echo "DANGLING_IMAGE_PRUNE_DEFERRED"
+              fi
             }
 
             restore_previous_runtime() {
@@ -287,7 +293,7 @@ jobs:
                   done < "$RELEASE_BACKUP_DIR/images.tsv"
                 fi
                 if [ "$restore_ok" = true ]; then
-                  cleanup_obsolete_gafus_images
+                  cleanup_obsolete_gafus_images preserve-recent
                 else
                   echo "Keeping rollback tags for manual recovery."
                 fi
@@ -951,7 +957,7 @@ jobs:
 
             # Clear left-over tags from earlier attempts before downloading
             # the next release; images used by running containers stay intact.
-            cleanup_obsolete_gafus_images
+            cleanup_obsolete_gafus_images preserve-recent
 
             : > "$RELEASE_BACKUP_DIR/images.tsv"
             for image in "${images[@]}"; do
@@ -966,36 +972,44 @@ jobs:
               echo "$reference $rollback" >> "$RELEASE_BACKUP_DIR/images.tsv"
             done
 
+            # Reserve at least 25 minutes of the SSH budget for cutover and readiness.
+            pull_deadline=$((85 * 60))
             pull_image() {
-              local image="$1"
-              local reference
+              local image="$1" reference remaining limit
               reference="$(release_ref "$image")"
+              # Only the exact manifest digest is reusable, never a mutable tag.
+              if docker image inspect "$reference" >/dev/null 2>&1; then
+                echo "RELEASE_IMAGE_CACHE_HIT:$image"
+                return 0
+              fi
               for attempt in 1 2 3; do
-                echo "📥 Pulling $image (attempt $attempt/3)..."
-                if timeout 15m docker pull "$reference"; then
+                remaining=$((pull_deadline - SECONDS))
+                if [ "$remaining" -le 0 ]; then
+                  echo "RELEASE_PULL_BUDGET_EXHAUSTED:$image" >&2
+                  return 1
+                fi
+                limit=$((remaining < 1500 ? remaining : 1500))
+                echo "📥 Pulling $image (attempt $attempt/3, budget ${limit}s)..."
+                if timeout "${limit}s" docker pull "$reference"; then
                   echo "✅ Successfully pulled $image"
                   return 0
                 fi
-                echo "⚠️ Pull of $image failed or timed out; retrying in 20 seconds..."
-                sleep 20
+                if [ "$attempt" -lt 3 ] && [ "$((pull_deadline - SECONDS))" -gt 20 ]; then
+                  echo "⚠️ Pull failed; retrying in 20 seconds..."
+                  sleep 20
+                else
+                  return 1
+                fi
               done
               return 1
             }
 
-            pull_failed=0
             for image in "${images[@]}"; do
               if ! pull_image "$image"; then
-                echo "❌ Failed to pull $image"
-                pull_failed=1
+                echo "❌ Failed to pull $image; live containers unchanged" >&2
+                exit 1
               fi
             done
-
-            if [ "$pull_failed" -ne 0 ]; then
-              echo "❌ One or more docker pulls failed"
-              echo "🔍 Checking registry authentication..."
-              docker login ghcr.io -u asmtv1 --password-stdin <<< "${{ secrets.GHCR_TOKEN }}" || echo "⚠️ Login check failed"
-              exit 1
-            fi
 
             # Compose uses :latest locally. Pin EVERY release to the same SHA:
             # only after all immutable images are fetched, retag them for Compose.
@@ -1166,7 +1180,7 @@ jobs:
           username: ${{ inputs.app_only && 'root' || secrets.SERVER_USERNAME }}
           key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
           port: ${{ inputs.app_only && '22' || secrets.SERVER_PORT }}
-          command_timeout: 60m
+          command_timeout: 110m
           envs: GAFUS_RELEASE_MANIFEST_B64,GAFUS_RELEASE_RUN_ID,GAFUS_RELEASE_RUN_ATTEMPT,GAFUS_RELEASE_SHA,GAFUS_OWNER_RELEASE_APPROVED_SHA
           # Keep each interpolated scalar below GitHub's 21,000-character expression limit.
           script: ${{ format('{0}{1}{2}{3}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}

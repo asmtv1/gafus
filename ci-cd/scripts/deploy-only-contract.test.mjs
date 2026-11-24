@@ -51,11 +51,25 @@ test("old Docker release images are pruned without removing live images or volum
   assert.match(shared, /ghcr\.io\/asmtv1\/gafus-\*:rollback-\*\|ghcr\.io\/asmtv1\/gafus-\*:sha-\*/);
   assert.match(shared, /docker image rm "\$image_reference"/);
   assert.doesNotMatch(shared, /docker (volume prune|system prune|image rm -f)/);
-  const beforePull = shared.indexOf('cleanup_obsolete_gafus_images\n\n            : >');
+  const beforePull = shared.indexOf('cleanup_obsolete_gafus_images preserve-recent\n\n            : >');
   assert.notEqual(beforePull, -1, "stale images must be removed before pulling a new release");
   const healthy = shared.indexOf('Deployment completed and readiness checks passed!');
   const onSuccess = shared.indexOf('cleanup_obsolete_gafus_images', healthy);
   assert.ok(onSuccess > healthy, "temporary rollback and SHA tags must be removed after readiness");
   assert.match(shared, /if \[ "\$restore_ok" = true \]; then\s+cleanup_obsolete_gafus_images/);
+  assert.match(shared, /docker image prune -f --filter "until=24h"/);
   assert.match(shared, /SCHEMA_MIGRATION_STARTED: retaining maintenance mode/);
+});
+
+
+test("deployment budgets pulls and reuses only immutable locally cached images", () => {
+  assert.match(shared, /timeout-minutes: 120/);
+  assert.match(shared, /command_timeout: 110m/);
+  assert.match(shared, /pull_deadline=\$\(\(85 \* 60\)\)/);
+  assert.match(shared, /reference="\$\(release_ref "\$image"\)"/);
+  assert.match(shared, /docker image inspect "\$reference" >\/dev\/null/);
+  assert.match(shared, /timeout "\$\{limit\}s" docker pull "\$reference"/);
+  assert.match(shared, /RELEASE_PULL_BUDGET_EXHAUSTED/);
+  assert.ok(shared.indexOf('Failed to pull $image; live containers unchanged') <
+    shared.indexOf('docker tag "$immutable_ref" "ghcr.io/asmtv1/$image:latest"'));
 });

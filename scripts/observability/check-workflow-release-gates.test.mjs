@@ -118,7 +118,7 @@ test('reusable SSH deployment script remains below GitHub scalar limit and byte-
  }
 
  assert.equal(createHash('sha256').update(fragments.join(''),'utf8').digest('hex'),
-  '72967b17af3c98ab350ced4427330214f8a7a0ff8859105eb1aa7b9ce243f1fc',
+  'cae141b0e9206bede3b84d73336c38ed599be13d85664cf8899b476952952f42',
   'split must reproduce exactly the reviewed production script with signed OTA gate');
  const remoteScript=fragments.join('');
  const otaCheck=remoteScript.indexOf('MOBILE_OTA_PRODUCTION_MANIFEST_ENABLED');
