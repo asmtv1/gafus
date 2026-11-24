@@ -106,7 +106,10 @@ export async function sendPasswordResetRequestByEmail(rawEmail: string, rows?: E
 
   const resetUrl = `${getPublicWebBaseUrl()}/reset-password?token=${encodeURIComponent(token)}`;
   try {
-    await sendPasswordResetLinkEmail(user.email, resetUrl);
+    const disposition = await sendPasswordResetLinkEmail(user.email, resetUrl);
+    // Durable enqueue is not provider acceptance. Do not revoke an older
+    // usable link just because a replacement is still waiting for delivery.
+    if (disposition === "queued") return;
   } catch (error) {
     // A failed provider request must neither invalidate the older link nor
     // impose a 2-minute cooldown. Never remove a newer concurrent request.

@@ -16,7 +16,7 @@ export type { Attachment };
 
 export interface SendTransactionalMailInput {
   deliveryKey?: string;
-  /** Use "immediate" for security links/one-time codes; they must not arrive late. */
+  /** Use "immediate" for short-lived confirmation codes; queued security links require a bounded TTL. */
   deliveryMode?: "immediate" | "deferred";
   /** Deferred delivery stops completely after this many milliseconds. */
   maxQueueAgeMs?: number;

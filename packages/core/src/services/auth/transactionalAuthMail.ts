@@ -12,7 +12,7 @@
  * В репозитории .cursor/skills отдельного skill про email нет — ориентиры выше.
  */
 
-import { isMailerConfigured } from "@gafus/mailer";
+import { isMailerConfigured, mailOutboxEnabled, mailerEnvFromProcess } from "@gafus/mailer";
 import { createWebLogger } from "@gafus/logger";
 
 import { getPublicWebBaseUrl } from "../mail/publicWebBaseUrl";
@@ -34,8 +34,9 @@ export function assertMailerReady(): void {
   }
 }
 
-export async function sendPasswordResetLinkEmail(to: string, resetUrl: string): Promise<void> {
+export async function sendPasswordResetLinkEmail(to: string, resetUrl: string): Promise<"queued" | "sent"> {
   assertMailerReady();
+  const deferred = mailOutboxEnabled() && mailerEnvFromProcess().provider === "resend";
   const subject = "Восстановление пароля — Гафус";
   const text = [
     "Здравствуйте!",
@@ -43,7 +44,7 @@ export async function sendPasswordResetLinkEmail(to: string, resetUrl: string): 
     "Вы получили это письмо, потому что для аккаунта Гафус запрошено восстановление пароля.",
     "Чтобы задать новый пароль, откройте ссылку в браузере (она действует ограниченное время):",
     resetUrl,
-    "Если вы запрашивали несколько писем, используйте ссылку из последнего: новая ссылка отменяет предыдущую.",
+    "Если вы запрашивали несколько писем, используйте свежую ссылку. После смены пароля ранее выданные ссылки недействительны.",
     "",
     "Если вы не запрашивали сброс — ничего не делайте, пароль останется прежним.",
     "",
@@ -53,7 +54,8 @@ export async function sendPasswordResetLinkEmail(to: string, resetUrl: string): 
   try {
     await sendTransactionalLayout({
       to,
-      deliveryMode: "immediate",
+      deliveryMode: deferred ? "deferred" : "immediate",
+      maxQueueAgeMs: 45 * 60_000,
       category: "auth",
       subject,
       text,
@@ -63,7 +65,7 @@ export async function sendPasswordResetLinkEmail(to: string, resetUrl: string): 
           "Вы получили это письмо, потому что для вашего аккаунта запрошено восстановление пароля.",
         ),
         paragraphHtml(
-          "Нажмите кнопку ниже, чтобы задать новый пароль. Ссылка действует один час. Если вы запрашивали несколько писем, используйте последнее: новая ссылка отменяет предыдущую.",
+          "Нажмите кнопку ниже, чтобы задать новый пароль. Ссылка действует один час с момента запроса. После смены пароля ранее выданные ссылки недействительны.",
         ),
         ctaButtonHtml(resetUrl, "Сбросить пароль"),
         paragraphHtml(
@@ -72,6 +74,7 @@ export async function sendPasswordResetLinkEmail(to: string, resetUrl: string): 
         plainLinkFallbackHtml(resetUrl),
       ],
     });
+    return deferred ? "queued" : "sent";
   } catch (error) {
     logger.error(
       "Не удалось отправить письмо сброса пароля",
