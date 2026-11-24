@@ -1,3 +1,4 @@
+import { resolveAppSubscriptionBillingCode } from "@gafus/types";
 import { subscriptionAccessPort } from "../../modules/app-subscription/composition/subscription-access-instance.js";
 import { getAppSubscriptionOffer } from "../../modules/app-subscription/composition/read-offer.js";
 import { Hono, type Context } from "hono";
@@ -65,8 +66,17 @@ const restoreAppleSchema = z.object({
   signedTransactionInfo: z.string().min(1).optional(),
 });
 
+// Keep old requests and new product-tier identifiers interoperable. The payment
+// service receives the original persisted billing code, never an inferred duration.
+const publicPlanSchema = z.enum(["TWO_WEEKS", "MONTHLY", "THREE_MONTHS", "BASIC", "STANDARD", "PREMIUM"])
+  .transform((code): "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS" =>
+    resolveAppSubscriptionBillingCode(code) as "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS");
+const promoPlanSchema = z.enum(["MONTHLY", "THREE_MONTHS", "STANDARD", "PREMIUM"])
+  .transform((code): "MONTHLY" | "THREE_MONTHS" =>
+    resolveAppSubscriptionBillingCode(code) as "MONTHLY" | "THREE_MONTHS");
+
 const startYookassaSchema = z.object({
-  planCode: z.enum(["TWO_WEEKS", "MONTHLY", "THREE_MONTHS"]),
+  planCode: publicPlanSchema,
   returnPath: z
     .string()
     .regex(/^\/consultations\/[A-Za-z0-9_-]{1,128}$/)
@@ -80,7 +90,7 @@ const startYookassaSchema = z.object({
 });
 
 const previewPromoCodeSchema = z.object({
-  planCode: z.enum(["MONTHLY", "THREE_MONTHS"]),
+  planCode: promoPlanSchema,
   promoCode: z.string(),
 });
 

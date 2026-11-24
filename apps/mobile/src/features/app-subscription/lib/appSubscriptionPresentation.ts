@@ -1,5 +1,7 @@
+import { resolveAppSubscriptionTier, type AppSubscriptionTier } from "@gafus/types";
 export type AppSubscriptionPlanPresentation = {
   code: "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS";
+  planTier?: AppSubscriptionTier;
   title: string;
   intervalDays: number;
   yookassaPriceRub: number;
@@ -28,7 +30,7 @@ export function selectDefaultAppSubscriptionPlan<T extends AppSubscriptionPlanPr
   plans: readonly T[] | null | undefined,
 ): T | null {
   const enabledPlans = (plans ?? []).filter((plan) => plan.enabled !== false);
-  return enabledPlans.find((plan) => plan.code === "MONTHLY") ?? enabledPlans[0] ?? null;
+  return enabledPlans.find((plan) => resolveAppSubscriptionTier(plan.planTier ?? plan.code) === "STANDARD") ?? enabledPlans[0] ?? null;
 }
 
 export function formatAppSubscriptionPlanPrice(

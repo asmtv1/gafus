@@ -2299,6 +2299,8 @@ enum AppSubscriptionProvider {
   GOOGLE_PLAY
 }
 
+// Stable persisted/provider billing identifiers. Product tier (BASIC/STANDARD/PREMIUM)
+// is resolved by @gafus/types; never infer duration from these enum literals.
 enum AppSubscriptionPlanCode {
   WEEKLY
   TWO_WEEKS

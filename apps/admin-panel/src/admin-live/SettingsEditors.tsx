@@ -1,3 +1,4 @@
+import { APP_SUBSCRIPTION_TIER_TITLES } from "@gafus/types";
 import { useRef, useState, type FormEvent } from "react";
 import { AdminHttpError, requestAdmin } from "./api";
 
@@ -5,9 +6,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const controls = [
-  { key: "twoWeeks", title: "Самостоятельный" },
-  { key: "monthly", title: "Поддержка в чате" },
-  { key: "threeMonths", title: "Полное сопровождение" },
+  { key: "twoWeeks", title: APP_SUBSCRIPTION_TIER_TITLES.BASIC },
+  { key: "monthly", title: APP_SUBSCRIPTION_TIER_TITLES.STANDARD },
+  { key: "threeMonths", title: APP_SUBSCRIPTION_TIER_TITLES.PREMIUM },
 ] as const;
 function validPricingSettings(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) return false;

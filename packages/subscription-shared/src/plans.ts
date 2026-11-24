@@ -1,4 +1,4 @@
-import type { AppSubscriptionPlanCode as CanonicalAppSubscriptionPlanCode } from "@gafus/types";
+import { APP_SUBSCRIPTION_TIER_TITLES, APP_SUBSCRIPTION_TIER_BY_BILLING_CODE, appSubscriptionTierIncludesOfflineCourses, resolveAppSubscriptionBillingCode, resolveAppSubscriptionTier, type AppSubscriptionTier, type AppSubscriptionPlanCode as CanonicalAppSubscriptionPlanCode } from "@gafus/types";
 
 /** `WEEKLY` is historical. `TWO_WEEKS` and `THREE_MONTHS` are stable billing codes,
  * not durations: current public offers all last 30 days. Keep these codes for
@@ -48,6 +48,7 @@ export type AppSubscriptionSettingsPlanSource = {
 
 export type AppSubscriptionPlanConfig = {
   code: AppSubscriptionPlanCode;
+  planTier: AppSubscriptionTier;
   label: string;
   title: string;
   intervalDays: number;
@@ -64,32 +65,32 @@ export type AppSubscriptionPlanConfig = {
 };
 
 const PLAN_DEFINITIONS = {
-  WEEKLY: {
+  LEGACY_WEEKLY: {
     label: "Неделя",
     title: "Недельный",
     fallbackPriceRub: 200,
     fallbackIntervalDays: 7,
   },
-  MONTHLY: {
-    label: "Поддержка в чате",
-    title: "Поддержка в чате",
+  STANDARD: {
+    label: APP_SUBSCRIPTION_TIER_TITLES.STANDARD,
+    title: APP_SUBSCRIPTION_TIER_TITLES.STANDARD,
     fallbackPriceRub: 1465,
     fallbackIntervalDays: 30,
   },
-  TWO_WEEKS: {
-    label: "Самостоятельный",
-    title: "Самостоятельный",
+  BASIC: {
+    label: APP_SUBSCRIPTION_TIER_TITLES.BASIC,
+    title: APP_SUBSCRIPTION_TIER_TITLES.BASIC,
     fallbackPriceRub: 1185,
     fallbackIntervalDays: 30,
   },
-  THREE_MONTHS: {
-    label: "Полное сопровождение",
-    title: "Полное сопровождение",
+  PREMIUM: {
+    label: APP_SUBSCRIPTION_TIER_TITLES.PREMIUM,
+    title: APP_SUBSCRIPTION_TIER_TITLES.PREMIUM,
     fallbackPriceRub: 2470,
     fallbackIntervalDays: 30,
   },
 } as const satisfies Record<
-  AppSubscriptionPlanCode,
+  AppSubscriptionTier,
   {
     label: string;
     title: string;
@@ -109,16 +110,13 @@ function nullableTrimmed(value: string | null | undefined): string | null {
 }
 
 export function normalizeAppSubscriptionPlanCode(value: unknown): AppSubscriptionPlanCode | null {
-  return typeof value === "string" &&
-    APP_SUBSCRIPTION_PLAN_CODES.includes(value as AppSubscriptionPlanCode)
-    ? (value as AppSubscriptionPlanCode)
-    : null;
+  return resolveAppSubscriptionBillingCode(value);
 }
 
 /** Human-readable plan name for operator-facing surfaces and historical records. */
 export function getAppSubscriptionPlanLabel(value: unknown): string {
-  const code = normalizeAppSubscriptionPlanCode(value);
-  return code ? PLAN_DEFINITIONS[code].label : "Неизвестный тариф";
+  const tier = resolveAppSubscriptionTier(value);
+  return tier ? PLAN_DEFINITIONS[tier].label : "Неизвестный тариф";
 }
 
 export function isPublicAppSubscriptionPlanCode(
@@ -143,9 +141,9 @@ export function isPromoEligibleAppSubscriptionPlanCode(
   );
 }
 
-function publicPlanPresentation(code: AppSubscriptionPlanCode) {
-  switch (code) {
-    case "TWO_WEEKS":
+function publicPlanPresentation(tier: AppSubscriptionTier) {
+  switch (tier) {
+    case "BASIC":
       return {
         offlineCourseDownloadIncluded: false,
         consultationBookingIncluded: false,
@@ -153,7 +151,7 @@ function publicPlanPresentation(code: AppSubscriptionPlanCode) {
         promoCodeEligible: false,
         badge: null,
       };
-    case "MONTHLY":
+    case "STANDARD":
       return {
         offlineCourseDownloadIncluded: true,
         consultationBookingIncluded: false,
@@ -161,7 +159,7 @@ function publicPlanPresentation(code: AppSubscriptionPlanCode) {
         promoCodeEligible: true,
         badge: "POPULAR" as const,
       };
-    case "THREE_MONTHS":
+    case "PREMIUM":
       return {
         offlineCourseDownloadIncluded: true,
         consultationBookingIncluded: true,
@@ -169,7 +167,7 @@ function publicPlanPresentation(code: AppSubscriptionPlanCode) {
         promoCodeEligible: true,
         badge: null,
       };
-    case "WEEKLY":
+    case "LEGACY_WEEKLY":
       return {
         offlineCourseDownloadIncluded: false,
         consultationBookingIncluded: false,
@@ -181,21 +179,22 @@ function publicPlanPresentation(code: AppSubscriptionPlanCode) {
 }
 
 export function isOfflineCourseDownloadIncludedPlanCode(value: unknown): boolean {
-  const code = normalizeAppSubscriptionPlanCode(value);
-  return code === "MONTHLY" || code === "THREE_MONTHS";
+  return appSubscriptionTierIncludesOfflineCourses(value);
 }
 
 export function getAppSubscriptionPlanConfig(
   settings: AppSubscriptionSettingsPlanSource,
   code: AppSubscriptionPlanCode,
 ): AppSubscriptionPlanConfig {
-  const definition = PLAN_DEFINITIONS[code];
+  const tier = APP_SUBSCRIPTION_TIER_BY_BILLING_CODE[code];
+  const definition = PLAN_DEFINITIONS[tier];
   const currency = settings?.currency === "RUB" ? "RUB" : "RUB";
-  const presentation = publicPlanPresentation(code);
+  const presentation = publicPlanPresentation(tier);
 
-  if (code === "WEEKLY") {
+  if (tier === "LEGACY_WEEKLY") {
     return {
       code,
+      planTier: APP_SUBSCRIPTION_TIER_BY_BILLING_CODE[code],
       label: definition.label,
       title: definition.title,
       intervalDays: numberOrDefault(
@@ -214,13 +213,14 @@ export function getAppSubscriptionPlanConfig(
     };
   }
 
-  if (code === "TWO_WEEKS") {
+  if (tier === "BASIC") {
     const yookassaPriceRub = numberOrDefault(
       settings?.yookassaTwoWeeksPriceRub,
       definition.fallbackPriceRub,
     );
     return {
       code,
+      planTier: APP_SUBSCRIPTION_TIER_BY_BILLING_CODE[code],
       label: definition.title,
       title: definition.title,
       intervalDays: numberOrDefault(
@@ -236,13 +236,14 @@ export function getAppSubscriptionPlanConfig(
     };
   }
 
-  if (code === "THREE_MONTHS") {
+  if (tier === "PREMIUM") {
     const yookassaPriceRub = numberOrDefault(
       settings?.yookassaThreeMonthsPriceRub,
       definition.fallbackPriceRub,
     );
     return {
       code,
+      planTier: APP_SUBSCRIPTION_TIER_BY_BILLING_CODE[code],
       label: definition.title,
       title: definition.title,
       intervalDays: numberOrDefault(
@@ -264,6 +265,7 @@ export function getAppSubscriptionPlanConfig(
   );
   return {
     code,
+    planTier: APP_SUBSCRIPTION_TIER_BY_BILLING_CODE[code],
     label: definition.title,
     title: definition.title,
     intervalDays: numberOrDefault(settings?.monthlyIntervalDays, definition.fallbackIntervalDays),

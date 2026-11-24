@@ -38,16 +38,16 @@ export function createSubscriptionOfferReader(ports: SubscriptionOfferPorts) {
       ports.readPromoCodeState({ userId, clientContext }),
     ]);
 
-    const monthlyPlan = getAppSubscriptionPlanConfig(settings, "MONTHLY");
+    const standardPlan = getAppSubscriptionPlanConfig(settings, "MONTHLY");
     const yookassaPlans = getEnabledAppSubscriptionPlanConfigs(settings);
-    const applePlan = monthlyPlan.appleProductId
-      ? { ...monthlyPlan, label: "Месяц", title: "Месячный" }
+    const applePlan = standardPlan.appleProductId
+      ? { ...standardPlan, label: "Месяц", title: "Месячный" }
       : null;
 
     return {
       // Older mobile clients only understand the monthly YooKassa offer. Keep it until
       // every supported version consumes `yookassaPlans`.
-      plans: monthlyPlan.enabled ? [monthlyPlan] : [],
+      plans: standardPlan.enabled ? [standardPlan] : [],
       yookassaPlans,
       // Apple availability is deliberately independent from the YooKassa monthly switch.
       applePlan,

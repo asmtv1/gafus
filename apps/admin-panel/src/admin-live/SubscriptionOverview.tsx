@@ -1,3 +1,4 @@
+import { appSubscriptionTierTitle } from "@gafus/types";
 import { useMemo, useState } from "react";
 import { DataPanel } from "./DataPanel";
 
@@ -91,7 +92,7 @@ export function SubscriptionOverview({ source }: { source: unknown }) {
         if (status === "PAST_DUE" && row.status !== "PAST_DUE") return false;
         const text =
           `${row.user.username} ${row.user.fullName ?? ""} ${row.user.email ?? ""} ` +
-          `${row.planCode} ${row.status} ${row.id}`;
+          `${appSubscriptionTierTitle(row.planCode)} ${row.planCode} ${row.status} ${row.id}`;
         return text.toLocaleLowerCase("ru-RU").includes(search.toLocaleLowerCase("ru-RU"));
       }),
     [overview, search, status],
@@ -178,7 +179,7 @@ export function SubscriptionOverview({ source }: { source: unknown }) {
             <thead>
               <tr>
                 <th>Пользователь</th>
-                <th>План</th>
+                <th>Тариф</th>
                 <th>Провайдер</th>
                 <th>Статус</th>
                 <th>Активна до</th>
@@ -195,7 +196,11 @@ export function SubscriptionOverview({ source }: { source: unknown }) {
                       @{row.user.username} · {row.user.email || "—"}
                     </small>
                   </td>
-                  <td>{row.planTitle || row.planCode}</td>
+                  <td>
+                    {appSubscriptionTierTitle(row.planCode)}
+                    {row.planTitle && row.planTitle !== appSubscriptionTierTitle(row.planCode) &&
+                      <small>При покупке: {row.planTitle}</small>}
+                  </td>
                   <td>{row.provider}</td>
                   <td>
                     {row.isActiveNow ? "Активна" : row.status}

@@ -1,3 +1,4 @@
+import type { AppSubscriptionTier } from "@gafus/types";
 import { apiClient, type ApiResponse } from "@/shared/lib/api/client";
 import { getMobileClientHeaders } from "@/shared/lib/api/client-context";
 
@@ -12,6 +13,7 @@ export type AppSubscriptionStatusDto = {
   isLifetime: boolean;
   provider: "YOOKASSA" | "APPLE" | "GOOGLE_PLAY" | "MANUAL" | null;
   planCode: AppSubscriptionPlanCode | null;
+  planTier?: AppSubscriptionTier | null;
   status:
     | "ACTIVE"
     | "PENDING"
@@ -38,6 +40,7 @@ export type AppSubscriptionPlanBadge = "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
 
 export type AppSubscriptionPlanOfferDto = {
   code: AppSubscriptionPlanCode;
+  planTier?: AppSubscriptionTier;
   label: string;
   title: string;
   intervalDays: number;
