@@ -15,6 +15,7 @@ type Choice = {
   nativeIds: string[];
   recoveryFor: number | null;
   publicAppStoreReady: boolean;
+  publicRustoreReady?: boolean;
 };
 type Preview = {
   total: number;
@@ -33,8 +34,9 @@ type Preview = {
 };
 /** Keep the UI conservative. Backend revalidates this with an explicit
  * production approval flag inside the publication transaction. */
-export function hasSignedPublicCheckoutRecovery(selected: Choice, choices: readonly Choice[]): boolean {
-  if (!selected.checkout || !selected.complete || !selected.publicAppStoreReady ||
+export function hasSignedPublicCheckoutRecovery(selected: Choice, choices: readonly Choice[], platform = "ios"): boolean {
+  const storeReady = platform === "ios" ? selected.publicAppStoreReady : platform === "android" && selected.publicRustoreReady === true;
+  if (!selected.checkout || !selected.complete || !storeReady ||
       selected.nativeIds.length===0) return false;
   const natives = new Set(selected.nativeIds);
   if (natives.size!==selected.nativeIds.length) return false;
@@ -48,8 +50,8 @@ export function canRequirePublicCheckoutFromPreview(
   selected: Choice | undefined, preview: Preview | null,
   platform: string, version: string,
 ): boolean {
-  return !!selected && platform === "ios" && version === "1.7.5" &&
-    hasSignedPublicCheckoutRecovery(selected, preview?.choices ?? []);
+  return !!selected && version === "1.7.5" &&
+    hasSignedPublicCheckoutRecovery(selected, preview?.choices ?? [], platform);
 }
 /** Treat a missing update list as empty, and fail closed for malformed metadata. */
 export function normalizeVersionPreview(raw: unknown): Preview {
@@ -145,7 +147,7 @@ export function VersionPublicationForm({ nativeReleases }: { nativeReleases: Nat
   const checkoutLabel = (c: Choice) =>
     !c.checkout
       ? "Обычная оплата"
-      : platform === "ios" && version === "1.7.5"
+      : version === "1.7.5" && (platform === "ios" ? c.publicAppStoreReady : c.publicRustoreReady)
         ? "ЮKassa — тестовый / публичный профиль"
         : "Тестовая ЮKassa";
   const recovery = p?.choices
@@ -308,7 +310,7 @@ export function VersionPublicationForm({ nativeReleases }: { nativeReleases: Nat
         </button>
         <button
           disabled={busy || !selected?.tested || !selected.complete ||
-            (selected.checkout && !(platform === "ios" && version === "1.7.5"))}
+            (selected.checkout && !(version === "1.7.5" && (platform === "ios" ? selected.publicAppStoreReady : selected.publicRustoreReady)))}
           onClick={() => void submit("ALL")}
         >
           Выпустить всем
