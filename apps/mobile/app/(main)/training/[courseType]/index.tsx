@@ -1,3 +1,4 @@
+import { appSubscriptionTierIncludesOfflineCourses } from "@gafus/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
@@ -76,7 +77,7 @@ export default function TrainingDaysScreen() {
     : null;
   const mayRequestOfflineDownload =
     subscription?.hasActiveSubscription === true &&
-    (subscription.planCode === "MONTHLY" || subscription.planCode === "THREE_MONTHS");
+    appSubscriptionTierIncludesOfflineCourses(subscription.planTier ?? subscription.planCode);
   const isCheckingOfflinePlan = offlineSubscription.isLoading || offlineSubscription.isFetching;
   const isDownloadingThis = downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);

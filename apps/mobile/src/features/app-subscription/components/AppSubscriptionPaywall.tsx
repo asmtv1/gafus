@@ -1,3 +1,4 @@
+import { appSubscriptionTierIncludesOfflineCourses } from "@gafus/types";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import {
   Alert,
@@ -109,7 +110,7 @@ function badgeLabel(badge: AppSubscriptionPlanOfferDto["badge"]) {
 function includesOfflineCourseDownload(plan: AppSubscriptionPlanOfferDto | null): boolean {
   if (!plan) return false;
   return (
-    plan.offlineCourseDownloadIncluded ?? (plan.code === "MONTHLY" || plan.code === "THREE_MONTHS")
+    plan.offlineCourseDownloadIncluded ?? appSubscriptionTierIncludesOfflineCourses(plan.planTier ?? plan.code)
   );
 }
 
