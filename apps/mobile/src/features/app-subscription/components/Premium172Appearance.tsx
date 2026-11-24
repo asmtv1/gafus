@@ -3,6 +3,7 @@
  * Only presentational elements belong here: store checkout stays native-only,
  * and signed YooKassa OTA content is resolved independently by Metro.
  */
+import { appSubscriptionTierIncludesOfflineCourses } from "@gafus/types";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
@@ -15,7 +16,7 @@ export const PREMIUM_OFFLINE_BENEFIT = "Скачивание курсов для
 export function premiumPlanIncludesOffline(plan: AppSubscriptionPlanOfferDto | null): boolean {
   if (!plan) return false;
   return plan.offlineCourseDownloadIncluded ??
-    (plan.code === "MONTHLY" || plan.code === "THREE_MONTHS");
+    appSubscriptionTierIncludesOfflineCourses(plan.planTier ?? plan.code);
 }
 
 export function Premium172BenefitRow({ label, included }: { label: string; included: boolean }) {

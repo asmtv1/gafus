@@ -1,3 +1,4 @@
+import { resolveAppSubscriptionTier } from "@gafus/types";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -64,7 +65,7 @@ function formatSavingsRub(savingsRub: number | null | undefined): string | null 
   return Number.isFinite(amount) && amount>0 ? `Экономия ${formatRub(amount)}` : null;
 }
 function selectDefaultAppSubscriptionPlan<T extends AppSubscriptionPlanOfferDto>(plans: readonly T[]): T | null {
-  return plans.find((p) => p.code === "MONTHLY") ?? plans[0] ?? null;
+  return plans.find((p) => resolveAppSubscriptionTier(p.planTier ?? p.code) === "STANDARD") ?? plans[0] ?? null;
 }
 
 function badgeStyle(badge: AppSubscriptionPlanOfferDto["badge"]) {
