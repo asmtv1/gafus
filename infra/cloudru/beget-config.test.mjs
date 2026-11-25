@@ -10,7 +10,7 @@ const compose = yaml.parse(readFileSync('ci-cd/docker/docker-compose.prod.yml', 
 const deploy = Object.values(workflow.jobs).flatMap(job => job.steps || [])
   .find(step => step.name === 'Deploy to production server');
 assert.ok(deploy, 'Production deployment workflow missing');
-const scripts = ['DEPLOY_SCRIPT_1', 'DEPLOY_SCRIPT_1B', 'DEPLOY_SCRIPT_2', 'DEPLOY_SCRIPT_3']
+const scripts = ['DEPLOY_SCRIPT_1', 'DEPLOY_SCRIPT_1B', 'DEPLOY_SCRIPT_2', 'DEPLOY_SCRIPT_3', 'DEPLOY_SCRIPT_4']
   .map(part => deploy.env[part]);
 assert.ok(scripts.every(part => typeof part === 'string'), 'All SSH script fragments must exist');
 const script = scripts.join('');
@@ -32,6 +32,10 @@ describe('existing production CDN secret reuse', () => {
     assert.match(script, /BEGET_CDN_RELEASE_CONFIRM/);
     assert.match(script, /MEDIA_CDN_PURGE_WORKER_ENABLED=true/);
   });
+  it('passes the new purge credential only to Worker', () => {
+    const key='CDN_CLEANUP_SERVICE_ACCOUNT_KEY_B64';
+    assert.deepEqual(Object.entries(compose.services).filter(([,svc])=>(svc.environment??[]).some(row=>typeof row==='string'&&row.startsWith(key+'='))).map(([name])=>name),['worker']);
+  });
   it('uses the canonical Gallery secret with NO alias or legacy fallback', () => {
     const matches = [];
     for (const [name, service] of Object.entries(compose.services)) {
@@ -46,10 +50,16 @@ describe('existing production CDN secret reuse', () => {
     // Compose service was retired when media processing moved to Cloud.ru.
     assert.deepEqual(matches.sort(), ['api', 'worker']);
   });
-  it('requires explicit Beget-only approval and has NO Yandex CDN fallback', () => {
+  it('requires explicit verified Yandex cutover and preserves Beget defaults', () => {
     assert.match(script, /vars.GAFUS_MEDIA_CDN_TARGET/);
     assert.doesNotMatch(script, /GAFUS_MEDIA_CDN_TARGET \|\| 'yandex'/);
-    assert.doesNotMatch(script, /GALLERY_CDN_PROVIDER=yandex|FEED_CDN_PROVIDER=yandex|gallery-dev\.gafus\.ru|feed\.gafus\.ru/);
+    assert.doesNotMatch(script, /gallery-dev\.gafus\.ru|feed\.gafus\.ru/);
+    assert.match(script, /YANDEX_SHARED_CDN_RELEASE_NOT_VERIFIED/);
+    assert.match(script, /reviewed-single-cdn-cutover/);
+    assert.match(script, /GALLERY_CDN_PROVIDER=yandex/);
+    assert.match(script, /FEED_CDN_PROVIDER=yandex/);
+    assert.match(script, /GALLERY_CDN_BASE_URL=https:\/\/cdn\.gafus\.ru/);
+    assert.match(script, /FEED_CDN_BASE_URL=https:\/\/cdn\.gafus\.ru/);
     assert.match(script, /GALLERY_CDN_PROVIDER=beget/);
     assert.match(script, /FEED_CDN_PROVIDER=beget/);
     assert.match(script, /https:\/\/fupiquafifeswu.begetcdn.cloud/);

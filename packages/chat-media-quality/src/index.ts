@@ -96,7 +96,7 @@ export async function chat2CdnS3FailoverAllowed(
   try { primary = new URL(primaryUrl); fallback = new URL(fallbackUrl); }
   catch { return false; }
   if (primary.protocol !== 'https:' || primary.port || fallback.port ||
-      primary.hostname !== 'gonomudedoje.begetcdn.cloud' ||
+      !['gonomudedoje.begetcdn.cloud','cdn.gafus.ru'].includes(primary.hostname) ||
       fallback.origin !== 'https://gafus-chat2-media-2026.s3.cloud.ru' ||
       !/^\/chat2\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/[0-9a-f-]{36}\/v1\/(?:image\/[sm]\.webp|poster\.webp|video\/(?:360|720|1080)\.mp4)$/i.test(primary.pathname) ||
       primary.pathname !== fallback.pathname ||

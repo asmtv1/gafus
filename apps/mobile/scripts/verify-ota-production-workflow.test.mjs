@@ -79,14 +79,16 @@ test('future production deploys preserve iOS 1.7.5 YooKassa gates from GitHub En
     assert.ok(compose.includes(name+'=${'+name+':-false}'),
       name+' must be passed to the API container with a fail-closed default');
   }
-  assert.ok(deploy.includes('echo "MOBILE_IOS_MIN_VERSION=${{ vars.MOBILE_IOS_MIN_VERSION || \'1.7.2\' }}"'),
+  assert.ok(deploy.includes('echo "MOBILE_IOS_MIN_VERSION=${{ vars.MOBILE_IOS_MIN_VERSION || \'1.7.5\' }}"'),
     'iOS minimum version must survive production .env regeneration');
+  assert.ok(deploy.includes('echo "MOBILE_ANDROID_MIN_VERSION=${{ vars.MOBILE_ANDROID_MIN_VERSION || \'1.7.5\' }}"'),
+    'Android minimum version must survive production .env regeneration');
   assert.ok(compose.includes('MOBILE_IOS_MIN_VERSION=${MOBILE_IOS_MIN_VERSION:-1.7.2}'));
   const fragments=deployStep.env;
   const shellUnits=[
     ['DEPLOY_SCRIPT_1',fragments.DEPLOY_SCRIPT_1],
     ['DEPLOY_SCRIPT_1B + DEPLOY_SCRIPT_2',fragments.DEPLOY_SCRIPT_1B+'\n'+fragments.DEPLOY_SCRIPT_2],
-    ['DEPLOY_SCRIPT_3',fragments.DEPLOY_SCRIPT_3],
+    ['DEPLOY_SCRIPT_3 + DEPLOY_SCRIPT_4',fragments.DEPLOY_SCRIPT_3+'\n'+fragments.DEPLOY_SCRIPT_4],
   ];
   for(const [name,script] of shellUnits) {
     const child=spawnSync('bash',['-n'],{input:script,encoding:'utf8'});

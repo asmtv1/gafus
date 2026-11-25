@@ -64,16 +64,26 @@ export function parseMonitorState(raw: string | null, now: number): MediaCdnHeal
   } catch { return fallback; }
 }
 
-export type MonitorConfig = Record<Kind, { host: string; secret: string; enabled: boolean; provider?: "beget" }>;
+export type MonitorConfig = Record<Kind, { host: string; secret: string; enabled: boolean; provider?: "beget" | "yandex"; fixture?: { key: string; sha256: string; bytes: number } }>;
 export function monitorConfigFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): MonitorConfig {
+  let manifest: Record<string, unknown> = {};
+  try { manifest = JSON.parse(env.YANDEX_SHARED_CDN_SMOKE_MANIFEST ?? '{}') ?? {}; } catch { /* unconfigured stays unknown */ }
+  const fixture = (kind: Kind) => {
+    const f = manifest[kind === 'gallery' ? 'gallery' : 'feedImage'] as { key?: string; sha256?: string; bytes?: number } | undefined;
+    const pattern = kind === 'gallery' ? /^albums\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/photos\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full)\.webp$/ : /^media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/image\/s\.webp$/;
+    if (!f || !pattern.test(f.key ?? '') || !/^[a-f0-9]{64}$/.test(f.sha256 ?? '') || !Number.isSafeInteger(f.bytes) || f.bytes! < 24 || f.bytes! > 2_000_000) return undefined;
+    return { key: f.key!, sha256: f.sha256!, bytes: f.bytes! };
+  };
   return {
     gallery: {
-      host: env.GALLERY_CDN_BASE_URL === "https://fupiquafifeswu.begetcdn.cloud" &&
-        (!env.GALLERY_CDN_PROVIDER || env.GALLERY_CDN_PROVIDER === "beget")
-        ? "fupiquafifeswu.begetcdn.cloud" : "",
-      provider: "beget",
+      fixture: fixture('gallery'),
+      host: env.GALLERY_CDN_PROVIDER === "yandex"
+        ? (env.GALLERY_CDN_BASE_URL === "https://cdn.gafus.ru" ? "cdn.gafus.ru" : "")
+        : env.GALLERY_CDN_BASE_URL === "https://fupiquafifeswu.begetcdn.cloud" &&
+          (!env.GALLERY_CDN_PROVIDER || env.GALLERY_CDN_PROVIDER === "beget") ? "fupiquafifeswu.begetcdn.cloud" : "",
+      provider: env.GALLERY_CDN_PROVIDER === "yandex" ? "yandex" : "beget",
       secret: env.GALLERY_CDN_REDIRECT_SIGNING_SECRET ?? "",
       enabled: env.GALLERY_ENABLED === "true" &&
         env.GALLERY_CDN_REDIRECT_ENABLED === "true" &&
@@ -82,10 +92,12 @@ export function monitorConfigFromEnv(
         env.GALLERY_S3_ENDPOINT === "https://s3.cloud.ru",
     },
     feed: {
-      host: env.FEED_CDN_BASE_URL === "https://quepraquiecebquomiel.begetcdn.cloud" &&
-        (!env.FEED_CDN_PROVIDER || env.FEED_CDN_PROVIDER === "beget")
-        ? "quepraquiecebquomiel.begetcdn.cloud" : "",
-      provider: "beget",
+      fixture: fixture('feed'),
+      host: env.FEED_CDN_PROVIDER === "yandex"
+        ? (env.FEED_CDN_BASE_URL === "https://cdn.gafus.ru" ? "cdn.gafus.ru" : "")
+        : env.FEED_CDN_BASE_URL === "https://quepraquiecebquomiel.begetcdn.cloud" &&
+          (!env.FEED_CDN_PROVIDER || env.FEED_CDN_PROVIDER === "beget") ? "quepraquiecebquomiel.begetcdn.cloud" : "",
+      provider: env.FEED_CDN_PROVIDER === "yandex" ? "yandex" : "beget",
       secret: env.FEED_CDN_SECRET ?? "",
       enabled: env.FEED_ENABLED === "true" &&
         env.FEED_MEDIA_FALLBACK_ENABLED === "true" &&
@@ -110,14 +122,15 @@ export function createSignedMonitorUrl(kind: Kind, config: MonitorConfig,
       !/^[a-f0-9]{32}$/.test(id)) return null;
   // Use the *same final-media path family* as each real signer. Testing the
   // retired Feed /posts/... dialect would misclassify a healthy Feed V2 CDN.
-  const key = kind === "gallery"
+  const key = provider === "yandex" && config[kind].fixture ? config[kind].fixture!.key : kind === "gallery"
     ? `albums/__cdn_monitor__/__cdn_monitor__/photos/${id}/thumb.webp`
     : `media/v2/${id}/v1/image/s.webp`;
   const path = `/${key}`;
   const expires = Math.floor(now / 1000) + 90;
-  if (provider !== "beget" || host !== (kind === "gallery" ? "fupiquafifeswu.begetcdn.cloud" : "quepraquiecebquomiel.begetcdn.cloud"))
+  if (provider === "yandex" ? (host !== "cdn.gafus.ru" || secret.length > 32) :
+      provider !== "beget" || host !== (kind === "gallery" ? "fupiquafifeswu.begetcdn.cloud" : "quepraquiecebquomiel.begetcdn.cloud"))
     return null;
-  if (kind === "feed") {
+  if (kind === "feed" || provider === "yandex") {
     // Feed Media V2 uses Beget Cloud CDN query-token signing, unlike Gallery.
     const md5 = createHash("md5").update(`${expires}${path} ${secret}`).digest("base64url");
     return `https://${host}${path}?md5=${md5}&expires=${expires}`;
@@ -129,12 +142,19 @@ export function createSignedMonitorUrl(kind: Kind, config: MonitorConfig,
 export async function probeMediaCdn(kind: Kind, config: MonitorConfig,
   fetcher: typeof fetch = fetch, now = Date.now()): Promise<Result> {
   const url = createSignedMonitorUrl(kind, config, now);
-  if (!url) return "unknown";
+  if (!url || (config[kind].provider === "yandex" && !config[kind].fixture)) return "unknown";
   try {
     const response = await fetcher(url, {
       method: "GET", redirect: "manual", cache: "no-store",
       signal: AbortSignal.timeout(7_500),
     });
+    if (config[kind].provider === 'yandex') {
+      const f = config[kind].fixture;
+      if (!f) { void response.body?.cancel(); return 'unknown'; }
+      if (response.status !== 200 || Number(response.headers.get('content-length')) !== f.bytes) { void response.body?.cancel(); return 'failed'; }
+      const body = Buffer.from(await response.arrayBuffer());
+      return body.length === f.bytes && createHash('sha256').update(body).digest('hex') === f.sha256 ? 'healthy' : 'failed';
+    }
     void response.body?.cancel();
     if (response.status === 404) return "healthy";
     if (response.status === 410 || (response.status >= 500 && response.status <= 599))

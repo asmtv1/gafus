@@ -124,3 +124,17 @@ describe("server-side CDN health monitor", () => {
     expect(disabled.feed.enabled).toBe(false);
   });
 });
+
+describe('shared Yandex monitor', () => {
+  it('never treats a deny-route 404 as healthy; requires the exact fixture digest', async () => {
+    const bytes='synthetic-webp-fixture-bytes';
+    const fixture={key:'media/v2/canary/v1/image/s.webp',sha256:createHash('sha256').update(bytes).digest('hex'),bytes:Buffer.byteLength(bytes)};
+    const shared:MonitorConfig={...config,feed:{...config.feed,provider:'yandex',host:'cdn.gafus.ru',fixture}};
+    const fetcher=vi.fn(async()=>new Response(bytes,{headers:{'Content-Length':String(fixture.bytes)}}));
+    expect(await probeMediaCdn('feed',shared,fetcher,now)).toBe('healthy');
+    expect(fetcher).toHaveBeenCalledWith(expect.stringContaining('/'+fixture.key+'?md5='),expect.anything());
+    expect(await probeMediaCdn('feed',shared,async()=>new Response(null,{status:404}),now)).toBe('failed');
+    expect(await probeMediaCdn('feed',shared,async()=>new Response('x'.repeat(fixture.bytes),{headers:{'Content-Length':String(fixture.bytes)}}),now)).toBe('failed');
+    expect(await probeMediaCdn('feed',{...shared,feed:{...shared.feed,fixture:undefined}},fetcher,now)).toBe('unknown');
+  });
+});

@@ -14,7 +14,7 @@ export function chat2V2CdnOrigin(env: Record<string, string | undefined> = proce
   // Only the configured Chat2-specific CDN, never a URL or path supplied by a client.
   if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.port ||
       parsed.pathname !== "/" || parsed.search || parsed.hash ||
-      !/^[a-z0-9-]+\.begetcdn\.cloud$/i.test(parsed.hostname) ||
+      !(parsed.hostname === "cdn.gafus.ru" || /^[a-z0-9-]+\.begetcdn\.cloud$/i.test(parsed.hostname)) ||
       raw !== parsed.origin && raw !== parsed.origin + "/")
     throw Error("CHAT2_V2_INVALID_CDN_ORIGIN");
   return parsed.origin;

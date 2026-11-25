@@ -156,7 +156,7 @@ export function questionsV2PublicDelivery(location: string) {
     : configured.trim();
   if (!raw) return {url:direct};
   const parsed=new URL(raw);
-  if (parsed.protocol!=="https:" || !/^[a-z0-9-]+\.begetcdn\.cloud$/i.test(parsed.hostname) ||
+  if (parsed.protocol!=="https:" || !(parsed.hostname === "cdn.gafus.ru" || /^[a-z0-9-]+\.begetcdn\.cloud$/i.test(parsed.hostname)) ||
       parsed.origin!==raw.replace(/\/$/,"") || parsed.username || parsed.password)
     throw Error("QUESTIONS_V2_INVALID_CDN_ORIGIN");
   return {url:parsed.origin+"/"+key,fallbackUrl:direct};

@@ -96,7 +96,7 @@ test('reusable SSH deployment script remains below GitHub scalar limit and byte-
  const steps=parsed.jobs['deploy-production'].steps;
  const remote=steps.find(step=>step.name==='Deploy to production server');
  assert.ok(remote,'the immutable release must retain its real SSH action');
- const names=['DEPLOY_SCRIPT_1','DEPLOY_SCRIPT_1B','DEPLOY_SCRIPT_2','DEPLOY_SCRIPT_3'];
+ const names=['DEPLOY_SCRIPT_1','DEPLOY_SCRIPT_1B','DEPLOY_SCRIPT_2','DEPLOY_SCRIPT_3','DEPLOY_SCRIPT_4'];
  const fragments=names.map(name=>{
   const value=remote.env[name];
   assert.equal(typeof value,'string',`missing ${name}`);
@@ -104,7 +104,7 @@ test('reusable SSH deployment script remains below GitHub scalar limit and byte-
   return value;
  });
  assert.equal(remote.with.script,
-  "${{ format('{0}{1}{2}{3}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}");
+  "${{ format('{0}{1}{2}{3}{4}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3, env.DEPLOY_SCRIPT_4) }}");
  // Every new RuStore toggle must be explicit in the reviewed remote script,
  // not inherited from the iOS gate or an unsanitized /root/.env file.
  for (const name of [
@@ -118,7 +118,7 @@ test('reusable SSH deployment script remains below GitHub scalar limit and byte-
  }
 
  assert.equal(createHash('sha256').update(fragments.join(''),'utf8').digest('hex'),
-  '8618a4327a03eba608fa9ace2f8d3068ebc00a6526bba38c9f4be2b2e29fea7e',
+  'b2d8b139c64b6cd69786209961c3655ee1b74a13fa1b77d0b45bc525ce528167',
   'split must reproduce exactly the reviewed production script with signed OTA gate');
  const remoteScript=fragments.join('');
  const otaCheck=remoteScript.indexOf('MOBILE_OTA_PRODUCTION_MANIFEST_ENABLED');
