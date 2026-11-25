@@ -13,7 +13,7 @@ export async function allowQuestionsS3Fallback(
   catch {return false;}
   if (primary.protocol !== "https:" || primary.port || primary.username ||
       primary.password || primary.search || primary.hash ||
-      primary.hostname !== "ebiteskukingusk.begetcdn.cloud" ||
+      !["ebiteskukingusk.begetcdn.cloud", "cdn.gafus.ru"].includes(primary.hostname) ||
       !variant.test(primary.pathname) ||
       fallback.origin !== "https://gafus-questions-public.s3.cloud.ru" ||
       fallback.username || fallback.password || fallback.search || fallback.hash ||
