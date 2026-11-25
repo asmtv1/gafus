@@ -43,7 +43,7 @@ function main() {
     "--output-dir", target, "--source-maps", "external"], {
     env: {
       ...process.env,
-      EXPO_PUBLIC_OTA_REVISION_STAMP: `gafus-ota-revision:${revision}`,
+      EXPO_PUBLIC_OTA_REVISION_STAMP: `gafus-ota-revision:${revision}:end`,
       EXPO_OVERRIDE_METRO_CONFIG: path.join(mobileRoot, "scripts/self-hosted-ota-metro.config.mjs"),
     },
   });
