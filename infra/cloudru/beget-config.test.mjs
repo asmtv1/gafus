@@ -32,6 +32,13 @@ describe('existing production CDN secret reuse', () => {
     assert.match(script, /BEGET_CDN_RELEASE_CONFIRM/);
     assert.match(script, /MEDIA_CDN_PURGE_WORKER_ENABLED=true/);
   });
+  it('passes all shared CDN hosts to both serving API and Worker', () => {
+    for (const name of ['api','worker']) {
+      const env=compose.services[name].environment;
+      for (const key of ['GALLERY_CDN_BASE_URL','FEED_CDN_BASE_URL','CHAT2_V2_CDN_BASE_URL','QUESTIONS_V2_CDN_BASE_URL'])
+        assert.ok(env.some(row=>row.startsWith(key+'=')),name+': '+key+' missing');
+    }
+  });
   it('passes the new purge credential only to Worker', () => {
     const key='CDN_CLEANUP_SERVICE_ACCOUNT_KEY_B64';
     assert.deepEqual(Object.entries(compose.services).filter(([,svc])=>(svc.environment??[]).some(row=>typeof row==='string'&&row.startsWith(key+'='))).map(([name])=>name),['worker']);
