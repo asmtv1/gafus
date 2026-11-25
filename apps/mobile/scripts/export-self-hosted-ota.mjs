@@ -5,6 +5,7 @@ import fs from "node:fs";
 import { spawnSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { paymentProfile } from "./ota-payment-profile.mjs";
+import { smartTrackingQaEnv } from "./smart-tracking-qa-env.mjs";
 
 const mobileRoot = fileURLToPath(new URL("../", import.meta.url));
 const repoRoot = path.resolve(mobileRoot, "../..");
@@ -43,6 +44,7 @@ function main() {
     "--output-dir", target, "--source-maps", "external"], {
     env: {
       ...process.env,
+      ...smartTrackingQaEnv(process.env),
       EXPO_PUBLIC_OTA_REVISION_STAMP: `gafus-ota-revision:${revision}`,
       EXPO_OVERRIDE_METRO_CONFIG: path.join(mobileRoot, "scripts/self-hosted-ota-metro.config.mjs"),
     },
