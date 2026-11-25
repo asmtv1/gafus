@@ -118,10 +118,16 @@ test("the release signer checks the revision embedded in the Hermes bundle", () 
   const required = { ...input, requireCompiledRevision: true };
   assert.throws(() => buildSignedOtaArtifact(required), /OTA_COMPILED_REVISION_MISMATCH/);
   try {
-    fs.writeFileSync(file, Buffer.concat([original, Buffer.from("gafus-ota-revision:12")]));
+    fs.writeFileSync(file, Buffer.concat([original, Buffer.from("gafus-ota-revision:12:end")]));
+    assert.throws(() => buildSignedOtaArtifact(required), /OTA_COMPILED_REVISION_MISMATCH/);
+    fs.writeFileSync(file, Buffer.concat([original, Buffer.from("gafus-ota-revision:1:end12345")]));
+    assert.doesNotThrow(() => buildSignedOtaArtifact(required));
+    fs.writeFileSync(file, Buffer.concat([original, Buffer.from("gafus-ota-revision:1:endgafus-ota-revision:12:end")]));
+    assert.throws(() => buildSignedOtaArtifact(required), /OTA_COMPILED_REVISION_MISMATCH/);
+    fs.writeFileSync(file, Buffer.concat([original, Buffer.from("gafus-ota-revision:1:endgafus-ota-revision:12")]));
     assert.throws(() => buildSignedOtaArtifact(required), /OTA_COMPILED_REVISION_MISMATCH/);
     fs.writeFileSync(file, Buffer.concat([original, Buffer.from("gafus-ota-revision:1")]));
-    assert.doesNotThrow(() => buildSignedOtaArtifact(required));
+    assert.throws(() => buildSignedOtaArtifact(required), /OTA_COMPILED_REVISION_MISMATCH/);
   } finally {
     fs.writeFileSync(file, original);
   }

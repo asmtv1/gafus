@@ -96,8 +96,9 @@ export function buildSignedOtaArtifact({
     const file = safeFile(exportRoot, filePath);
     const bytes = fs.readFileSync(file);
     if (isLaunch && requireCompiledRevision) {
-      const stamps = bytes.toString("latin1").match(/gafus-ota-revision:[1-9]\d*/g) ?? [];
-      must(stamps.length > 0 && stamps.every((stamp) => stamp === `gafus-ota-revision:${revision}`),
+      // Hermes packs adjacent strings without a NUL separator. Match a complete, delimited stamp.
+      const stamps = bytes.toString("latin1").match(/gafus-ota-revision:[1-9]\d*(?::end)?/g) ?? [];
+      must(stamps.length > 0 && stamps.every((stamp) => stamp === `gafus-ota-revision:${revision}:end`),
         "OTA_COMPILED_REVISION_MISMATCH");
     }
     must(bytes.length > 0 && bytes.length < 250_000_000, "INVALID_ASSET_SIZE");
