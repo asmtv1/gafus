@@ -94,7 +94,7 @@ vi.mock("@/shared/stores/authStore", () => ({
 }));
 vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("../walkGpsTask", () => ({ startWalkGps: mocks.startGps, stopWalkGps: mocks.stopGps }));
-vi.mock("../walkGpsStorage", () => ({ gpsWalkMeters: async () => null }));
+vi.mock("../walkGpsStorage", () => ({ gpsWalkMeters: async () => null, walkQaEnabled:()=>false, beginWalkQaCapture:vi.fn() }));
 vi.mock("../walkStorage", () => ({
   loadWalkJournal: mocks.load,
   saveWalkJournal: mocks.save,
@@ -268,7 +268,7 @@ it("restores a recorded walk silently and keeps its route available after revoca
   expect(host.querySelector(`[aria-label="${retryLabel}"]`)).not.toBeNull();
   expect(journal.active).toMatchObject({ clientId: "restored-walk", gpsEnabled: true, gpsMeters: 42 });
   await press("Пауза прогулки");
-  expect(mocks.stopGps).toHaveBeenCalledWith("walk-owner", "restored-walk");
+  expect(mocks.stopGps).toHaveBeenCalledWith("walk-owner", "restored-walk", expect.any(Number));
   expect(mocks.pauseSteps).toHaveBeenLastCalledWith("walk-owner", expect.any(Object), false);
   await press("Завершить прогулку");
   expect(mocks.pauseSteps).toHaveBeenLastCalledWith("walk-owner", expect.any(Object), true);

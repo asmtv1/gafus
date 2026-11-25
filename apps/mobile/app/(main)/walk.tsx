@@ -48,10 +48,12 @@ import {
   pauseAndroidWalkSteps,
 } from "@/features/walk/androidBackgroundSteps";
 import { canUseDogWalkHistory } from "@/features/walk/walkAccess";
-import { gpsWalkMeters } from "@/features/walk/walkGpsStorage";
+import { beginWalkQaCapture, gpsWalkMeters, walkQaEnabled } from "@/features/walk/walkGpsStorage";
+import { WalkQaControls } from "@/features/walk/WalkQaControls";
 import { startWalkGps, stopWalkGps } from "@/features/walk/walkGpsTask";
 import { WalkLocationDisclosure } from "@/features/walk/location-permissions/WalkLocationDisclosure";
 import { useWalkLocationPermissionFlow } from "@/features/walk/location-permissions/useWalkLocationPermissionFlow";
+import { hasWalkLocationAccess } from "@/features/walk/location-permissions/walkLocationPermissionFlow";
 import { WalkRouteMap } from "@/features/walk/WalkRouteMap";
 import { syncDogWalkHistory, reportWalkSyncIssue } from "@/features/walk/walkSync";
 import {
@@ -83,6 +85,7 @@ export default function DogWalkScreen() {
   const handledLink = useRef(false);
   const [minutesDraft, setMinutesDraft] = useState("30");
   const [notice, setNotice] = useState<string | null>(null);
+  const [qaArmed,setQaArmed]=useState(false);
   const saves = useRef<Promise<void>>(Promise.resolve());
   const saveFailure = useRef<unknown>(null);
 
@@ -93,6 +96,7 @@ export default function DogWalkScreen() {
     setJournal(journalRef.current);
     setReady(false);
     setGpsStatus(null);
+    setQaArmed(false);
     if (!owner) return;
     let cancelled = false;
     void loadWalkJournal(owner)
@@ -483,31 +487,14 @@ export default function DogWalkScreen() {
     };
   }, [ready, owner, ensureGpsTracking]);
 
-  useEffect(() => {
-    if (!ready || !owner || !journal.active?.clientId) return;
-    const walkId = journal.active.clientId;
-    let cancelled = false;
-    const read = async () => {
-      try {
-        const meters = await gpsWalkMeters(owner, walkId);
-        if (!cancelled && meters != null && ownerRef.current === owner) {
-          updateActive((current) =>
-            current.clientId === walkId && current.gpsMeters !== meters
-              ? { ...current, gpsMeters: meters }
-              : current,
-          );
-        }
-      } catch (error) {
-        reportClientError(error, { issueKey: "DogWalkGpsMetrics" });
-      }
-    };
-    void read();
-    const interval = setInterval(() => void read(), 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [ready, owner, journal.active?.clientId, updateActive]);
+  const onGpsMeters = useCallback((walkId: string, meters: number | null) => {
+    if (!ready || !owner || ownerRef.current !== owner || meters == null) return;
+    updateActive(current =>
+      current.clientId === walkId && current.gpsMeters !== meters
+        ? { ...current, gpsMeters: meters }
+        : current,
+    );
+  }, [ready, owner, updateActive]);
 
   const performAction = useCallback(
     async (request: WalkAction | "enableGps", fromWidget = false) => {
@@ -520,30 +507,60 @@ export default function DogWalkScreen() {
           if (current && isWalkRunning(current)) await ensureGpsTracking(owner, current, true);
         } else if (request === "start") {
           if (current && isWalkRunning(current)) return;
+          // The tap, not the permission dialog, defines the walk's start.
+          const at = Date.now();
+          const preference = journalRef.current.preference;
+          const walk: DogWalk = current
+            ? { ...resumeWalk(current, at), stepBaselineAtResume: current.steps }
+            : {
+                ...beginSession(preference.mode, at, preference.countdownMinutes * 60),
+                clientId: Crypto.randomUUID(),
+                incompleteSteps: true,
+              };
+          updateJournal((state) =>
+            current
+              ? state.active?.startedAtMs === current.startedAtMs
+                ? { ...state, active: walk }
+                : state
+              : state.active ? state : { ...state, active: walk },
+          );
+          await saves.current;
+          const isCurrent = () => {
+            const auth=useAuthStore.getState();
+            return auth.isAuthenticated&&!auth.isLoading&&auth.user?.id===owner&&auth.verifiedSessionEpoch===sessionEpoch&&
+              ownerRef.current===owner&&journalRef.current.active?.clientId===walk.clientId&&
+              journalRef.current.active?.runningSinceMs===walk.runningSinceMs;
+          };
+          if (!isCurrent() || saveFailure.current) return;
+          if(!current&&qaArmed&&walk.clientId&&walkQaEnabled()) {
+            setQaArmed(false);
+            try { await beginWalkQaCapture(owner,walk.clientId,Crypto.randomUUID(),isCurrent); }
+            catch { if(isCurrent()) setNotice("QA-запись недоступна. Обычная прогулка продолжится без диагностики."); }
+          }
+          if(!isCurrent()) return;
+          // Only start the already-permitted source without prompting here.
+          // Permission prompts remain serialized; the timer is already running.
+          const existingGps=(async()=>{
+            try {
+              if(await hasWalkLocationAccess()&&isCurrent()) await ensureGpsTracking(owner,walk,false);
+            } catch { /* explicit permission flow below remains available */ }
+          })();
           let notificationsGranted = false;
           try {
             notificationsGranted = await configureWalkAlertPermission();
-            if (!notificationsGranted) {
+            if (!notificationsGranted && isCurrent()) {
               setNotice("Для сигнала таймера и напоминаний разрешите уведомления GAFUS.");
             }
           } catch (error) {
             reportClientError(error, { issueKey: "DogWalkNotificationPermissions" });
           }
-          if (ownerRef.current !== owner) return;
+          if (!isCurrent()) return;
           if (current) {
-            const resumed: DogWalk = {
-              ...resumeWalk(current, Date.now()),
-              stepBaselineAtResume: current.steps,
-            };
-            updateJournal((state) =>
-              state.active?.startedAtMs === current.startedAtMs
-                ? { ...state, active: resumed }
-                : state,
-            );
-            await ensureAndroidTracking(owner, resumed);
-            await notify(owner, resumed, notificationsGranted);
-            if (resumed.gpsEnabled || Platform.OS !== "android") {
-              await ensureGpsTracking(owner, resumed, Platform.OS !== "android" && !fromWidget);
+            await ensureAndroidTracking(owner, walk);
+            await existingGps;
+            await notify(owner, walk, notificationsGranted);
+            if (walk.gpsEnabled || Platform.OS !== "android") {
+              await ensureGpsTracking(owner, walk, Platform.OS !== "android" && !fromWidget);
             }
             return;
           }
@@ -563,7 +580,7 @@ export default function DogWalkScreen() {
             incompleteSteps = true;
             reportClientError(error, { issueKey: "DogWalkStepPermissions" });
           }
-          if (ownerRef.current !== owner) return;
+          if (!isCurrent()) return;
           if (Platform.OS === "android") {
             try {
               const sensor = await getAndroidWalkStepAvailability();
@@ -578,23 +595,22 @@ export default function DogWalkScreen() {
               reportClientError(error, { issueKey: "DogWalkNativeSensorAvailability" });
             }
           }
-          const preference = journalRef.current.preference;
-          const walk = {
-            ...beginSession(preference.mode, Date.now(), preference.countdownMinutes * 60),
-            clientId: Crypto.randomUUID(),
-            incompleteSteps,
-          };
-          updateJournal((state) => (state.active ? state : { ...state, active: walk }));
-          await ensureAndroidTracking(owner, walk);
+          if (!isCurrent()) return;
+          updateActive((active) => active.clientId === walk.clientId
+            ? { ...active, incompleteSteps }
+            : active);
+          await ensureAndroidTracking(owner, { ...walk, incompleteSteps });
+          if (!isCurrent()) return;
           await notify(owner, walk, notificationsGranted);
-          await ensureGpsTracking(owner, walk, !fromWidget);
+          await existingGps;
+          if(!journalRef.current.active?.gpsEnabled) await ensureGpsTracking(owner, walk, !fromWidget);
         } else if (current) {
           if (request === "pause" && !isWalkRunning(current)) return;
           setGpsStatus(null);
           const now = Date.now();
           if (current.clientId) {
             try {
-              await stopWalkGps(owner, current.clientId);
+              await stopWalkGps(owner, current.clientId, now);
             } catch (error) {
               reportClientError(error, { issueKey: "DogWalkGpsStop" });
             }
@@ -646,7 +662,10 @@ export default function DogWalkScreen() {
     [
       ready,
       owner,
+      sessionEpoch,
       updateJournal,
+      updateActive,
+      qaArmed,
       notify,
       captureSegmentSteps,
       ensureAndroidTracking,
@@ -846,8 +865,9 @@ export default function DogWalkScreen() {
             </View>
           )}
         </View>
+        {ready&&owner&&walkQaEnabled()?<WalkQaControls key={owner} ownerId={owner} active={!!active} armed={qaArmed} onArmChange={setQaArmed} busy={busy}/>:null}
         {active?.clientId && active.gpsEnabled ? (
-          <WalkRouteMap ownerId={owner ?? ""} walkId={active.clientId} live={gpsRecording} localOnly />
+          <WalkRouteMap ownerId={owner ?? ""} walkId={active.clientId} live={gpsRecording} localOnly onGpsMeters={onGpsMeters} />
         ) : null}
         {active && running && !gpsRecording && owner ? (
           <Pressable

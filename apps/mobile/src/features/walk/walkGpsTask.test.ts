@@ -38,9 +38,12 @@ vi.mock("expo-location", () => ({
 vi.mock("react-native", () => ({ Platform: { OS: "android" } }));
 vi.mock("./walkGpsStorage", () => ({
   activeGpsSession: mocked.active,
+  isV2GpsSession: vi.fn().mockResolvedValue(false),
   activateGpsSession: mocked.activate,
   deactivateGpsSession: mocked.deactivate,
   deactivateAllGpsSessions: mocked.deactivateAll,
+  walkQaEnabled:()=>false,
+  getWalkQaGpsProfile:async()=>null,
   persistGpsBatch: mocked.persist,
   readGpsMotionPolicy: mocked.getMotion,
   saveGpsMotionPolicy: mocked.setMotion,
@@ -103,8 +106,8 @@ describe("Expo TaskManager GPS background lifecycle", () => {
       },
     });
     expect(mocked.persist).toHaveBeenCalledWith([
-      { latitude: 53.195, longitude: 50.1, accuracy: 5, speed: 1, timestamp: 123456 },
-    ]);
+      { latitude: 53.195, longitude: 50.1, accuracy: 5, speed: 1, course: null, timestamp: 123456 },
+    ], expect.any(Number));
   });
   it("never starts GPS without foreground + background permission", async () => {
     mocked.bg.mockResolvedValue({ granted: false });
