@@ -1,0 +1,23 @@
+name: GAFUS Yandex CDN IAM canary
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  purge-canary:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Verify production purge account with one immutable synthetic path
+        env:
+          CDN_CLEANUP_SERVICE_ACCOUNT_KEY_B64: ${{ secrets.YANDEX_SHARED_CDN_CLEANUP_KEY_B64 }}
+          YANDEX_SHARED_CDN_RESOURCE_ID: ${{ vars.YANDEX_SHARED_CDN_RESOURCE_ID }}
+          YANDEX_SHARED_CDN_SMOKE_MANIFEST: ${{ vars.YANDEX_SHARED_CDN_SMOKE_MANIFEST }}
+        run: node infra/cloudru/shared-yandex-iam-canary.mjs
