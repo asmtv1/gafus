@@ -1,11 +1,8 @@
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
-import { AppState, Platform } from "react-native";
+import { Platform } from "react-native";
 import {
   activeGpsSession,
-  getWalkQaGpsProfile,
-  walkQaEnabled,
-  isV2GpsSession,
   activateGpsSession,
   deactivateAllGpsSessions,
   deactivateGpsSession,
@@ -36,12 +33,11 @@ function runGpsOperation<T>(operation: () => Promise<T>): Promise<T> {
 // Imported by widget-entry.ts before expo-router/entry, including headless launches.
 TaskManager.defineTask(DOG_WALK_GPS_TASK, async ({ data, error }) => {
   if (error) {
-    reportClientError(new Error("GPS_TASK_FAILED"), { issueKey: "DogWalkGpsTask" });
+    reportClientError(error, { issueKey: "DogWalkGpsTask" });
     return;
   }
   const locations = (data as { locations?: Location.LocationObject[] } | undefined)?.locations;
   if (!locations?.length) return;
-  const receivedAt = Date.now();
   try {
     const fixes = locations.map((l) => ({
       latitude: l.coords.latitude,
@@ -49,22 +45,21 @@ TaskManager.defineTask(DOG_WALK_GPS_TASK, async ({ data, error }) => {
       timestamp: l.timestamp,
       accuracy: l.coords.accuracy,
       speed: l.coords.speed,
-      course: l.coords.heading ?? null,
     }));
-    await persistGpsBatch(fixes, receivedAt);
+    await persistGpsBatch(fixes);
     // Adaptation is best-effort and can never roll back an already persisted GPS batch.
     try {
       await adaptWalkGpsToMotion(fixes);
     } catch (adaptError) {
       reportClientError(adaptError, { issueKey: "DogWalkGpsAdaptiveMode" });
     }
-  } catch {
-    reportClientError(new Error("GPS_BATCH_SAVE_FAILED"), { issueKey: "DogWalkGpsSave" });
+  } catch (failure) {
+    reportClientError(failure, { issueKey: "DogWalkGpsSave" });
   }
 });
 
-function gpsTaskOptions(mode: WalkGpsMode, widgetInitiated = false, qaProfile:"control"|"fast"|null=null): Location.LocationTaskOptions {
-  const hints = qaProfile==="fast"?{timeInterval:2000,distanceInterval:2}:WALK_GPS_INTERVALS[mode];
+function gpsTaskOptions(mode: WalkGpsMode, widgetInitiated = false): Location.LocationTaskOptions {
+  const hints = WALK_GPS_INTERVALS[mode];
   return {
     accuracy:
       mode === "walking"
@@ -86,8 +81,8 @@ function gpsTaskOptions(mode: WalkGpsMode, widgetInitiated = false, qaProfile:"c
         }
       : {
           activityType: Location.ActivityType.Fitness,
-          pausesUpdatesAutomatically: qaProfile!=="fast",
-          deferredUpdatesInterval: qaProfile==="fast"?0:mode === "walking" ? 5_000 : 15_000,
+          pausesUpdatesAutomatically: true,
+          deferredUpdatesInterval: mode === "walking" ? 5_000 : 15_000,
           deferredUpdatesDistance: hints.distanceInterval,
           showsBackgroundLocationIndicator: true,
         }),
@@ -107,10 +102,6 @@ export async function adaptWalkGpsToMotion(
   return runGpsOperation(async () => {
     const active = await activeGpsSession();
     if (!active || !fixes.length) return;
-    if(walkQaEnabled()&&await getWalkQaGpsProfile(active.ownerId,active.walkId)) return;
-    // The experimental writer keeps the high-quality native profile until
-    // paired energy/reacquisition trials justify an adaptive policy.
-    if (await isV2GpsSession(active.ownerId, active.walkId)) return;
     const before = await readGpsMotionPolicy(active.ownerId, active.walkId);
     const now = Math.max(...fixes.map((p) => p.timestamp));
     const next = advanceWalkGpsPolicy(before, detectWalkGpsMode(fixes), now);
@@ -158,12 +149,6 @@ export function startWalkGps(
     const alreadyRegistered = await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK);
     if (!isCurrent()) return false;
     if (sameWalk && alreadyRegistered) return true;
-    // An ordinary foreground action cannot start a new Android location
-    // service while a system permission activity is covering the app.
-    // Widget taps have their own native start exemption.
-    if (Platform.OS === "android" && !widgetInitiated && AppState.currentState !== "active") {
-      return false;
-    }
     if (alreadyRegistered) await Location.stopLocationUpdatesAsync(DOG_WALK_GPS_TASK);
     // An OS-killed task resumed after a gap must not connect unrelated coordinates.
     if (sameWalk) await deactivateGpsSession(ownerId, walkId);
@@ -174,18 +159,11 @@ export function startWalkGps(
         await stopGpsSession(ownerId, walkId);
         return false;
       }
-      if (Platform.OS === "android" && !widgetInitiated && AppState.currentState !== "active") {
-        await stopGpsSession(ownerId, walkId);
-        return false;
-      }
       await Location.startLocationUpdatesAsync(
         DOG_WALK_GPS_TASK,
-        gpsTaskOptions("walking", widgetInitiated,walkQaEnabled()?await getWalkQaGpsProfile(ownerId,walkId):null),
+        gpsTaskOptions("walking", widgetInitiated),
       );
-      // Expo reports task registration, not the first GPS fix. Do not mark
-      // the walk as recording if native registration did not stick.
-      const registered = await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK);
-      if (isCurrent() && registered) return true;
+      if (isCurrent()) return true;
       await stopGpsSession(ownerId, walkId);
       return false;
     } catch (error) {
@@ -196,10 +174,9 @@ export function startWalkGps(
   });
 }
 
-async function stopGpsSession(ownerId: string, walkId: string, boundaryAt?: number): Promise<void> {
+async function stopGpsSession(ownerId: string, walkId: string): Promise<void> {
   // Commit the stop before awaiting the OS: late batches must not append to a paused walk.
-  if (boundaryAt === undefined) await deactivateGpsSession(ownerId, walkId);
-  else await deactivateGpsSession(ownerId, walkId, boundaryAt);
+  await deactivateGpsSession(ownerId, walkId);
   if (
     !(await activeGpsSession()) &&
     (await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK))
@@ -208,8 +185,8 @@ async function stopGpsSession(ownerId: string, walkId: string, boundaryAt?: numb
   }
 }
 
-export function stopWalkGps(ownerId: string, walkId: string, boundaryAt?: number): Promise<void> {
-  return runGpsOperation(() => stopGpsSession(ownerId, walkId, boundaryAt));
+export function stopWalkGps(ownerId: string, walkId: string): Promise<void> {
+  return runGpsOperation(() => stopGpsSession(ownerId, walkId));
 }
 
 export function stopAllWalkGps(isCurrent: () => boolean): Promise<void> {

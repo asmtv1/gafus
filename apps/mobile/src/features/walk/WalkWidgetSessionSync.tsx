@@ -1,4 +1,3 @@
-import { purgeWalkQa } from "./walkGpsStorage";
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -62,8 +61,6 @@ export function WalkWidgetSessionSync() {
         return !cancelled && !auth.isLoading && auth.verifiedSessionEpoch === verified &&
           (auth.isAuthenticated ? auth.user?.id ?? null : null) === ownerId;
       };
-      if (!isCurrent()) return;
-      try { await purgeWalkQa(ownerId,isCurrent); } catch { /* QA cleanup is retried without logging private data. */ }
       if (!isCurrent()) return;
       // OS location task must not keep recording a signed-out or switched account.
       try {

@@ -43,7 +43,8 @@ export function scopedMediaCacheKey(urlString: string, accountId: string, now = 
     'quepraquiecebquomiel.begetcdn.cloud': 'feed',
   } as const;
   const isCloudru = url.hostname === 's3.cloud.ru';
-  const scope = isCloudru ? null : hosts[url.hostname as keyof typeof hosts];
+  const isYandex = url.hostname === 'cdn.gafus.ru';
+  const scope = isCloudru ? null : isYandex ? (feedV2Path.test(url.pathname) ? 'feed' : authorizedFinalPath('gallery',url.pathname) ? 'gallery' : undefined) : hosts[url.hostname as keyof typeof hosts];
   if (!isCloudru && !scope) throw new Error('MEDIA_CACHE_UNTRUSTED_HOST');
   let path: string;
   let kind: 'gallery' | 'feed';
@@ -58,7 +59,7 @@ export function scopedMediaCacheKey(urlString: string, accountId: string, now = 
     kind = scope!;
     // V2 Feed URLs use query signatures rather than legacy Gallery's path
     // tokens. Do not persist signature tokens or accept arbitrary query keys.
-    if (kind === 'feed' && feedV2Path.test(url.pathname)) {
+    if (isYandex || kind === 'feed' && feedV2Path.test(url.pathname)) {
       if (!feedV2Signature.test(url.search)) throw new Error('MEDIA_CACHE_UNSIGNED');
       signedExpirySec = Number(url.searchParams.get('expires'));
       path = url.pathname;
