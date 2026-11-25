@@ -5,10 +5,6 @@
   "sideEffects": false,
   "type": "module",
   "exports": {
-    "./walk-tracking": {
-      "types": "./dist/walk-tracking/index.d.ts",
-      "default": "./dist/walk-tracking/index.js"
-    },
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"

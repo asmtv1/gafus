@@ -17,6 +17,15 @@ export function mediaCdnKindFromSignedUrl(raw: string): MediaCdnKind | null {
     const url = new URL(raw);
     if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
         url.pathname.includes('%') || url.pathname.includes('..') || url.pathname.includes('//')) return null;
+    if (url.hostname === 'cdn.gafus.ru') {
+      if (!/^\?md5=[A-Za-z0-9_-]{22}&expires=\d{10}$/.test(url.search)) return null;
+      const path = url.pathname;
+      if (/^\/media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/(?:image\/[sml]\.webp|poster\.webp|video\/(?:360|720)\.mp4)$/.test(path)) return 'feed';
+      if (/^\/albums\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/photos\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full)\.webp$/.test(path) ||
+          /^\/gallery\/[A-Za-z0-9_-]{1,128}\/media\/[A-Za-z0-9_-]{1,128}\/v2\/(?:thumb|full)\.webp$/.test(path) ||
+          /^\/users\/[A-Za-z0-9_-]{1,128}\/pets\/[A-Za-z0-9_-]{1,128}\/vet-visits\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/thumb\.webp$/.test(path)) return 'gallery';
+      return null;
+    }
     const gallery = ['fupiquafifeswu.begetcdn.cloud'].includes(url.hostname);
     const feed = url.hostname === 'quepraquiecebquomiel.begetcdn.cloud';
     if (!gallery && !feed) return null;
@@ -98,10 +107,16 @@ export function isTrustedCdnProbeUrl(
   // Questions/Chat2 publish only immutable public renditions. Their CDN URLs
   // are not signed; allow only these exact, known host+final-object shapes,
   // never arbitrary paths, incoming uploads or third-party domains.
-  if (url.hostname === 'ebiteskukingusk.begetcdn.cloud')
+  if (url.hostname === 'cdn.gafus.ru' && url.search) {
+    const kind = mediaCdnKindFromSignedUrl(raw);
+    const expires = Number(url.searchParams.get('expires'));
+    const now = Math.floor(nowMs / 1000);
+    return kind !== null && Number.isSafeInteger(expires) && expires > now - 120 && expires <= now + 600;
+  }
+  if (url.hostname === 'ebiteskukingusk.begetcdn.cloud' || (url.hostname === 'cdn.gafus.ru' && url.pathname.startsWith('/questions/')))
     return url.search === '' &&
       /^\/questions\/uploads\/questions\/v2\/[A-Za-z0-9_-]{1,128}\/[0-9a-f-]{36}\/v1\/image\/[sm]\.webp$/i.test(url.pathname);
-  if (url.hostname === 'gonomudedoje.begetcdn.cloud')
+  if (url.hostname === 'gonomudedoje.begetcdn.cloud' || (url.hostname === 'cdn.gafus.ru' && url.pathname.startsWith('/chat2/')))
     return url.search === '' &&
       /^\/chat2\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/[0-9a-f-]{36}\/v1\/(?:image\/[sm]\.webp|poster\.webp|video\/(?:360|720|1080)\.mp4)$/i.test(url.pathname);
   if (!['fupiquafifeswu.begetcdn.cloud', 'quepraquiecebquomiel.begetcdn.cloud'].includes(url.hostname))

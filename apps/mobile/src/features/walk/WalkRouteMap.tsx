@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, Pressable, AppState } from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
 import { Text } from "react-native-paper";
 import Constants from "expo-constants";
 // No MapLibre native bridge exists in Expo Go; do not evaluate its package there.
 const nativeMap = Constants.appOwnership === "expo" ? null :
   (require("@maplibre/maplibre-react-native") as typeof import("@maplibre/maplibre-react-native"));
-const { Map, Camera, GeoJSONSource, Layer } = nativeMap ??
+const { Map, Camera, GeoJSONSource, Layer, UserLocation } = nativeMap ??
   ({} as typeof import("@maplibre/maplibre-react-native"));
-import { readGpsTrackSnapshot, getOrFinalizeGpsDisplay, type GpsLiveStatus, type StoredGpsPoint } from "./walkGpsStorage";
-import { appendWalkTrackPage, WALK_TRACK_PAGE_SIZE, WALK_DISPLAY_TOLERANCE_METERS, WalkGeometryCache, displayFixStatus, type WalkGeoJson } from "@gafus/core-client/walk-tracking";
-import { WalkBacktrack } from "./WalkBacktrack";
+import { allGpsPoints, type StoredGpsPoint } from "./walkGpsStorage";
+import { toWalkGeoJson } from "./walkRouteGeoJson";
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { apiClient } from "@/shared/lib/api/client";
 
@@ -23,124 +22,77 @@ export function WalkRouteMap({
   ownerId,
   walkId,
   live = true,
-  localOnly = false,
-  onGpsMeters,
 }: {
   ownerId: string;
   walkId: string;
   live?: boolean;
-  localOnly?: boolean;
-  onGpsMeters?: (walkId: string, meters: number | null) => void;
 }) {
   const [points, setPoints] = useState<StoredGpsPoint[]>([]);
-  const [track,setTrack]=useState<WalkGeoJson>({type:"FeatureCollection",features:[]});
-  const [now,setNow]=useState(Date.now());
   const [loading, setLoading] = useState(true);
-  const [liveStatus, setLiveStatus] = useState<GpsLiveStatus | null>(null);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    let refreshing = false;
-    let cursor = 0;
-    let generation:number|null=null;
-    let routeRevision:number|null=null;
-    let geometry=new WalkGeometryCache(WALK_DISPLAY_TOLERANCE_METERS);
-    const collected: StoredGpsPoint[] = [];
-    const reset=()=>{
-      cursor=0;collected.length=0;
-      geometry=new WalkGeometryCache(WALK_DISPLAY_TOLERANCE_METERS);
-    };
-    const append=(page:StoredGpsPoint[])=>{
-      const before=collected.length;
-      cursor=appendWalkTrackPage(collected,page,cursor);
-      geometry.append(collected.slice(before));
-    };
     setPoints([]);
-    setTrack({type:"FeatureCollection",features:[]});
-    setLiveStatus(null);
     setLoading(true);
     setError(false);
     const refresh = async () => {
-      if (refreshing || cancelled || AppState.currentState!=="active") return;
-      refreshing = true;
-      const oldLength = collected.length;
-      let rebuilt=false;
       try {
-        let snapshot;
-        for (;;) {
-          snapshot = await readGpsTrackSnapshot(ownerId, walkId, cursor);
-          const page = snapshot.points;
-          if (cancelled) return;
-          if(live&&generation!==null&&(snapshot.generation!==generation||snapshot.routeRevision!==routeRevision||snapshot.lastSeq<cursor)) {
-            reset();rebuilt=true;generation=snapshot.generation;routeRevision=snapshot.routeRevision;continue;
-          }
-          generation=snapshot.generation;routeRevision=snapshot.routeRevision;
-          append(page);
-          if (page.length < WALK_TRACK_PAGE_SIZE) break;
-        }
-        if (!live && !localOnly && collected.length === 0) {
+        let next = await allGpsPoints(ownerId, walkId);
+        if (!live && next.length === 0) {
           // A walk recorded on another phone lives only in owner-scoped PostgreSQL.
-          for (;;) {
+          const received: StoredGpsPoint[] = [];
+          let after = 0;
+          for (let page = 0; page < 50; page++) {
             const result = await apiClient<
               (Omit<StoredGpsPoint, "timestamp"> & { timestamp: string })[]
-            >(`/api/v1/walks/${encodeURIComponent(walkId)}/track?afterSeq=${cursor}`, {
+            >(`/api/v1/walks/${encodeURIComponent(walkId)}/track?afterSeq=${after}`, {
               suppressSubscriptionPaywall: true,
               skipAuthRefreshReplay: true,
-              requestGuard: () => !cancelled,
             });
-            if (cancelled) return;
             if (!result.success || !result.data) throw new Error("WALK_TRACK_UNAVAILABLE");
-            const page = result.data.map(point => ({ ...point, timestamp: Date.parse(point.timestamp) }));
-            append(page);
-            if (page.length < WALK_TRACK_PAGE_SIZE) break;
+            received.push(
+              ...result.data.map((point) => ({ ...point, timestamp: Date.parse(point.timestamp) })),
+            );
+            if (result.data.length < 200) break;
+            after = result.data[result.data.length - 1]!.seq;
           }
+          next = received;
         }
         if (!cancelled) {
-          onGpsMeters?.(walkId, snapshot.meters);
-          if (rebuilt||oldLength !== collected.length) {setPoints([...collected]);setTrack(geometry.snapshot());}
-          if(!live&&process.env.EXPO_PUBLIC_WALK_FINAL_DISPLAY==="1") {
-            const derived=await getOrFinalizeGpsDisplay(ownerId,walkId).catch(()=>null);
-            if(cancelled) return;
-            if(derived) setTrack(derived);
-          }
-          setLiveStatus(live ? snapshot.status : null);
-          setNow(Date.now());
-          setError(false);
+          setPoints(next);
           setLoading(false);
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
-          if (rebuilt||oldLength !== collected.length) {setPoints([...collected]);setTrack(geometry.snapshot());}
           setError(true);
           setLoading(false);
-          // Error payloads must never carry a raw fix or route.
-          reportClientError(new Error("WALK_TRACK_UNAVAILABLE"), { issueKey: "DogWalkRouteMap" });
         }
-      } finally { refreshing = false; }
+        reportClientError(error, { issueKey: "DogWalkRouteMap" });
+      }
     };
     void refresh();
     const interval = live ? setInterval(() => void refresh(), 5000) : null;
-    const clock=live?setInterval(()=>{if(AppState.currentState==="active")setNow(Date.now());},1000):null;
-    const foreground=AppState.addEventListener("change",state=>{if(state==="active")void refresh();});
     return () => {
       cancelled = true;
       if (interval) clearInterval(interval);
-      if(clock) clearInterval(clock);
-      foreground.remove();
     };
-  }, [ownerId, walkId, live, localOnly, retry, onGpsMeters]);
+  }, [ownerId, walkId, live, retry]);
   const accepted = useMemo(() => points.filter((p) => p.accepted), [points]);
   const last = accepted[accepted.length - 1];
-  const display=live?displayFixStatus(liveStatus?.position??null,now):null;
-  const gpsStatus=!live?`${accepted.length} точек маршрута`:
-    !display?"Ожидаем сигнал GPS":
-    `${display.stale||liveStatus?.quality==="lost"?"Последняя позиция":liveStatus?.quality==="good"?"GPS":"Поиск точного GPS"} · ${Math.round(display.ageMs/1000)} с · ${display.accuracyRadius==null?"точность неизвестна":`±${Math.round(display.accuracyRadius)} м`}`;
-  const marker=useMemo(()=>display?{
-    type:"FeatureCollection" as const,
-    features:[{type:"Feature" as const,properties:{stale:display.stale},
-      geometry:{type:"Point" as const,coordinates:[display.fix.longitude,display.fix.latitude]}}],
-  }:null,[display?.fix.latitude,display?.fix.longitude,display?.stale]);
+  const lastReceived = points[points.length - 1];
+  const gpsStatus = !live
+    ? `${accepted.length} точек маршрута`
+    : !lastReceived
+      ? "Ожидаем сигнал GPS"
+      : Date.now() - lastReceived.timestamp > 60_000
+        ? "Нет свежих координат больше минуты"
+        : lastReceived.reason === "poor_accuracy"
+          ? "Слабый сигнал GPS"
+          : lastReceived.accuracy != null
+            ? `Точность GPS ±${Math.round(lastReceived.accuracy)} м`
+            : "Точность GPS неизвестна";
+  const track = useMemo(() => toWalkGeoJson(accepted), [accepted]);
   const routeBounds = useMemo<[number, number, number, number] | null>(() => {
     if (live || accepted.length < 2) return null;
     let west = Infinity,
@@ -161,7 +113,7 @@ export function WalkRouteMap({
       <Text style={styles.footer}>Карта маршрута доступна в сборке GAFUS для разработки. В Expo Go остальные разделы работают без карты.</Text>
     </View>
   );
-  if (!live && (loading || !accepted.length))
+  if (!live && (loading || error || !accepted.length))
     return (
       <View style={styles.panel}>
         <Text style={styles.title}>Маршрут прогулки</Text>
@@ -190,11 +142,6 @@ export function WalkRouteMap({
         <Text style={styles.title}>Маршрут прогулки</Text>
         <Text style={styles.meta}>{gpsStatus}</Text>
       </View>
-      {error ? (
-        <Pressable accessibilityRole="button" onPress={() => setRetry(n => n+1)}>
-          <Text style={styles.footer}>Маршрут загружен не полностью. Нажмите, чтобы повторить.</Text>
-        </Pressable>
-      ) : null}
       <View style={styles.mapContainer}>
         <Map mapStyle={WALK_MAP_STYLE_URL} style={styles.map}>
           <Camera
@@ -204,16 +151,14 @@ export function WalkRouteMap({
                 ? { bounds: routeBounds, padding: { top: 30, bottom: 30, left: 30, right: 30 } }
                 : last
                   ? { center: [last.longitude, last.latitude], zoom: 15 }
-                  : display ? {center:[display.fix.longitude,display.fix.latitude],zoom:15} : { zoom: 15 }
+                  : { zoom: 15 }
             }
             {...(live && last
               ? { center: [last.longitude, last.latitude] as [number, number] }
               : {})}
-
+            trackUserLocation={!last && live ? "default" : undefined}
           />
-          {live&&marker?<GeoJSONSource id="walk-position" data={marker}>
-            <Layer id="walk-position-dot" type="circle" paint={{"circle-radius":7,"circle-color":display?.stale?"#999999":"#2869C5","circle-stroke-color":"#FFFFFF","circle-stroke-width":2}}/>
-          </GeoJSONSource>:null}
+          {live ? <UserLocation /> : null}
           <GeoJSONSource id="walk-trail" data={track}>
             <Layer
               id="walk-trail-line"
@@ -224,7 +169,6 @@ export function WalkRouteMap({
           </GeoJSONSource>
         </Map>
       </View>
-      {live&&process.env.EXPO_PUBLIC_WALK_BACKTRACK==="1"?<WalkBacktrack key={walkId} points={accepted} position={liveStatus?.position??null} now={now}/>:null}
       <Text style={styles.footer}>
         Карта © OpenStreetMap · OpenFreeMap. GPS-маршрут хранится отдельно от карты.
       </Text>
