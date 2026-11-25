@@ -927,8 +927,8 @@ jobs:
       # blocks cloudru-media-contracts and therefore deploy-production.
       - name: Cloud media runtime unit contracts (blocking)
         run: pnpm --filter @gafus/feed-cloud-runtime test
-      - name: Reject Yandex CDN release routes and verify fail-closed Beget gating
-        run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs infra/cloudru/gallery-redirect-release-gate.test.mjs
+      - name: Verify explicit CDN provider selection and fail-closed readiness
+        run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs infra/cloudru/gallery-redirect-release-gate.test.mjs infra/cloudru/shared-yandex-cdn-readiness.test.mjs
       - name: Cloud.ru registry publication retry acceptance tests
         run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
       - name: Cloud.ru scheduled processing contract
@@ -1102,7 +1102,7 @@ jobs:
     needs: [beget-provider-change-detect, beget-readonly-preflight, cloudru-jobs-verify, deploy-production]
     # App-only bootstrap skips all 4 active Cloud.ru video Jobs. A provider change must
     # still pass signed GET/HEAD/Range/deny verification after deployment.
-    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.beget-provider-change-detect.outputs.provider_required == 'true' || vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED == 'true') && needs.deploy-production.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-verify.result == 'success' || needs.cloudru-jobs-verify.result == 'failure') }}
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && (vars.GAFUS_MEDIA_CDN_TARGET == 'yandex' || needs.beget-provider-change-detect.outputs.provider_required == 'true' || vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED == 'true') && needs.deploy-production.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-verify.result == 'success' || needs.cloudru-jobs-verify.result == 'failure') }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12
