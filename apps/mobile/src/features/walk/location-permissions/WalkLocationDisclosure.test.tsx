@@ -286,6 +286,33 @@ it("does not initiate location permission from a launcher link on mount", async 
   expect(journal.active?.runningSinceMs).toBeTypeOf("number");
 });
 
+it("does not start GPS concurrently with Android step setup even with location permission", async () => {
+  mocks.location = { foreground: true, background: true };
+  let completeSteps!: () => void;
+  const pending = new Promise<void>((resolve) => { completeSteps = resolve; });
+  mocks.startSteps.mockImplementationOnce(() => pending);
+  await renderWalk();
+  await press("Начать прогулку");
+  expect(mocks.startSteps).toHaveBeenCalledOnce();
+  expect(mocks.startGps).not.toHaveBeenCalled();
+  await act(async () => { completeSteps(); });
+  expect(mocks.startGps).toHaveBeenCalledOnce();
+  expect(journal.active?.gpsEnabled).toBe(true);
+});
+
+it("recovers a failed initial GPS start on foreground return without permission prompts", async () => {
+  mocks.location = { foreground: true, background: true };
+  mocks.startGps.mockResolvedValueOnce(false);
+  await renderWalk();
+  await press("Начать прогулку");
+  expect(journal.active?.gpsEnabled).not.toBe(true);
+  await returnToApp();
+  expect(mocks.startGps).toHaveBeenCalledTimes(2);
+  expect(journal.active?.gpsEnabled).toBe(true);
+  expect(mocks.askForeground).not.toHaveBeenCalled();
+  expect(mocks.askBackground).not.toHaveBeenCalled();
+});
+
 it("starts directly when both permissions already exist", async () => {
   mocks.location = { foreground: true, background: true };
   await renderWalk();

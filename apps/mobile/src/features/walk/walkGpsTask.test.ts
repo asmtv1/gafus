@@ -35,7 +35,7 @@ vi.mock("expo-location", () => ({
   requestForegroundPermissionsAsync: mocked.fg,
   requestBackgroundPermissionsAsync: mocked.bg,
 }));
-vi.mock("react-native", () => ({ Platform: { OS: "android" } }));
+vi.mock("react-native", () => ({ Platform: { OS: "android" }, AppState: { currentState: "active" } }));
 vi.mock("./walkGpsStorage", () => ({
   activeGpsSession: mocked.active,
   isV2GpsSession: vi.fn().mockResolvedValue(false),
@@ -81,6 +81,7 @@ beforeEach(() => {
   mocked.bg.mockResolvedValue({ granted: true });
   mocked.active.mockResolvedValue(null);
   mocked.already.mockResolvedValue(false);
+  mocked.start.mockImplementation(async () => { mocked.already.mockResolvedValue(true); });
   mocked.activate.mockResolvedValue(undefined);
   mocked.deactivate.mockResolvedValue(undefined);
   mocked.persist.mockResolvedValue(1);
@@ -131,6 +132,11 @@ describe("Expo TaskManager GPS background lifecycle", () => {
     expect(mocked.activate.mock.invocationCallOrder[0]).toBeLessThan(
       mocked.start.mock.invocationCallOrder[0],
     );
+  });
+  it("does not claim recording if native task registration did not stick", async () => {
+    mocked.start.mockResolvedValue(undefined);
+    expect(await startWalkGps(owner, walk)).toBe(false);
+    expect(mocked.deactivate).toHaveBeenCalledWith(owner, walk);
   });
   it("does not restart an already active task on repeated start", async () => {
     mocked.active.mockResolvedValue({ ownerId: owner, walkId: walk });

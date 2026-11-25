@@ -469,8 +469,13 @@ export default function DogWalkScreen() {
         journalRef.current = latest;
         setJournal(latest);
       }
-      if (walk?.clientId && walk.gpsEnabled && isWalkRunning(walk)) {
-        await ensureGpsTracking(owner, walk, false, isScreenCurrent);
+      if (walk?.clientId && isWalkRunning(walk)) {
+        // Recover a failed initial start as well as a previously recorded walk.
+        // This path never prompts for permission.
+        const allowed = walk.gpsEnabled || (await hasWalkLocationAccess());
+        if (allowed && isScreenCurrent() && AppState.currentState === "active") {
+          await ensureGpsTracking(owner, walk, false, isScreenCurrent);
+        }
       }
     };
     const refresh = () =>
@@ -538,13 +543,9 @@ export default function DogWalkScreen() {
             catch { if(isCurrent()) setNotice("QA-запись недоступна. Обычная прогулка продолжится без диагностики."); }
           }
           if(!isCurrent()) return;
-          // Only start the already-permitted source without prompting here.
-          // Permission prompts remain serialized; the timer is already running.
-          const existingGps=(async()=>{
-            try {
-              if(await hasWalkLocationAccess()&&isCurrent()) await ensureGpsTracking(owner,walk,false);
-            } catch { /* explicit permission flow below remains available */ }
-          })();
+          // Android permission activities temporarily background the app, even
+          // when a permission is already granted. Never race a location FGS
+          // registration with notification or physical-activity permission UI.
           let notificationsGranted = false;
           try {
             notificationsGranted = await configureWalkAlertPermission();
@@ -557,9 +558,8 @@ export default function DogWalkScreen() {
           if (!isCurrent()) return;
           if (current) {
             await ensureAndroidTracking(owner, walk);
-            await existingGps;
             await notify(owner, walk, notificationsGranted);
-            if (walk.gpsEnabled || Platform.OS !== "android") {
+            if (walk.gpsEnabled || Platform.OS !== "android" || (await hasWalkLocationAccess())) {
               await ensureGpsTracking(owner, walk, Platform.OS !== "android" && !fromWidget);
             }
             return;
@@ -602,8 +602,8 @@ export default function DogWalkScreen() {
           await ensureAndroidTracking(owner, { ...walk, incompleteSteps });
           if (!isCurrent()) return;
           await notify(owner, walk, notificationsGranted);
-          await existingGps;
-          if(!journalRef.current.active?.gpsEnabled) await ensureGpsTracking(owner, walk, !fromWidget);
+          // Start after all other permission requests and native step setup.
+          if (isCurrent()) await ensureGpsTracking(owner, walk, !fromWidget);
         } else if (current) {
           if (request === "pause" && !isWalkRunning(current)) return;
           setGpsStatus(null);

@@ -1,6 +1,6 @@
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import {
   activeGpsSession,
   getWalkQaGpsProfile,
@@ -158,6 +158,12 @@ export function startWalkGps(
     const alreadyRegistered = await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK);
     if (!isCurrent()) return false;
     if (sameWalk && alreadyRegistered) return true;
+    // An ordinary foreground action cannot start a new Android location
+    // service while a system permission activity is covering the app.
+    // Widget taps have their own native start exemption.
+    if (Platform.OS === "android" && !widgetInitiated && AppState.currentState !== "active") {
+      return false;
+    }
     if (alreadyRegistered) await Location.stopLocationUpdatesAsync(DOG_WALK_GPS_TASK);
     // An OS-killed task resumed after a gap must not connect unrelated coordinates.
     if (sameWalk) await deactivateGpsSession(ownerId, walkId);
@@ -168,11 +174,18 @@ export function startWalkGps(
         await stopGpsSession(ownerId, walkId);
         return false;
       }
+      if (Platform.OS === "android" && !widgetInitiated && AppState.currentState !== "active") {
+        await stopGpsSession(ownerId, walkId);
+        return false;
+      }
       await Location.startLocationUpdatesAsync(
         DOG_WALK_GPS_TASK,
         gpsTaskOptions("walking", widgetInitiated,walkQaEnabled()?await getWalkQaGpsProfile(ownerId,walkId):null),
       );
-      if (isCurrent()) return true;
+      // Expo reports task registration, not the first GPS fix. Do not mark
+      // the walk as recording if native registration did not stick.
+      const registered = await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK);
+      if (isCurrent() && registered) return true;
       await stopGpsSession(ownerId, walkId);
       return false;
     } catch (error) {
