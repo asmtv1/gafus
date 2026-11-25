@@ -72,3 +72,30 @@ describe("Beget private Gallery CDN -> API 307 -> S3", () => {
     expect((await galleryCdnRedirectResponse(request(),env,async()=>{ throw Error("S3_OFFLINE"); })).status).toBe(503);
   });
 });
+
+describe('Yandex isolated streaming origin', () => {
+  const signing = 'A'.repeat(32);
+  const yenv = {...env, GALLERY_CDN_REDIRECT_SIGNING_SECRET:signing};
+  const req = async (mode:string, token: 'valid'|'missing'|'wrong', range?:string) => {
+    const {createHash}=await import('node:crypto');
+    const expires=Math.floor(Date.now()/1000)+90;
+    const md5=createHash('md5').update(`${expires}/${key} ${token==='wrong'?'B'.repeat(32):signing}`).digest('base64url');
+    return new Request(`${origin}${key}${token==='missing'?'':`?md5=${md5}&expires=${expires}`}`,{headers:{'x-gafus-gallery-origin-secret':secret,'x-gafus-gallery-origin-mode':mode,...(range?{Range:range}:{})}});
+  };
+  it('requires valid token before accessing S3 and never leaks presign',async()=>{
+    const get=vi.fn(async()=>new Response(new Uint8Array([1,2,3]),{headers:{'Content-Type':'image/webp','Content-Length':'3'}}));
+    const signer=vi.fn(async()=>signed(key));
+    for(const token of ['missing','wrong'] as const) expect((await galleryCdnRedirectResponse(await req('yandex-stream-v1',token),yenv,signer,get)).status).toBe(404);
+    expect(signer).not.toHaveBeenCalled();
+    const response=await galleryCdnRedirectResponse(await req('yandex-stream-v1','valid'),yenv,signer,get);
+    expect(response.status).toBe(200);expect(response.headers.get('Cache-Control')).toBe('private, no-store');expect(response.headers.has('location')).toBe(false);expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1,2,3]));
+  });
+  it('forwards a single range and rejects invalid or oversized upstream',async()=>{
+    const get=vi.fn(async()=>new Response(new Uint8Array([1,2]),{status:206,headers:{'Content-Type':'image/webp','Content-Length':'2','Content-Range':'bytes 0-1/3'}}));
+    const response=await galleryCdnRedirectResponse(await req('yandex-stream-v1','valid','bytes=0-1'),yenv,async()=>signed(key),get);
+    expect(response.status).toBe(206);expect(response.headers.get('Content-Range')).toBe('bytes 0-1/3');expect(get).toHaveBeenCalledWith(signed(key),expect.objectContaining({headers:{Range:'bytes=0-1'},redirect:'error'}));
+    expect((await galleryCdnRedirectResponse(await req('yandex-stream-v1','valid','bytes=0-1,3-4'),yenv,async()=>signed(key),get)).status).toBe(416);
+    const bad=async()=>new Response(null,{headers:{'Content-Type':'image/webp','Content-Length':'10485761'}});
+    expect((await galleryCdnRedirectResponse(await req('yandex-stream-v1','valid'),yenv,async()=>signed(key),bad)).status).toBe(503);
+  });
+});
