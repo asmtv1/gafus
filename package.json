@@ -34,6 +34,7 @@
     "test:cloudru-media": "node infra/cloudru/s3-cors.test.mjs && node infra/cloudru/media-manifests.test.mjs && node --test infra/cloudru/production-job-release.test.mjs ci-cd/scripts/questions-v2-production-readiness.test.mjs ci-cd/scripts/cloudru-first-main-cutover-contract.test.mjs && node infra/cloudru/cdn-edge-smoke.test.mjs && node infra/cloudru/cdn-stability.test.mjs && node infra/cloudru/cdn-edge-degradation.test.mjs && node infra/cloudru/yc-cdn-cli.test.mjs && node infra/cloudru/migrate-legacy-media.test.mjs && node infra/cloudru/multipart-smoke.test.mjs && node infra/cloudru/production-release.test.mjs",
     "test:coverage": "node scripts/qa/coverage-workspaces.mjs",
     "test:coverage:legacy": "turbo run test:coverage",
+    "mobile:build": "node scripts/mobile-build.mjs",
     "test:mobile": "pnpm --filter @gafus/mobile test",
     "test:watch": "turbo run test:watch",
     "test:web": "pnpm --filter @gafus/web-vite test",

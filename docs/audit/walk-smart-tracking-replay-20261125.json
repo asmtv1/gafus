@@ -1,0 +1,164 @@
+{
+  "fixtureVersion": 2,
+  "coordinateSystem": "local synthetic meters at equator",
+  "rows": [
+    {
+      "name": "false_initial_fix",
+      "truth": 0,
+      "v1": 60,
+      "v2": 60,
+      "v2Median": 60,
+      "lockCandidate": 0,
+      "stepEvidence": {
+        "kind": "unknown",
+        "reason": "gap"
+      },
+      "motionCandidate": {
+        "motion": "unknown",
+        "position": "unknown",
+        "distance": "unknown",
+        "motionConfidence": "unknown",
+        "reasons": [
+          "gap-or-outlier"
+        ],
+        "observedMeters": null,
+        "steps": {
+          "kind": "unknown",
+          "reason": "gap"
+        },
+        "displacementCorroborated": false
+      },
+      "stepEvidenceIncludedInEngine": false
+    },
+    {
+      "name": "coherent_drift",
+      "truth": 0,
+      "v1": 21.6,
+      "v2": 16.8,
+      "v2Median": 16.8,
+      "lockCandidate": 16.8,
+      "stepEvidence": {
+        "kind": "no-steps",
+        "steps": 0
+      },
+      "motionCandidate": {
+        "motion": "unknown",
+        "position": "low",
+        "distance": "unknown",
+        "motionConfidence": "unknown",
+        "reasons": [
+          "complete-zero-steps",
+          "gps-displacement-conflict"
+        ],
+        "observedMeters": null,
+        "steps": {
+          "kind": "no-steps",
+          "steps": 0
+        },
+        "displacementCorroborated": false
+      },
+      "stepEvidenceIncludedInEngine": false
+    },
+    {
+      "name": "short_out_and_back",
+      "truth": 8.4,
+      "v1": 0,
+      "v2": 0,
+      "v2Median": 0,
+      "lockCandidate": 0,
+      "stepEvidence": {
+        "kind": "steps-detected",
+        "steps": 12
+      },
+      "motionCandidate": {
+        "motion": "possible_movement",
+        "position": "reliable",
+        "distance": "unknown",
+        "motionConfidence": "low",
+        "reasons": [
+          "steps-detected",
+          "displacement-unresolved"
+        ],
+        "observedMeters": null,
+        "steps": {
+          "kind": "steps-detected",
+          "steps": 12
+        },
+        "displacementCorroborated": false
+      },
+      "stepEvidenceIncludedInEngine": false
+    },
+    {
+      "name": "clean_slow",
+      "truth": 180,
+      "v1": 169.2,
+      "v2": 180,
+      "v2Median": 180,
+      "lockCandidate": 180,
+      "stepEvidence": {
+        "kind": "unknown",
+        "reason": "gap"
+      },
+      "motionCandidate": {
+        "motion": "unknown",
+        "position": "unknown",
+        "distance": "unknown",
+        "motionConfidence": "unknown",
+        "reasons": [
+          "insufficient-observations"
+        ],
+        "observedMeters": null,
+        "steps": {
+          "kind": "unknown",
+          "reason": "gap"
+        },
+        "displacementCorroborated": false
+      },
+      "stepEvidenceIncludedInEngine": false
+    },
+    {
+      "name": "stationary_alternating",
+      "truth": 0,
+      "v1": 2250,
+      "v2": 0,
+      "v2Median": 0,
+      "lockCandidate": 0,
+      "stepEvidence": {
+        "kind": "unknown",
+        "reason": "gap"
+      },
+      "motionCandidate": {
+        "motion": "unknown",
+        "position": "unknown",
+        "distance": "unknown",
+        "motionConfidence": "unknown",
+        "reasons": [
+          "insufficient-observations"
+        ],
+        "observedMeters": null,
+        "steps": {
+          "kind": "unknown",
+          "reason": "gap"
+        },
+        "displacementCorroborated": false
+      },
+      "stepEvidenceIncludedInEngine": false
+    }
+  ],
+  "checks": {
+    "baselineFalseStart": true,
+    "candidateFalseStart": true,
+    "baselineCoherentDrift": true,
+    "baselineShortReversal": true,
+    "cleanSlow": true,
+    "stationary": true,
+    "completeZeroSteps": true,
+    "completePositiveSteps": true,
+    "driftUncertain": true,
+    "shortMotionDetectedWithoutMeters": true
+  },
+  "syntheticPass": true,
+  "fieldAcceptance": "not_run",
+  "releaseReady": false,
+  "limitations": "Step evidence and confidence are calculated by the offline candidate; not fed into the stable motion gate. No measured field improvement, no live writer selection."
+}

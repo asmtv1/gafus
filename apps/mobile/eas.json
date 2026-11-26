@@ -23,12 +23,16 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "GAFUS_OTA_TRANSPORT": "self-hosted",
+        "APP_ENV": "preview"
       }
     },
     "production": {
       "channel": "production",
       "environment": "production",
-      "autoIncrement": true,
+      "autoIncrement": false,
       "android": {
         "buildType": "app-bundle",
         "credentialsSource": "local"
@@ -41,7 +45,8 @@
         "APP_ENV": "production",
         "EXPO_PUBLIC_API_BASE_URL": "https://api.gafus.ru",
         "EXPO_PUBLIC_YM_MOBILE_ENABLED": "true",
-        "EXPO_PUBLIC_CHAT2_API_ORIGIN": "https://api.gafus.ru"
+        "EXPO_PUBLIC_CHAT2_API_ORIGIN": "https://api.gafus.ru",
+        "GAFUS_OTA_TRANSPORT": "self-hosted"
       }
     },
     "production-local": {

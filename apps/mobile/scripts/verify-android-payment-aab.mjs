@@ -10,7 +10,7 @@ const dex = paths.filter((file) => /^base\/dex\/classes\d*\.dex$/.test(file)).ma
 const bundleEntry = paths.find((file) => /^base\/assets\/index\.android\.bundle$/.test(file));
 if (!bundleEntry || !dex.length) throw new Error("Missing Android bundle or DEX");
 const code = read(bundleEntry);
-const mapping = readAabR8Mapping(paths, read);
+const mapping = readAabR8Mapping(paths, aab);
 const hasBilling = dex.some((file) => file.includes("com/android/billingclient/api/BillingClient")) ||
   dexHasMappedClass(dex, mapping, /^com\.android\.billingclient\.api\.BillingClient/);
 const hasBrowser = dex.some((file) => file.includes("expo/modules/webbrowser")) ||

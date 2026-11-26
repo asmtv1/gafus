@@ -11,6 +11,7 @@ const packageNames=[...legacyPackageNames,'subscription-read-server','subscripti
 const manifestFor=(pkg)=>JSON.parse(readFileSync(new URL(`packages/${pkg}/package.json`,root),'utf8'));
 const actualManifestCount=packageNames.reduce((n,pkg)=>n+Object.keys(manifestFor(pkg).exports).length,0);
 const newChat2Export = './chat2/realtime-subscription';
+const newWalkTrackingExport = './walk-tracking';
 const newReminderExport = './trainingReminderClaims';
 const newReminderDeliveryExport = './training-reminder-delivery';
 const newAdminBroadcastExport = './adminBroadcastService';
@@ -43,6 +44,7 @@ const newOnlineStepBindingExport = './online-step-binding';
 const newConsultationMailDeliveryExport = './mail-delivery';
 const newPetsWeightExport = './weight';
 assert.ok(manifestFor('core-client').exports[newChat2Export], 'new Chat2 client export is mandatory');
+assert.ok(manifestFor('core-client').exports[newWalkTrackingExport], 'walk tracking export is mandatory');
 assert.ok(manifestFor('core-client').exports['./chat2/send-attempt'], 'Chat2 send attempt export is mandatory');
 assert.ok(manifestFor('notifications-server').exports['./chat-outbox-diagnostics'], 'Chat2 outbox diagnostics export is mandatory');
 assert.ok(manifestFor('notifications-server').exports[newReminderExport], 'isolated reminder export is mandatory');
@@ -85,8 +87,8 @@ assert.ok(manifestFor('gafus-server').exports['./activity-read'], 'actor-bounded
 assert.ok(manifestFor('gafus-server').exports['./settings-read'], 'Gafus policy settings read must be compiled');
 assert.ok(manifestFor('entitlements-server').exports['./policy-reads'], 'paid content ACL read must be compiled');
 assert.ok(manifestFor('media-server').exports['./question-photo-task'], 'photo rendition task projection must be compiled');
-assert.equal(legacyPackageNames.reduce((n,pkg)=>n+Object.keys(manifestFor(pkg).exports).length,0)-13,
-  48, 'frozen nine-package exports must remain 48 excluding 13 approved new subpaths');
+assert.equal(legacyPackageNames.reduce((n,pkg)=>n+Object.keys(manifestFor(pkg).exports).length,0)-14,
+  48, 'frozen nine-package exports must remain 48 excluding 14 approved new subpaths');
 const write=(p,content)=>{mkdirSync(dirname(p),{recursive:true});writeFileSync(p,content);};
 const perform=(mode,corrupt)=>{
   const dir=mkdtempSync(join(tmpdir(),'gafus-agent2-runtime-layout-'));
@@ -378,6 +380,14 @@ const perform=(mode,corrupt)=>{
       write(join(folder,'package.json'),JSON.stringify(manifest));
     } else if (corrupt==='reminder-export-dts-missing') {
       unlinkSync(join(physical,'notifications-server/dist/trainingReminderClaims.d.ts'));
+    } else if (corrupt==='walk-tracking-export-removed') {
+      const folder=join(physical,'core-client');
+      const manifest=manifestFor('core-client');
+      delete manifest.exports[newWalkTrackingExport];
+      write(join(folder,'package.json'),JSON.stringify(manifest));
+    } else if (corrupt==='walk-tracking-js-missing' || corrupt==='walk-tracking-dts-missing') {
+      const info=manifestFor('core-client').exports[newWalkTrackingExport];
+      unlinkSync(join(physical,'core-client',corrupt==='walk-tracking-js-missing'?info.default:info.types));
     } else if (corrupt==='chat2-export-removed') {
       const folder=join(physical,'core-client');
       const manifest=manifestFor('core-client');
@@ -440,10 +450,24 @@ test('production guard fails closed when new nested exported JS is missing despi
   assert.match(run.stderr,/RUNTIME_PACKAGE_MISSING:@gafus\/subscription-read-server\/qa-missing-nested-js compiled JS/);
 });
 
-test('exact API 38/234 and Worker 37/224 deny extra new export despite both compiled targets',()=>{
+test('exact API 38/235 and Worker 37/225 deny extra new export despite both compiled targets',()=>{
   const run=perform('api','extracted-export-extra');
   assert.notEqual(run.status,0);
-  assert.match(run.stderr,/RUNTIME_POSTSUBSCRIPTION_EXPORT_COVERAGE_CHANGED:packages=38:exports=235/);
+  assert.match(run.stderr,/RUNTIME_POSTSUBSCRIPTION_EXPORT_COVERAGE_CHANGED:packages=38:exports=236/);
+});
+
+test('walk tracking requires the manifest export and both compiled targets in API and Worker',()=>{
+  for(const mode of ['api','worker']) {
+    for(const [corrupt,expected] of [
+      ['walk-tracking-export-removed',/RUNTIME_WALK_TRACKING_EXPORT_MISSING/],
+      ['walk-tracking-js-missing',/RUNTIME_PACKAGE_MISSING:@gafus\/core-client\/walk-tracking compiled JS/],
+      ['walk-tracking-dts-missing',/RUNTIME_PACKAGE_MISSING:@gafus\/core-client\/walk-tracking compiled declarations/],
+    ]) {
+      const run=perform(mode,corrupt);
+      assert.notEqual(run.status,0,`${mode}/${corrupt}`);
+      assert.match(run.stderr,expected);
+    }
+  }
 });
 
 test('approved new Chat2 client mode is required without weakening 48 old exports',()=>{

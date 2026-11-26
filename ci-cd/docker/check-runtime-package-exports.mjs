@@ -23,6 +23,8 @@ const legacyPackages = [
 // original nine-package 48-export baseline. Verify it separately so missing
 // old exports cannot be obscured by new ones.
 const chat2ClientExport = '@gafus/core-client/chat2/realtime-subscription';
+// Walk tracking is a new shared public API, not a historical legacy entry.
+const walkTrackingExport = '@gafus/core-client/walk-tracking';
 // Chat2 additions replace retired VK/Stream entrypoints without weakening the 9/49 baseline.
 const chat2SendAttemptExport = '@gafus/core-client/chat2/send-attempt';
 const chatOutboxDiagnosticsExport = '@gafus/notifications-server/chat-outbox-diagnostics';
@@ -220,6 +222,7 @@ assertFile(main, `${mode} main entry`);
 let exportsChecked = 0;
 let legacyExportsChecked = 0;
 let chat2ClientExportChecked = false;
+let walkTrackingExportChecked = false;
 let chat2SendAttemptExportChecked = false;
 let chatOutboxDiagnosticsExportChecked = false;
 let trainingReminderExportChecked = false;
@@ -390,6 +393,7 @@ for (const name of packages) {
     assertFile(resolve(moduleDir, exportPaths.types), `${specifier} compiled declarations`);
     exportsChecked++;
     if (specifier === chat2ClientExport) chat2ClientExportChecked = true;
+    else if (specifier === walkTrackingExport) walkTrackingExportChecked = true;
     else if (specifier === chat2SendAttemptExport) chat2SendAttemptExportChecked = true;
     else if (specifier === chatOutboxDiagnosticsExport) chatOutboxDiagnosticsExportChecked = true;
     else if (specifier === trainingReminderExport) trainingReminderExportChecked = true;
@@ -528,6 +532,7 @@ for (const name of packages) {
   assertFile(resolve(moduleDir, types), `${name} declaration entry`);
 }
 if (!chat2ClientExportChecked) throw Error('RUNTIME_CHAT2_CLIENT_EXPORT_MISSING');
+if (!walkTrackingExportChecked) throw Error('RUNTIME_WALK_TRACKING_EXPORT_MISSING');
 if (!chat2SendAttemptExportChecked) throw Error('RUNTIME_CHAT2_SEND_ATTEMPT_EXPORT_MISSING');
 if (!chatOutboxDiagnosticsExportChecked) throw Error('RUNTIME_CHAT_OUTBOX_DIAGNOSTICS_EXPORT_MISSING');
 
@@ -664,12 +669,12 @@ for (const spec of sharedContracts) {
     throw Error("RUNTIME_SHARED_CONTRACT_EXPORT_MISSING:" + spec);
 }
 // Frozen 9/48 remains independent of new package exports.
-// Four shared-contract packages: Worker 37 packages/224 exports;
-// API 38 packages/234 exports; frozen legacy 9/48 stays independent.
+// Four shared-contract packages: Worker 37 packages/225 exports;
+// API 38 packages/235 exports; frozen legacy 9/48 stays independent.
 // New notifications-server exports are validated independently, rather than
 // silently included in the fixed historical 48-export baseline.
 if (newPackages.length !== 28 || apiOnly.length !== 1 || workerOnly.length !== 0 ||
   packages.length !== (mode === 'worker' ? 37 : 38) ||
-  (mode === 'worker' ? exportsChecked !== 224 : exportsChecked !== 234))
+  (mode === 'worker' ? exportsChecked !== 225 : exportsChecked !== 235))
   throw Error("RUNTIME_POSTSUBSCRIPTION_EXPORT_COVERAGE_CHANGED:packages=" + packages.length + ":exports=" + exportsChecked);
 console.log(`RUNTIME_PACKAGING_PASS target=${mode} packages=${packages.length} compiled_exports=${exportsChecked}`);

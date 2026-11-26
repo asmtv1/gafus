@@ -58,7 +58,8 @@ function withYandexSkAdNetworkItems(infoPlist = {}) {
 
 const { withGafusNativeCrashCapture } = require('./scripts/native-crash-uptrace-config.cjs');
 const withIosOtaBuildNumber = require('./plugins/withIosOtaBuildNumber');
-module.exports = ({ config }) => withGafusNativeCrashCapture(withIosOtaBuildNumber(applyNativeSelfHostedProfile({
+const withGafusNativeOtaGuard = require('./plugins/withGafusNativeOtaGuard');
+module.exports = ({ config }) => withGafusNativeCrashCapture(withGafusNativeOtaGuard(withIosOtaBuildNumber(applyNativeSelfHostedProfile({
   ...config,
   ios: {
     ...config.ios,
@@ -82,4 +83,4 @@ module.exports = ({ config }) => withGafusNativeCrashCapture(withIosOtaBuildNumb
     rewardedAdsTestMode: process.env.EXPO_PUBLIC_REWARDED_ADS_TEST_MODE === "true",
     analyticsDebug: process.env.EXPO_PUBLIC_GAFUS_ANALYTICS_DEBUG === "1",
   },
-})));
+}))));

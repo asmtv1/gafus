@@ -26,8 +26,13 @@ const base={version:"1.7.5",runtimeVersion:{policy:"appVersion"},updates:{url:"h
 const env={GAFUS_OTA_TRANSPORT:"self-hosted",GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR:descriptorPath,
   GAFUS_OTA_NATIVE_CERTIFICATE:".ota-certs/preview.pem",GAFUS_OTA_TARGET_PLATFORM:"ios"};
 after(()=>fs.rmSync(dir,{recursive:true,force:true}));
-test("default native EAS config unchanged",()=>{
-  assert.equal(applyNativeSelfHostedProfile(base,{environment:{},appRoot:dir}),base);
+test("default developer config disables OTA, release without credentials fails closed",()=>{
+  const result=applyNativeSelfHostedProfile(base,{environment:{},appRoot:dir});
+  assert.equal(result.updates.enabled,false);
+  assert.equal(result.updates.url,undefined);
+  for (const environment of [{APP_ENV:"production"},{APP_ENV:"preview"},{EAS_BUILD:"true",EAS_BUILD_PROFILE:"production"}])
+    assert.throws(()=>applyNativeSelfHostedProfile(base,{environment,appRoot:dir}),/SELF_HOSTED_NATIVE_DESCRIPTOR_AND_CERT_REQUIRED/);
+  assert.throws(()=>applyNativeSelfHostedProfile(base,{environment:{GAFUS_OTA_TRANSPORT:"eas"},appRoot:dir}),/UNSUPPORTED_GAFUS_OTA_TRANSPORT/);
 });
 test("preview native profile switches only explicit verified target and certificate",()=>{
   const result=applyNativeSelfHostedProfile(base,{environment:env,appRoot:dir});

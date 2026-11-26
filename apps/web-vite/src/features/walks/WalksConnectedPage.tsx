@@ -1,3 +1,4 @@
+import { finalizeWalkDisplay, appendWalkTrackPage, WALK_TRACK_PAGE_SIZE, WALK_DISPLAY_TOLERANCE_METERS } from "@gafus/core-client/walk-tracking";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../../shared/api/client";
@@ -33,23 +34,28 @@ interface WebGpsPoint {
   reason: string;
   deltaMeters: number;
 }
-async function fetchOwnWalkPoints(clientId: string, signal: AbortSignal): Promise<WebGpsPoint[]> {
-  const result: WebGpsPoint[] = [];
+export async function fetchOwnWalkPoints(
+  clientId: string,
+  signal: AbortSignal,
+): Promise<{ points: WebGpsPoint[]; partial: boolean }> {
+  const points: WebGpsPoint[] = [];
   let after = 0;
-  for (let page = 0; page < 50; page++) {
-    const data = await apiRequest<WebGpsPoint[]>(
-      `/api/v1/walks/${clientId}/track?afterSeq=${after}`,
-      {
-        browserAuth: true,
-        method: "GET",
-        signal,
-      },
-    );
-    result.push(...data);
-    if (data.length < 200) break;
-    after = data[data.length - 1]!.seq;
+  try {
+    for (;;) {
+      signal.throwIfAborted();
+      const data = await apiRequest<WebGpsPoint[]>(
+        `/api/v1/walks/${encodeURIComponent(clientId)}/track?afterSeq=${after}`,
+        { browserAuth: true, method: "GET", signal },
+      );
+      signal.throwIfAborted();
+      after = appendWalkTrackPage(points, data, after);
+      if (data.length < WALK_TRACK_PAGE_SIZE) break;
+    }
+    return { points, partial: false };
+  } catch (error) {
+    if (signal.aborted || !points.length) throw error;
+    return { points, partial: true };
   }
-  return result;
 }
 function distanceLabel(meters: number) {
   return meters >= 1000 ? `${(meters / 1000).toFixed(2)} км` : `${meters} м`;
@@ -84,22 +90,9 @@ function WalkMap({ points }: { points: WebGpsPoint[] }) {
         });
         map = nextMap;
         nextMap.on("load", () => {
-          const segments = new Map<number, [number, number][]>();
-          for (const p of accepted) {
-            const group = segments.get(p.segment) ?? [];
-            group.push([p.longitude, p.latitude]);
-            segments.set(p.segment, group);
-          }
-          const features = [...segments.entries()]
-            .filter(([, coords]) => coords.length >= 2)
-            .map(([segment, coordinates]) => ({
-              type: "Feature" as const,
-              properties: { segment },
-              geometry: { type: "LineString" as const, coordinates },
-            }));
           nextMap.addSource("walk-route", {
             type: "geojson",
-            data: { type: "FeatureCollection", features },
+            data: finalizeWalkDisplay(accepted, WALK_DISPLAY_TOLERANCE_METERS).geometry,
           });
           nextMap.addLayer({
             id: "walk-route-line",
@@ -230,7 +223,7 @@ export function WalksConnectedPage({ ownerId }: { ownerId: string }) {
                 {walk.gpsMeters != null ? "" : "≈"}
                 {distanceLabel(walk.gpsMeters ?? walk.estimatedMeters)}
               </span>
-              <small>{walk.gpsEnabled ? "Маршрут GPS" : "Расстояние по шагам"}</small>
+              <small>{walk.gpsMeters != null ? "Маршрут GPS" : "Расстояние по шагам"}</small>
             </button>
           ))}
         </div>
@@ -249,15 +242,15 @@ export function WalksConnectedPage({ ownerId }: { ownerId: string }) {
             {current.gpsEnabled ? (
               <>
                 {route.isPending && <p role="status">Загружаем маршрут…</p>}
-                {route.isError && (
+                {(route.isError || route.data?.partial) && (
                   <p role="alert">
-                    Маршрут временно недоступен.{" "}
+                    {route.data?.partial ? "Маршрут загружен не полностью." : "Маршрут временно недоступен."}{" "}
                     <button onClick={() => void route.refetch()} type="button">
                       Повторить
                     </button>
                   </p>
                 )}
-                {route.data && <WalkMap points={route.data} />}
+                {route.data && <WalkMap points={route.data.points} />}
               </>
             ) : (
               <p className={styles.emptyRoute}>

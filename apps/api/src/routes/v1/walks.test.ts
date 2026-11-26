@@ -81,6 +81,17 @@ describe("private dog walk HTTP contract", () => {
     expect(res.headers.get("cache-control")).toContain("no-store");
   });
 
+  it("preserves null, zero and positive GPS distance for old and new clients", async () => {
+    for (const gpsMeters of [null, 0, 42]) {
+      const walk = { ...valid, gpsEnabled: true, gpsMeters, estimatedMeters: gpsMeters ?? valid.estimatedMeters };
+      const res = await app.request("http://test/api/v1/walks/sync", {
+        method: "PUT", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ walks: [walk] }),
+      });
+      expect(res.status).toBe(200);
+      expect(mocked.sync).toHaveBeenLastCalledWith("owner-from-jwt", [walk]);
+    }
+  });
   it("returns forbidden without leaking other accounts' history", async () => {
     mocked.list.mockRejectedValueOnce(new Error("WALKS_FORBIDDEN"));
     const res = await app.request("http://test/api/v1/walks");
@@ -102,6 +113,18 @@ describe('owner-scoped GPS route API',()=>{
     expect(response.status).toBe(200);
     expect(mocked.syncPoints).toHaveBeenCalledWith('owner-from-jwt',valid.clientId,[gpsPoint]);
     expect(response.headers.get('cache-control')).toContain('no-store');
+  });
+  it("accepts canonical v2 segments through the unchanged strict DTO",async()=>{
+    const points=[
+      gpsPoint,
+      {...gpsPoint,seq:2,reason:"ok",deltaMeters:4},
+      {...gpsPoint,seq:3,segment:2,reason:"first",deltaMeters:0},
+    ];
+    const response=await app.request(`http://test/api/v1/walks/${valid.clientId}/track`,{
+      method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({points}),
+    });
+    expect(response.status).toBe(200);
+    expect(mocked.syncPoints).toHaveBeenCalledWith("owner-from-jwt",valid.clientId,points);
   });
   it('rejects spoofed identity and impossible coordinates',async()=>{
     for(const point of [{...gpsPoint,userId:'victim'},{...gpsPoint,latitude:100}]) {
