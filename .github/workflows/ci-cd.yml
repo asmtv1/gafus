@@ -362,6 +362,12 @@ jobs:
           node --test apps/mobile/scripts/android-aab-16k.test.mjs
           node --test apps/mobile/scripts/android-aab-compressor.test.mjs
           node --test apps/mobile/scripts/verify-android-aab-app-links.test.mjs
+          node --test apps/mobile/scripts/android-aab-r8.test.mjs
+          node --test apps/mobile/scripts/self-hosted-native-profile.test.cjs
+          node --test apps/mobile/plugins/withGafusNativeOtaGuard.test.cjs
+          node --test apps/mobile/scripts/verify-ota-production-workflow.test.mjs apps/mobile/scripts/ota-175-release-configuration.test.mjs
+          node --test scripts/mobile-build.test.mjs
+          python3 -B apps/mobile/scripts/verify-native-ota-artifact.test.py
       - name: Verify iOS Universal Links and Android App Links associations (blocking)
         run: |
           node scripts/qa/verify-gafus-app-links.mjs
