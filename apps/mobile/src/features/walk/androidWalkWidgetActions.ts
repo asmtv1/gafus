@@ -107,7 +107,7 @@ async function perform(action: WidgetWalkAction): Promise<void> {
     if (!current || (action === "pause" && !isWalkRunning(current))) return;
     if (current.clientId) {
       try {
-        await stopWalkGps(ownerId, current.clientId);
+        await stopWalkGps(ownerId, current.clientId, now);
       } catch (error) {
         reportClientError(error, { issueKey: "DogWalkWidgetGpsStop" });
       }

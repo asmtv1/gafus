@@ -92,7 +92,7 @@ async function apply(ownerId: string, action: WidgetWalkAction): Promise<void> {
     if (!active || (action === "pause" && !isWalkRunning(active))) return;
     if (active.clientId) {
       try {
-        await stopWalkGps(ownerId, active.clientId);
+        await stopWalkGps(ownerId, active.clientId, now);
       } catch (error) {
         reportClientError(error, { issueKey: "IosWidgetGpsStop" });
       }
