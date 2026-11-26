@@ -133,12 +133,17 @@ jobs:
             done
             [[ "$matched" == true ]] || exit 19
           elif [[ "$OTA_PLATFORM" == android && "$OTA_EXPECTED_RUNTIME" == 1.7.5 ]]; then
-            # The native RuStore 17506 binary is pinned to its own audited
-            # release branch. Never allow an arbitrary SHA or Play build.
-            [[ "$OTA_NATIVE_ID" == cdb6b63e-e7fd-4943-902f-3e6b1507e0f4 ]] || exit 19
+            # Each RuStore binary is pinned to its own audited release branch.
+            # Never accept a different native ID, an arbitrary SHA or Play build.
+            case "$OTA_NATIVE_ID" in
+              cdb6b63e-e7fd-4943-902f-3e6b1507e0f4) branch=release/android-rustore-1.7.5-20261123 ;;
+              78a22462-2f2b-4c76-8ca8-eb08dabe27c5) branch=release/android-rustore-17507-local ;;
+              *) exit 19 ;;
+            esac
             [[ "$OTA_PAYMENT_CONTENT" == android-rustore-yookassa || "$OTA_PAYMENT_CONTENT" == standard ]] || exit 19
-            git fetch --no-tags origin refs/heads/release/android-rustore-1.7.5-20261123:refs/remotes/origin/release/android-rustore-1.7.5-20261123
-            [[ "$(git rev-parse refs/remotes/origin/release/android-rustore-1.7.5-20261123)" == "$OTA_SOURCE_SHA" ]] || exit 19
+            ref="refs/remotes/origin/$branch"
+            git fetch --no-tags origin "refs/heads/$branch:$ref"
+            [[ "$(git rev-parse "$ref")" == "$OTA_SOURCE_SHA" ]] || exit 19
           else
             git merge-base --is-ancestor "$OTA_SOURCE_SHA" origin/main
           fi

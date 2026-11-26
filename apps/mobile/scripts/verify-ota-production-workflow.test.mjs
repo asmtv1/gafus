@@ -41,6 +41,17 @@ test('iOS 1.7.5 release can only use the pinned legacy native-compatible branch'
   assert.match(run,/git merge-base --is-ancestor.*origin\/main/);
   assert.match(step('Resolve verified production native trust')?.run??'',/git merge-base --is-ancestor "\$native_sha" "\$OTA_SOURCE_SHA"/);
 });
+test('RuStore 17506 and 17507 pin distinct native IDs to exact audited branches',()=>{
+  const run=step('Verify approved commit and fully typed target inputs').run;
+  const guard=run.slice(run.indexOf('case "$OTA_NATIVE_ID" in'),run.indexOf('git merge-base --is-ancestor'));
+  assert.match(guard,/cdb6b63e-e7fd-4943-902f-3e6b1507e0f4\) branch=release\/android-rustore-1\.7\.5-20261123 ;;/);
+  assert.match(guard,/78a22462-2f2b-4c76-8ca8-eb08dabe27c5\) branch=release\/android-rustore-17507-local ;;/);
+  assert.match(guard,/\*\) exit 19 ;;/);
+  assert.match(guard,/android-rustore-yookassa.*standard/);
+  assert.match(guard,/git fetch --no-tags origin "refs\/heads\/\$branch:\$ref"/);
+  assert.ok(guard.includes('[[ "$(git rev-parse "$ref")" == "$OTA_SOURCE_SHA" ]] || exit 19'));
+  assert.match(step('Compare native source fingerprint').run,/NATIVE_FINGERPRINT_MISMATCH/);
+});
 test('release pins true production RSA native trust and immutable S3 asset prefix',()=>{
   assert.match(step('Resolve verified production native trust')?.run??'',/verify-ota-production-native-trust\.mjs/);
   assert.match(step('Resolve verified production native trust')?.run??'',/" production "/);
