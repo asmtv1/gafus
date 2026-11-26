@@ -60,7 +60,9 @@ describe("walk route pagination",()=>{
     expect(mocked.api).toHaveBeenCalledTimes(51);
   });
   it("reports partial history when a page repeats its cursor",async()=>{
-    mocked.api.mockResolvedValueOnce(Array.from({length:200},(_,i)=>point(i+1))).mockResolvedValueOnce([point(200)]);
+    mocked.api
+      .mockResolvedValueOnce(Array.from({length:200},(_,i)=>point(i+1)))
+      .mockResolvedValueOnce([point(200)]);
     const result=await fetchOwnWalkPoints("walk",new AbortController().signal);
     expect(result.partial).toBe(true);
     expect(result.points).toHaveLength(200);

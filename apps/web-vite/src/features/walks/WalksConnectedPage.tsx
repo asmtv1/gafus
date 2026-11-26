@@ -34,7 +34,10 @@ interface WebGpsPoint {
   reason: string;
   deltaMeters: number;
 }
-export async function fetchOwnWalkPoints(clientId: string, signal: AbortSignal): Promise<{ points: WebGpsPoint[]; partial: boolean }> {
+export async function fetchOwnWalkPoints(
+  clientId: string,
+  signal: AbortSignal,
+): Promise<{ points: WebGpsPoint[]; partial: boolean }> {
   const points: WebGpsPoint[] = [];
   let after = 0;
   try {
