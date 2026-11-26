@@ -2,7 +2,7 @@
   "expo": {
     "name": "Гафус",
     "slug": "gafus",
-    "version": "1.7.5",
+    "version": "1.7.6",
     "orientation": "default",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
@@ -42,7 +42,7 @@
         "backgroundColor": "#dad3c1"
       },
       "package": "ru.gafus.app",
-      "versionCode": 17507,
+      "versionCode": 17603,
       "intentFilters": [
         {
           "action": "VIEW",
