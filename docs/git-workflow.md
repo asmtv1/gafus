@@ -1,0 +1,13 @@
+# GAFUS trunk-based development and release sources
+
+- `main` is the sole permanent integration branch. Start from current `origin/main`, use small short-lived task branches, submit PRs, resolve review threads, pass required CI, then merge and delete the branch. Integrate daily where practical. Use feature flags or branch-by-abstraction for incomplete large refactors. Do not use force-push or direct pushes to main.
+- GitHub main rules require `prepare-deps`, `security`, `build-apps`, `observability-contracts`, and `cloudru-media-contracts` from GitHub Actions. The repository has one maintainer today; independent review is not a mandatory count until another reviewer is available. Do not disable gates to finish a PR.
+- Record the exact Git SHA, runtime, native ID, build number, fingerprint, artifact hashes and verification evidence for each native release. Native and OTA release artifacts are not branches; preserve their source and metadata separately.
+- Production OTA still runs only on owner-dispatched main, against a verified native descriptor; runtime, native source ancestry, native fingerprint, payment profile, signing, immutable asset upload and READY registration remain mandatory. Deployment to users is a separate explicit approval.
+- For normal current-runtime OTA, prefer a reviewed source on main. For a native-compatible maintenance snapshot outside main, prepare a temporary hotfix branch from the exact native source, review and test it, then the owner approves its exact SHA with an annotated tag:
+
+  `ota-source-<platform>-<native-release-id>-<40-character-commit-sha>`
+
+  Create with `git tag -a <tag> <sha> -m "Approved native-compatible OTA source"`, push only the exact tag, and verify its peeled commit with `git ls-remote --tags origin`. The GitHub tag rulesets restrict creation to the maintainer and forbid updates/deletions without bypass. Never retag a release. Use a fresh SHA/tag for every hotfix. Delete the temporary branch after the tag and verification are complete.
+- Four historical iOS 1.7.5 sources are preserved as `ota-source-ios-1.7.5-<sha>` for backwards compatibility. New approvals use native-specific names. Android 1.7.5 retains its two explicitly supported RuStore native IDs and payment-content restrictions. A tag is not proof of native compatibility; the existing ancestry and fingerprint checks must pass.
+- Before retiring the old release branches, merge the migration PR, verify the effective main workflow and every old branch tip against its protected tag, then remove only those old branches. Do not publish a real OTA solely to test a reference migration; validate the source gate with test repositories and use the regular signed release procedure for the next approved update.

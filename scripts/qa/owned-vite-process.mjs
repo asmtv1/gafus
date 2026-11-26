@@ -72,7 +72,10 @@ export function inspectViteLifecycle(mode, pid, port, {
       processInfo = { pid: Number(match[1]), ppid: Number(match[2]),
         uid: Number(match[3]), command: match[4] };
     }
-    const open = probe('/usr/sbin/lsof', ['-nP', '-t', `-iTCP:${port}`, '-sTCP:LISTEN'], 1);
+    // macOS installs lsof in /usr/sbin; Ubuntu CI provides it in /usr/bin.
+    // Use only trusted absolute paths: a failed probe must never mean a free port.
+    const lsofBinary = process.platform === 'darwin' ? '/usr/sbin/lsof' : '/usr/bin/lsof';
+    const open = probe(lsofBinary, ['-nP', '-t', `-iTCP:${port}`, '-sTCP:LISTEN'], 1);
     if (open.status === 1 && open.stdout.trim() === '' && !(open.stderr ?? '').trim()) listeners = [];
     else if (open.status === 0) {
       const rows = open.stdout.trim().split(/\s+/).filter(Boolean);
