@@ -28,7 +28,7 @@ import {
   mobileIntroFilterFromSearch,
   mobileIntroReportUrl,
 } from "./MobileIntroPanel";
-import { AdminCacheSection, AdminStorageSection, MailPanel, StoragePanel } from "./SystemPanels";
+import { AdminCacheSection, MailPanel, StoragePanel } from "./SystemPanels";
 import { ChatOutboxPanel } from "./ChatOutboxPanel";
 import { SubscriptionPanel } from "./SubscriptionPanels";
 import { UsersPanel } from "./UserManagement";
@@ -551,6 +551,8 @@ function Section({
           "consultations",
           "bookings",
           "trainers-schedules",
+          "feature-flags",
+          "admin",
         ].includes(section.key) && (
           <div className="content-card">
             <DataPanel data={data} title={section.title} />
@@ -567,37 +569,33 @@ function Section({
           onNavigate={onNavigate}
         />
       )}
-      {section.key === "admin" && (
-        <AdminCacheSection canChange={actor.role === "ADMIN" || actor.role === "MODERATOR"} />
-      )}
-      {section.key === "admin" && actor.role === "ADMIN" && <AdminStorageSection />}
-      {actor.role === "ADMIN" && section.key === "profit" && !loading && !error && data !== undefined && (
-        <ProfitExpenses source={data} onSaved={reload} />
-      )}
       {!error && !loading && data !== undefined && section.key === "admin" && (
         <PricingEditor
           key={epoch}
           source={data}
           canChange={actor.role === "ADMIN"}
-          onSaved={reload}
+          // PricingEditor re-reads after save, keeping its success feedback visible.
+          onSaved={() => undefined}
         />
+      )}
+      {section.key === "admin" && (
+        <AdminCacheSection canChange={actor.role === "ADMIN" || actor.role === "MODERATOR"} />
+      )}
+      {actor.role === "ADMIN" && section.key === "profit" && !loading && !error && data !== undefined && (
+        <ProfitExpenses source={data} onSaved={reload} />
       )}
       {!loading && !error && data !== undefined && section.key === "mobile-ota" && (
         <MobileReleasesPanel source={data} />
       )}
-      {actor.role === "ADMIN" &&
-        !error &&
-        !loading &&
-        data !== undefined &&
-        section.key === "feature-flags" && (
-          <FeatureFlagsEditor
-            key={epoch}
-            source={data}
-            // This editor already GET-verifies every PUT and updates its own
-            // draft. Parent reload immediately unmounted the success notice.
-            onSaved={() => undefined}
-          />
-        )}
+      {!error && !loading && data !== undefined && section.key === "feature-flags" && (
+        <FeatureFlagsEditor
+          key={epoch}
+          source={data}
+          canChange={actor.role === "ADMIN"}
+          // The editor verifies saves itself; avoid unmounting its success notice.
+          onSaved={() => undefined}
+        />
+      )}
       {(actor.role === "ADMIN" ||
         (actor.role === "MODERATOR" && section.key === "feed-moderation")) &&
         ![

@@ -493,10 +493,12 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
   it("shows Next premium pricing read-only to MODERATOR without a privileged mail request", async () => {
     currentActor = moderator;
     await mount("/main-panel/admin");
-    expect(host.textContent).toContain("Настройки тарифов Premium");
-    expect(host.textContent).toContain("Только ADMIN может изменять настройки тарифов");
-    expect(host.querySelector("fieldset")?.disabled).toBe(true);
+    expect(host.textContent).toContain("Тарифы Premium");
+    expect(host.textContent).toContain("Изменять тарифы может только администратор");
+    expect(host.querySelector<HTMLInputElement>(".subscription-plan input")?.disabled).toBe(true);
     expect(host.textContent).toContain("Обновить кэш курсов");
+    expect(host.querySelector(".metric-grid")).toBeNull();
+    expect(host.textContent).not.toContain("yookassaTwoWeeksPriceRub");
     expect(calls).toContain("/api/v1/admin/settings/subscriptions");
     expect(calls).not.toContain("/api/v1/admin/mail/alerts");
   });
