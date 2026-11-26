@@ -31,9 +31,9 @@ describe('Chat2 shared photo 360/1440 and video 360/720 quality', () => {
 });
 
 
-describe('Chat2 exact-key CDN → S3 delivery', () => {
+describe.each(['gonomudedoje.begetcdn.cloud', 'cdn.gafus.ru'])('Chat2 exact-key CDN → S3 delivery (%s)', (host) => {
   const root = 'chat2/room/user/00000000-0000-4000-8000-000000000000/v1/';
-  const cdn = 'https://gonomudedoje.begetcdn.cloud/' + root;
+  const cdn = 'https://' + host + '/' + root;
   const s3 = 'https://gafus-chat2-media-2026.s3.cloud.ru/' + root;
   const response = {
     url: cdn + 'video/360.mp4', fallbackUrl: s3 + 'video/360.mp4',
