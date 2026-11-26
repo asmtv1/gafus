@@ -1,3 +1,4 @@
+import { appSubscriptionTierTitle } from "@gafus/types";
 import { useState, type FormEvent } from "react";
 import { toAdminBrowserHref, toAdminInternalPath } from "./adminBrowserRoutes";
 import { requestAdmin } from "./api";
@@ -158,7 +159,7 @@ export function PaymentHistory({ dashboard, source, initialSearch = "" }: {
                     </small>
                   </td>
                   <td>{row.status}</td>
-                  <td>{row.planCode}</td>
+                  <td>{appSubscriptionTierTitle(row.planCode)}</td>
                   <td>{money(row.amountRub, row.currency)}</td>
                   <td>
                     {row.promoCodeSnapshot ?? "—"}

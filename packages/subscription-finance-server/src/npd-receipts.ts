@@ -1,18 +1,13 @@
 import type { Prisma } from "@gafus/prisma";
 
-const NPD_SERVICE_NAMES = {
-  TWO_WEEKS: "Подписка Gafus Premium на 14 дней",
-  MONTHLY: "Подписка Gafus Premium на 30 дней",
-  THREE_MONTHS: "Подписка Gafus Premium на 90 дней",
-} as const;
+// Historical billing-code periods remain valid for already agreed payments.
+const NPD_ALLOWED_INTERVALS = {
+  TWO_WEEKS: [14, 30],
+  MONTHLY: [30],
+  THREE_MONTHS: [30, 90],
+} as const satisfies Record<string, readonly number[]>;
 
-const NPD_INTERVAL_DAYS = {
-  TWO_WEEKS: 14,
-  MONTHLY: 30,
-  THREE_MONTHS: 90,
-} as const;
-
-type NpdPlanCode = keyof typeof NPD_SERVICE_NAMES;
+type NpdPlanCode = keyof typeof NPD_ALLOWED_INTERVALS;
 type TransactionClient = Prisma.TransactionClient;
 
 function amountToKopecks(amount: unknown): number | null {
@@ -65,7 +60,7 @@ export async function ensureNpdReceiptForSucceededPayment(
   });
   if (!payment || payment.provider !== "YOOKASSA" || payment.status !== "SUCCEEDED") return null;
   if (payment.kind !== "INITIAL" && payment.kind !== "RENEWAL") return null;
-  if (!(payment.planCode in NPD_SERVICE_NAMES) || payment.currency !== "RUB") return null;
+  if (!(Object.prototype.hasOwnProperty.call(NPD_ALLOWED_INTERVALS, payment.planCode)) || payment.currency !== "RUB") return null;
   const planCode = payment.planCode as NpdPlanCode;
   const buyerEmail = payment.buyerEmail?.trim();
   const amountKopecks = amountToKopecks(payment.amount);
@@ -76,7 +71,7 @@ export async function ensureNpdReceiptForSucceededPayment(
   const intervalDays = Math.round(
     (payment.periodEnd.getTime() - payment.periodStart.getTime()) / (24 * 60 * 60 * 1000),
   );
-  if (intervalDays !== NPD_INTERVAL_DAYS[planCode] && intervalDays !== 30) return null;
+  if (!(NPD_ALLOWED_INTERVALS[planCode] as readonly number[]).includes(intervalDays)) return null;
 
   const connection = await client.npdConnection.findUnique({
     where: { id: "default" },

@@ -1,3 +1,4 @@
+import { appSubscriptionTierTitle } from "@gafus/types";
 import { useRef, useState, type FormEvent } from "react";
 import { toAdminBrowserHref, toAdminInternalPath } from "./adminBrowserRoutes";
 import { AdminHttpError, requestAdmin } from "./api";
@@ -461,7 +462,7 @@ function NpdPanel({ initial, canManage, initialSearch = "" }: {
                 <td>{item.paymentId}</td>
                 <td>{item.user.fullName || item.user.username}</td>
                 <td>
-                  {item.planCode} · {money(item.amountRub)} {item.currency}
+                  {appSubscriptionTierTitle(item.planCode)} · {money(item.amountRub)} {item.currency}
                 </td>
                 <td>
                   {item.status}

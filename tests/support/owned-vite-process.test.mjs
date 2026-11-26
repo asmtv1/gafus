@@ -77,6 +77,18 @@ test('kernel-backed regression: real disposable loopback listener blocks success
  assert.equal(stillAlive.reason,'QA_VITE_PID_STILL_EXISTS');
 });
 
+test('real TCP probe uses the correct trusted absolute lsof executable on each OS',()=>{
+ const used=[];
+ const probe=(executable)=>{
+  used.push(executable);
+  if(executable==='/bin/ps')return {status:1,stdout:'',stderr:''};
+  return {status:0,stdout:String(process.pid),stderr:''};
+ };
+ const result=inspectViteLifecycle('released',95000,port,{uid,probe});
+ assert.deepEqual(result,{ok:false,reason:'QA_VITE_PORT_STILL_IN_USE'});
+ assert.deepEqual(used,['/bin/ps',process.platform==='darwin'?'/usr/sbin/lsof':'/usr/bin/lsof']);
+});
+
 test('original QA shell must exec the Vite listener and not assert success unconditionally',()=>{
  const script=readFileSync(resolve(import.meta.dirname,'../../scripts/qa/api-account-delete-web-isolated.sh'),'utf8');
  assert.match(script,/exec env GAFUS_WEB_DEV_API_MODE=mock NODE_ENV=development node \.\/node_modules\/vite\/bin\/vite\.js/);

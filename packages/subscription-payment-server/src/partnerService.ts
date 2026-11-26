@@ -1,3 +1,4 @@
+import { resolveAppSubscriptionTier } from "@gafus/types";
 import {
   withPartnerTransaction,
   readPartnerProfileForDashboard,
@@ -30,12 +31,14 @@ import {
 import { parseAppSubscriptionPromoCode } from "./promoCode";
 
 export const PARTNER_COMMISSION_KOPECKS = 25_000;
-export const THREE_MONTH_PARTNER_COMMISSION_KOPECKS = 75_000;
+export const PREMIUM_PARTNER_COMMISSION_KOPECKS = 75_000;
+/** @deprecated Compatibility export; commission is per tier, not per duration. */
+export const THREE_MONTH_PARTNER_COMMISSION_KOPECKS = PREMIUM_PARTNER_COMMISSION_KOPECKS;
 
 export function partnerCommissionKopecksForPlan(planCode: unknown): number {
-  if (planCode === "TWO_WEEKS") return 0;
-  if (planCode === "THREE_MONTHS") return THREE_MONTH_PARTNER_COMMISSION_KOPECKS;
-  return planCode === "MONTHLY" ? PARTNER_COMMISSION_KOPECKS : 0;
+  const tier = resolveAppSubscriptionTier(planCode);
+  if (tier === "PREMIUM") return PREMIUM_PARTNER_COMMISSION_KOPECKS;
+  return tier === "STANDARD" ? PARTNER_COMMISSION_KOPECKS : 0;
 }
 
 function isUniqueViolation(error: unknown): boolean {

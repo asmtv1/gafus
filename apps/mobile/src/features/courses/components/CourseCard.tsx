@@ -1,3 +1,4 @@
+import { appSubscriptionTierIncludesOfflineCourses } from "@gafus/types";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, Pressable, Alert, Platform } from "react-native";
 import { Text } from "react-native-paper";
@@ -211,7 +212,7 @@ function CourseCardComponent({
     : null;
   const canDownloadOffline =
     subscriptionStatus?.hasActiveSubscription === true &&
-    (subscriptionStatus.planCode === "MONTHLY" || subscriptionStatus.planCode === "THREE_MONTHS");
+    appSubscriptionTierIncludesOfflineCourses(subscriptionStatus.planTier ?? subscriptionStatus.planCode);
   const isOfflineEligibilityLoading =
     subscriptionStatusQuery.isLoading || subscriptionStatusQuery.isFetching;
 

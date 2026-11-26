@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act } from "react";
+import { APP_SUBSCRIPTION_TIER_TITLES } from "@gafus/types";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PricingEditor } from "./SettingsEditors";
@@ -61,14 +62,14 @@ async function click(label: string) {
 }
 
 describe("ADMIN-1 Next /admin pricing parity", () => {
-  it("shows original Next plan titles and a read-only form to MODERATOR", async () => {
+  it("shows canonical subscription tier titles and a read-only form to MODERATOR", async () => {
     await mount(false);
     expect(host.textContent).toContain("Тарифы Premium");
     expect(host.textContent).toContain("Цена, ₽");
     expect(host.textContent).toContain("Срок доступа, дней");
-    expect(host.textContent).toContain("Самостоятельный");
-    expect(host.textContent).toContain("Поддержка в чате");
-    expect(host.textContent).toContain("Полное сопровождение");
+    expect(host.textContent).toContain(APP_SUBSCRIPTION_TIER_TITLES.BASIC);
+    expect(host.textContent).toContain(APP_SUBSCRIPTION_TIER_TITLES.STANDARD);
+    expect(host.textContent).toContain(APP_SUBSCRIPTION_TIER_TITLES.PREMIUM);
     expect(host.textContent).toContain("Изменять тарифы может только администратор");
     expect(host.querySelector<HTMLInputElement>(".subscription-plan input")?.disabled).toBe(true);
     await submit();

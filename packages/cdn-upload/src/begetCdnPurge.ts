@@ -115,7 +115,7 @@ export async function begetCdnPurgeDone(
   const allowedSecret = scope === "gallery"
     ? /^[A-Za-z0-9_-]{24,128}$/
     : /^[A-Za-z0-9_-]{24,32}$/;
-  const allowedBase = base === `https://${hosts[scope]}`;
+  const allowedBase = base === `https://${hosts[scope]}` || (base === "https://cdn.gafus.ru" && env[`${scope.toUpperCase()}_CDN_PROVIDER`] === "yandex");
   if (!allowedBase || !allowedSecret.test(secret))
     throw new Error("BEGET_CDN_EDGE_PROOF_UNAVAILABLE");
   const expires = Math.floor(now / 1000) + 90;

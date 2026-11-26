@@ -8,7 +8,7 @@ import { isTrustedCdnProbeUrl } from "@gafus/core/services/mediaDelivery";
  */
 export const mediaCdnProbeRoutes = new Hono();
 const hosts = ["fupiquafifeswu.begetcdn.cloud", "quepraquiecebquomiel.begetcdn.cloud",
-  "ebiteskukingusk.begetcdn.cloud", "gonomudedoje.begetcdn.cloud"] as const;
+  "ebiteskukingusk.begetcdn.cloud", "gonomudedoje.begetcdn.cloud", "cdn.gafus.ru"] as const;
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 /** Synthetic loopback CDN status socket, available ONLY during Agent2 disposable QA.
  * It cannot be used with a shared/work DB, a production runtime or any other host.

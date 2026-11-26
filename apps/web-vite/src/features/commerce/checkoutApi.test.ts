@@ -17,7 +17,10 @@ const reply=(data:unknown,status=200)=>new Response(JSON.stringify({success:stat
 afterEach(()=>vi.unstubAllGlobals());
 describe("WEB Next subscription checkout Hono bridge",()=>{
   it("selects only verified server plans, never invents fallback prices",()=>{
-    expect(validatedCheckoutPlans(offer)).toEqual([plan]);
+    expect(validatedCheckoutPlans(offer)).toEqual([{...plan, planTier:"STANDARD"}]);
+    expect(validatedCheckoutPlans({...offer,yookassaPlans:[{...plan,planTier:"STANDARD"}]}))
+      .toEqual([{...plan, planTier:"STANDARD"}]);
+    expect(()=>validatedCheckoutPlans({...offer,yookassaPlans:[{...plan,planTier:"PREMIUM"}]})).toThrow();
     expect(()=>validatedCheckoutPlans({...offer,yookassaPlans:[plan,plan]})).toThrow();
     expect(()=>validatedCheckoutPlans({
       ...offer,yookassaPlans:[{...plan,yookassaPriceRub:-1}],

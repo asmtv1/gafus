@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import ts from "typescript";
 import {
   APP_SUBSCRIPTION_PLAN_CODES,
+  getAppSubscriptionPlanConfig,
   isPromoEligibleAppSubscriptionPlanCode,
   normalizeAppSubscriptionPlanCode,
 } from "./plans";
@@ -23,6 +24,14 @@ describe("shared billing and payment policies", () => {
     expect(isPromoEligibleAppSubscriptionPlanCode("WEEKLY")).toBe(false);
     expect(isPromoEligibleAppSubscriptionPlanCode("MONTHLY")).toBe(true);
     expect(isPromoEligibleAppSubscriptionPlanCode("THREE_MONTHS")).toBe(true);
+  });
+  it("keeps product level independent of agreed duration and billing IDs", () => {
+    expect(getAppSubscriptionPlanConfig(null, "TWO_WEEKS")).toMatchObject({ planTier: "BASIC", intervalDays: 30 });
+    expect(getAppSubscriptionPlanConfig(null, "MONTHLY")).toMatchObject({ planTier: "STANDARD", intervalDays: 30 });
+    expect(getAppSubscriptionPlanConfig(null, "THREE_MONTHS")).toMatchObject({ planTier: "PREMIUM", intervalDays: 30 });
+    expect(getAppSubscriptionPlanConfig({ threeMonthsIntervalDays: 90 }, "THREE_MONTHS"))
+      .toMatchObject({ planTier: "PREMIUM", intervalDays: 90 });
+    expect(normalizeAppSubscriptionPlanCode("PREMIUM")).toBe("THREE_MONTHS");
   });
   it("retains strict promo identity and two-digit decimal rounding", () => {
     expect(parseAppSubscriptionPromoCode(" sale_20 ")).toEqual({

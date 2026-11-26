@@ -22,6 +22,12 @@ describe("Chat2 Cloud.ru S3 CDN delivery without VMs", () => {
     expect(d.renditions.imageWidths?.[1440]).toBe(1440);
     expect(d.fallbackRenditions?.image?.[1440]).toContain("gafus-chat2-media-2026.s3.cloud.ru");
   });
+  it("uses the shared Yandex CDN with direct S3 fallback for Chat2 finals", () => {
+    const d=chat2V2Delivery(image,{CHAT2_V2_CDN_BASE_URL:"https://cdn.gafus.ru"});
+    expect(d.url).toBe("https://cdn.gafus.ru/"+image.keys.medium);
+    expect(d.renditions.image?.[360]).toBe("https://cdn.gafus.ru/"+image.keys.small);
+    expect(d.fallbackUrl).toBe("https://gafus-chat2-media-2026.s3.cloud.ru/"+image.keys.medium);
+  });
   it("maps a processed MP4 and poster to the same CDN/S3 key without HLS", () => {
     const base="chat2/room/user/00000000-0000-4000-8000-000000000000/v1/";
     const video:Chat2V2Manifest={

@@ -51,3 +51,18 @@ describe("CDN -> authenticated S3 fallback authorization contract", () => {
     expect(isSignedCdnFailoverActive(url, now + MEDIA_CDN_OUTAGE_COOLDOWN_MS + 1000)).toBe(false);
   });
 });
+
+describe('shared Yandex CDN', () => {
+  it('accepts only signed final gallery/feed and exact public paths', () => {
+    const h = 'cdn.gafus.ru', now = 1_793_600_000_000;
+    const query = '?md5=ABCDEFGHIJKLMNOPQRSTUV&expires=' + (now / 1000 + 90);
+    for (const path of ['/gallery/owner/media/photo/v2/thumb.webp','/media/v2/asset/v1/video/360.mp4']) {
+      expect(isTrustedCdnProbeUrl(`https://${h}${path}${query}`, [h], now)).toBe(true);
+      expect(isTrustedCdnProbeUrl(`https://${h}${path}`, [h], now)).toBe(false);
+      expect(isTrustedCdnProbeUrl(`https://${h}${path}${query}&extra=1`, [h], now)).toBe(false);
+    }
+    expect(isTrustedCdnProbeUrl(`https://${h}/users/o/pets/p/vet-visits/v/a/original.pdf${query}`, [h], now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(`https://${h}/chat2/room/owner/00000000-0000-4000-8000-000000000000/v1/image/s.webp`, [h], now)).toBe(true);
+    expect(isTrustedCdnProbeUrl(`https://${h}/questions/uploads/questions/v2/owner/00000000-0000-4000-8000-000000000000/v1/image/m.webp`, [h], now)).toBe(true);
+  });
+});

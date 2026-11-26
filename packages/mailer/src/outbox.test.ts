@@ -144,6 +144,25 @@ describe("encrypted transactional mail outbox", () => {
     expect(db.updateMany.mock.calls[1][0].data.ciphertext).toBeUndefined();
   });
 
+  it("retries reset mail after one minute with the same key and specific network error", async () => {
+    const id = "password-reset-test";
+    const row = {
+      ...encryptMailPayload({ ...sensitiveMail, attachments: undefined, category: "auth", deliveryKey: id }, id),
+      id, attempts: 1, createdAt: new Date(), expiresAt: new Date(Date.now() + 45 * 60_000),
+    };
+    db.findFirst.mockResolvedValueOnce({ id }).mockResolvedValueOnce(null);
+    db.findUnique.mockResolvedValue(row);
+    sendResend.mockRejectedValue(new Error("Resend transport failed (NETWORK_TIMEOUT); acceptance unknown (attempt test)"));
+    const started = Date.now();
+    expect(await processDueTransactionalMailOutbox()).toMatchObject({ failed: 1, sent: 0 });
+    expect(sendResend).toHaveBeenCalledWith(expect.objectContaining({ deliveryKey: id }), expect.anything());
+    const update = db.updateMany.mock.calls[1][0].data;
+    expect(update).toMatchObject({ status: "PENDING", lastErrorCode: "NETWORK_TIMEOUT" });
+    expect(update.nextAttemptAt.getTime()).toBeGreaterThanOrEqual(started + 60_000);
+    expect(update.nextAttemptAt.getTime()).toBeLessThanOrEqual(Date.now() + 60_000);
+    expect(update.ciphertext).toBeUndefined();
+  });
+
   it("stops expired mails before sending and wipes encrypted content", async () => {
     const encrypted = encryptMailPayload(
       { ...sensitiveMail, attachments: undefined }, sensitiveMail.deliveryKey,

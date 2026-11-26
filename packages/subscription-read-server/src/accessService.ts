@@ -1,5 +1,6 @@
 import { prisma } from "@gafus/prisma";
 
+import { resolveAppSubscriptionTier, appSubscriptionTierIncludesChat, appSubscriptionTierIncludesConsultations } from "@gafus/types";
 import type { AppSubscriptionStatusDto } from "@gafus/types";
 const ACTIVE_CANDIDATE_STATUSES = ["ACTIVE", "PENDING", "PAST_DUE"] as const;
 
@@ -137,11 +138,10 @@ export async function getCynologistEntitlements(userId: string, now = new Date()
   );
   return {
     canUseCynologistChat: Boolean(user) && (user?.role === "PARTNER" || nonTrial.some(
-      (row) => row.isLifetime || row.planCode === "MONTHLY" ||
-        row.planCode === "THREE_MONTHS",
+      (row) => row.isLifetime || appSubscriptionTierIncludesChat(row.planCode),
     )),
     canBookConsultations: Boolean(user) && nonTrial.some(
-      (row) => !row.isLifetime && row.planCode === "THREE_MONTHS",
+      (row) => !row.isLifetime && appSubscriptionTierIncludesConsultations(row.planCode),
     ),
   };
 }
@@ -154,5 +154,5 @@ export async function getAppSubscriptionAccess(
     getBaseAppSubscriptionAccess(userId, now),
     getCynologistEntitlements(userId, now),
   ]);
-  return { ...status, ...rights };
+  return { ...status, ...rights, planTier: resolveAppSubscriptionTier(status.planCode) };
 }

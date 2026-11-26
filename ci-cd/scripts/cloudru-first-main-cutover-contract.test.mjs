@@ -125,12 +125,19 @@ test('Vite image matrix restores the verified build-apps artifact instead of rec
 });
 
 test('one coordinated release enables verified Chat2 CDN-first delivery with S3 fallback',()=>{
- const compose=read('ci-cd/docker/docker-compose.prod.yml');
- // Production Hono API must receive the verified public final-media origin.
- // A mere GitHub Environment variable would otherwise be lost by Compose.
- assert(app.includes('echo "CHAT2_V2_CDN_BASE_URL=https://gonomudedoje.begetcdn.cloud"'));
- assert(compose.includes('- CHAT2_V2_CDN_BASE_URL=${CHAT2_V2_CDN_BASE_URL:-}'));
- assert.equal((compose.match(/- CHAT2_V2_CDN_BASE_URL=/g)??[]).length,1);
+ const compose=parse(read('ci-cd/docker/docker-compose.prod.yml'));
+ // The API serves final-media URLs and the Worker participates in shared CDN
+ // operations. Each must receive exactly one binding, with no hardcoded host.
+ const key='CHAT2_V2_CDN_BASE_URL';
+ const binding=key+'=${CHAT2_V2_CDN_BASE_URL:-}';
+ const services=Object.entries(compose.services).filter(([,svc])=>
+  (svc.environment??[]).some(row=>typeof row==='string'&&row.startsWith(key+'=')));
+ assert.deepEqual(services.map(([name])=>name).sort(),['api','worker']);
+ for(const [name,svc] of services){
+  assert.deepEqual(svc.environment.filter(row=>row.startsWith(key+'=')),[binding],name);
+ }
+ // The cutover must preserve the configured provider and the fallback origin.
+ assert.match(app,/if \[ "\$\{\{ vars\.GAFUS_MEDIA_CDN_TARGET \}\}" = "yandex" \]; then\s+echo "CHAT2_V2_CDN_BASE_URL=https:\/\/cdn\.gafus\.ru"\s+else\s+echo "CHAT2_V2_CDN_BASE_URL=https:\/\/gonomudedoje\.begetcdn\.cloud"\s+fi/);
  assert(app.includes('echo "CHAT2_S3_BUCKET=gafus-chat2-media-2026"'));
 });
 

@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
@@ -22,24 +23,55 @@ test('OTA production release is manually dispatched from owner main with product
   assert.equal(job.env.EXPO_PUBLIC_TELEMETRY_ENABLED,'true');
   assert.equal(job.env.EXPO_PUBLIC_API_BASE_URL,'https://api.gafus.ru');
   assert.equal(job.env.GAFUS_OTA_TRANSPORT,'self-hosted');
-  assert.equal(wf.on.workflow_dispatch.inputs.runtime_version.required,false);
+  assert.equal(wf.on.workflow_dispatch.inputs.runtime_version.required,true);
   assert.equal(wf.on.workflow_dispatch.inputs.payment_content.default,'standard');
   assert.match(step('Resolve verified production native trust')?.run??'',/jq -er '\.runtimeVersion'/);
   assert.match(step('fully typed target')?.run??'',/OTA_EXPECTED_RUNTIME/);
   assert.deepEqual(Object.keys(wf.on), ['workflow_dispatch']);
 });
-test('iOS 1.7.5 release can only use the pinned legacy native-compatible branch',()=>{
-  const run=step('Verify approved commit and fully typed target inputs')?.run ?? '';
-  assert.match(run,/OTA_PLATFORM.*== ios &&.*OTA_EXPECTED_RUNTIME.*== 1\.7\.5/);
-  assert.match(run,/ios-public-yookassa.*standard/);
-  assert.match(run,/refs\/heads\/\$branch/);
-  assert.match(run,/release\/ios-175-yookassa-ota-99/);
-  assert.match(run,/release\/ios-175-yookassa-ota-98/);
-  assert.match(run,/release\/ios-175-yookassa-ota-97/);
-  assert.match(run,/git rev-parse "\$ref"/);
-  assert.match(run,/\$matched.*== true/);
+test('production source approval uses immutable annotated tags, main and verified native trust',()=>{
+  const run=step('Verify approved commit and fully typed target inputs').run;
+  assert.match(run,/git fetch --no-tags origin "\$ref:\$ref"/);
+  assert.ok(run.includes('[[ "$(git cat-file -t "$ref")" == tag ]]'));
+  assert.ok(run.includes('[[ "$(git rev-parse "$ref^{commit}")" == "$OTA_SOURCE_SHA" ]]'));
+  assert.ok(run.includes('native_tag="ota-source-$OTA_PLATFORM-$OTA_NATIVE_ID-$OTA_SOURCE_SHA"'));
+  assert.ok(run.includes('ota-source-ios-1.7.5-$OTA_SOURCE_SHA'));
+  assert.doesNotMatch(run,/refs\/heads\/\$branch|release\/ios-175|release\/android-rustore/);
+  assert.match(run,/cdb6b63e-e7fd-4943-902f-3e6b1507e0f4\|78a22462-2f2b-4c76-8ca8-eb08dabe27c5/);
   assert.match(run,/git merge-base --is-ancestor.*origin\/main/);
-  assert.match(step('Resolve verified production native trust')?.run??'',/git merge-base --is-ancestor "\$native_sha" "\$OTA_SOURCE_SHA"/);
+  assert.ok(!run.includes('-z "$OTA_EXPECTED_RUNTIME"'));
+  const trust=step('Resolve verified production native trust').run;
+  assert.ok(trust.includes('[[ "$OTA_RUNTIME" == "$OTA_EXPECTED_RUNTIME" ]]'));
+  assert.match(trust,/git merge-base --is-ancestor "\$native_sha" "\$OTA_SOURCE_SHA"/);
+  assert.match(step('Compare native source fingerprint').run,/NATIVE_FINGERPRINT_MISMATCH/);
+});
+test('source approval shell fails closed using real Git refs (no release secrets)',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gafus-ota-approval-'));
+  const origin=path.join(dir,'remote.git'),repo=path.join(dir,'repo');
+  const cmd=(cwd,...args)=>{const r=spawnSync('git',args,{cwd,encoding:'utf8'});assert.equal(r.status,0,r.stderr);return r.stdout.trim();};
+  try {
+    cmd(dir,'init','--bare',origin); fs.mkdirSync(repo); cmd(repo,'init','-b','main');
+    cmd(repo,'config','user.name','Test');cmd(repo,'config','user.email','test@example.invalid');
+    cmd(repo,'remote','add','origin',origin);
+    cmd(repo,'commit','--allow-empty','-m','main');const trunk=cmd(repo,'rev-parse','HEAD');
+    cmd(repo,'push','origin','main');cmd(repo,'checkout','-b','hotfix');cmd(repo,'commit','--allow-empty','-m','hotfix');
+    const sha=cmd(repo,'rev-parse','HEAD');
+    const a='cdb6b63e-e7fd-4943-902f-3e6b1507e0f4',b='78a22462-2f2b-4c76-8ca8-eb08dabe27c5';
+    const tag=(name,target=sha,annotated=true)=>{cmd(repo,'tag',...(annotated?['-a',name,target,'-m','approved']:[name,target]));cmd(repo,'push','origin','refs/tags/'+name);};
+    const run=step('Verify approved commit and fully typed target inputs').run;
+    const check=(overrides={},expected=true)=>{
+      const r=spawnSync('bash',['-c',run],{cwd:repo,encoding:'utf8',env:{...process.env,OTA_SOURCE_SHA:sha,OTA_NATIVE_ID:a,OTA_UPDATE_ID:a,OTA_OPERATION_ID:'test-operation-001',OTA_REVISION:'1',OTA_EXPECTED_RUNTIME:'1.7.5',OTA_RELEASE_TITLE:'test',OTA_RECOVERY_FOR:'',OTA_PAYMENT_CONTENT:'standard',OTA_CREATED_AT:'2026-11-26T00:00:00Z',OTA_PLATFORM:'android',...overrides}});
+      assert.equal(r.status===0,expected,`${JSON.stringify(overrides)}: ${r.stderr}`);
+    };
+    check({},false); tag(`ota-source-android-${a}-${sha}`);check();
+    check({OTA_NATIVE_ID:b},false);tag(`ota-source-android-${b}-${sha}`,trunk);check({OTA_NATIVE_ID:b},false);
+    check({OTA_EXPECTED_RUNTIME:''},false);check({OTA_PAYMENT_CONTENT:'ios-public-yookassa'},false);
+    check({OTA_PLATFORM:'ios'},false);tag(`ota-source-ios-1.7.5-${sha}`);check({OTA_PLATFORM:'ios'});
+    check({OTA_PLATFORM:'ios',OTA_PAYMENT_CONTENT:'android-rustore-yookassa'},false);
+    check({OTA_EXPECTED_RUNTIME:'1.7.6',OTA_NATIVE_ID:b},false);check({OTA_EXPECTED_RUNTIME:'1.7.6'});
+    const c='00000000-0000-4000-8000-000000000000';tag(`ota-source-android-${c}-${sha}`,sha,false);check({OTA_EXPECTED_RUNTIME:'1.7.6',OTA_NATIVE_ID:c},false);
+    cmd(repo,'checkout','main');check({OTA_SOURCE_SHA:trunk,OTA_EXPECTED_RUNTIME:'1.7.6',OTA_NATIVE_ID:c});
+  } finally {fs.rmSync(dir,{recursive:true,force:true});}
 });
 test('release pins true production RSA native trust and immutable S3 asset prefix',()=>{
   assert.match(step('Resolve verified production native trust')?.run??'',/verify-ota-production-native-trust\.mjs/);
@@ -79,14 +111,16 @@ test('future production deploys preserve iOS 1.7.5 YooKassa gates from GitHub En
     assert.ok(compose.includes(name+'=${'+name+':-false}'),
       name+' must be passed to the API container with a fail-closed default');
   }
-  assert.ok(deploy.includes('echo "MOBILE_IOS_MIN_VERSION=${{ vars.MOBILE_IOS_MIN_VERSION || \'1.7.2\' }}"'),
+  assert.ok(deploy.includes('echo "MOBILE_IOS_MIN_VERSION=${{ vars.MOBILE_IOS_MIN_VERSION || \'1.7.5\' }}"'),
     'iOS minimum version must survive production .env regeneration');
+  assert.ok(deploy.includes('echo "MOBILE_ANDROID_MIN_VERSION=${{ vars.MOBILE_ANDROID_MIN_VERSION || \'1.7.5\' }}"'),
+    'Android minimum version must survive production .env regeneration');
   assert.ok(compose.includes('MOBILE_IOS_MIN_VERSION=${MOBILE_IOS_MIN_VERSION:-1.7.2}'));
   const fragments=deployStep.env;
   const shellUnits=[
     ['DEPLOY_SCRIPT_1',fragments.DEPLOY_SCRIPT_1],
     ['DEPLOY_SCRIPT_1B + DEPLOY_SCRIPT_2',fragments.DEPLOY_SCRIPT_1B+'\n'+fragments.DEPLOY_SCRIPT_2],
-    ['DEPLOY_SCRIPT_3',fragments.DEPLOY_SCRIPT_3],
+    ['DEPLOY_SCRIPT_3 + DEPLOY_SCRIPT_4',fragments.DEPLOY_SCRIPT_3+'\n'+fragments.DEPLOY_SCRIPT_4],
   ];
   for(const [name,script] of shellUnits) {
     const child=spawnSync('bash',['-n'],{input:script,encoding:'utf8'});

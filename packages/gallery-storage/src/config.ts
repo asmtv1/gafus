@@ -9,7 +9,7 @@ export interface GalleryStorageConfig {
   secretAccessKey: string;
   cdnBaseUrl: string;
   cdnSecret: string;
-  cdnProvider?: "beget";
+  cdnProvider?: "beget" | "yandex";
   cdnRedirectEnabled?: boolean;
   cdnOriginRouteEnabled?: boolean;
   cacheableFinalEnabled?: boolean;
@@ -46,7 +46,7 @@ export function galleryStorageConfigFromEnv(
     cdnRedirectEnabled: env.GALLERY_CDN_REDIRECT_ENABLED === "true",
     cdnOriginRouteEnabled: env.GALLERY_CDN_ORIGIN_ROUTE_ENABLED === "true",
     cacheableFinalEnabled: env.GALLERY_CDN_CACHEABLE_FINAL_ENABLED === "true",
-    cdnProvider: env.GALLERY_CDN_PROVIDER as "beget" | undefined,
+    cdnProvider: env.GALLERY_CDN_PROVIDER as "beget" | "yandex" | undefined,
   };
   for (const flag of ["GALLERY_CDN_REDIRECT_ENABLED", "GALLERY_CDN_ORIGIN_ROUTE_ENABLED", "GALLERY_CDN_CACHEABLE_FINAL_ENABLED"]) {
     if (env[flag] !== undefined && !["true", "false"].includes(env[flag]!))
@@ -61,7 +61,7 @@ export function galleryStorageConfigFromEnv(
     throw new Error("GALLERY_CDN_CACHE_NOT_VERIFIED");
   if (config.cdnRedirectEnabled && !config.cdnOriginRouteEnabled)
     throw new Error("GALLERY_CDN_REDIRECT_REQUIRES_ORIGIN");
-  if (config.cdnProvider !== undefined && config.cdnProvider !== "beget")
+  if (config.cdnProvider !== undefined && config.cdnProvider !== "beget" && config.cdnProvider !== "yandex")
     throw new Error("INVALID_GALLERY_CDN_PROVIDER");
   // Cleanup still needs standalone storage credentials even with the product flag off.
   if (enabled) {
@@ -78,13 +78,13 @@ export function galleryStorageConfigFromEnv(
       url.hash ||
       url.username ||
       url.password ||
-      url.hostname !== "fupiquafifeswu.begetcdn.cloud"
+      url.port || url.hostname !== (config.cdnProvider === "yandex" ? "cdn.gafus.ru" : "fupiquafifeswu.begetcdn.cloud")
     )
       throw new Error("UNSAFE_CDN_URL");
     config.cdnBaseUrl = url.origin;
     // Client WebP finalization uses direct S3 HEAD/COPY in the API. No Gallery
     // Cloud worker, HMAC callback URL or PROCESSOR_READY flag is required.
-    if (!/^[A-Za-z0-9_-]{24,128}$/.test(config.cdnSecret))
+    if (!(config.cdnProvider === "yandex" ? /^[A-Za-z0-9_-]{24,32}$/ : /^[A-Za-z0-9_-]{24,128}$/).test(config.cdnSecret))
       throw new Error("MISSING_GALLERY_SECRETS");
   }
   if (env.GALLERY_BUCKET_PUBLIC === "true") throw new Error("PUBLIC_GALLERY_BUCKET");

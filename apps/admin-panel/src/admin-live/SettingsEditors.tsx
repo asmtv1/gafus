@@ -1,3 +1,4 @@
+import { APP_SUBSCRIPTION_TIER_TITLES } from "@gafus/types";
 import { useRef, useState, type FormEvent } from "react";
 import { AdminHttpError, requestAdmin } from "./api";
 
@@ -7,21 +8,21 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const controls = [
   {
     key: "twoWeeks",
-    title: "Самостоятельный",
+    title: APP_SUBSCRIPTION_TIER_TITLES.BASIC,
     enabled: "twoWeeksEnabled",
     price: "yookassaTwoWeeksPriceRub",
     days: "twoWeeksIntervalDays",
   },
   {
     key: "monthly",
-    title: "Поддержка в чате",
+    title: APP_SUBSCRIPTION_TIER_TITLES.STANDARD,
     enabled: "monthlyEnabled",
     price: "yookassaMonthlyPriceRub",
     days: "monthlyIntervalDays",
   },
   {
     key: "threeMonths",
-    title: "Полное сопровождение",
+    title: APP_SUBSCRIPTION_TIER_TITLES.PREMIUM,
     enabled: "threeMonthsEnabled",
     price: "yookassaThreeMonthsPriceRub",
     days: "threeMonthsIntervalDays",

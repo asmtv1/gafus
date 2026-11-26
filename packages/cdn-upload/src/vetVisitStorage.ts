@@ -37,7 +37,7 @@ function storage() {
     url.hash ||
     url.username ||
     url.password ||
-    url.hostname !== "fupiquafifeswu.begetcdn.cloud"
+    url.port || url.hostname !== (process.env.GALLERY_CDN_PROVIDER === "yandex" ? "cdn.gafus.ru" : "fupiquafifeswu.begetcdn.cloud")
   )
     throw new Error("PRIVATE_VET_STORAGE_UNAVAILABLE");
   return {
@@ -131,6 +131,11 @@ export async function vetVisitMediaUrl(key: string, downloadName?: string) {
     // remain short-lived direct Cloud.ru downloads and never traverse Beget.
     const expires = Math.floor((Date.now() + 300_000) / 30_000) * 30;
     const path = `/${key}`;
+    if (process.env.GALLERY_CDN_PROVIDER === "yandex") {
+      if (!/^[A-Za-z0-9_-]{24,32}$/.test(config.secret)) throw new Error("PRIVATE_VET_CDN_PROVIDER_INVALID");
+      const token = createHash("md5").update(`${expires}${path} ${config.secret}`).digest("base64url");
+      return `${config.base}${path}?md5=${token}&expires=${expires}`;
+    }
     if (process.env.GALLERY_CDN_PROVIDER !== undefined && process.env.GALLERY_CDN_PROVIDER !== "beget")
       throw new Error("PRIVATE_VET_CDN_PROVIDER_INVALID");
     const token = createHash("md5")

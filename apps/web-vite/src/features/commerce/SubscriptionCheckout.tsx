@@ -1,3 +1,4 @@
+import { resolveAppSubscriptionTier, type AppSubscriptionTier } from "@gafus/types";
 import { Loading } from "../../shared/ui";
 import { useEffect,useMemo,useRef,useState } from "react";
 import { useQuery,useQueryClient } from "@tanstack/react-query";
@@ -12,10 +13,10 @@ const sbpPrice=(amount:number)=>new Intl.NumberFormat("ru-RU",{
 }).format(amount).replace(/\s/g," ")+" ₽";
 const sleep=(ms:number)=>new Promise<void>(resolve=>setTimeout(resolve,ms));
 
-const PLAN_SUBTITLES: Record<CheckoutPlan["code"], string> = {
-  TWO_WEEKS: "Для самостоятельных занятий в своём темпе",
-  MONTHLY: "Обучение с поддержкой кинолога в чате",
-  THREE_MONTHS: "Все возможности и запись к специалисту",
+const PLAN_SUBTITLES: Record<Exclude<AppSubscriptionTier, "LEGACY_WEEKLY">, string> = {
+  BASIC: "Для самостоятельных занятий в своём темпе",
+  STANDARD: "Обучение с поддержкой кинолога в чате",
+  PREMIUM: "Все возможности и запись к специалисту",
 };
 const PLAN_FEATURES: {title:string;detail:string;included:(plan:CheckoutPlan)=>boolean}[]=[
   {title:"Курсы и практические шаги",detail:"Обучающие программы и упражнения",included:()=>true},
@@ -51,9 +52,9 @@ export function SubscriptionCheckout({ownerId,search="",embedded=false,context="
   },[offer.data]);
   const plans=checked.plans;
   const chosen=consultation
-    ? plans.find(p=>p.code==="THREE_MONTHS"&&p.consultationBookingIncluded===true)??null
-    : plans.find(p=>p.code===selected)??plans.find(p=>p.code==="MONTHLY")??plans[0]??null;
-  const promoVisible=!!chosen&&(chosen.code==="MONTHLY"||chosen.code==="THREE_MONTHS")&&
+    ? plans.find(p=>resolveAppSubscriptionTier(p.planTier ?? p.code)==="PREMIUM"&&p.consultationBookingIncluded===true)??null
+    : plans.find(p=>p.code===selected)??plans.find(p=>resolveAppSubscriptionTier(p.planTier ?? p.code)==="STANDARD")??plans[0]??null;
+  const promoVisible=!!chosen&&(resolveAppSubscriptionTier(chosen.planTier ?? chosen.code)==="STANDARD"||resolveAppSubscriptionTier(chosen.planTier ?? chosen.code)==="PREMIUM")&&
     chosen.promoCodeEligible&&offer.data?.promoCode?.entryEnabled===true&&
     offer.data.promoCode.eligible===true;
   const active=status.data?.hasActiveSubscription===true;
@@ -194,7 +195,7 @@ export function SubscriptionCheckout({ownerId,search="",embedded=false,context="
                 {plan.badge && <span className="subscription-plan-badge">{plan.badge==="POPULAR" ? "Популярный выбор" : plan.badge==="MAX_SAVINGS" ? "Выгодный тариф" : "Для начала"}</span>}
               </span>
               <strong className="subscription-plan-title">{plan.title}</strong>
-              <span className="subscription-plan-description">{PLAN_SUBTITLES[plan.code]}</span>
+              <span className="subscription-plan-description">{PLAN_SUBTITLES[resolveAppSubscriptionTier(plan.planTier ?? plan.code) as Exclude<AppSubscriptionTier, "LEGACY_WEEKLY">]}</span>
               <span className="subscription-plan-price"><strong>{rub(plan.yookassaPriceRub)}</strong><small>за {plan.intervalDays} дней</small></span>
               <span className="subscription-features-label">ВОЗМОЖНОСТИ ТАРИФА</span>
               <span className="subscription-plan-features">
