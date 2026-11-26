@@ -163,7 +163,7 @@ const sections = [
     "Почта и алерты",
   ],
   ["media", <StoragePanel data={storage} />, "Управление хранилищем"],
-  ["admin", <PricingEditor source={plans} onSaved={noop} />, "Настройки тарифов Premium"],
+  ["admin", <PricingEditor source={plans} onSaved={noop} />, "Тарифы Premium"],
   [
     "partners",
     <PartnersPanel source={[]} onSaved={noop} initialPartnerId={null} onNavigate={noKey} />,
@@ -187,7 +187,7 @@ const sections = [
       }}
       onSaved={noop}
     />,
-    "Флаги мобильного приложения",
+    "Настройки приложения",
   ],
   [
     "broadcasts",
@@ -302,7 +302,12 @@ describe("18 isolated Vite Admin section server DTO rendering", () => {
   });
   it("keeps legacy OTA read-only and exposes independent iOS/Android controls under mobile releases", () => {
     const flags = renderToStaticMarkup(sections.find(([key]) => key === "feature-flags")![1]);
-    expect(flags).toContain("Наследуемый общий OTA-переключатель (только чтение)");
+    expect(flags).toContain("Старый общий переключатель здесь больше не действует");
+    expect(flags).toContain("Архив рекламы");
+    expect(flags).toContain("Техническая информация");
+    expect(flags).toContain("Экран покупки Premium");
+    expect(flags).toContain("Ограничение доступа");
+    expect(flags).not.toContain("appSubscriptionPaywall");
     expect(flags).toContain("1.7.5");
     const releases = renderToStaticMarkup(<MobileReleasesPanel source={[]} />);
     expect(releases).toContain("Обязательное OTA iOS / Android");
