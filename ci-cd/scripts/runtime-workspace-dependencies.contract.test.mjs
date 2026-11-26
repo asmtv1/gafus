@@ -172,12 +172,15 @@ test('runtime image coverage counts match every current package export and prese
   }
   assert.equal(historicalCount, 48, 'LEGACY_9_48_CHANGED_OR_NEW_EXPORT_NOT_REGISTERED');
   assert.match(runtimeVerifierText, /legacyExportsChecked !== 48/, 'LEGACY_EXPORT_GUARD_REMOVED');
+  assert(explicit.has('@gafus/core-client/walk-tracking'), 'WALK_TRACKING_EXPORT_NOT_REGISTERED');
+  assert.match(runtimeVerifierText, /if \(!walkTrackingExportChecked\)/,
+    'WALK_TRACKING_EXPORT_NOT_ENFORCED');
   assert.match(runtimeVerifierText, /if \(!trainingReminderApplicationExportChecked\)/,
     'NEW_REMINDER_APPLICATION_EXPORT_NOT_ENFORCED');
   for (const mode of ['api', 'worker']) {
     const actualCount = requiredByRuntime[mode].reduce((total, name) =>
       total + Object.keys(projects.get(name).exports ?? {}).length, 0);
-    const expected = mode === 'worker' ? 224 : 234;
+    const expected = mode === 'worker' ? 225 : 235;
     assert.equal(actualCount, expected, `RUNTIME_EXPORT_COVERAGE_DRIFT:${mode}`);
     assert(runtimeVerifierText.includes(`exportsChecked !== ${expected}`),
       `DOCKER_RUNTIME_EXPORT_COUNT_STALE:${mode}`);
