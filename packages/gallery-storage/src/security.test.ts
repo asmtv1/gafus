@@ -91,3 +91,14 @@ describe('private CDN and configuration',()=>{
   it.each([{GALLERY_ENABLED:'true'},{GALLERY_BUCKET_PUBLIC:'true'},{GALLERY_ENABLED:'yes'}])('rejects unsafe/missing production configuration',env=>expect(()=>galleryStorageConfigFromEnv(env)).toThrow());
   it.each(['/albums/o/a/photos/p/%2e%2e/full.webp','/albums/o/a/photos/p/../full.webp','/albums/o/a/incoming/u/source.jpg','//albums/o/a/photos/p/full.webp','/albums/o/a/photos/p/full.webp?x=1'])('rejects untrusted origin path %s',path=>expect(()=>originKey(path)).toThrow());
 });
+
+describe('shared Yandex gallery signing', () => {
+  it('signs only final paths and requires the explicitly selected host', () => {
+    const now = 1_793_600_000_000, expires = new Date(now + 90_000), key = 'gallery/owner/media/photo/v2/thumb.webp', secret = 'A'.repeat(32);
+    const url = new URL(signGalleryCdnUrl('https://cdn.gafus.ru', key, expires, secret, now, 'yandex'));
+    expect(url.pathname).toBe('/' + key);
+    expect(url.search).toMatch(/^\?md5=[A-Za-z0-9_-]{22}&expires=1793600090$/);
+    expect(() => signGalleryCdnUrl('https://cdn.gafus.ru', key, expires, secret, now, 'beget')).toThrow();
+    expect(() => signGalleryCdnUrl('https://cdn.gafus.ru', 'gallery/owner/media/photo/v2/original.webp', expires, secret, now, 'yandex')).toThrow();
+  });
+});

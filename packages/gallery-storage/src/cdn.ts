@@ -12,17 +12,21 @@ export function cdnvideoToken(path: string, expires: number, secret: string): st
   assertFinalKey(path.slice(1));
   return createHash('md5').update(`${secret}${path}${expires}`).digest('base64url');
 }
-export function signGalleryCdnUrl(baseUrl: string, key: string, expiresAt: Date, secret: string, now = Date.now(), provider?: 'beget'): string {
+export function signGalleryCdnUrl(baseUrl: string, key: string, expiresAt: Date, secret: string, now = Date.now(), provider?: 'beget' | 'yandex'): string {
   assertFinalKey(key);
   const origin = new URL(baseUrl);
   if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash ||
       origin.username || origin.password || origin.port ||
-      origin.hostname !== 'fupiquafifeswu.begetcdn.cloud' || (provider !== undefined && provider !== 'beget'))
+      origin.hostname !== (provider === 'yandex' ? 'cdn.gafus.ru' : 'fupiquafifeswu.begetcdn.cloud') || (provider !== undefined && provider !== 'beget' && provider !== 'yandex'))
     throw new Error('CDN_PROVIDER_MISMATCH');
   const expires = Math.floor(expiresAt.getTime() / 1000);
   if (!Number.isSafeInteger(expires) || expires <= Math.floor(now / 1000) || expires > Math.floor(now / 1000) + 360)
     throw new Error('INVALID_CDN_EXPIRY');
   const path = `/${key}`;
+  if (provider === 'yandex') {
+    if (!/^[A-Za-z0-9_-]{24,32}$/.test(secret)) throw new Error('INVALID_CDN_SIGNING_INPUT');
+    return `${origin.origin}${path}?md5=${yandexCdnToken(path, expires, secret)}&expires=${expires}`;
+  }
   return `${origin.origin}/md5(${cdnvideoToken(path, expires, secret)},${expires})${path}`;
 }
 export function verifyGalleryCdnToken(path: string, query: Record<string, string | undefined>, secret: string, now = Date.now()): boolean {

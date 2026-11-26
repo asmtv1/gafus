@@ -17,7 +17,7 @@ test('primary workflows, independent Beget audit/backup and internal workflows',
   'daily-backup.yml','deploy-only.yml','feed-video-job-rollout.yml',
   'feed-worker-image-release.yml','gafus-private-symbols-s3-acceptance.yml',
   'gafus-sdk57-qa.yml','gafus-self-hosted-ota-preview.yml','gafus-self-hosted-ota-production.yml',
-  'gafus-uptrace-collector-qa.yml','gafus-uptrace-nonprod-acceptance.yml',
+  'gafus-uptrace-collector-qa.yml','gafus-uptrace-nonprod-acceptance.yml','gafus-yandex-cdn-iam-canary.yml',
   'infrastructure-jobs.yml',
   'production-deploy-reusable.yml','production-job-release-reusable.yml',
   'testing-nightly.yml','testing-reusable.yml'
@@ -47,6 +47,11 @@ test('primary workflows, independent Beget audit/backup and internal workflows',
    assert.equal(qa.on.push, undefined, name+' must not run on pushes');
    assert.equal(qa.on.pull_request, undefined, name+' must not run on PRs');
  }
+ const iam=parse('gafus-yandex-cdn-iam-canary');
+ assert.deepEqual(Object.keys(iam.on), ['workflow_dispatch']);
+ assert.equal(iam.jobs['purge-canary'].environment,'production');
+ assert.equal(iam.jobs['purge-canary'].if,"github.ref == 'refs/heads/main'");
+ assert.deepEqual(iam.permissions,{contents:'read'});
  const otaProduction=parse('gafus-self-hosted-ota-production');
  assert.deepEqual(Object.keys(otaProduction.on), ['workflow_dispatch']);
  assert.equal(otaProduction.jobs['signed-production'].environment,'ota-production');
@@ -88,11 +93,15 @@ test('Beget control-plane outage cannot block an ordinary source release',()=>{
  assert(preflight.needs.includes('beget-provider-change-detect'));
  const providerStep=preflight.steps.find(s=>s.run?.includes('node infra/cloudru/gallery-redirect-release-gate.mjs'));
  assert(providerStep);
- assert.equal(providerStep.if,"needs.beget-provider-change-detect.outputs.provider_required == 'true'");
+ assert.equal(providerStep.if,"vars.GAFUS_MEDIA_CDN_TARGET != 'yandex' && needs.beget-provider-change-detect.outputs.provider_required == 'true'");
  assert(preflight.steps.some(s=>s.run?.includes('checkGalleryRedirectConfig(process.env)')));
  const liveFeed = preflight.steps.find(s=>s.run?.includes('beget-production-smoke.mjs'));
  assert(liveFeed);
- assert.equal(liveFeed.if,"needs.beget-provider-change-detect.outputs.provider_required == 'true'");
+ assert.equal(liveFeed.if,providerStep.if);
+ const yandexStep=preflight.steps.find(s=>s.run?.includes('shared-yandex-cdn-readiness.mjs --smoke'));
+ assert(yandexStep);
+ assert.equal(yandexStep.if,"vars.GAFUS_MEDIA_CDN_TARGET == 'yandex'");
+ assert(preflight.steps.some(s=>s.run?.includes('shared-yandex-cdn-readiness.mjs --check')));
  assert(liveFeed.run.includes('beget-gallery-redirect-canary.mjs'));
  assert(ci.jobs['deploy-production'].if.includes("needs.beget-readonly-preflight.result == 'success'"));
  assert(manual.jobs['preflight-cdn'].steps.some(s=>s.run?.includes('checkGalleryRedirectConfig(process.env)')));
@@ -110,13 +119,21 @@ test('Beget control-plane outage cannot block an ordinary source release',()=>{
   if (step.name === 'Verify actual Feed 24h CDN browser response before SSH') {
     assert(step.run.includes('--feed-only'));
     assert(step.if.includes("vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED == 'true'"));
+  } else if(step.name==='Validate CDN production readiness before SSH') {
+    assert(step.if?.includes('!inputs.app_only'));
+    assert(step.if?.includes("vars.GAFUS_MEDIA_CDN_TARGET == 'yandex'"));
+    assert(step.run.includes('shared-yandex-cdn-readiness.mjs --smoke'));
+    assert(step.run.includes('else\n'));
   } else {
     assert(step.if?.includes('!inputs.app_only'), 'APP_ONLY_SHARED_PROVIDER_API_BLOCKER_'+step.name);
+    assert(step.if?.includes("vars.GAFUS_MEDIA_CDN_TARGET != 'yandex'"));
   }
  }
  const after=ci.jobs['beget-verify-after-deploy'];
  assert(after.if.includes("needs.beget-provider-change-detect.outputs.provider_required == 'true'"));
  assert(after.needs.includes('beget-provider-change-detect'));
+ assert(after.if.includes("vars.GAFUS_MEDIA_CDN_TARGET == 'yandex'"));
+ assert(after.steps.some(s=>s.run?.includes('shared-yandex-cdn-readiness.mjs --smoke')));
  const auditSteps=audit.jobs['provider-audit'].steps;
  assert(auditSteps.some(s=>s.run?.includes('node infra/cloudru/gallery-redirect-release-gate.mjs')));
  assert(auditSteps.some(s=>s.run?.includes('beget-production-smoke.mjs') && s.if==='always()'));

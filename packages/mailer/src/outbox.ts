@@ -119,10 +119,10 @@ function errorCodeFromException(error: unknown): string {
   // No raw message, recipients or tokens stored; just bounded provider/transport identifiers.
   if (raw.includes("reconciliation")) return "IDEMPOTENCY_EXPIRED";
   if (raw.includes("MAIL_OUTBOX_ENCRYPTION_KEY")) return "KEY_CONFIGURATION";
-  const match = /^Resend ([A-Za-z0-9_-]{1,80})\b/.exec(raw);
-  if (match) return match[1]!;
   const network = /NETWORK_[A-Z0-9_]{1,72}/.exec(raw);
-  return network?.[0] || "MAIL_TRANSPORT_FAILED";
+  if (network) return network[0];
+  const match = /^Resend ([A-Za-z0-9_-]{1,80})\b/.exec(raw);
+  return match?.[1] || "MAIL_TRANSPORT_FAILED";
 }
 
 export interface MailOutboxRunOptions {
@@ -219,7 +219,8 @@ export async function processDueTransactionalMailOutbox(params: MailOutboxRunOpt
       const code = errorCodeFromException(error);
       const permanent = isPermanentFailure(error instanceof Error ? error.message : "") ||
         code === "IDEMPOTENCY_EXPIRED" || code === "KEY_CONFIGURATION" || code === "MAIL_TRANSPORT_FAILED" && !row.ciphertext;
-      const delayMs = RETRY_MS[Math.min(row.attempts, RETRY_MS.length - 1)]!;
+      // attempts is incremented by the claim, so the first failure is attempt 1.
+      const delayMs = RETRY_MS[Math.min(Math.max(row.attempts - 1, 0), RETRY_MS.length - 1)]!;
       const next = new Date(Date.now() + delayMs);
       const shouldStop = permanent || next >= row.expiresAt;
       if (await finish({

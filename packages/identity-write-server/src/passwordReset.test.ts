@@ -4,13 +4,13 @@ vi.mock("@gafus/prisma",()=>({prisma:{
  $transaction:m.tx,user:{findUnique:m.lookup},
 }}));
 import {consumePasswordResetReceipt,ResetReceiptUnavailableError,lookupPhoneByNormalizedUsername} from "./passwordReset.js";
-const valid={id:"receipt-1",userId:"owner",expiresAt:new Date(Date.now()+120000)};
+const valid={id:"receipt-1",userId:"owner",createdAt:new Date(Date.now()-1000),expiresAt:new Date(Date.now()+120000)};
 beforeEach(()=>{
  vi.clearAllMocks();m.lock.mockResolvedValue([{id:"receipt-1"}]);m.find.mockResolvedValue(valid);
- m.updateUser.mockResolvedValue({email:"owner@example.test"});m.revoke.mockResolvedValue({count:2});m.delete.mockResolvedValue({id:"receipt-1"});
+ m.updateUser.mockResolvedValue({count:1});m.lookup.mockResolvedValue({email:"owner@example.test"});m.revoke.mockResolvedValue({count:2});m.delete.mockResolvedValue({id:"receipt-1"});
  m.tx.mockImplementation(async(fn:(tx:unknown)=>Promise<unknown>)=>fn({
   $queryRaw:m.lock,passwordResetToken:{findUnique:m.find,delete:m.delete},
-  user:{update:m.updateUser},refreshToken:{updateMany:m.revoke},
+  user:{updateMany:m.updateUser,findUniqueOrThrow:m.lookup},refreshToken:{updateMany:m.revoke},
  }));
 });
 describe("password reset adapter verifies and consumes token atomically",()=>{
@@ -18,12 +18,17 @@ describe("password reset adapter verifies and consumes token atomically",()=>{
   const result=await consumePasswordResetReceipt({kind:"token",tokenHash:"sha256:test"},"already-bcrypt");
   expect(result).toBe("owner@example.test");
   expect(m.find).toHaveBeenCalledExactlyOnceWith({where:{id:"receipt-1"}});
-  expect(m.updateUser).toHaveBeenCalledExactlyOnceWith({where:{id:"owner"},data:{password:"already-bcrypt",passwordSetAt:expect.any(Date),sessionsRevokedAt:expect.any(Date)},select:{email:true}});
+  expect(m.updateUser).toHaveBeenCalledExactlyOnceWith({where:{id:"owner",OR:[{passwordSetAt:null},{passwordSetAt:{lt:valid.createdAt}}]},data:{password:"already-bcrypt",passwordSetAt:expect.any(Date),sessionsRevokedAt:expect.any(Date)}});
   expect(m.revoke).toHaveBeenCalledExactlyOnceWith({where:{userId:"owner",revokedAt:null},data:{revokedAt:expect.any(Date)}});
   expect(m.delete).toHaveBeenCalledExactlyOnceWith({where:{id:"receipt-1"}});
   expect(m.lock.mock.invocationCallOrder[0]).toBeLessThan(m.updateUser.mock.invocationCallOrder[0]);
   expect(m.updateUser.mock.invocationCallOrder[0]).toBeLessThan(m.delete.mock.invocationCallOrder[0]);
   expect(m.tx).toHaveBeenCalledOnce();
+ });
+ it("rejects a second receipt after an intervening password change",async()=>{
+  m.updateUser.mockResolvedValueOnce({count:0});
+  await expect(consumePasswordResetReceipt({kind:"token",tokenHash:"sha256:older"},"hash")).rejects.toBeInstanceOf(ResetReceiptUnavailableError);
+  expect(m.revoke).not.toHaveBeenCalled();expect(m.delete).not.toHaveBeenCalled();
  });
  it("locks short code with identical all-or-nothing transaction",async()=>{
   expect(await consumePasswordResetReceipt({kind:"shortCode",shortCode:"123456"},"hashed")).toBe("owner@example.test");

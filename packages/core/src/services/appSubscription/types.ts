@@ -3,6 +3,7 @@ export type { AppSubscriptionProvider, AppSubscriptionStatusCode, YookassaTrialU
 
 export type AppSubscriptionPlanOfferDto = {
   code: AppSubscriptionPlanCode;
+  planTier?: import("@gafus/types").AppSubscriptionTier;
   label: string;
   title: string;
   intervalDays: number;

@@ -1,3 +1,4 @@
+import { resolveAppSubscriptionTier } from "@gafus/types";
 import { apiRequest, ApiError } from "../../shared/api/client";
 import type { AppSubscriptionOfferDto, AppSubscriptionPlanOfferDto, AppSubscriptionStatusDto } from "../../../../../packages/core/src/services/appSubscription/types";
 
@@ -14,7 +15,10 @@ export function validatedCheckoutPlans(offer:AppSubscriptionOfferDto):CheckoutPl
       p.currency!=="RUB"||!Number.isSafeInteger(p.yookassaPriceRub)||p.yookassaPriceRub<=0||
       !Number.isSafeInteger(p.intervalDays)||p.intervalDays<=0||typeof p.promoCodeEligible!=="boolean")
       throw Error("Некорректное предложение подписки");
-    codes.add(p.code); if(p.enabled)plans.push(p as CheckoutPlan);
+    const planTier = resolveAppSubscriptionTier(p.code);
+    if (!planTier || (p.planTier !== undefined && p.planTier !== planTier))
+      throw Error("Некорректный уровень тарифа");
+    codes.add(p.code); if(p.enabled)plans.push({...p, planTier} as CheckoutPlan);
   }
   return plans;
 }
@@ -39,7 +43,7 @@ export function checkedPaymentUrl(raw:unknown):string {
 export const getCheckoutOffer=()=>apiRequest<AppSubscriptionOfferDto>("/api/v1/app-subscription/offer",{browserAuth:true,expectedStatus:200});
 export const getCheckoutStatus=()=>apiRequest<AppSubscriptionStatusDto>("/api/v1/app-subscription/status",{browserAuth:true,expectedStatus:200});
 export async function previewCheckoutPromo(plan:CheckoutPlan,promoCode:string) {
-  if(plan.code!=="MONTHLY"&&plan.code!=="THREE_MONTHS")throw new ApiError(400,"Промокод для этого тарифа недоступен","PROMO_CODE_NOT_ELIGIBLE");
+  if(!["STANDARD", "PREMIUM"].includes(resolveAppSubscriptionTier(plan.code) ?? ""))throw new ApiError(400,"Промокод для этого тарифа недоступен","PROMO_CODE_NOT_ELIGIBLE");
   const raw=await apiRequest<PromoPreview>("/api/v1/app-subscription/promo-code/preview",{
     method:"POST",browserAuth:true,expectedStatus:200,json:{planCode:plan.code,promoCode},
   });return validatePromoPreview(raw,plan);

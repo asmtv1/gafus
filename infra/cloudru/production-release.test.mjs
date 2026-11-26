@@ -67,13 +67,14 @@ for (const unsafe of [
   /Install Yandex Cloud CLI/,
   /Restore previous application if CDN cutover fails/,
 ]) assert.doesNotMatch(ci, unsafe, "NO_ACTIVE_YANDEX_CDN_RELEASE_OR_ROLLBACK");
-const sharedReadiness = deployment.indexOf('Validate Beget-only production readiness before SSH');
+const sharedReadiness = deployment.indexOf('Validate CDN production readiness before SSH');
 const sshAction = deployment.indexOf('uses: appleboy/ssh-action@v1.0.3');
 assert(sharedReadiness >= 0 && sharedReadiness < sshAction,
-  'MANUAL_AND_AUTOMATED_DEPLOY_MUST_CHECK_BEGET_BEFORE_SSH');
+  'MANUAL_AND_AUTOMATED_DEPLOY_MUST_CHECK_CDN_BEFORE_SSH');
 assert(deployment.includes('node infra/cloudru/beget-production-smoke.mjs') &&
-  deployment.includes('if: ${{ !inputs.app_only }}'),
-  'SHARED_PROVIDER_DEPLOY_MUST_PROVE_BEGET_SIGNING_BUT_APP_ONLY_MUST_NOT_TOUCH_PROVIDER');
+  deployment.includes("if: ${{ !inputs.app_only || vars.GAFUS_MEDIA_CDN_TARGET == 'yandex' }}") &&
+  deployment.includes('node infra/cloudru/shared-yandex-cdn-readiness.mjs --smoke'),
+  'SHARED_PROVIDER_DEPLOY_MUST_PROVE_TARGET_AND_GATE_APP_ONLY_YANDEX_CUTOVER');
 assert(deployment.includes('checkGalleryRedirectConfig(process.env)'),
   'SHARED_DEPLOY_MUST_VERIFY_PRIVATE_GALLERY_CONFIG_LOCALLY');
 assert(!ci.includes("compose_down; exit 1"), "DEPLOY_FAILURE_MUST_NOT_BRING_PRODUCTION_DOWN");

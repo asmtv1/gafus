@@ -1,3 +1,4 @@
+import { resolveAppSubscriptionTier, type AppSubscriptionTier } from "@gafus/types";
 import { useState } from "react";
 import styles from "./ArticleEmbeddedPaywall.module.css";
 import {PrimaryButton} from "../../shared/ui";
@@ -7,6 +8,7 @@ import { RouteLink } from "../../shared/router/location";
  * The user can open the authorized /subscription checkout to pay securely. */
 export type VerifiedSubscriptionPlan = {
   code: "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS";
+  planTier?: AppSubscriptionTier;
   title: string;
   intervalDays: number;
   yookassaPriceRub: number;
@@ -21,6 +23,7 @@ export type VerifiedSubscriptionPlan = {
 function verifiedPlan(plan: VerifiedSubscriptionPlan): boolean {
   return !!plan && typeof plan === "object" &&
     ["TWO_WEEKS", "MONTHLY", "THREE_MONTHS"].includes(plan.code) &&
+    (plan.planTier === undefined || plan.planTier === resolveAppSubscriptionTier(plan.code)) &&
     plan.currency === "RUB" && plan.enabled === true &&
     typeof plan.title === "string" && plan.title.trim().length > 0 &&
     plan.title.length <= 80 &&
@@ -49,11 +52,11 @@ export function ArticleEmbeddedPaywall({
   const offerValid = plans.every(verifiedPlan) &&
     new Set(plans.map(p => p.code)).size === plans.length;
   const available = offerValid ? plans.filter(p => p.enabled) : [];
-  // The original Next chooser selects MONTHLY from a verified offer by
+  // The original Next chooser selects STANDARD from a verified offer by
   // default, falling back to the first enabled plan. This does not make a
   // tariff available while no approved read-only API offer exists.
   const current = available.find(p => p.code === chosen) ??
-    available.find(p => p.code === "MONTHLY") ?? available[0] ?? null;
+    available.find(p => resolveAppSubscriptionTier(p.planTier ?? p.code) === "STANDARD") ?? available[0] ?? null;
 
   return <section className={styles.embedded} aria-label="Подписка Gafus Premium">
     <div className={styles.card}>

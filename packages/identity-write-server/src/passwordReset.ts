@@ -41,10 +41,16 @@ export async function consumePasswordResetReceipt(proof:ResetReceiptProof,passwo
     const record=await tx.passwordResetToken.findUnique({where:{id:receiptId}});
     if(!record || record.expiresAt<new Date())throw new ResetReceiptUnavailableError();
     const at=new Date();
-    const user=await tx.user.update({
-      where:{id:record.userId},
+    // Multiple reset mails may be pending or delivered out of order.
+    // The conditional UPDATE serializes all receipts for the same owner:
+    // a receipt issued before a successful password change can never be used.
+    const updated=await tx.user.updateMany({
+      where:{id:record.userId,OR:[{passwordSetAt:null},{passwordSetAt:{lt:record.createdAt}}]},
       data:{password:passwordHash,passwordSetAt:at,sessionsRevokedAt:at},
-      select:{email:true},
+    });
+    if(updated.count!==1)throw new ResetReceiptUnavailableError();
+    const user=await tx.user.findUniqueOrThrow({
+      where:{id:record.userId},select:{email:true},
     });
     await tx.refreshToken.updateMany({
       where:{userId:record.userId,revokedAt:null},data:{revokedAt:at},

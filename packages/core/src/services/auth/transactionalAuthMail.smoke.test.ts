@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mock = vi.hoisted(() => ({ send: vi.fn() }));
-vi.mock("@gafus/mailer", () => ({ isMailerConfigured: () => true }));
+const mock = vi.hoisted(() => ({ send: vi.fn(), enabled: vi.fn(() => true) }));
+vi.mock("@gafus/mailer", () => ({ isMailerConfigured: () => true, mailOutboxEnabled: mock.enabled, mailerEnvFromProcess: () => ({ provider: "resend" }) }));
 vi.mock("@gafus/logger", () => ({ createWebLogger: () => ({ error: vi.fn(), warn: vi.fn() }) }));
 vi.mock("../mail/publicWebBaseUrl", () => ({ getPublicWebBaseUrl: () => "https://gafus.ru" }));
 vi.mock("../mail/transactionalEmailLayout", () => ({
@@ -15,16 +15,22 @@ import {
   sendWelcomeEmailAfterRegistration, sendPasswordChangedNoticeEmail, sendUsernameChangedNoticeEmail,
 } from "./transactionalAuthMail";
 
-beforeEach(() => { vi.clearAllMocks(); mock.send.mockResolvedValue(undefined); });
+beforeEach(() => { vi.clearAllMocks(); mock.send.mockResolvedValue(undefined); mock.enabled.mockReturnValue(true); });
 describe("transactional auth mail policies", () => {
-  it("sends reset, address confirmation and deletion codes without deferred queue", async () => {
-    await sendPasswordResetLinkEmail("test@example.test", "https://example.test/reset");
+  it("queues reset with a bounded TTL, but keeps confirmation and deletion immediate", async () => {
+    await expect(sendPasswordResetLinkEmail("test@example.test", "https://example.test/reset")).resolves.toBe("queued");
     await sendEmailChangeConfirmEmail("test@example.test", "https://example.test/confirm");
     await sendAccountDeletionCodeEmail("test@example.test", "000000");
     expect(mock.send).toHaveBeenCalledTimes(3);
-    for (const [payload] of mock.send.mock.calls) {
+    expect(mock.send.mock.calls[0][0]).toMatchObject({ deliveryMode: "deferred", category: "auth", maxQueueAgeMs: 2_700_000 });
+    for (const [payload] of mock.send.mock.calls.slice(1)) {
       expect(payload).toMatchObject({ deliveryMode: "immediate", category: "auth" });
     }
+  });
+  it("keeps direct reset delivery when the outbox is disabled", async () => {
+    mock.enabled.mockReturnValue(false);
+    await expect(sendPasswordResetLinkEmail("test@example.test", "https://example.test/reset")).resolves.toBe("sent");
+    expect(mock.send.mock.calls[0][0]).toMatchObject({ deliveryMode: "immediate" });
   });
   it("queues welcome and change notices only for a bounded period", async () => {
     await sendWelcomeEmailAfterRegistration("test@example.test");

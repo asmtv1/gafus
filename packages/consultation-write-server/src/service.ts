@@ -534,11 +534,12 @@ export function createConsultationBookingService({
     throw new SubscriptionRequiredError();
   }
 
-  /** New bookings require an active, non-trial three-month paid period. */
+  /** New bookings require an active, non-trial Premium subscription, regardless of period. */
   function canBookConsultations(subscription: {
     hasActiveSubscription: boolean;
     provider: string | null;
     planCode: string | null;
+    planTier?: string | null;
     isTrial?: boolean;
     isLifetime?: boolean;
     canBookConsultations?: boolean;
@@ -548,7 +549,7 @@ export function createConsultationBookingService({
       (subscription.hasActiveSubscription &&
         !subscription.isTrial &&
         !subscription.isLifetime &&
-        subscription.planCode === "THREE_MONTHS")
+        (subscription.planTier != null ? subscription.planTier === "PREMIUM" : subscription.planCode === "THREE_MONTHS"))
     );
   }
   async function requireConsultationBookingSubscriptionAccess(input: {

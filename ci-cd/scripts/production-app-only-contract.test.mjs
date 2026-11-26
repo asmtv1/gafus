@@ -22,12 +22,16 @@ test('app-only manual deploy verifies exact successful main release and never pa
 test('reusable app-only release preserves provider configuration and activates V2 without changing jobs',()=>{
  const j=reusable.jobs['deploy-production'];
  assert.equal(reusable.on.workflow_call.inputs.app_only.default,false);
- const gate=j.steps.find(x=>x.name==='Validate Beget-only production readiness before SSH');
- assert.equal(gate.if,'${{ !inputs.app_only }}');
+ const gate=j.steps.find(x=>x.name==='Validate CDN production readiness before SSH');
+ assert.equal(gate.if,"${{ !inputs.app_only || vars.GAFUS_MEDIA_CDN_TARGET == 'yandex' }}");
  const ssh=j.steps.find(x=>x.uses==='appleboy/ssh-action@v1.0.3');
- const script=['DEPLOY_SCRIPT_1','DEPLOY_SCRIPT_1B','DEPLOY_SCRIPT_2','DEPLOY_SCRIPT_3'].map(x=>ssh.env[x]).join('\n');
+ const script=['DEPLOY_SCRIPT_1','DEPLOY_SCRIPT_1B','DEPLOY_SCRIPT_2','DEPLOY_SCRIPT_3','DEPLOY_SCRIPT_4'].map(x=>ssh.env[x]).join('\n');
  assert.match(script,/APP_ONLY_EXISTING_BEGET_PRESERVED_V2_FLAGS_READY/);
  assert.match(script,/APP_ONLY_PREVIOUS_ENV/);
+ assert.match(script,/APP_ONLY_YANDEX_CUTOVER_V2_FLAGS_READY/);
+ assert.match(script,/APP_ONLY_CDN_CREDENTIAL_CHANGED_/);
+ assert.match(script,/APP_ONLY_YANDEX_CACHE_UNSAFE/);
+ assert.match(script,/YANDEX_SHARED_CDN_RELEASE_NOT_VERIFIED/);
  assert.match(script,/'POSTGRES_PASSWORD', 'DATABASE_URL', 'REDIS_URL'/);
  assert.match(script,/'JWT_SECRET', 'JWT_REFRESH_SECRET'/);
  assert.match(script,/CLOUDRU_MEDIA_JOBS_ENABLED':'true'/);

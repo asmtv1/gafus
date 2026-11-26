@@ -33,7 +33,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -89,7 +89,7 @@ jobs:
         # This is provider cutover approval, not an application-only code upgrade.
         # In app_only mode current active server CDN values are preserved and
         # separately guarded by the main CI beget-readonly-preflight job.
-        if: ${{ !inputs.app_only }}
+        if: ${{ !inputs.app_only && vars.GAFUS_MEDIA_CDN_TARGET != 'yandex' }}
         env:
           GALLERY_CDN_REDIRECT_REQUIRED: "true"
           GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
@@ -110,7 +110,7 @@ jobs:
         run: |
           node --input-type=module -e "import {checkGalleryRedirectConfig} from './infra/cloudru/gallery-redirect-release-gate.mjs'; if (!checkGalleryRedirectConfig(process.env).redirect) process.exit(1); console.log('GALLERY_REDIRECT_CONFIG_LOCAL_PASS');"
       - name: Require live Beget provider settings only when changing delivery configuration
-        if: ${{ !inputs.app_only }}
+        if: ${{ !inputs.app_only && vars.GAFUS_MEDIA_CDN_TARGET != 'yandex' }}
         env:
           GALLERY_CDN_REDIRECT_REQUIRED: "true"
           GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
@@ -131,11 +131,17 @@ jobs:
         run: node infra/cloudru/gallery-redirect-release-gate.mjs
       # Also guard manual Deploy Only; do not even open SSH if Beget is not
       # demonstrably ready. No registry, Cloud.ru or CDN writes in this step.
-      - name: Validate Beget-only production readiness before SSH
-        # This gate is for changing provider delivery. An application-only
-        # release preserves the exact active CDN values from the server.
-        if: ${{ !inputs.app_only }}
+      - name: Validate CDN production readiness before SSH
+        # Explicit Yandex cutover requires the same live checks on app-only releases.
+        if: ${{ !inputs.app_only || vars.GAFUS_MEDIA_CDN_TARGET == 'yandex' }}
         env:
+          YANDEX_SHARED_CDN_RESOURCE_ID: ${{ vars.YANDEX_SHARED_CDN_RESOURCE_ID }}
+          YANDEX_SHARED_CDN_RELEASE_CONFIRM: ${{ vars.YANDEX_SHARED_CDN_RELEASE_CONFIRM }}
+          YANDEX_SHARED_CDN_EDGE_VERIFIED: ${{ vars.YANDEX_SHARED_CDN_EDGE_VERIFIED }}
+          YANDEX_SHARED_CDN_PURGE_VERIFIED: ${{ vars.YANDEX_SHARED_CDN_PURGE_VERIFIED }}
+          YANDEX_SHARED_CDN_DUAL_PURGE: ${{ vars.YANDEX_SHARED_CDN_DUAL_PURGE }}
+          YANDEX_SHARED_CDN_SMOKE_MANIFEST: ${{ vars.YANDEX_SHARED_CDN_SMOKE_MANIFEST }}
+          CDN_CLEANUP_SERVICE_ACCOUNT_KEY_B64: ${{ secrets.YANDEX_SHARED_CDN_CLEANUP_KEY_B64 }}
           GAFUS_MEDIA_CDN_TARGET: ${{ vars.GAFUS_MEDIA_CDN_TARGET }}
           BEGET_CDN_RELEASE_CONFIRM: ${{ vars.BEGET_CDN_RELEASE_CONFIRM }}
           BEGET_CDN_PURGE_API_VERIFIED: ${{ vars.BEGET_CDN_PURGE_API_VERIFIED }}
@@ -156,13 +162,17 @@ jobs:
           BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
           BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
         run: |
-          node infra/cloudru/beget-release-readiness.mjs --check
-          node infra/cloudru/beget-production-smoke.mjs --feed-only
+          if [ "$GAFUS_MEDIA_CDN_TARGET" = "yandex" ]; then
+            node infra/cloudru/shared-yandex-cdn-readiness.mjs --smoke
+          else
+            node infra/cloudru/beget-release-readiness.mjs --check
+            node infra/cloudru/beget-production-smoke.mjs --feed-only
+          fi
 
       # An app-only release may not skip this gate after the 24h cache flag
       # is enabled in production variables. A stale approval is not sufficient.
       - name: Verify actual Feed 24h CDN browser response before SSH
-        if: ${{ vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED == 'true' }}
+        if: ${{ vars.GAFUS_MEDIA_CDN_TARGET != 'yandex' && vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED == 'true' }}
         env:
           FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
           FEED_CDN_PUBLIC_READ_APPROVED: ${{ vars.FEED_CDN_PUBLIC_READ_APPROVED || 'false' }}
@@ -196,6 +206,7 @@ jobs:
           GAFUS_OWNER_RELEASE_APPROVED_SHA: ${{ vars.GAFUS_OWNER_RELEASE_APPROVED_SHA }}
           DEPLOY_SCRIPT_1: |2+
             set -eo pipefail
+            SECONDS=0
             echo "🚀 Starting production deployment..."
 
             DEPLOY_ROOT="/root/gafus"
@@ -249,7 +260,12 @@ jobs:
                     ;;
                 esac
               done < <(docker image ls --format '{{.Repository}}:{{.Tag}}')
-              docker image prune -f || echo "DANGLING_IMAGE_PRUNE_DEFERRED"
+              if [ "${1:-}" = "preserve-recent" ]; then
+                # Keep recent digest-only downloads from interrupted releases.
+                docker image prune -f --filter "until=24h" || echo "DANGLING_IMAGE_PRUNE_DEFERRED"
+              else
+                docker image prune -f || echo "DANGLING_IMAGE_PRUNE_DEFERRED"
+              fi
             }
 
             restore_previous_runtime() {
@@ -287,7 +303,7 @@ jobs:
                   done < "$RELEASE_BACKUP_DIR/images.tsv"
                 fi
                 if [ "$restore_ok" = true ]; then
-                  cleanup_obsolete_gafus_images
+                  cleanup_obsolete_gafus_images preserve-recent
                 else
                   echo "Keeping rollback tags for manual recovery."
                 fi
@@ -493,14 +509,15 @@ jobs:
             if [ -z "${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_CREDENTIAL_SECRET"; exit 1; fi
             if [ -z "${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ADMISSION_SECRET"; exit 1; fi
 
-            # Beget/CDNvideo is the ONLY supported Gallery/Feed delivery CDN.
+            # Beget remains default; Yandex requires explicit verified cutover.
             # Fail closed until explicit release approval and live purge/smoke gates.
-            # Never deploy a Yandex CDN fallback or rollback configuration.
-            if [ "${{ inputs.app_only }}" != "true" ]; then
-            if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" != "beget" ]; then
-              echo "Beget-only release not authorized: GAFUS_MEDIA_CDN_TARGET must be beget"
-              exit 1
-            fi
+            # Never switch provider automatically.
+            if [ "${{ inputs.app_only }}" != "true" ] || [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" = "yandex" ]; then
+            if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" = "yandex" ]; then
+              [ "${{ vars.YANDEX_SHARED_CDN_RESOURCE_ID }}" = "bc8rr3yxsrkobnonoi2w" ] && [ "${{ vars.YANDEX_SHARED_CDN_EDGE_VERIFIED }}" = "true" ] && [ "${{ vars.YANDEX_SHARED_CDN_PURGE_VERIFIED }}" = "true" ] && [ "${{ vars.YANDEX_SHARED_CDN_DUAL_PURGE }}" = "true" ] && [ "${{ vars.YANDEX_SHARED_CDN_RELEASE_CONFIRM }}" = "reviewed-single-cdn-cutover" ] && [ "${{ vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED }}" != "true" ] || { echo "YANDEX_SHARED_CDN_RELEASE_NOT_VERIFIED"; exit 1; }
+            elif [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" != "beget" ]; then
+              echo "CDN provider not authorized"; exit 1
+            else
                 if [ "${{ vars.BEGET_CDN_RELEASE_CONFIRM }}" != "reviewed-gallery-feed-beget-cutover" ]; then
                   echo "Beget production CDN release has not been explicitly confirmed"
                   exit 1
@@ -526,6 +543,7 @@ jobs:
                   echo "Beget CDN live delivery or purge validation is still pending"
                   exit 1
                 fi
+            fi
             fi
 
             # Fail before touching the existing .env when production telemetry is not provisioned.
@@ -591,7 +609,13 @@ jobs:
               # Beget uses the existing production signing secret value.
               # Legacy October flags still exist in GitHub! Never honor them without
               # separate Nov-2026 release approval and the read-only preflight.
-              if [ "${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED }}" = "true" ]; then
+              if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" = "yandex" ]; then
+                echo "GALLERY_CDN_REDIRECT_SIGNING_SECRET=${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}"
+                echo "GALLERY_CDN_REDIRECT_ORIGIN_SECRET=${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}"
+                echo "GALLERY_CDN_ORIGIN_ROUTE_ENABLED=true"
+                echo "GALLERY_CDN_REDIRECT_ENABLED=true"
+                echo "GALLERY_CDN_CACHEABLE_FINAL_ENABLED=false"
+              elif [ "${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED }}" = "true" ]; then
                 echo "GALLERY_CDN_REDIRECT_SIGNING_SECRET=${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}"
                 echo "GALLERY_CDN_REDIRECT_ORIGIN_SECRET=${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}"
                 echo "GALLERY_CDN_ORIGIN_ROUTE_ENABLED=${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}"
@@ -614,16 +638,32 @@ jobs:
               echo "GALLERY_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
               echo "GALLERY_BUCKET=gafus-gallery-private"
               echo "GALLERY_S3_ENDPOINT=https://s3.cloud.ru"
+              if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" = "yandex" ]; then
+                echo "GALLERY_CDN_PROVIDER=yandex"
+              else
               echo "GALLERY_CDN_PROVIDER=beget"
+              fi
+              if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" = "yandex" ]; then
+                echo "GALLERY_CDN_BASE_URL=https://cdn.gafus.ru"
+              else
               echo "GALLERY_CDN_BASE_URL=https://fupiquafifeswu.begetcdn.cloud"
+              fi
               echo "GALLERY_CDN_EDGE_TOKEN_VERIFIED=true"
               echo "GALLERY_MEDIA_FALLBACK_ENABLED=true"
               # Old Yandex resource IDs are not active delivery or purge targets.
               # Any historical erasure is separately gated by legacy verification.
               echo "FEED_BUCKET=gafus-feed-private"
               echo "FEED_S3_ENDPOINT=https://s3.cloud.ru"
+              if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" = "yandex" ]; then
+                echo "FEED_CDN_PROVIDER=yandex"
+              else
               echo "FEED_CDN_PROVIDER=beget"
+              fi
+              if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" = "yandex" ]; then
+                echo "FEED_CDN_BASE_URL=https://cdn.gafus.ru"
+              else
               echo "FEED_CDN_BASE_URL=https://quepraquiecebquomiel.begetcdn.cloud"
+              fi
               echo "FEED_CDN_EDGE_TOKEN_VERIFIED=true"
               echo "FEED_MEDIA_FALLBACK_ENABLED=true"
               echo "FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED=${{ vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED || 'false' }}"
@@ -646,8 +686,9 @@ jobs:
               echo "MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_ENABLED=${{ vars.MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_ENABLED == 'true' && 'true' || 'false' }}"
               echo "MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_PUBLISH_APPROVED=${{ vars.MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_PUBLISH_APPROVED == 'true' && 'true' || 'false' }}"
               # Store update gate is independent from the signed OTA policy.
-              # Preserve production iOS minimum across deploys; Android is unchanged.
-              echo "MOBILE_IOS_MIN_VERSION=${{ vars.MOBILE_IOS_MIN_VERSION || '1.7.2' }}"
+              # Preserve both production store minimums across deploys.
+              echo "MOBILE_IOS_MIN_VERSION=${{ vars.MOBILE_IOS_MIN_VERSION || '1.7.5' }}"
+              echo "MOBILE_ANDROID_MIN_VERSION=${{ vars.MOBILE_ANDROID_MIN_VERSION || '1.7.5' }}"
               echo "MOBILE_OTA_INSTALLATION_HASH_KEY=${{ secrets.MOBILE_OTA_INSTALLATION_HASH_KEY }}"
               echo "CLOUDRU_S3_ENDPOINT=https://s3.cloud.ru"
               echo "CLOUDRU_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
@@ -674,7 +715,12 @@ jobs:
               echo "CHAT2_S3_BUCKET=gafus-chat2-media-2026"
               # Independently checked real final media: S3/CDN HTTP 200, 206, matching bytes.
               # This is public final delivery only, never original incoming/ or chat text.
+              if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" = "yandex" ]; then
+                echo "CHAT2_V2_CDN_BASE_URL=https://cdn.gafus.ru"
+              else
               echo "CHAT2_V2_CDN_BASE_URL=https://gonomudedoje.begetcdn.cloud"
+              fi
+          DEPLOY_SCRIPT_2: |2+
               echo "CHAT2_S3_ACCESS_KEY_ID=${{ secrets.CHAT2_S3_ACCESS_KEY_ID }}"
               echo "CHAT2_S3_SECRET_ACCESS_KEY=${{ secrets.CHAT2_S3_SECRET_ACCESS_KEY }}"
               # Prepare ONLY; independent release gates must explicitly flip all
@@ -686,6 +732,11 @@ jobs:
               echo "QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME=api.gafus.ru"
               echo "QUESTIONS_V2_INTERNAL_HMAC_SECRET=${{ secrets.QUESTIONS_V2_INTERNAL_HMAC_SECRET }}"
               echo "QUESTIONS_V2_S3_ENDPOINT=https://s3.cloud.ru"
+              if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" = "yandex" ]; then
+                echo "QUESTIONS_V2_CDN_BASE_URL=https://cdn.gafus.ru"
+              else
+                echo "QUESTIONS_V2_CDN_BASE_URL=https://ebiteskukingusk.begetcdn.cloud"
+              fi
               echo "QUESTIONS_V2_S3_BUCKET=gafus-questions-public"
               echo "QUESTIONS_V2_S3_REGION=ru-central-1"
               echo "QUESTIONS_V2_S3_ACCESS_KEY_ID=${{ secrets.QUESTIONS_V2_S3_ACCESS_KEY_ID }}"
@@ -703,7 +754,12 @@ jobs:
               echo "BEGET_CDN_CACHE_KEY_VERIFIED=${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED || 'false' }}"
               echo "BEGET_CDN_PURGE_PROPAGATION_VERIFIED=${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED || 'false' }}"
               echo "MEDIA_CDN_PURGE_WORKER_ENABLED=true"
-          DEPLOY_SCRIPT_2: |2+
+              echo "YANDEX_SHARED_CDN_RESOURCE_ID=${{ vars.YANDEX_SHARED_CDN_RESOURCE_ID }}"
+              echo "YANDEX_SHARED_CDN_EDGE_VERIFIED=${{ vars.YANDEX_SHARED_CDN_EDGE_VERIFIED }}"
+              printf '%s\n' 'YANDEX_SHARED_CDN_SMOKE_MANIFEST=${{ vars.YANDEX_SHARED_CDN_SMOKE_MANIFEST }}'
+              echo "YANDEX_SHARED_CDN_PURGE_VERIFIED=${{ vars.YANDEX_SHARED_CDN_PURGE_VERIFIED }}"
+              echo "YANDEX_SHARED_CDN_DUAL_PURGE=${{ vars.YANDEX_SHARED_CDN_DUAL_PURGE }}"
+              echo "CDN_CLEANUP_SERVICE_ACCOUNT_KEY_B64=${{ secrets.YANDEX_SHARED_CDN_CLEANUP_KEY_B64 }}"
               echo "# Feed production settings; activation is an explicit environment variable"
               echo "FEED_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
               echo "FEED_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
@@ -860,6 +916,12 @@ jobs:
                 'BEGET_CDN_API_TOKEN', 'GALLERY_CDN_PROVIDER', 'FEED_CDN_PROVIDER',
                 'BEGET_CDN_PURGE_API_VERIFIED','BEGET_CDN_CACHE_KEY_VERIFIED',
                 'BEGET_CDN_PURGE_PROPAGATION_VERIFIED',
+                'YANDEX_SHARED_CDN_RESOURCE_ID','YANDEX_SHARED_CDN_EDGE_VERIFIED','YANDEX_SHARED_CDN_SMOKE_MANIFEST',
+                'YANDEX_SHARED_CDN_PURGE_VERIFIED','YANDEX_SHARED_CDN_DUAL_PURGE',
+                'CDN_CLEANUP_SERVICE_ACCOUNT_KEY_B64',
+                'CHAT2_V2_CDN_BASE_URL','QUESTIONS_V2_CDN_BASE_URL',
+                'GALLERY_CDN_CACHEABLE_FINAL_ENABLED','FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED',
+                'FEED_CDN_BROWSER_CACHE_24H_VERIFIED',
                 # Existing DB credentials and session-signing keys must match
                 # the running database and cookies; never rotate on cutover.
                 'POSTGRES_PASSWORD', 'DATABASE_URL', 'REDIS_URL',
@@ -871,14 +933,42 @@ jobs:
                 'GALLERY_CDN_CACHEABLE_FINAL_ENABLED',
                 'GALLERY_CDN_REDIRECT_SIGNING_SECRET','GALLERY_CDN_REDIRECT_ORIGIN_SECRET',
             }
+            yandex_cutover = '${{ vars.GAFUS_MEDIA_CDN_TARGET }}' == 'yandex'
+            cutover_keys = {
+                'GALLERY_CDN_PROVIDER','FEED_CDN_PROVIDER','GALLERY_CDN_BASE_URL','FEED_CDN_BASE_URL',
+                'GALLERY_CDN_ORIGIN_ROUTE_ENABLED','GALLERY_CDN_REDIRECT_ENABLED','GALLERY_CDN_CACHEABLE_FINAL_ENABLED',
+                'FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED','FEED_CDN_BROWSER_CACHE_24H_VERIFIED',
+                'CHAT2_V2_CDN_BASE_URL','QUESTIONS_V2_CDN_BASE_URL',
+                'YANDEX_SHARED_CDN_RESOURCE_ID','YANDEX_SHARED_CDN_EDGE_VERIFIED','YANDEX_SHARED_CDN_SMOKE_MANIFEST',
+                'YANDEX_SHARED_CDN_PURGE_VERIFIED','YANDEX_SHARED_CDN_DUAL_PURGE','CDN_CLEANUP_SERVICE_ACCOUNT_KEY_B64',
+            }
+            if yandex_cutover:
+                for key in ('FEED_CDN_SECRET','GALLERY_CDN_REDIRECT_SIGNING_SECRET','GALLERY_CDN_REDIRECT_ORIGIN_SECRET',
+                            'GALLERY_BEGET_CDN_SERVICE_ID','FEED_BEGET_CDN_SERVICE_ID','BEGET_CDN_API_TOKEN'):
+                    if not old.get(key) or old[key] != new.get(key):
+                        raise SystemExit('APP_ONLY_CDN_CREDENTIAL_CHANGED_'+key)
             for key in preserve:
-                if gallery_release_approved and key in gallery_migration_keys: continue
+                if yandex_cutover and key in cutover_keys: continue
+                if gallery_release_approved and not yandex_cutover and old.get('GALLERY_CDN_PROVIDER','beget') == 'beget' and key in gallery_migration_keys: continue
                 if key in old and old[key]: new[key] = old[key]
-            if new.get('GALLERY_CDN_BASE_URL') != 'https://fupiquafifeswu.begetcdn.cloud' or new.get('GALLERY_BEGET_CDN_SERVICE_ID') != '96cd124e-767e-4af1-a568-c4d1f9b4e73f':
-                raise SystemExit('APP_ONLY_RETIRED_GALLERY_CDN_FORBIDDEN')
+            provider = new.get('GALLERY_CDN_PROVIDER')
+            if provider != new.get('FEED_CDN_PROVIDER') or provider not in ('beget','yandex'):
+                raise SystemExit('APP_ONLY_CDN_CONFIGURATION_NOT_PRESERVED')
+            expected = {'GALLERY':'https://fupiquafifeswu.begetcdn.cloud','FEED':'https://quepraquiecebquomiel.begetcdn.cloud'} if provider == 'beget' else {'GALLERY':'https://cdn.gafus.ru','FEED':'https://cdn.gafus.ru'}
             for scope in ('GALLERY','FEED'):
-                if new.get(scope+'_CDN_PROVIDER') != 'beget' or not new.get(scope+'_CDN_BASE_URL','').startswith('https://'):
+                if new.get(scope+'_CDN_BASE_URL') != expected[scope]:
                     raise SystemExit('APP_ONLY_CDN_CONFIGURATION_NOT_PRESERVED_'+scope)
+            if new.get('GALLERY_BEGET_CDN_SERVICE_ID') != '96cd124e-767e-4af1-a568-c4d1f9b4e73f':
+                raise SystemExit('APP_ONLY_LEGACY_PURGE_REQUIRED')
+            if yandex_cutover and provider != 'yandex':
+                raise SystemExit('APP_ONLY_YANDEX_CUTOVER_NOT_APPLIED')
+            if provider == 'yandex':
+                if new.get('GALLERY_CDN_CACHEABLE_FINAL_ENABLED') != 'false' or new.get('FEED_CDN_BROWSER_CACHE_24H_VERIFIED') == 'true':
+                    raise SystemExit('APP_ONLY_YANDEX_CACHE_UNSAFE')
+                if new.get('YANDEX_SHARED_CDN_RESOURCE_ID') != 'bc8rr3yxsrkobnonoi2w' or any(new.get(k) != 'true' for k in ('YANDEX_SHARED_CDN_EDGE_VERIFIED','YANDEX_SHARED_CDN_PURGE_VERIFIED','YANDEX_SHARED_CDN_DUAL_PURGE')) or new.get('FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED') == 'true' or not new.get('CDN_CLEANUP_SERVICE_ACCOUNT_KEY_B64'):
+                    raise SystemExit('APP_ONLY_YANDEX_CDN_CONFIGURATION_NOT_PRESERVED')
+                if new.get('CHAT2_V2_CDN_BASE_URL') != 'https://cdn.gafus.ru' or new.get('QUESTIONS_V2_CDN_BASE_URL') != 'https://cdn.gafus.ru':
+                    raise SystemExit('APP_ONLY_SHARED_PUBLIC_CDN_NOT_PRESERVED')
             activated = {
                 'CLOUDRU_MEDIA_JOBS_ENABLED':'true',
                 'FEED_CLOUDRU_REFRACTOR_VERIFIED':'true',
@@ -904,10 +994,11 @@ jobs:
                 if not new.get(key): raise SystemExit('APP_ONLY_MISSING_REQUIRED_MEDIA_CREDENTIAL_'+key)
             new_path.write_text('\n'.join(k+'='+v for k,v in new.items())+'\n')
             new_path.chmod(0o600)
-            print('APP_ONLY_EXISTING_BEGET_PRESERVED_V2_FLAGS_READY')
+            print('APP_ONLY_YANDEX_CUTOVER_V2_FLAGS_READY' if yandex_cutover else 'APP_ONLY_EXISTING_BEGET_PRESERVED_V2_FLAGS_READY')
             PY_APP_ONLY_ENV
             fi
 
+          DEPLOY_SCRIPT_4: |2+
             # Always keep a stable, private API metrics credential across full
             # and app-only releases. The .env above is regenerated from GitHub
             # Secrets, so an existing server-only API_METRICS_KEY would otherwise
@@ -951,7 +1042,7 @@ jobs:
 
             # Clear left-over tags from earlier attempts before downloading
             # the next release; images used by running containers stay intact.
-            cleanup_obsolete_gafus_images
+            cleanup_obsolete_gafus_images preserve-recent
 
             : > "$RELEASE_BACKUP_DIR/images.tsv"
             for image in "${images[@]}"; do
@@ -966,36 +1057,44 @@ jobs:
               echo "$reference $rollback" >> "$RELEASE_BACKUP_DIR/images.tsv"
             done
 
+            # Reserve at least 25 minutes of the SSH budget for cutover and readiness.
+            pull_deadline=$((85 * 60))
             pull_image() {
-              local image="$1"
-              local reference
+              local image="$1" reference remaining limit
               reference="$(release_ref "$image")"
+              # Only the exact manifest digest is reusable, never a mutable tag.
+              if docker image inspect "$reference" >/dev/null 2>&1; then
+                echo "RELEASE_IMAGE_CACHE_HIT:$image"
+                return 0
+              fi
               for attempt in 1 2 3; do
-                echo "📥 Pulling $image (attempt $attempt/3)..."
-                if timeout 15m docker pull "$reference"; then
+                remaining=$((pull_deadline - SECONDS))
+                if [ "$remaining" -le 0 ]; then
+                  echo "RELEASE_PULL_BUDGET_EXHAUSTED:$image" >&2
+                  return 1
+                fi
+                limit=$((remaining < 1500 ? remaining : 1500))
+                echo "📥 Pulling $image (attempt $attempt/3, budget ${limit}s)..."
+                if timeout "${limit}s" docker pull "$reference"; then
                   echo "✅ Successfully pulled $image"
                   return 0
                 fi
-                echo "⚠️ Pull of $image failed or timed out; retrying in 20 seconds..."
-                sleep 20
+                if [ "$attempt" -lt 3 ] && [ "$((pull_deadline - SECONDS))" -gt 20 ]; then
+                  echo "⚠️ Pull failed; retrying in 20 seconds..."
+                  sleep 20
+                else
+                  return 1
+                fi
               done
               return 1
             }
 
-            pull_failed=0
             for image in "${images[@]}"; do
               if ! pull_image "$image"; then
-                echo "❌ Failed to pull $image"
-                pull_failed=1
+                echo "❌ Failed to pull $image; live containers unchanged" >&2
+                exit 1
               fi
             done
-
-            if [ "$pull_failed" -ne 0 ]; then
-              echo "❌ One or more docker pulls failed"
-              echo "🔍 Checking registry authentication..."
-              docker login ghcr.io -u asmtv1 --password-stdin <<< "${{ secrets.GHCR_TOKEN }}" || echo "⚠️ Login check failed"
-              exit 1
-            fi
 
             # Compose uses :latest locally. Pin EVERY release to the same SHA:
             # only after all immutable images are fetched, retag them for Compose.
@@ -1166,7 +1265,7 @@ jobs:
           username: ${{ inputs.app_only && 'root' || secrets.SERVER_USERNAME }}
           key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
           port: ${{ inputs.app_only && '22' || secrets.SERVER_PORT }}
-          command_timeout: 60m
+          command_timeout: 110m
           envs: GAFUS_RELEASE_MANIFEST_B64,GAFUS_RELEASE_RUN_ID,GAFUS_RELEASE_RUN_ATTEMPT,GAFUS_RELEASE_SHA,GAFUS_OWNER_RELEASE_APPROVED_SHA
           # Keep each interpolated scalar below GitHub's 21,000-character expression limit.
-          script: ${{ format('{0}{1}{2}{3}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}
+          script: ${{ format('{0}{1}{2}{3}{4}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3, env.DEPLOY_SCRIPT_4) }}

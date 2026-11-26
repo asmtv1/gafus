@@ -19,13 +19,13 @@ export interface FeedStorageConfig {
   secretAccessKey: string;
   cdnBaseUrl: string;
   cdnSecret: string;
-  cdnProvider?: "beget";
+  cdnProvider?: "beget" | "yandex";
 }
-function safeOrigin(value: string): string {
+function safeOrigin(value: string, provider?: "beget" | "yandex"): string {
   const url = new URL(value);
   if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash ||
       url.username || url.password || url.port ||
-      url.hostname !== "quepraquiecebquomiel.begetcdn.cloud")
+      url.hostname !== (provider === "yandex" ? "cdn.gafus.ru" : "quepraquiecebquomiel.begetcdn.cloud"))
     throw new Error("UNSAFE_FEED_CDN");
   return url.origin;
 }
@@ -56,9 +56,9 @@ export function feedStorageConfigFromEnv(
     secretAccessKey: env.FEED_S3_SECRET_ACCESS_KEY ?? "",
     cdnBaseUrl: env.FEED_CDN_BASE_URL ?? "",
     cdnSecret: env.FEED_CDN_SECRET ?? "",
-    cdnProvider: env.FEED_CDN_PROVIDER as "beget" | undefined,
+    cdnProvider: env.FEED_CDN_PROVIDER as "beget" | "yandex" | undefined,
   };
-  if (config.cdnProvider !== undefined && config.cdnProvider !== "beget")
+  if (config.cdnProvider !== undefined && config.cdnProvider !== "beget" && config.cdnProvider !== "yandex")
     throw new Error("INVALID_FEED_CDN_PROVIDER");
   if (config.enabled) {
     validateFeedStorageConfig(config);
@@ -83,7 +83,7 @@ function validateFeedStorageConfig(config: FeedStorageConfig) {
     (!config.isolatedNonprod && !/^[A-Za-z0-9_-]{24,32}$/.test(config.cdnSecret))
   )
     throw new Error("INVALID_FEED_STORAGE_CONFIG");
-  if (!config.isolatedNonprod) safeOrigin(config.cdnBaseUrl);
+  if (!config.isolatedNonprod) safeOrigin(config.cdnBaseUrl, config.cdnProvider);
 }
 export function signFeedCdnUrl(
   baseUrl: string,
@@ -91,11 +91,11 @@ export function signFeedCdnUrl(
   expiresAt: Date,
   secret: string,
   now = Date.now(),
-  provider?: "beget",
+  provider?: "beget" | "yandex",
   maxTtlSeconds = 360,
 ) {
   assertFeedFinalKey(key);
-  const origin = safeOrigin(baseUrl);
+  const origin = safeOrigin(baseUrl, provider);
   const expires = Math.floor(expiresAt.getTime() / 1000);
   if (
     !/^[A-Za-z0-9_-]{24,32}$/.test(secret) ||
@@ -105,8 +105,9 @@ export function signFeedCdnUrl(
     expires > Math.floor(now / 1000) + maxTtlSeconds
   )
     throw new Error("INVALID_FEED_CDN_SIGNING_INPUT");
-  if (provider !== undefined && provider !== "beget")
+  if (provider !== undefined && provider !== "beget" && provider !== "yandex")
     throw new Error("CDN_PROVIDER_MISMATCH");
+  if (provider === "yandex" && maxTtlSeconds !== 360) throw new Error("CDN_LONG_TTL_UNVERIFIED");
   const path = `/${key}`;
   // Beget Cloud CDN Secure Token (without IP binding):
   // md5 = base64url(MD5(`${expires}${path} ${secret}`)), passed as query parameters.

@@ -61,6 +61,7 @@ describe("sendPasswordResetRequestByEmail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.updateUser.mockResolvedValue({ count: 1 });
+    mocks.sendEmail.mockResolvedValue("sent");
     mocks.findUser.mockResolvedValue({
       id: "user-1",
       email: "test@example.com",
@@ -82,6 +83,13 @@ describe("sendPasswordResetRequestByEmail", () => {
       },
     });
     expect(mocks.createToken.mock.calls[0][0].data.token).not.toBe(rawToken);
+  });
+
+  it("durable enqueue preserves the previous usable reset link", async () => {
+    mocks.sendEmail.mockResolvedValueOnce("queued");
+    await sendPasswordResetRequestByEmail("test@example.com");
+    expect(mocks.createToken).toHaveBeenCalledOnce();
+    expect(mocks.deleteTokens).not.toHaveBeenCalled();
   });
 
   it("failed email leaves old token valid and reopens the throttle for retry", async () => {

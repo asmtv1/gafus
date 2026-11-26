@@ -4,11 +4,13 @@ import {
   ListObjectVersionsCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
-import { constants, createHash, sign } from "node:crypto";
+import { createHash } from "node:crypto";
+import { cdnRequest } from "./yandexCdnRequest";
 import { parsePrivateMediaLocation } from "./privateUserMedia";
 import { isolatedNonprodS3Config } from "./isolatedNonprodS3";
 import { cloudruCdnPurgeDone } from "./cloudruCdnPurge";
-import { beginBegetCdnPurge, begetCdnPurgeDone, isBegetCacheableObjectKey } from "./begetCdnPurge";
+import { isBegetCacheableObjectKey } from "./begetCdnPurge";
+import { beginSharedCdnPurge, sharedCdnPurgeDone } from "./sharedCdnPurge";
 
 export type AccountStorageScope = "public" | "gallery" | "feed" | "questions" | "documents";
 /** Durable account-deletion intent, not an object prefix. A provider cutover
@@ -307,59 +309,6 @@ export function createAccountStorageCleaner(
   };
 }
 
-let iam: { token: string; expires: number; fingerprint: string } | undefined;
-async function cdnIamToken() {
-  const raw = process.env.CDN_CLEANUP_SERVICE_ACCOUNT_KEY;
-  if (!raw) throw new Error("CLEANUP_CDN_UNCONFIGURED");
-  // Key rotation must never re-use an IAM token minted for an old account.
-  const fingerprint = createHash("sha256").update(raw).digest("hex");
-  if (iam && iam.fingerprint === fingerprint && iam.expires > Date.now()) return iam.token;
-  const key = JSON.parse(raw) as { id: string; service_account_id: string; private_key: string };
-  if (!key.id || !key.service_account_id || !key.private_key)
-    throw new Error("CLEANUP_CDN_UNCONFIGURED");
-  const time = Math.floor(Date.now() / 1000);
-  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
-  const unsigned = `${encode({ alg: "PS256", kid: key.id, typ: "JWT" })}.${encode({
-    iss: key.service_account_id,
-    aud: "https://iam.api.cloud.yandex.net/iam/v1/tokens",
-    iat: time,
-    exp: time + 3600,
-  })}`;
-  const signature = sign("sha256", Buffer.from(unsigned), {
-    key: key.private_key,
-    padding: constants.RSA_PKCS1_PSS_PADDING,
-    saltLength: 32,
-  }).toString("base64url");
-  const response = await fetch("https://iam.api.cloud.yandex.net/iam/v1/tokens", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jwt: `${unsigned}.${signature}` }),
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new Error("CLEANUP_IAM_FAILED");
-  const result = (await response.json()) as { iamToken?: string };
-  if (!result.iamToken) throw new Error("CLEANUP_IAM_FAILED");
-  iam = { token: result.iamToken, expires: Date.now() + 50 * 60_000, fingerprint };
-  return iam.token;
-}
-
-async function cdnRequest(path: string, body?: { paths: string[] }) {
-  const token = await cdnIamToken();
-  const url = body
-    ? `https://cdn.api.cloud.yandex.net/cdn/v1/${path}`
-    : `https://operation.api.cloud.yandex.net/${path}`;
-  const response = await fetch(url, {
-    method: body ? "POST" : "GET",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new Error(`CLEANUP_CDN_HTTP_${response.status}`);
-  const result = (await response.json()) as { id?: string; done?: boolean; error?: unknown };
-  if (result.error) throw new Error("CLEANUP_CDN_OPERATION_FAILED");
-  return result;
-}
-
 export async function startAccountCdnPurge(
   scope: AccountStorageScope,
   targets: { prefixes: string[]; keys: string[] },
@@ -389,7 +338,7 @@ export async function startAccountCdnPurge(
       ? "https://fupiquafifeswu.begetcdn.cloud" : "https://fupiquafifeswu.begetcdn.cloud") :
     scope === "feed" ? "https://quepraquiecebquomiel.begetcdn.cloud" : "";
   const provider = process.env[`${name}_CDN_PROVIDER`] ?? "beget";
-  if (cloudru && knownBeget && (provider !== "beget" || cdnHost !== knownBeget))
+  if (cloudru && knownBeget && !((provider === "beget" && cdnHost === knownBeget) || (provider === "yandex" && cdnHost === "cdn.gafus.ru")))
     throw new Error("CLEANUP_CDN_PROVIDER_MISMATCH");
   const dual = cloudru && process.env[`${name}_DUAL_PROVIDER_CLEANUP`] === "true";
   const legacyResources = dual
@@ -410,7 +359,7 @@ export async function startAccountCdnPurge(
   // Public media uses uncached Nginx unless additional CDN resources are explicitly configured.
   if (!cloudru && !resources.length && scope !== "public")
     throw new Error("CLEANUP_CDN_UNCONFIGURED");
-  if (cloudru && provider === "beget") {
+  if (cloudru && (provider === "beget" || provider === "yandex")) {
     // Beget path purge cannot safely infer old signed cache keys from a prefix.
     // Keep deletion pending rather than silently leave cached private media.
     const cacheable = targets.keys.filter(key =>
@@ -420,7 +369,7 @@ export async function startAccountCdnPurge(
     if (targets.prefixes.length && !cacheable.length)
       throw new Error("BEGET_CDN_EXACT_KEYS_REQUIRED");
     const submitted = cacheable.length
-      ? await beginBegetCdnPurge(scope as "gallery" | "feed",
+      ? await beginSharedCdnPurge(scope as "gallery" | "feed",
           cacheable.map(key => `/${key}`), existing, checkpoint)
       : [...existing];
     if (!dual) return submitted;
@@ -457,8 +406,8 @@ export async function accountCdnPurgeDone(
   for (let index = 0; index < operations.length; index++) {
     const operation = operations[index]!;
     if (operation.startsWith("done:")) continue;
-    if (operation.startsWith("beget:")) {
-      if (!(await begetCdnPurgeDone(operation))) return false;
+    if (operation.startsWith("beget:") || operation.startsWith("yandex:")) {
+      if (!(await sharedCdnPurgeDone(operation))) return false;
       confirmed[index] = `done:${operation}`;
       await checkpoint?.(confirmed);
       continue;

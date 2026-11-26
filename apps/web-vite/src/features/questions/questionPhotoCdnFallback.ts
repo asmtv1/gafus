@@ -25,7 +25,7 @@ export async function allowQuestionsS3Fallback(
     primary.password ||
     primary.search ||
     primary.hash ||
-    primary.hostname !== "ebiteskukingusk.begetcdn.cloud" ||
+    !["ebiteskukingusk.begetcdn.cloud", "cdn.gafus.ru"].includes(primary.hostname) ||
     !variant.test(primary.pathname) ||
     fallback.origin !== "https://gafus-questions-public.s3.cloud.ru" ||
     fallback.username ||

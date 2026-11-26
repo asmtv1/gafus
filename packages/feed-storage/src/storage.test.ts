@@ -287,3 +287,14 @@ describe("explicit isolated nonproduction S3", () => {
     expect(() => feedStorageConfigFromEnv({ ...env, ...bad })).toThrow();
   });
 });
+
+describe('shared Yandex feed signing', () => {
+  it('only accepts the explicit provider and immutable final keys', () => {
+    const now = 1_793_600_000_000, expires = new Date(now + 90_000), key = 'media/v2/asset/v1/video/360.mp4', secret = 'A'.repeat(32);
+    const url = new URL(signFeedCdnUrl('https://cdn.gafus.ru', key, expires, secret, now, 'yandex'));
+    expect(url.pathname).toBe('/' + key);
+    expect(url.search).toMatch(/^\?md5=[A-Za-z0-9_-]{22}&expires=1793600090$/);
+    expect(() => signFeedCdnUrl('https://cdn.gafus.ru', key, expires, secret, now, 'beget')).toThrow();
+    expect(() => signFeedCdnUrl('https://cdn.gafus.ru', 'posts/owner/post/incoming/source.jpg', expires, secret, now, 'yandex')).toThrow();
+  });
+});

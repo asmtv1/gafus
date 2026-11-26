@@ -5,6 +5,7 @@ import {
   beginBegetCdnPurge,
   begetCdnPurgeDone,
   isBegetCacheableObjectKey,
+  beginSharedCdnPurge, sharedCdnPurgeDone, expectedSharedCdnReceipts,
 } from "@gafus/cdn-upload";
 
 import { createMediaCdnPurgeRepository, type EdgePurgeJob } from "@gafus/media-server/purge-repository";
@@ -20,7 +21,7 @@ export function verifyEdgePurgeJob(job: EdgePurgeJob): asserts job is EdgePurgeJ
       !Array.isArray(job.paths) || job.paths.length < 1 || job.paths.length > 1024 ||
       job.paths.some(path => typeof path !== "string" || !path.startsWith("/") ||
         !isBegetCacheableObjectKey(job.scope as "gallery" | "feed", path.slice(1))) ||
-      !Array.isArray(job.purgeOperations) || job.purgeOperations.length > 103)
+      !Array.isArray(job.purgeOperations) || job.purgeOperations.length > 206)
     throw new Error("MEDIA_PURGE_JOB_UNTRUSTED");
 }
 
@@ -32,6 +33,7 @@ export type EdgePurgeDeps = {
   begin: typeof beginBegetCdnPurge;
   done: typeof begetCdnPurgeDone;
   now: () => number;
+  expectedReceipts?: typeof expectedSharedCdnReceipts;
 };
 
 /** Each cycle uses a lease-fenced durable checkpoint before clearing S3 jobs. */
@@ -45,7 +47,7 @@ export async function processOneMediaCdnPurge(deps: EdgePurgeDeps): Promise<"emp
     if (operations.length < 1) throw new Error("MEDIA_PURGE_NO_OPERATIONS");
     // Every distinct batch must have a matching durable operation. An
     // incomplete checkpoint must not be mistaken for successful revocation.
-    const expectedBatches = Math.ceil(job.paths.length / 10);
+    const expectedBatches = deps.expectedReceipts?.(job.scope,job.paths,operations) ?? Math.ceil(job.paths.length / 10);
     if (operations.length !== expectedBatches) throw new Error("MEDIA_PURGE_INCOMPLETE_BATCHES");
     for (const operation of operations) {
       const done = operation.startsWith("done:") || await deps.done(operation);
@@ -68,8 +70,9 @@ export function createMediaCdnPurgeDependencies(): EdgePurgeDeps {
   return {
     ...createMediaCdnPurgeRepository(),
     now: Date.now,
-    begin: beginBegetCdnPurge,
-    done: begetCdnPurgeDone,
+    begin: beginSharedCdnPurge,
+    done: sharedCdnPurgeDone,
+    expectedReceipts: expectedSharedCdnReceipts,
   };
 }
 

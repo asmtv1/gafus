@@ -370,6 +370,25 @@ describe("app subscription route contracts", () => {
     });
   });
 
+  it.each([
+    ["BASIC", "TWO_WEEKS"], ["STANDARD", "MONTHLY"], ["PREMIUM", "THREE_MONTHS"],
+  ])("accepts tier %s and preserves billing code %s", async (tier, billingCode) => {
+    const app = createAuthenticatedTestApp();
+    process.env.WEB_APP_URL = "https://gafus.ru";
+    process.env.YOOKASSA_SHOP_ID = "shop";
+    process.env.YOOKASSA_SECRET_KEY = "secret";
+    startYookassaAppSubscriptionPaymentMock.mockResolvedValueOnce({
+      success: true, confirmationUrl: "https://pay.test", localSubscriptionId: "sub-tier",
+    });
+    const response = await app.request(
+      jsonRequest("/api/v1/app-subscription/yookassa/start", "POST", { planCode: tier }),
+    );
+    expect(response.status).toBe(200);
+    expect(startYookassaAppSubscriptionPaymentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ planCode: billingCode }),
+    );
+  });
+
   it("rejects checkout from an unapproved Android account and from mobile bearer requests with no platform", async () => {
     const app = createAuthenticatedTestApp();
     try {

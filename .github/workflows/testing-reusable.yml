@@ -164,10 +164,6 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build web-vite dependency graph
         run: pnpm exec turbo run build --filter='@gafus/web-vite^...'
-      - name: Verify exact source test inventory, named groups and gated skips
-        run: |
-          node scripts/qa/web-vite-group-inventory.mjs check
-          pnpm test:system:contract
       - name: Ensure trusted lsof executable for kernel-backed process lifecycle tests
         run: |
           if [[ ! -x /usr/bin/lsof ]]; then
@@ -175,6 +171,10 @@ jobs:
             sudo apt-get install -y -qq lsof
           fi
           test -x /usr/bin/lsof
+      - name: Verify exact source test inventory, named groups and gated skips
+        run: |
+          node scripts/qa/web-vite-group-inventory.mjs check
+          pnpm test:system:contract
       - name: Run full web-vite regression in isolated Vitest processes
         id: regression
         continue-on-error: true
@@ -304,7 +304,7 @@ jobs:
       matrix:
         include:
           - platform: linux
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - platform: android
             runner: ubuntu-latest
           - platform: ios
@@ -339,6 +339,14 @@ jobs:
         if: matrix.platform == 'linux'
         continue-on-error: true
         run: pnpm exec turbo run build --filter='@gafus/api...' --filter='@gafus/worker...' --filter='@gafus/web-vite...'
+      - name: Ensure trusted lsof executable for kernel-backed process lifecycle tests
+        if: matrix.platform == 'linux'
+        run: |
+          if [[ ! -x /usr/bin/lsof ]]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq lsof
+          fi
+          test -x /usr/bin/lsof
       - name: Prepare Linux Chromium
         if: matrix.platform == 'linux'
         continue-on-error: true

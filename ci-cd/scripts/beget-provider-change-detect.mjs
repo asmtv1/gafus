@@ -10,9 +10,11 @@ const providerConfigFiles = new Set([
   'infra/cloudru/beget-gallery-create.mjs',
   'infra/cloudru/beget-gallery-secure-configure.mjs',
   'infra/cloudru/gallery-redirect-release-gate.mjs',
+  'infra/cloudru/configure-shared-yandex-cdn.py',
+  'infra/cloudru/shared-yandex-cdn-readiness.mjs',
 ]);
 const composePath = 'ci-cd/docker/docker-compose.prod.yml';
-const providerVariables = /^[+-](?![+-]).*(?:BEGET_CDN_|GALLERY_CDN_|FEED_CDN_|GALLERY_BEGET_CDN_|FEED_BEGET_CDN_)/m;
+const providerVariables = /^[+-](?![+-]).*(?:BEGET_CDN_|GALLERY_CDN_|FEED_CDN_|GALLERY_BEGET_CDN_|FEED_BEGET_CDN_|YANDEX_SHARED_CDN_|QUESTIONS_V2_CDN_|CHAT2_V2_CDN_)/m;
 
 export function requiresProviderCheck(changedPaths, composePatch = '') {
   if (changedPaths.some(path => providerConfigFiles.has(path))) return true;

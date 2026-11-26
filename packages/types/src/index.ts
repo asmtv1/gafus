@@ -64,7 +64,7 @@ export {
 } from "./contracts/usernameAvailability";
 
 // Subscription status is a browser-safe type contract; no server-side runtime export.
-export type { AppSubscriptionPlanCode, AppSubscriptionProvider, AppSubscriptionStatusCode, YookassaTrialUnavailableReason, AppSubscriptionStatusDto } from "./contracts/appSubscriptionRead";
+export * from "./contracts/appSubscriptionRead";
 
 export type { VideoPlaybackQualityEvent, VideoPlaybackQualityReport, VideoPlaybackQualityBreakdown, VideoPlaybackSurface, VideoPlaybackPlatform, VideoPlaybackMode, VideoPlaybackNetworkClass } from "./video-playback-analytics";
 

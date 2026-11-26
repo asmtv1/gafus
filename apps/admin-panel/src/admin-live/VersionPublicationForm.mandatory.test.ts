@@ -38,3 +38,14 @@ describe("admin mandatory action for public checkout", () => {
     expect(hasSignedPublicCheckoutRecovery({ ...choice, publicAppStoreReady: false }, [rollback])).toBe(false);
   });
 });
+
+it("permits Android RuStore only with a signed matching recovery", () => {
+  const target = { ...choice, publicAppStoreReady: false, publicRustoreReady: true, nativeIds: ["rustore-17506"] };
+  const recovery = { ...rollback, publicAppStoreReady: false, publicRustoreReady: true, nativeIds: target.nativeIds };
+  const preview = { total: 6, verified: 1, token: "review", active: null, choices: [target, recovery] };
+  expect(canRequirePublicCheckoutFromPreview(target, preview, "android", "1.7.5")).toBe(true);
+  expect(canRequirePublicCheckoutFromPreview(target, preview, "android", "1.7.6")).toBe(false);
+  expect(canRequirePublicCheckoutFromPreview(target, preview, "ios", "1.7.5")).toBe(false);
+  expect(canRequirePublicCheckoutFromPreview(target, {...preview, choices: [target]}, "android", "1.7.5")).toBe(false);
+  expect(canRequirePublicCheckoutFromPreview({...target, publicRustoreReady: false}, preview, "android", "1.7.5")).toBe(false);
+});

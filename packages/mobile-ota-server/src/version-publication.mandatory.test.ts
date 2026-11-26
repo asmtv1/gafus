@@ -40,3 +40,18 @@ describe("required public iOS OTA with signed YooKassa", () => {
     expect(canRequirePublicCheckout(ios, { ...selected, nativeIds: ["native-app-store-101", "native-app-store-101"] }, [recovery], "true")).toBe(false);
   });
 });
+
+describe("required public Android RuStore OTA", () => {
+  const android = { platform: "android", runtimeVersion: "1.7.5" } as const;
+  const target = { ...selected, publicAppStoreReady: false, publicRustoreReady: true, nativeIds: ["rustore-17506"] };
+  const rollback = { ...recovery, publicAppStoreReady: false, publicRustoreReady: true, nativeIds: target.nativeIds };
+  it("requires exact RuStore recovery and independent approval", () => {
+    expect(canRequirePublicCheckout(android, target, [rollback], "true")).toBe(true);
+    expect(canRequirePublicCheckout(android, target, [rollback], "false")).toBe(false);
+    expect(canRequirePublicCheckout(android, {...target, publicRustoreReady: false}, [rollback], "true")).toBe(false);
+    expect(canRequirePublicCheckout(android, target, [recovery], "true")).toBe(false);
+    expect(canRequirePublicCheckout(android, target, [], "true")).toBe(false);
+    expect(canRequirePublicCheckout({...android, runtimeVersion: "1.7.6"}, target, [rollback], "true")).toBe(false);
+    expect(canRequirePublicCheckout(ios, target, [rollback], "true")).toBe(false);
+  });
+});

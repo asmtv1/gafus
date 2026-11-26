@@ -83,3 +83,5 @@ export {chat2V2ClientVideoPosterPost,chat2V2ClientVideoPosterKey} from "./chat2V
 
 export { questionsV2CleanupKeys } from "./questionsV2Cleanup.js";
 export type { QuestionsV2CleanupKind, QuestionsV2CleanupIdentity } from "./questionsV2Cleanup.js";
+
+export { beginSharedCdnPurge, sharedCdnPurgeDone, expectedSharedCdnReceipts } from "./sharedCdnPurge";
