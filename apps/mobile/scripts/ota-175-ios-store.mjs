@@ -251,7 +251,10 @@ export function verifyIpa(ipa,d,{metadataOnly=false}={}){
     e.EXUpdatesCodeSigningMetadata?.keyid===d.signingKeyId&&
     e.EXUpdatesCodeSigningMetadata?.alg==='rsa-v1_5-sha256'&&
     e.EXUpdatesCodeSigningCertificate===d.certificatePem,'IPA_SELF_HOSTED_OTA_MISMATCH');
-  if(!metadataOnly)verifyAppleStoreSignature(ipa,info);
+  if(!metadataOnly){
+    execFileSync('python3',[path.join(path.dirname(fileURLToPath(import.meta.url)),'verify-native-ota-artifact.py'),ipa],{stdio:'inherit'});
+    verifyAppleStoreSignature(ipa,info);
+  }
   const digest=crypto.createHash('sha256').update(fs.readFileSync(ipa)).digest('hex');
   return {ipa,version:i.CFBundleShortVersionString,buildNumber:String(i.CFBundleVersion),
     otaUrl:e.EXUpdatesURL,channel:'production',nativeReleaseId:d.id,

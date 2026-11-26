@@ -41,10 +41,24 @@ function main() {
   }
   const bundletool = process.env.BUNDLETOOL_JAR;
   const aab = filename.endsWith(".aab");
-  if (aab && !bundletool) throw new Error("Set BUNDLETOOL_JAR to the bundletool-all JAR");
-  const manifest = aab ? execFileSync("java", ["-jar", bundletool, "dump", "manifest", `--bundle=${filename}`], {
-    encoding: "utf8", timeout: 30_000,
-  }) : readFileSync(filename, "utf8");
+  // Prefer bundletool when provided; otherwise parse the actual protobuf
+  // AndroidManifest.xml from the AAB using the same parser as the OTA guard.
+  const manifest = aab ? (bundletool
+    ? execFileSync("java", ["-jar", bundletool, "dump", "manifest", `--bundle=${filename}`], {
+      encoding: "utf8", timeout: 30_000,
+    })
+    : execFileSync("python3", ["-c", [
+      "import importlib.util, sys, zipfile, xml.etree.ElementTree as ET",
+      "spec = importlib.util.spec_from_file_location('native_ota', sys.argv[1])",
+      "module = importlib.util.module_from_spec(spec)",
+      "spec.loader.exec_module(module)",
+      "ET.register_namespace('android', module.ANDROID)",
+      "with zipfile.ZipFile(sys.argv[2]) as archive:",
+      "    root = module.aab_element(archive.read('base/manifest/AndroidManifest.xml'))",
+      "    print(ET.tostring(root, encoding='unicode'))",
+    ].join("\n"), fileURLToPath(new URL("./verify-native-ota-artifact.py", import.meta.url)), filename], {
+      encoding: "utf8", timeout: 30_000, maxBuffer: 8 * 1024 * 1024,
+    })) : readFileSync(filename, "utf8");
   verifyAndroidMediaPermissions(manifest);
   console.log("ANDROID_MEDIA_PERMISSIONS_PASS");
 }

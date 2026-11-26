@@ -1,8 +1,10 @@
 /** Local Android production build. Native release checks run before Gradle. */
-import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { spawnSync, execFileSync } from "node:child_process";
+import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
 
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = resolve(mobileRoot, "../..");
@@ -13,7 +15,7 @@ const preflight = spawnSync(process.execPath,
   { cwd: mobileRoot, stdio: "inherit" });
 if (preflight.error) throw preflight.error;
 if (preflight.status !== 0) throw Error("MOBILE_NATIVE_RELEASE_PREFLIGHT_FAILED");
-const env = { ...process.env };
+const env = { ...process.env, APP_ENV: "production", GAFUS_OTA_TRANSPORT: "self-hosted" };
 // Homebrew JDK 17 is keg-only on macOS: /usr/bin/java may be a stub even
 // when a valid JDK is installed. EAS local runs Gradle in a child process.
 if (!env.JAVA_HOME && process.platform === "darwin") {
@@ -36,6 +38,24 @@ for (const key of Object.keys(env)) {
   }
 }
 const [mode, ...extraArgs] = process.argv.slice(2);
+if (mode !== "--verify-cli") {
+  Object.assign(env, {
+    GAFUS_OTA_TARGET_PLATFORM: "android",
+    GAFUS_OTA_LOCAL_STORE_BUILD: "true",
+    GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR: env.GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR || ".ota-certs/android-store-native.json",
+    GAFUS_OTA_NATIVE_CERTIFICATE: env.GAFUS_OTA_NATIVE_CERTIFICATE || ".ota-certs/native.pem",
+    EXPO_PUBLIC_CHAT2_API_ORIGIN: "https://api.gafus.ru",
+  });
+  // The protected descriptor and certificate must exist before touching EAS.
+  require("./self-hosted-native-profile.cjs").applyNativeSelfHostedProfile(
+    require("../app.json").expo, { environment: env, appRoot: mobileRoot });
+  if (mode !== "--verify-config") {
+    const descriptor = JSON.parse(readFileSync(resolve(mobileRoot,env.GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR),"utf8"));
+    const head = execFileSync("git",["rev-parse","HEAD"],{cwd:repoRoot,encoding:"utf8"}).trim();
+    if (descriptor.sourceSha !== head || execFileSync("git",["status","--porcelain"],{cwd:repoRoot,encoding:"utf8"}).trim())
+      throw Error("MOBILE_ANDROID_RELEASE_REQUIRES_FRESH_REGISTERED_DESCRIPTOR_AND_CLEAN_SOURCE");
+  }
+}
 if (mode === "--verify-cli") {
   const result = spawnSync("npx", ["--yes", "eas-cli@27.4.1", "--version"], {
     cwd: mobileRoot,
@@ -68,6 +88,7 @@ if (mode === "--verify-cli") {
   console.log("PASS: production Expo config validates without vendor tokens");
 } else {
   const forwarded = mode ? [mode, ...extraArgs] : [];
+  if (forwarded.some(arg => /^--(?:profile|platform)(?:=|$)/.test(arg))) throw Error("MOBILE_RELEASE_PROFILE_OVERRIDE_FORBIDDEN");
   const buildStartedAt = Date.now();
   const result = spawnSync(
     "npx",
@@ -100,6 +121,11 @@ if (mode === "--verify-cli") {
   if (!candidates.length) {
     throw Error("MOBILE_NEW_AAB_NOT_FOUND: provide --output and verify a fresh AAB before store upload");
   }
+  const ota = spawnSync("python3",
+    [resolve(mobileRoot, "scripts/verify-native-ota-artifact.py"), candidates[0]],
+    { cwd: mobileRoot, stdio: "inherit" });
+  if (ota.error) throw ota.error;
+  if (ota.status !== 0) throw Error("MOBILE_ANDROID_AAB_OTA_CHECK_FAILED");
   const payment = spawnSync(process.execPath,
     [resolve(mobileRoot, "scripts/verify-android-payment-aab.mjs"), candidates[0]],
     { cwd: mobileRoot, stdio: "inherit" });

@@ -1,4 +1,4 @@
-/** Opt-in for a NEW native store/test binary; default EAS config stays unchanged. */
+/** Signed GAFUS OTA only. Unconfigured developer sessions have OTA disabled. */
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
@@ -7,9 +7,14 @@ const SHA256 = /^[a-fA-F0-9]{64}$/;
 
 function applyNativeSelfHostedProfile(config, { environment = process.env,
   appRoot = path.resolve(__dirname, "..") } = {}) {
-  const mode = environment.GAFUS_OTA_TRANSPORT || "eas";
-  if (mode === "eas") return config;
-  if (mode !== "self-hosted") throw Error("UNSUPPORTED_GAFUS_OTA_TRANSPORT");
+  const mode = environment.GAFUS_OTA_TRANSPORT;
+  const release = ["production", "preview"].includes(environment.APP_ENV) ||
+    (environment.EAS_BUILD === "true" && !["development", "development-device"].includes(environment.EAS_BUILD_PROFILE));
+  if (!mode && !release) {
+    const { url, codeSigningCertificate, codeSigningMetadata, requestHeaders, ...rest } = config.updates || {};
+    return { ...config, updates: { ...rest, enabled: false, checkAutomatically: "NEVER" } };
+  }
+  if (mode && mode !== "self-hosted") throw Error("UNSUPPORTED_GAFUS_OTA_TRANSPORT");
   const file = environment.GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR;
   const certificatePath = environment.GAFUS_OTA_NATIVE_CERTIFICATE;
   if (!file || !certificatePath) throw Error("SELF_HOSTED_NATIVE_DESCRIPTOR_AND_CERT_REQUIRED");
@@ -39,7 +44,11 @@ function applyNativeSelfHostedProfile(config, { environment = process.env,
   if (descriptor.environment === "production" && !localDeviceTest && !localStoreBuild &&
       (environment.CI !== "true" || environment.GAFUS_OTA_PRODUCTION_APPROVED !== "true"))
     throw Error("SELF_HOSTED_PRODUCTION_REQUIRES_APPROVED_CI");
-  if (descriptor.appVersion !== config.version || config.runtimeVersion?.policy !== "appVersion")
+  if (release && ["production", "preview"].includes(environment.APP_ENV) &&
+      descriptor.environment !== environment.APP_ENV)
+    throw Error("SELF_HOSTED_NATIVE_ENVIRONMENT_MISMATCH");
+  if (descriptor.channel !== descriptor.environment) throw Error("SELF_HOSTED_NATIVE_CHANNEL_MISMATCH");
+  if (descriptor.runtimeVersion !== config.version || descriptor.appVersion !== config.version || config.runtimeVersion?.policy !== "appVersion")
     throw Error("SELF_HOSTED_NATIVE_APP_VERSION_RUNTIME_MISMATCH");
   if (!config.version || config.version === "1.7.4")
     throw Error("SELF_HOSTED_REQUIRES_NEW_NATIVE_APP_VERSION");
@@ -55,9 +64,9 @@ function applyNativeSelfHostedProfile(config, { environment = process.env,
     throw Error("SELF_HOSTED_CERTIFICATE_MISMATCH");
   const parsed = new URL(descriptor.updateUrl);
   if (parsed.protocol !== "https:" || parsed.username || parsed.password ||
-      parsed.search || parsed.hash || parsed.pathname !== "/ota/manifest" ||
+      parsed.port || parsed.search || parsed.hash || parsed.pathname !== "/ota/manifest" ||
       (descriptor.environment === "production" && parsed.hostname !== "gafus.ru") ||
-      (descriptor.environment === "preview" && parsed.hostname === "gafus.ru"))
+      (descriptor.environment === "preview" && (!parsed.hostname.endsWith(".gafus.ru") || ["api.gafus.ru", "www.gafus.ru"].includes(parsed.hostname))))
     throw Error("SELF_HOSTED_NATIVE_OTA_ENDPOINT_INVALID");
   // Embed the registered *native* build number. EAS remote version source
   // ignores these values, so internal 1.7.5 builds must use local Expo release
@@ -75,6 +84,7 @@ function applyNativeSelfHostedProfile(config, { environment = process.env,
     }),
     updates: {
       ...config.updates,
+      enabled: true,
       // Expo SDK 57 reuses launchWaitMs as OkHttp's connect/read timeout for
       // manual asset downloads. Keep the native automatic check disabled.
       // Android devices on slower or VPN connections need more than 10 seconds.

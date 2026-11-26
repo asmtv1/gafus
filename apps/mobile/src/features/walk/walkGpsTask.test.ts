@@ -35,12 +35,15 @@ vi.mock("expo-location", () => ({
   requestForegroundPermissionsAsync: mocked.fg,
   requestBackgroundPermissionsAsync: mocked.bg,
 }));
-vi.mock("react-native", () => ({ Platform: { OS: "android" } }));
+vi.mock("react-native", () => ({ Platform: { OS: "android" }, AppState: { currentState: "active" } }));
 vi.mock("./walkGpsStorage", () => ({
   activeGpsSession: mocked.active,
+  isV2GpsSession: vi.fn().mockResolvedValue(false),
   activateGpsSession: mocked.activate,
   deactivateGpsSession: mocked.deactivate,
   deactivateAllGpsSessions: mocked.deactivateAll,
+  walkQaEnabled:()=>false,
+  getWalkQaGpsProfile:async()=>null,
   persistGpsBatch: mocked.persist,
   readGpsMotionPolicy: mocked.getMotion,
   saveGpsMotionPolicy: mocked.setMotion,
@@ -78,6 +81,7 @@ beforeEach(() => {
   mocked.bg.mockResolvedValue({ granted: true });
   mocked.active.mockResolvedValue(null);
   mocked.already.mockResolvedValue(false);
+  mocked.start.mockImplementation(async () => { mocked.already.mockResolvedValue(true); });
   mocked.activate.mockResolvedValue(undefined);
   mocked.deactivate.mockResolvedValue(undefined);
   mocked.persist.mockResolvedValue(1);
@@ -103,8 +107,8 @@ describe("Expo TaskManager GPS background lifecycle", () => {
       },
     });
     expect(mocked.persist).toHaveBeenCalledWith([
-      { latitude: 53.195, longitude: 50.1, accuracy: 5, speed: 1, timestamp: 123456 },
-    ]);
+      { latitude: 53.195, longitude: 50.1, accuracy: 5, speed: 1, course: null, timestamp: 123456 },
+    ], expect.any(Number));
   });
   it("never starts GPS without foreground + background permission", async () => {
     mocked.bg.mockResolvedValue({ granted: false });
@@ -128,6 +132,11 @@ describe("Expo TaskManager GPS background lifecycle", () => {
     expect(mocked.activate.mock.invocationCallOrder[0]).toBeLessThan(
       mocked.start.mock.invocationCallOrder[0],
     );
+  });
+  it("does not claim recording if native task registration did not stick", async () => {
+    mocked.start.mockResolvedValue(undefined);
+    expect(await startWalkGps(owner, walk)).toBe(false);
+    expect(mocked.deactivate).toHaveBeenCalledWith(owner, walk);
   });
   it("does not restart an already active task on repeated start", async () => {
     mocked.active.mockResolvedValue({ ownerId: owner, walkId: walk });

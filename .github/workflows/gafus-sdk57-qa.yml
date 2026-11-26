@@ -8,6 +8,10 @@ on:
         description: Reviewed candidate SHA on origin/main
         required: true
         type: string
+      qa_android_native_id:
+        description: Registered verified preview Android native release UUID for this SHA/runtime
+        required: true
+        type: string
       qa_update_id:
         description: Synthetic UUID for offline source-map inventory (not published)
         required: true
@@ -20,6 +24,7 @@ concurrency:
 jobs:
   sdk57-source:
     runs-on: ubuntu-latest
+    environment: ota-preview
     timeout-minutes: 55
     env:
       CI: 'true'
@@ -135,16 +140,39 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Resolve signed preview native descriptor for Android QA
+        shell: bash
+        env:
+          OTA_NATIVE_ID: ${{ inputs.qa_android_native_id }}
+          MOBILE_OTA_API_ORIGIN: ${{ secrets.MOBILE_OTA_API_ORIGIN }}
+          MOBILE_OTA_CI_CALLBACK_TOKEN: ${{ secrets.MOBILE_OTA_CI_CALLBACK_TOKEN }}
+          OTA_SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          export OTA_PLATFORM=android
+          export OTA_RUNTIME="$(node -p "require('./apps/mobile/app.json').expo.version")"
+          export EXPO_PUBLIC_CHAT2_API_ORIGIN="$MOBILE_OTA_API_ORIGIN"
+          mkdir -p apps/mobile/.ota-certs "$RUNNER_TEMP/ota-native"
+          node apps/mobile/scripts/fetch-self-hosted-native-release.mjs "$OTA_NATIVE_ID" preview android "$OTA_RUNTIME" "$RUNNER_TEMP/ota-native"
+          node apps/mobile/scripts/verify-ota-preview-native-trust.mjs "$RUNNER_TEMP/ota-native/native.json"
+          cp "$RUNNER_TEMP/ota-native/native-cert.pem" apps/mobile/.ota-certs/native.pem
+          echo "GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR=$RUNNER_TEMP/ota-native/native.json" >> "$GITHUB_ENV"
+          echo "GAFUS_OTA_NATIVE_CERTIFICATE=.ota-certs/native.pem" >> "$GITHUB_ENV"
       - name: Build and verify the standard Android AAB
         shell: bash
         env:
           NODE_ENV: production
           EXPO_NO_DOTENV: '1'
+          APP_ENV: preview
+          GAFUS_OTA_TRANSPORT: self-hosted
+          GAFUS_OTA_TARGET_PLATFORM: android
         run: |
           set -euo pipefail
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006"
           pnpm --dir apps/mobile exec expo prebuild --platform android --no-install
           (cd apps/mobile/android && ./gradlew :app:bundleRelease --no-daemon)
+          python3 apps/mobile/scripts/verify-native-ota-artifact.py \
+            apps/mobile/android/app/build/outputs/bundle/release/app-release.aab --environment preview
           node apps/mobile/scripts/verify-android-payment-aab.mjs \
             apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
 

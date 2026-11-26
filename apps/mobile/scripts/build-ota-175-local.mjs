@@ -121,6 +121,7 @@ export function assertBuiltAndroidOtaApk(apkFile,plan) {
     config=JSON.parse(raw.toString('utf8'));
   } catch {throw Error('OTA_175_ANDROID_EMBEDDED_CONFIG_UNREADABLE');}
   assertEmbeddedAndroidOtaConfig(config,plan);
+  execFileSync('python3',[path.join(path.dirname(fileURLToPath(import.meta.url)),'verify-native-ota-artifact.py'),apkFile],{stdio:'inherit'});
 }
 function main(){
   const [platform,mode]=process.argv.slice(2);

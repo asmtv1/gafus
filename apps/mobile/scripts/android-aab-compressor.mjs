@@ -21,7 +21,6 @@ export function inspectAabNativeCompressor(path) {
   if(!dex.length) throw Error('ANDROID_AAB_DEX_MISSING');
   const buffers=dex.map(e=>execFileSync('unzip',['-p',path,e],{
     timeout:20000,maxBuffer:120*1024*1024}));
-  const mapping=readAabR8Mapping(entries, (entry)=>execFileSync('unzip',['-p',path,entry],{
-    timeout:20000,maxBuffer:128*1024*1024}));
+  const mapping=readAabR8Mapping(entries, path);
   return { passed:dexHasNativeCompressor(buffers,mapping), scanned:dex.length };
 }

@@ -1,0 +1,175 @@
+{
+  "fixtureVersion": 1,
+  "config": "v2 baseline / v2 median",
+  "rows": [
+    {
+      "scenario": "stationary_alternating",
+      "expectedObservedMeters": 0,
+      "v1Meters": 2250,
+      "v2Meters": 0,
+      "medianMeters": 0,
+      "v1Segments": 1,
+      "v2Segments": 1,
+      "medianSegments": 1,
+      "raw": 151,
+      "medianAccepted": 1,
+      "medianDisplay": 0,
+      "acceptedV2": 1,
+      "displayV2": 0
+    },
+    {
+      "scenario": "stationary_exact",
+      "expectedObservedMeters": 0,
+      "v1Meters": 0,
+      "v2Meters": 0,
+      "medianMeters": 0,
+      "v1Segments": 7,
+      "v2Segments": 1,
+      "medianSegments": 1,
+      "raw": 151,
+      "medianAccepted": 1,
+      "medianDisplay": 0,
+      "acceptedV2": 1,
+      "displayV2": 0
+    },
+    {
+      "scenario": "slow_straight",
+      "expectedObservedMeters": 180,
+      "v1Meters": 169.2,
+      "v2Meters": 180,
+      "medianMeters": 180,
+      "v1Segments": 1,
+      "v2Segments": 1,
+      "medianSegments": 1,
+      "raw": 151,
+      "medianAccepted": 151,
+      "medianDisplay": 2,
+      "acceptedV2": 151,
+      "displayV2": 2
+    },
+    {
+      "scenario": "square_clean",
+      "expectedObservedMeters": 160,
+      "v1Meters": 160,
+      "v2Meters": 160,
+      "medianMeters": 160,
+      "v1Segments": 1,
+      "v2Segments": 1,
+      "medianSegments": 1,
+      "raw": 41,
+      "medianAccepted": 41,
+      "medianDisplay": 5,
+      "acceptedV2": 41,
+      "displayV2": 5
+    },
+    {
+      "scenario": "square_noisy",
+      "expectedObservedMeters": 160,
+      "v1Meters": 187.947,
+      "v2Meters": 201.198,
+      "medianMeters": 173.517,
+      "v1Segments": 1,
+      "v2Segments": 1,
+      "medianSegments": 1,
+      "raw": 41,
+      "medianAccepted": 40,
+      "medianDisplay": 17,
+      "acceptedV2": 40,
+      "displayV2": 22
+    },
+    {
+      "scenario": "gap_60s_with_recovery",
+      "expectedObservedMeters": 15,
+      "v1Meters": 95,
+      "v2Meters": 15,
+      "medianMeters": 15,
+      "v1Segments": 1,
+      "v2Segments": 2,
+      "medianSegments": 2,
+      "raw": 5,
+      "medianAccepted": 5,
+      "medianDisplay": 4,
+      "acceptedV2": 5,
+      "displayV2": 4
+    },
+    {
+      "scenario": "running",
+      "expectedObservedMeters": 600,
+      "v1Meters": 600,
+      "v2Meters": 600,
+      "medianMeters": 600,
+      "v1Segments": 1,
+      "v2Segments": 1,
+      "medianSegments": 1,
+      "raw": 31,
+      "medianAccepted": 31,
+      "medianDisplay": 2,
+      "acceptedV2": 31,
+      "displayV2": 2
+    },
+    {
+      "scenario": "out_and_back",
+      "expectedObservedMeters": 200,
+      "v1Meters": 200,
+      "v2Meters": 200,
+      "medianMeters": 200,
+      "v1Segments": 1,
+      "v2Segments": 1,
+      "medianSegments": 1,
+      "raw": 51,
+      "medianAccepted": 51,
+      "medianDisplay": 3,
+      "acceptedV2": 51,
+      "displayV2": 3
+    }
+  ],
+  "smoothing": [
+    {
+      "candidate": "raw",
+      "meters": 201.213,
+      "positionRMSE": 2.984,
+      "maxCornerError": 3.591
+    },
+    {
+      "candidate": "EMA_0.5",
+      "meters": 156.369,
+      "positionRMSE": 3.943,
+      "maxCornerError": 5.684
+    },
+    {
+      "candidate": "median_3_centered_one_fix_delay",
+      "meters": 175.353,
+      "positionRMSE": 2.573,
+      "maxCornerError": 3.557
+    },
+    {
+      "candidate": "Kalman_fixed",
+      "meters": 197.209,
+      "positionRMSE": 2.873,
+      "maxCornerError": 3.659
+    },
+    {
+      "candidate": "Kalman_adaptive_residual",
+      "meters": 197.717,
+      "positionRMSE": 2.894,
+      "maxCornerError": 3.659
+    }
+  ],
+  "medianActualShape": {
+    "positionRMSE": 2.562,
+    "maxCornerError": 3.557,
+    "cornerCount": 3
+  },
+  "syntheticChecks": {
+    "stationary": true,
+    "slow": true,
+    "gap": true,
+    "noisyImprovement": true,
+    "corners": true,
+    "reversal": true
+  },
+  "syntheticPass": true,
+  "fieldAcceptance": "not_run",
+  "releaseReady": false,
+  "limitations": "Synthetic only. Gap truth counts observed segments, not an invented route across missing GPS. Smoothers are offline candidates, not production selections."
+}

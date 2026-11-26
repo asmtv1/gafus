@@ -94,7 +94,7 @@ vi.mock("@/shared/stores/authStore", () => ({
 }));
 vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("../walkGpsTask", () => ({ startWalkGps: mocks.startGps, stopWalkGps: mocks.stopGps }));
-vi.mock("../walkGpsStorage", () => ({ gpsWalkMeters: async () => null }));
+vi.mock("../walkGpsStorage", () => ({ gpsWalkMeters: async () => null, walkQaEnabled:()=>false, beginWalkQaCapture:vi.fn() }));
 vi.mock("../walkStorage", () => ({
   loadWalkJournal: mocks.load,
   saveWalkJournal: mocks.save,
@@ -268,7 +268,7 @@ it("restores a recorded walk silently and keeps its route available after revoca
   expect(host.querySelector(`[aria-label="${retryLabel}"]`)).not.toBeNull();
   expect(journal.active).toMatchObject({ clientId: "restored-walk", gpsEnabled: true, gpsMeters: 42 });
   await press("Пауза прогулки");
-  expect(mocks.stopGps).toHaveBeenCalledWith("walk-owner", "restored-walk");
+  expect(mocks.stopGps).toHaveBeenCalledWith("walk-owner", "restored-walk", expect.any(Number));
   expect(mocks.pauseSteps).toHaveBeenLastCalledWith("walk-owner", expect.any(Object), false);
   await press("Завершить прогулку");
   expect(mocks.pauseSteps).toHaveBeenLastCalledWith("walk-owner", expect.any(Object), true);
@@ -284,6 +284,33 @@ it("does not initiate location permission from a launcher link on mount", async 
   expect(mocks.askForeground).not.toHaveBeenCalled();
   expect(mocks.askBackground).not.toHaveBeenCalled();
   expect(journal.active?.runningSinceMs).toBeTypeOf("number");
+});
+
+it("does not start GPS concurrently with Android step setup even with location permission", async () => {
+  mocks.location = { foreground: true, background: true };
+  let completeSteps!: () => void;
+  const pending = new Promise<void>((resolve) => { completeSteps = resolve; });
+  mocks.startSteps.mockImplementationOnce(() => pending);
+  await renderWalk();
+  await press("Начать прогулку");
+  expect(mocks.startSteps).toHaveBeenCalledOnce();
+  expect(mocks.startGps).not.toHaveBeenCalled();
+  await act(async () => { completeSteps(); });
+  expect(mocks.startGps).toHaveBeenCalledOnce();
+  expect(journal.active?.gpsEnabled).toBe(true);
+});
+
+it("recovers a failed initial GPS start on foreground return without permission prompts", async () => {
+  mocks.location = { foreground: true, background: true };
+  mocks.startGps.mockResolvedValueOnce(false);
+  await renderWalk();
+  await press("Начать прогулку");
+  expect(journal.active?.gpsEnabled).not.toBe(true);
+  await returnToApp();
+  expect(mocks.startGps).toHaveBeenCalledTimes(2);
+  expect(journal.active?.gpsEnabled).toBe(true);
+  expect(mocks.askForeground).not.toHaveBeenCalled();
+  expect(mocks.askBackground).not.toHaveBeenCalled();
 });
 
 it("starts directly when both permissions already exist", async () => {

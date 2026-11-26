@@ -453,8 +453,8 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/6c36fab5-6226-450f-8ee5-64e9beeea7db",
-      "checkAutomatically": "ON_LOAD"
+      "enabled": false,
+      "checkAutomatically": "NEVER"
     }
   }
 }

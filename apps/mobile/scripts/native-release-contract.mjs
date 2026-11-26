@@ -55,15 +55,23 @@ export function validateNativeReleaseContract({ expo, mobilePackage, eas, env = 
     'react-native-reanimated','expo-updates']) {
     requireCheck(Boolean(mobilePackage.dependencies?.[key]),`MOBILE_REQUIRED_NATIVE_DEP_MISSING:${key}`);
   }
-  requireCheck(expo.updates?.url===`https://u.expo.dev/${expo.extra?.eas?.projectId}` &&
-    expo.updates?.checkAutomatically==='ON_LOAD',
-    'MOBILE_EAS_UPDATES_OR_PROJECT_CHANGED');
+  requireCheck(!expo.updates?.url && expo.updates?.enabled===false &&
+    expo.updates?.checkAutomatically==='NEVER',
+    'MOBILE_OTA_UNCONFIGURED_BASE_MUST_BE_DISABLED');
   requireCheck(eas.build?.production?.channel==='production' &&
-    eas.build?.production?.autoIncrement===true &&
+    eas.build?.production?.autoIncrement===false &&
+    eas.build?.production?.env?.GAFUS_OTA_TRANSPORT==='self-hosted' &&
     eas.build?.production?.android?.buildType==='app-bundle',
     'MOBILE_PRODUCTION_BUILD_PROFILE_UNSAFE');
   requireCheck(eas.build?.['production-local']?.extends==='production',
     'MOBILE_LOCAL_STORE_BUILD_PROFILE_UNSAFE');
+  for (const [name, profile] of Object.entries(eas.build ?? {})) {
+    if (profile.developmentClient === true) continue;
+    const transport = profile.env?.GAFUS_OTA_TRANSPORT ??
+      eas.build?.[profile.extends]?.env?.GAFUS_OTA_TRANSPORT ??
+      eas.build?.[eas.build?.[profile.extends]?.extends]?.env?.GAFUS_OTA_TRANSPORT;
+    requireCheck(transport === 'self-hosted', 'MOBILE_RELEASE_PROFILE_REQUIRES_SELF_HOSTED:'+name);
+  }
   return errors;
 }
 
