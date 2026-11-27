@@ -1,0 +1,1369 @@
+{
+  "sourceSha": "a73b0b62532837da0b00bd44199b983aa496f661",
+  "pgVersion": [
+    {
+      "version": "PostgreSQL 18.4 (Homebrew) on aarch64-apple-darwin25.4.0, compiled by Apple clang version 21.0.0 (clang-2100.0.123.102), 64-bit"
+    }
+  ],
+  "cpu": 8,
+  "initialLoad": [
+    17.095703125,
+    16.2333984375,
+    23.52490234375
+  ],
+  "concurrency": 1,
+  "pairs": 5,
+  "requestsPerArm": 10,
+  "reproduced": true,
+  "onePass": true,
+  "empty": {
+    "label": "empty-tombstones",
+    "rows": 2000,
+    "bytes": 546025,
+    "gzipBytes": 20278,
+    "plans": {
+      "baseline": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 206.62,
+                "Total Cost": 211.62,
+                "Plan Rows": 1999,
+                "Plan Width": 81,
+                "Actual Startup Time": 1.79,
+                "Actual Total Time": 1.953,
+                "Actual Rows": 2000,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Shared Hit Blocks": 47,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 206.62,
+                    "Total Cost": 211.62,
+                    "Plan Rows": 1999,
+                    "Plan Width": 81,
+                    "Actual Startup Time": 1.79,
+                    "Actual Total Time": 1.849,
+                    "Actual Rows": 2000,
+                    "Actual Loops": 1,
+                    "Disabled": false,
+                    "Sort Key": [
+                      "w.\"startedAt\" DESC",
+                      "w.\"clientId\" DESC"
+                    ],
+                    "Sort Method": "quicksort",
+                    "Sort Space Used": 314,
+                    "Sort Space Type": "Memory",
+                    "Shared Hit Blocks": 47,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Join Type": "Anti",
+                        "Startup Cost": 0,
+                        "Total Cost": 97.03,
+                        "Plan Rows": 1999,
+                        "Plan Width": 81,
+                        "Actual Startup Time": 0.007,
+                        "Actual Total Time": 1.357,
+                        "Actual Rows": 2000,
+                        "Actual Loops": 1,
+                        "Disabled": false,
+                        "Inner Unique": false,
+                        "Join Filter": "((d.\"clientId\")::text = (w.\"clientId\")::text)",
+                        "Rows Removed by Join Filter": 0,
+                        "Shared Hit Blocks": 47,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Relation Name": "DogWalkRecord",
+                            "Alias": "w",
+                            "Startup Cost": 0,
+                            "Total Cost": 72.03,
+                            "Plan Rows": 2000,
+                            "Plan Width": 100,
+                            "Actual Startup Time": 0.006,
+                            "Actual Total Time": 0.349,
+                            "Actual Rows": 2000,
+                            "Actual Loops": 1,
+                            "Disabled": false,
+                            "Filter": "(\"userId\" = 'qa-walk-plan-owner'::text)",
+                            "Rows Removed by Filter": 2,
+                            "Shared Hit Blocks": 47,
+                            "Shared Read Blocks": 0,
+                            "Shared Dirtied Blocks": 0,
+                            "Shared Written Blocks": 0,
+                            "Local Hit Blocks": 0,
+                            "Local Read Blocks": 0,
+                            "Local Dirtied Blocks": 0,
+                            "Local Written Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Inner",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Relation Name": "DogWalkTombstone",
+                            "Alias": "d",
+                            "Startup Cost": 0,
+                            "Total Cost": 0,
+                            "Plan Rows": 1,
+                            "Plan Width": 82,
+                            "Actual Startup Time": 0,
+                            "Actual Total Time": 0,
+                            "Actual Rows": 0,
+                            "Actual Loops": 2000,
+                            "Disabled": false,
+                            "Filter": "(\"userId\" = 'qa-walk-plan-owner'::text)",
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Shared Dirtied Blocks": 0,
+                            "Shared Written Blocks": 0,
+                            "Local Hit Blocks": 0,
+                            "Local Read Blocks": 0,
+                            "Local Dirtied Blocks": 0,
+                            "Local Written Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "Planning": {
+                "Shared Hit Blocks": 1,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              "Planning Time": 0.104,
+              "Triggers": [],
+              "Execution Time": 2.037
+            }
+          ]
+        }
+      ],
+      "proposed": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 126.86,
+                "Total Cost": 129.36,
+                "Plan Rows": 1000,
+                "Plan Width": 81,
+                "Actual Startup Time": 1.459,
+                "Actual Total Time": 1.667,
+                "Actual Rows": 2000,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Shared Hit Blocks": 47,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 126.86,
+                    "Total Cost": 129.36,
+                    "Plan Rows": 1000,
+                    "Plan Width": 81,
+                    "Actual Startup Time": 1.459,
+                    "Actual Total Time": 1.549,
+                    "Actual Rows": 2000,
+                    "Actual Loops": 1,
+                    "Disabled": false,
+                    "Sort Key": [
+                      "w.\"startedAt\" DESC",
+                      "w.\"clientId\" DESC"
+                    ],
+                    "Sort Method": "quicksort",
+                    "Sort Space Used": 314,
+                    "Sort Space Type": "Memory",
+                    "Shared Hit Blocks": 47,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Relation Name": "DogWalkRecord",
+                        "Alias": "w",
+                        "Startup Cost": 0,
+                        "Total Cost": 77.03,
+                        "Plan Rows": 1000,
+                        "Plan Width": 81,
+                        "Actual Startup Time": 0.01,
+                        "Actual Total Time": 0.656,
+                        "Actual Rows": 2000,
+                        "Actual Loops": 1,
+                        "Disabled": false,
+                        "Filter": "((NOT (ANY ((\"clientId\")::text = ((hashed SubPlan 1).col1)::text))) AND (\"userId\" = 'qa-walk-plan-owner'::text))",
+                        "Rows Removed by Filter": 2,
+                        "Shared Hit Blocks": 47,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "SubPlan",
+                            "Subplan Name": "SubPlan 1",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Relation Name": "DogWalkTombstone",
+                            "Alias": "d",
+                            "Startup Cost": 0,
+                            "Total Cost": 0,
+                            "Plan Rows": 1,
+                            "Plan Width": 50,
+                            "Actual Startup Time": 0.001,
+                            "Actual Total Time": 0.001,
+                            "Actual Rows": 0,
+                            "Actual Loops": 1,
+                            "Disabled": false,
+                            "Filter": "(\"userId\" = 'qa-walk-plan-owner'::text)",
+                            "Rows Removed by Filter": 0,
+                            "Shared Hit Blocks": 0,
+                            "Shared Read Blocks": 0,
+                            "Shared Dirtied Blocks": 0,
+                            "Shared Written Blocks": 0,
+                            "Local Hit Blocks": 0,
+                            "Local Read Blocks": 0,
+                            "Local Dirtied Blocks": 0,
+                            "Local Written Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "Planning": {
+                "Shared Hit Blocks": 1,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              "Planning Time": 0.138,
+              "Triggers": [],
+              "Execution Time": 1.742
+            }
+          ]
+        }
+      ]
+    },
+    "pairs": [
+      {
+        "baseline": {
+          "p95Ms": 12.961583000000019,
+          "p50Ms": 10.952999999999975,
+          "sqlP95Ms": 9.235125000000153,
+          "samplesMs": [
+            11.647707999999966,
+            12.961583000000019,
+            12.652332999999999,
+            10.952999999999975,
+            10.694000000000187,
+            12.7650000000001,
+            10.749708999999939,
+            10.599292000000105,
+            11.215458000000126,
+            10.828416999999945
+          ],
+          "sqlSamplesMs": [
+            6.818958000000066,
+            9.235125000000153,
+            8.958333000000039,
+            7.035624999999982,
+            6.980750000000171,
+            9.01475000000005,
+            6.986834000000044,
+            6.857000000000198,
+            7.426166000000194,
+            6.992625000000089
+          ]
+        },
+        "proposed": {
+          "p95Ms": 15.99654099999998,
+          "p50Ms": 10.258749999999964,
+          "sqlP95Ms": 11.786165999999866,
+          "samplesMs": [
+            9.97870799999987,
+            10.125332999999955,
+            13.641582999999855,
+            10.086832999999842,
+            10.258749999999964,
+            9.622333000000026,
+            11.909124999999904,
+            15.99654099999998,
+            11.594334000000117,
+            11.441332999999986
+          ],
+          "sqlSamplesMs": [
+            6.108915999999908,
+            6.340124999999944,
+            9.91641699999991,
+            6.208999999999833,
+            6.5157500000000255,
+            5.850208000000066,
+            6.107708000000002,
+            11.786165999999866,
+            7.469667000000072,
+            6.736708000000135
+          ]
+        }
+      },
+      {
+        "proposed": {
+          "p95Ms": 13.027874999999995,
+          "p50Ms": 10.969958000000133,
+          "sqlP95Ms": 7.373458999999912,
+          "samplesMs": [
+            10.612374999999929,
+            11.100541000000021,
+            10.91804100000013,
+            10.89862499999981,
+            11.602791999999909,
+            10.969958000000133,
+            10.685459000000037,
+            13.027874999999995,
+            11.290875000000142,
+            12.047917000000098
+          ],
+          "sqlSamplesMs": [
+            6.472957999999835,
+            6.924416000000065,
+            6.741708000000017,
+            6.644667000000027,
+            7.373458999999912,
+            6.80275000000006,
+            6.426542000000154,
+            6.714249999999993,
+            7.130042000000003,
+            6.519417000000203
+          ]
+        },
+        "baseline": {
+          "p95Ms": 26.13325000000009,
+          "p50Ms": 11.892290999999886,
+          "sqlP95Ms": 13.413457999999991,
+          "samplesMs": [
+            26.13325000000009,
+            14.732874999999922,
+            11.70358299999998,
+            14.720957999999882,
+            11.992209000000003,
+            11.892290999999886,
+            11.572791999999936,
+            11.629999999999882,
+            11.523542000000134,
+            12.187541999999894
+          ],
+          "sqlSamplesMs": [
+            13.413457999999991,
+            10.569165999999996,
+            7.578999999999951,
+            10.209249999999884,
+            7.887584000000061,
+            7.776374999999916,
+            7.485834000000068,
+            7.4244589999998425,
+            7.3244170000000395,
+            7.988000000000056
+          ]
+        }
+      },
+      {
+        "baseline": {
+          "p95Ms": 11.819915999999921,
+          "p50Ms": 11.581666000000041,
+          "sqlP95Ms": 7.639415999999983,
+          "samplesMs": [
+            11.819915999999921,
+            11.552416999999878,
+            11.685124999999971,
+            11.733208000000104,
+            11.581666000000041,
+            11.532416000000012,
+            11.607582999999977,
+            11.54641700000002,
+            11.400750000000016,
+            11.70900000000006
+          ],
+          "sqlSamplesMs": [
+            7.639415999999983,
+            7.338250000000016,
+            7.580457999999908,
+            7.58729100000005,
+            7.352707999999893,
+            7.355125000000044,
+            7.510457999999971,
+            7.40362499999992,
+            7.340582999999924,
+            7.58945800000015
+          ]
+        },
+        "proposed": {
+          "p95Ms": 12.252917000000025,
+          "p50Ms": 10.294124999999894,
+          "sqlP95Ms": 7.815207999999984,
+          "samplesMs": [
+            10.404332999999951,
+            10.256750000000011,
+            10.308334000000059,
+            10.591584000000012,
+            10.294124999999894,
+            10.216750000000047,
+            10.28558299999986,
+            10.19879200000014,
+            12.252917000000025,
+            10.774541
+          ],
+          "sqlSamplesMs": [
+            6.327958000000081,
+            6.193540999999868,
+            6.23370900000009,
+            6.521541999999954,
+            6.2218749999999545,
+            6.155999999999949,
+            6.21287499999994,
+            6.135332999999946,
+            7.815207999999984,
+            6.672958000000108
+          ]
+        }
+      },
+      {
+        "proposed": {
+          "p95Ms": 10.699874999999793,
+          "p50Ms": 10.349457999999913,
+          "sqlP95Ms": 6.608291999999892,
+          "samplesMs": [
+            10.350082999999813,
+            10.349457999999913,
+            10.263999999999896,
+            10.228374999999687,
+            10.26641699999982,
+            10.573333000000275,
+            10.438000000000102,
+            10.23845799999981,
+            10.380625000000236,
+            10.699874999999793
+          ],
+          "sqlSamplesMs": [
+            6.262165999999979,
+            6.235582999999906,
+            6.187207999999828,
+            6.1512919999995574,
+            6.184499999999844,
+            6.503750000000309,
+            6.323083000000224,
+            6.133915999999772,
+            6.248333000000002,
+            6.608291999999892
+          ]
+        },
+        "baseline": {
+          "p95Ms": 11.75795799999969,
+          "p50Ms": 11.362292000000252,
+          "sqlP95Ms": 7.698832999999922,
+          "samplesMs": [
+            11.355083999999806,
+            11.3823339999999,
+            11.361582999999882,
+            11.47479199999998,
+            11.381374999999935,
+            11.387832999999773,
+            11.238083999999617,
+            11.35245900000018,
+            11.75795799999969,
+            11.362292000000252
+          ],
+          "sqlSamplesMs": [
+            7.2708339999999225,
+            7.251625000000331,
+            7.248125000000073,
+            7.398541999999907,
+            7.314708999999766,
+            7.31808299999966,
+            7.191124999999829,
+            7.207459000000199,
+            7.698832999999922,
+            7.297500000000127
+          ]
+        }
+      },
+      {
+        "baseline": {
+          "p95Ms": 11.442667000000256,
+          "p50Ms": 10.428332999999839,
+          "sqlP95Ms": 7.41412500000024,
+          "samplesMs": [
+            11.359708999999839,
+            11.442667000000256,
+            11.367291999999907,
+            10.223667000000205,
+            11.342916999999943,
+            10.484917000000223,
+            10.134750000000167,
+            10.428332999999839,
+            10.163958000000093,
+            10.09091699999999
+          ],
+          "sqlSamplesMs": [
+            7.278583999999682,
+            7.3533330000000205,
+            7.41412500000024,
+            6.591457999999875,
+            7.286207999999988,
+            6.825333000000228,
+            6.484042000000045,
+            6.804791999999907,
+            6.517125000000306,
+            6.4477499999998145
+          ]
+        },
+        "proposed": {
+          "p95Ms": 9.805666000000201,
+          "p50Ms": 9.238416999999572,
+          "sqlP95Ms": 6.1627910000001975,
+          "samplesMs": [
+            9.276666000000205,
+            9.465374999999767,
+            9.805666000000201,
+            9.189165999999659,
+            9.225374999999985,
+            9.238416999999572,
+            9.503250000000207,
+            9.29049999999961,
+            9.19354199999998,
+            9.234500000000025
+          ],
+          "sqlSamplesMs": [
+            5.608874999999898,
+            5.7340839999997115,
+            6.1627910000001975,
+            5.540915999999925,
+            5.590584000000035,
+            5.579874999999902,
+            5.827125000000251,
+            5.630291999999827,
+            5.564124999999876,
+            5.5623749999999745
+          ]
+        }
+      }
+    ],
+    "scans": {
+      "baseline": [
+        {
+          "type": "Seq Scan",
+          "loops": 2000,
+          "rows": 0,
+          "hits": 0,
+          "read": 0
+        }
+      ],
+      "proposed": [
+        {
+          "type": "Seq Scan",
+          "loops": 1,
+          "rows": 0,
+          "hits": 0,
+          "read": 0
+        }
+      ]
+    },
+    "explainMs": {
+      "baseline": 2.037,
+      "proposed": 1.742
+    },
+    "load": [
+      17.095703125,
+      16.2333984375,
+      23.52490234375
+    ]
+  },
+  "realistic": {
+    "label": "250-owner-tombstones",
+    "rows": 2000,
+    "bytes": 546025,
+    "gzipBytes": 20278,
+    "plans": {
+      "baseline": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 209.22,
+                "Total Cost": 213.85,
+                "Plan Rows": 1850,
+                "Plan Width": 81,
+                "Actual Startup Time": 1.148,
+                "Actual Total Time": 1.329,
+                "Actual Rows": 2000,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Shared Hit Blocks": 52,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 209.22,
+                    "Total Cost": 213.85,
+                    "Plan Rows": 1850,
+                    "Plan Width": 81,
+                    "Actual Startup Time": 1.148,
+                    "Actual Total Time": 1.214,
+                    "Actual Rows": 2000,
+                    "Actual Loops": 1,
+                    "Disabled": false,
+                    "Sort Key": [
+                      "w.\"startedAt\" DESC",
+                      "w.\"clientId\" DESC"
+                    ],
+                    "Sort Method": "quicksort",
+                    "Sort Space Used": 314,
+                    "Sort Space Type": "Memory",
+                    "Shared Hit Blocks": 52,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Hash Join",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Join Type": "Anti",
+                        "Startup Cost": 9.26,
+                        "Total Cost": 108.83,
+                        "Plan Rows": 1850,
+                        "Plan Width": 81,
+                        "Actual Startup Time": 0.064,
+                        "Actual Total Time": 0.687,
+                        "Actual Rows": 2000,
+                        "Actual Loops": 1,
+                        "Disabled": false,
+                        "Inner Unique": false,
+                        "Hash Cond": "((w.\"clientId\")::text = (d.\"clientId\")::text)",
+                        "Shared Hit Blocks": 52,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Relation Name": "DogWalkRecord",
+                            "Alias": "w",
+                            "Startup Cost": 0,
+                            "Total Cost": 75.28,
+                            "Plan Rows": 2100,
+                            "Plan Width": 100,
+                            "Actual Startup Time": 0.006,
+                            "Actual Total Time": 0.386,
+                            "Actual Rows": 2100,
+                            "Actual Loops": 1,
+                            "Disabled": false,
+                            "Filter": "(\"userId\" = 'qa-walk-plan-owner'::text)",
+                            "Rows Removed by Filter": 2,
+                            "Shared Hit Blocks": 49,
+                            "Shared Read Blocks": 0,
+                            "Shared Dirtied Blocks": 0,
+                            "Shared Written Blocks": 0,
+                            "Local Hit Blocks": 0,
+                            "Local Read Blocks": 0,
+                            "Local Dirtied Blocks": 0,
+                            "Local Written Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          },
+                          {
+                            "Node Type": "Hash",
+                            "Parent Relationship": "Inner",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Startup Cost": 6.14,
+                            "Total Cost": 6.14,
+                            "Plan Rows": 250,
+                            "Plan Width": 56,
+                            "Actual Startup Time": 0.056,
+                            "Actual Total Time": 0.056,
+                            "Actual Rows": 250,
+                            "Actual Loops": 1,
+                            "Disabled": false,
+                            "Hash Buckets": 1024,
+                            "Original Hash Buckets": 1024,
+                            "Hash Batches": 1,
+                            "Original Hash Batches": 1,
+                            "Peak Memory Usage": 30,
+                            "Shared Hit Blocks": 3,
+                            "Shared Read Blocks": 0,
+                            "Shared Dirtied Blocks": 0,
+                            "Shared Written Blocks": 0,
+                            "Local Hit Blocks": 0,
+                            "Local Read Blocks": 0,
+                            "Local Dirtied Blocks": 0,
+                            "Local Written Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0,
+                            "Plans": [
+                              {
+                                "Node Type": "Seq Scan",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Relation Name": "DogWalkTombstone",
+                                "Alias": "d",
+                                "Startup Cost": 0,
+                                "Total Cost": 6.14,
+                                "Plan Rows": 250,
+                                "Plan Width": 56,
+                                "Actual Startup Time": 0.003,
+                                "Actual Total Time": 0.031,
+                                "Actual Rows": 250,
+                                "Actual Loops": 1,
+                                "Disabled": false,
+                                "Filter": "(\"userId\" = 'qa-walk-plan-owner'::text)",
+                                "Rows Removed by Filter": 1,
+                                "Shared Hit Blocks": 3,
+                                "Shared Read Blocks": 0,
+                                "Shared Dirtied Blocks": 0,
+                                "Shared Written Blocks": 0,
+                                "Local Hit Blocks": 0,
+                                "Local Read Blocks": 0,
+                                "Local Dirtied Blocks": 0,
+                                "Local Written Blocks": 0,
+                                "Temp Read Blocks": 0,
+                                "Temp Written Blocks": 0
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "Planning": {
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              "Planning Time": 0.136,
+              "Triggers": [],
+              "Execution Time": 1.404
+            }
+          ]
+        }
+      ],
+      "proposed": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 139.98,
+                "Total Cost": 142.61,
+                "Plan Rows": 1050,
+                "Plan Width": 81,
+                "Actual Startup Time": 1.089,
+                "Actual Total Time": 1.268,
+                "Actual Rows": 2000,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Shared Hit Blocks": 52,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 139.98,
+                    "Total Cost": 142.61,
+                    "Plan Rows": 1050,
+                    "Plan Width": 81,
+                    "Actual Startup Time": 1.089,
+                    "Actual Total Time": 1.153,
+                    "Actual Rows": 2000,
+                    "Actual Loops": 1,
+                    "Disabled": false,
+                    "Sort Key": [
+                      "w.\"startedAt\" DESC",
+                      "w.\"clientId\" DESC"
+                    ],
+                    "Sort Method": "quicksort",
+                    "Sort Space Used": 314,
+                    "Sort Space Type": "Memory",
+                    "Shared Hit Blocks": 52,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Relation Name": "DogWalkRecord",
+                        "Alias": "w",
+                        "Startup Cost": 6.76,
+                        "Total Cost": 87.29,
+                        "Plan Rows": 1050,
+                        "Plan Width": 81,
+                        "Actual Startup Time": 0.065,
+                        "Actual Total Time": 0.616,
+                        "Actual Rows": 2000,
+                        "Actual Loops": 1,
+                        "Disabled": false,
+                        "Filter": "((NOT (ANY ((\"clientId\")::text = ((hashed SubPlan 1).col1)::text))) AND (\"userId\" = 'qa-walk-plan-owner'::text))",
+                        "Rows Removed by Filter": 102,
+                        "Shared Hit Blocks": 52,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0,
+                        "Plans": [
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "SubPlan",
+                            "Subplan Name": "SubPlan 1",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Relation Name": "DogWalkTombstone",
+                            "Alias": "d",
+                            "Startup Cost": 0,
+                            "Total Cost": 6.14,
+                            "Plan Rows": 250,
+                            "Plan Width": 37,
+                            "Actual Startup Time": 0.002,
+                            "Actual Total Time": 0.028,
+                            "Actual Rows": 250,
+                            "Actual Loops": 1,
+                            "Disabled": false,
+                            "Filter": "(\"userId\" = 'qa-walk-plan-owner'::text)",
+                            "Rows Removed by Filter": 1,
+                            "Shared Hit Blocks": 3,
+                            "Shared Read Blocks": 0,
+                            "Shared Dirtied Blocks": 0,
+                            "Shared Written Blocks": 0,
+                            "Local Hit Blocks": 0,
+                            "Local Read Blocks": 0,
+                            "Local Dirtied Blocks": 0,
+                            "Local Written Blocks": 0,
+                            "Temp Read Blocks": 0,
+                            "Temp Written Blocks": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "Planning": {
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              "Planning Time": 0.05,
+              "Triggers": [],
+              "Execution Time": 1.341
+            }
+          ]
+        }
+      ]
+    },
+    "pairs": [
+      {
+        "baseline": {
+          "p95Ms": 19.46820800000023,
+          "p50Ms": 11.895375000000058,
+          "sqlP95Ms": 13.661540999999943,
+          "samplesMs": [
+            9.996915999999601,
+            10.029833000000053,
+            11.272832999999991,
+            11.895375000000058,
+            11.226540999999997,
+            12.283000000000357,
+            13.092375000000175,
+            12.996000000000095,
+            19.46820800000023,
+            18.073374999999942
+          ],
+          "sqlSamplesMs": [
+            6.32833299999993,
+            6.143000000000029,
+            7.5056250000002365,
+            7.929833000000144,
+            6.900082999999995,
+            8.101875000000291,
+            8.631582999999864,
+            8.21725000000015,
+            13.661540999999943,
+            10.812207999999828
+          ]
+        },
+        "proposed": {
+          "p95Ms": 90.54237499999999,
+          "p50Ms": 14.079957999999806,
+          "sqlP95Ms": 75.4855419999999,
+          "samplesMs": [
+            46.9692500000001,
+            90.54237499999999,
+            15.376208000000133,
+            17.3324590000002,
+            14.558958000000075,
+            12.672958000000108,
+            14.079957999999806,
+            13.302749999999833,
+            12.64474999999993,
+            12.487957999999708
+          ],
+          "sqlSamplesMs": [
+            31.742416999999932,
+            75.4855419999999,
+            10.014625000000251,
+            10.072749999999814,
+            7.9745419999999285,
+            7.865708000000268,
+            9.221125000000029,
+            8.529500000000098,
+            7.923416999999972,
+            7.636916999999812
+          ]
+        }
+      },
+      {
+        "proposed": {
+          "p95Ms": 13.191457999999784,
+          "p50Ms": 12.233334000000013,
+          "sqlP95Ms": 8.328125,
+          "samplesMs": [
+            13.191457999999784,
+            12.469666999999845,
+            12.377291000000241,
+            12.275250000000142,
+            12.233334000000013,
+            12.32529199999999,
+            12.178124999999909,
+            11.442250000000058,
+            10.56637499999988,
+            10.699167000000216
+          ],
+          "sqlSamplesMs": [
+            8.328125,
+            7.747124999999869,
+            7.669041000000107,
+            7.506459000000177,
+            7.480999999999767,
+            7.629417000000103,
+            7.4780000000000655,
+            7.3409999999998945,
+            6.492749999999887,
+            6.620707999999922
+          ]
+        },
+        "baseline": {
+          "p95Ms": 10.558291000000281,
+          "p50Ms": 10.495249999999942,
+          "sqlP95Ms": 6.4808750000001965,
+          "samplesMs": [
+            10.495249999999942,
+            10.46833400000014,
+            10.448374999999942,
+            10.4877919999999,
+            10.451750000000175,
+            10.525332999999591,
+            10.525042000000212,
+            10.510792000000038,
+            10.558291000000281,
+            10.501417000000401
+          ],
+          "sqlSamplesMs": [
+            6.406165999999757,
+            6.4120419999999285,
+            6.382000000000062,
+            6.39429199999995,
+            6.393750000000182,
+            6.44958299999962,
+            6.428208000000268,
+            6.411249999999654,
+            6.4808750000001965,
+            6.423584000000119
+          ]
+        }
+      },
+      {
+        "baseline": {
+          "p95Ms": 15.464249999999993,
+          "p50Ms": 11.398749999999836,
+          "sqlP95Ms": 10.619833000000199,
+          "samplesMs": [
+            10.496291999999812,
+            11.023959000000104,
+            10.952000000000226,
+            15.140083000000232,
+            12.835749999999734,
+            11.398749999999836,
+            10.999000000000251,
+            11.588416999999936,
+            11.800874999999905,
+            15.464249999999993
+          ],
+          "sqlSamplesMs": [
+            6.386042000000089,
+            6.541541999999936,
+            6.773375000000215,
+            10.619833000000199,
+            8.518499999999676,
+            6.912499999999909,
+            6.834084000000075,
+            7.44104200000038,
+            7.315624999999727,
+            9.892374999999902
+          ]
+        },
+        "proposed": {
+          "p95Ms": 13.500500000000102,
+          "p50Ms": 11.754750000000058,
+          "sqlP95Ms": 8.490583000000242,
+          "samplesMs": [
+            11.643792000000303,
+            11.3940419999999,
+            11.754750000000058,
+            13.500500000000102,
+            11.794874999999593,
+            12.651166000000103,
+            11.66754200000014,
+            13.081666000000041,
+            10.927999999999884,
+            12.780791000000136
+          ],
+          "sqlSamplesMs": [
+            7.459375000000364,
+            7.2557919999999285,
+            6.962916999999834,
+            8.490583000000242,
+            7.362582999999631,
+            8.214750000000095,
+            7.011124999999993,
+            7.815291000000343,
+            6.801625000000058,
+            8.01366599999983
+          ]
+        }
+      },
+      {
+        "proposed": {
+          "p95Ms": 12.440209000000323,
+          "p50Ms": 10.665291999999681,
+          "sqlP95Ms": 7.7146670000001905,
+          "samplesMs": [
+            12.440209000000323,
+            10.875541999999768,
+            10.688333000000057,
+            10.832499999999982,
+            10.68249999999989,
+            10.661207999999988,
+            10.61200000000008,
+            10.632374999999683,
+            10.665291999999681,
+            10.621666000000005
+          ],
+          "sqlSamplesMs": [
+            7.7146670000001905,
+            6.771541999999954,
+            6.558082999999897,
+            6.7150000000001455,
+            6.563916999999947,
+            6.574708000000101,
+            6.504457999999886,
+            6.538083999999799,
+            6.5942919999997684,
+            6.50454099999979
+          ]
+        },
+        "baseline": {
+          "p95Ms": 10.878250000000207,
+          "p50Ms": 10.602292000000034,
+          "sqlP95Ms": 6.7539160000001175,
+          "samplesMs": [
+            10.716917000000194,
+            10.541041999999834,
+            10.700042000000394,
+            10.538457999999991,
+            10.582459000000199,
+            10.52270899999985,
+            10.696582999999919,
+            10.878250000000207,
+            10.64933400000018,
+            10.602292000000034
+          ],
+          "sqlSamplesMs": [
+            6.596208999999817,
+            6.470332999999755,
+            6.51004200000034,
+            6.4686249999999745,
+            6.48804199999995,
+            6.432125000000269,
+            6.586957999999868,
+            6.7539160000001175,
+            6.551834000000326,
+            6.467499999999745
+          ]
+        }
+      },
+      {
+        "baseline": {
+          "p95Ms": 11.26825000000008,
+          "p50Ms": 10.778749999999945,
+          "sqlP95Ms": 7.1454170000001795,
+          "samplesMs": [
+            10.805374999999913,
+            11.26825000000008,
+            10.948874999999589,
+            10.651875000000018,
+            10.493582999999944,
+            10.778749999999945,
+            10.948417000000063,
+            10.606124999999793,
+            10.688458000000082,
+            11.119208000000071
+          ],
+          "sqlSamplesMs": [
+            6.661457999999584,
+            7.1454170000001795,
+            6.765790999999808,
+            6.557624999999916,
+            6.438291999999819,
+            6.7062919999998485,
+            6.79129200000034,
+            6.532666999999947,
+            6.473125000000437,
+            7.005249999999705
+          ]
+        },
+        "proposed": {
+          "p95Ms": 12.619000000000142,
+          "p50Ms": 10.596083999999792,
+          "sqlP95Ms": 8.655042000000321,
+          "samplesMs": [
+            10.596083999999792,
+            10.724040999999943,
+            10.886375000000044,
+            10.619707999999719,
+            10.437166000000161,
+            10.611708999999792,
+            10.209124999999858,
+            9.377457999999933,
+            9.402666999999838,
+            12.619000000000142
+          ],
+          "sqlSamplesMs": [
+            6.505291999999827,
+            6.596166000000267,
+            6.607500000000073,
+            6.561041999999816,
+            6.398000000000138,
+            6.54016700000011,
+            6.459207999999762,
+            5.741582999999991,
+            5.716417000000092,
+            8.655042000000321
+          ]
+        }
+      }
+    ],
+    "scans": {
+      "baseline": [
+        {
+          "type": "Seq Scan",
+          "loops": 1,
+          "rows": 250,
+          "hits": 3,
+          "read": 0
+        }
+      ],
+      "proposed": [
+        {
+          "type": "Seq Scan",
+          "loops": 1,
+          "rows": 250,
+          "hits": 3,
+          "read": 0
+        }
+      ]
+    },
+    "explainMs": {
+      "baseline": 1.404,
+      "proposed": 1.341
+    },
+    "load": [
+      17.095703125,
+      16.2333984375,
+      23.52490234375
+    ]
+  },
+  "http": {
+    "legacyParity": true,
+    "ownerIsolation": true,
+    "initialDeltaParity": true,
+    "staleRowsBeforeLimit": true,
+    "concurrentDelete": true,
+    "staleReplay": true,
+    "emptyRepeat": true
+  }
+}

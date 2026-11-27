@@ -50,12 +50,14 @@ export async function listCompletedDogWalks(ownerId: string) {
 
 type WalkRow = Parameters<typeof toDto>[0];
 async function readWalkHistory(db: Pick<typeof prisma, "$queryRaw">, ownerId: string) {
+  // Both clientId columns are NOT NULL. Read the owner-local exclusion set
+  // once in this SQL snapshot, before sorting/limiting the visible walks.
   const rows = await db.$queryRaw<WalkRow[]>`
     SELECT w."clientId", w."startedAt", w."finishedAt", w."durationSeconds", w.steps,
            w."estimatedMeters", w."timerMode", w."incompleteSteps", w."gpsEnabled", w."gpsMeters"
     FROM "DogWalkRecord" w
-    WHERE w."userId" = ${ownerId} AND NOT EXISTS (
-      SELECT 1 FROM "DogWalkTombstone" d WHERE d."userId" = w."userId" AND d."clientId" = w."clientId"
+    WHERE w."userId" = ${ownerId} AND w."clientId" NOT IN (
+      SELECT d."clientId" FROM "DogWalkTombstone" d WHERE d."userId" = ${ownerId}
     ) ORDER BY w."startedAt" DESC, w."clientId" DESC LIMIT 2000`;
   return rows.map(toDto);
 }
