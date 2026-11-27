@@ -501,6 +501,10 @@ export async function submitExamResult(
     }
 
     const step = userStep?.stepOnDay.step ?? dailyCourseUserStep!.bundleStep.step;
+    // The owned occurrence is authoritative; a caller cannot bind a result to another step.
+    if (data.stepId !== step.id) {
+      throw new Error("Шаг не найден или нет доступа");
+    }
     if (step.type !== "EXAMINATION") {
       throw new Error(
         `Этот шаг не является экзаменационным. Тип шага: ${step.type || "не определен"}`,
@@ -567,7 +571,7 @@ export async function submitExamResult(
       create: {
         userStepId: userStep ? data.userStepId : undefined,
         dailyCourseUserStepId: dailyCourseUserStep ? data.userStepId : undefined,
-        stepId: data.stepId,
+        stepId: step.id,
         testAnswers: data.testAnswers !== undefined ? JSON.stringify(data.testAnswers) : undefined,
         testScore: testScore ?? null,
         testMaxScore: testMaxScore ?? null,

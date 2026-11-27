@@ -119,6 +119,18 @@ describe("examService daily course support", () => {
     expect(result).toMatchObject({ id: "exam-1", testAnswers: { q1: 0 } });
   });
 
+  it.each([false, true])("rejects a mismatched exam step before writes (daily=%s)", async (daily) => {
+    const step = { id: "owned-step", type: "EXAMINATION" };
+    mocks.userStepFindFirst.mockResolvedValue(daily ? null : { id: "owned-occurrence", stepOnDay: { step } });
+    mocks.dailyCourseUserStepFindFirst.mockResolvedValue(daily ? { id: "owned-occurrence", bundleStep: { step } } : null);
+    await expect(submitExamResult("user-1", {
+      userStepId: "owned-occurrence", stepId: "unrelated-step", writtenFeedback: "answer",
+    })).rejects.toThrow("Шаг не найден или нет доступа");
+    expect(mocks.examResultUpsert).not.toHaveBeenCalled();
+    expect(mocks.userStepUpdate).not.toHaveBeenCalled();
+    expect(mocks.dailyCourseUserStepUpdate).not.toHaveBeenCalled();
+  });
+
   it("submits an exam result for a daily course user step", async () => {
     mocks.userStepFindFirst.mockResolvedValue(null);
     mocks.dailyCourseUserStepFindFirst.mockResolvedValue({
