@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$ROOT"
+export LC_ALL=C LANG=C
 export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
 for bin in initdb pg_ctl createdb python3; do command -v "$bin" >/dev/null || { echo "FEED_QA_TOOL_MISSING $bin"; exit 2; }; done
 DIR="$(mktemp -d /tmp/gafus-feed-parity-pg.XXXXXX)"; umask 077
@@ -10,7 +11,7 @@ started=0
 cleanup(){ if [[ "$started" == 1 ]]; then pg_ctl -D "$DIR/pg" -m immediate stop >/dev/null 2>&1 || true; fi; if [[ "$DIR" == /tmp/gafus-feed-parity-pg.* && ! -L "$DIR" ]]; then rm -rf -- "$DIR"; fi; }
 trap cleanup EXIT INT TERM
 initdb -D "$DIR/pg" -A trust -U qafeed --no-instructions >"$DIR/init.log" 2>&1
-pg_ctl -D "$DIR/pg" -l "$DIR/server.log" -o "-h 127.0.0.1 -p $PORT -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all" -w start >/dev/null
+pg_ctl -D "$DIR/pg" -l "$DIR/server.log" -o "-h 127.0.0.1 -p $PORT -k $DIR -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all" -w start >/dev/null || { cat "$DIR/server.log" >&2; exit 1; }
 started=1
 createdb -h 127.0.0.1 -p "$PORT" -U qafeed "$DB_NAME"
 unset DIRECT_URL SHADOW_DATABASE_URL
