@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { toAdminBrowserHref } from "./adminBrowserRoutes";
-import { mobileIntroRouteUrl, type MobileDateFilter } from "./mobileIntroNavigation";
+import { toAdminBrowserHref, toAdminInternalPath } from "./adminBrowserRoutes";
+import { MOBILE_INTRO_ROUTE, mobileIntroFilterFromSearch, mobileIntroRouteUrl, type MobileDateFilter } from "./mobileIntroNavigation";
 
 type MobileIntroReport = {
   timeZone: "Europe/Samara";
@@ -57,7 +57,7 @@ export function MobileIntroPanel({
   // Keep Vite in sync on direct links and on browser history navigation.
   useEffect(() => {
     const syncFromUrl = () => {
-      if (window.location.pathname !== MOBILE_INTRO_ROUTE) return;
+      if (toAdminInternalPath(window.location.pathname) !== MOBILE_INTRO_ROUTE) return;
       const next = mobileIntroFilterFromSearch(window.location.search);
       setStartDate(next.startDate);
       setEndDate(next.endDate);

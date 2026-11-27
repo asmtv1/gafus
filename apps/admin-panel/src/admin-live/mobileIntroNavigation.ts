@@ -4,7 +4,7 @@ import {
 } from "./support/dateRange";
 
 export type MobileDateFilter = { startDate: string; endDate: string };
-const MOBILE_INTRO_ROUTE = "/main-panel/mobile-intro";
+export const MOBILE_INTRO_ROUTE = "/main-panel/mobile-intro";
 /** Match the historical Next URL filter: invalid or incomplete ranges fall back safely. */
 export function mobileIntroFilterFromSearch(search: string, now = new Date()): MobileDateFilter {
   const query = new URLSearchParams(search);
