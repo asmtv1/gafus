@@ -1,12 +1,12 @@
 import { Loading } from "../../shared/ui";
-import {useCallback,useEffect,useMemo,useRef,useState} from "react";
+import {lazy,Suspense,useCallback,useEffect,useMemo,useRef,useState} from "react";
 import {useInfiniteQuery,useQuery} from "@tanstack/react-query";
 import {RouteLink} from "../../shared/router/location";
 import {ApiError} from "../../shared/api/client";
 import original from "../../brand/LegacyGallery.module.css";
 import parity from "./GalleryAlbumSourceParity.module.css";
 import { GalleryImage } from "./GalleryImage";
-import { GalleryViewerPhoto } from "./GalleryViewerPhoto";
+const GalleryViewerPhoto = lazy(() => import("./GalleryViewerPhoto").then(m => ({ default: m.GalleryViewerPhoto })));
 import { nextMediaRefresh, useGallerySwipe } from "./galleryPresentation";
 import {getPublicAlbum,listPublicAlbums,listPublicPhotos,signedGalleryImage,
   type AlbumPhoto} from "./galleryApi";
@@ -210,7 +210,9 @@ export function PublicGalleryView({viewerId,ownerUsername,routeAlbumId,isCurrent
             <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
             <span className="gafus-visually-hidden">Закрыть фотографию</span>
           </button>
-          <GalleryViewerPhoto key={chosen.id} photo={chosen} albumId={routeAlbumId!}/>
+          <Suspense fallback={<Loading />}>
+            <GalleryViewerPhoto key={chosen.id} photo={chosen} albumId={routeAlbumId!}/>
+          </Suspense>
           {chosen.caption&&<p>{chosen.caption}</p>}
           <div className="gallery-image-viewer-actions">
             <button className="gallery-image-viewer-nav" aria-label="Предыдущая фотография" ref={prevRef} type="button" disabled={chosenIndex<=0}

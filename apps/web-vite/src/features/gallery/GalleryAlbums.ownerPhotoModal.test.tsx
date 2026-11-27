@@ -155,7 +155,10 @@ describe("original Next owner route fresh media GET on open",()=>{
     await flush();
     const dialog=host.querySelector('[role="dialog"][aria-label="Просмотр фотографии"]');
     expect(dialog?.querySelector("img")).toBeNull();
-    expect(dialog?.textContent).toContain("Фото недоступно");
+    await vi.waitFor(async()=>{
+      await flush();
+      expect(dialog?.textContent).toContain("Фото недоступно");
+    },{timeout:20000});
     expect(dialog?.innerHTML).not.toContain("/photo_01/full.jpg");
   });
 });

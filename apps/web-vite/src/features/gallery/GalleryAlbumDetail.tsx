@@ -1,5 +1,5 @@
 import { Loading } from "../../shared/ui";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "../../shared/ui";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import original from "../../brand/LegacyGallery.module.css";
@@ -11,7 +11,10 @@ import { GalleryUploadQueue } from "./GalleryUploadQueue";
 import { getMyAlbum, galleryAlbumCommands, galleryCoverAckMatches, verifiedGalleryCover, listMyPhotos, projectOwnerPhotos, signedGalleryImage, type AlbumSummary, type GalleryPage, type AlbumPhoto, type GalleryAlbumCommands } from "./galleryApi";
 import { nextMediaRefresh, useGallerySwipe, errorCopy } from "./galleryPresentation";
 import { GalleryImage } from "./GalleryImage";
-import { GalleryViewerPhoto } from "./GalleryViewerPhoto";
+// Keep full-photo ACL and recovery logic out of the grid's initial chunk.
+const GalleryViewerPhoto = lazy(() =>
+  import("./GalleryViewerPhoto").then(({ GalleryViewerPhoto }) => ({ default: GalleryViewerPhoto })),
+);
 const photoStatusText: Record<AlbumPhoto["status"], string> = {
   pending: "Ожидает обработки",
   processing: "Обрабатывается…",
@@ -550,12 +553,14 @@ export function AlbumDetail({
                       </svg>
                       <span className="gafus-visually-hidden">Закрыть фотографию</span>
                     </button>
-                    <GalleryViewerPhoto
-                      key={chosen.id}
-                      photo={chosen}
-                      albumId={albumId}
-                      verifyOnOpen={verifyPhotoOnOpen}
-                    />
+                    <Suspense fallback={<Loading />}>
+                      <GalleryViewerPhoto
+                        key={chosen.id}
+                        photo={chosen}
+                        albumId={albumId}
+                        verifyOnOpen={verifyPhotoOnOpen}
+                      />
+                    </Suspense>
                     {chosen.caption && <p>{chosen.caption}</p>}
                     <div className="gallery-image-viewer-actions">
                       <button

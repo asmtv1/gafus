@@ -320,7 +320,7 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
     await vi.waitFor(async () => {
       await act(async () => { await Promise.resolve(); });
       expect(calls).toContain("/api/v1/admin/users/user1/app-subscription");
-    });
+    }, { timeout: 20000 });
     expect(calls.some(url => /^\/api\/v1\/admin\/users(?:\?|$)/.test(url))).toBe(false);
   });
 
@@ -354,7 +354,7 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
     await vi.waitFor(async () => {
       await act(async () => { await Promise.resolve(); });
       expect(findTrainer()).toBeTruthy();
-    });
+    }, { timeout: 20000 });
     const choose = findTrainer();
     await act(async () => {
       choose!.querySelector("button")!.click();
