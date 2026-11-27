@@ -1,0 +1,218 @@
+{
+  "sourceSha256": "ec63c8214f5b679d34830996a3e6c09a8481dcfa1ab4a6a56cf97a2d28536d1a",
+  "database": "archqa_http_b2ffe32b3945",
+  "loopback": "http://127.0.0.1:62880",
+  "passed": [
+    "article paid detail, grant, expiry, foreign and cache ACL",
+    "Q&A mounted owner ACL, hidden question and hidden answer",
+    "consultation mounted owner lookup/list and foreign cancel/confirm",
+    "articles list SQL reader size",
+    "questions list SQL reader size"
+  ],
+  "failedPhase": null,
+  "observations": [
+    {
+      "name": "article paid detail, grant, expiry, foreign and cache ACL",
+      "http": [
+        {
+          "path": "/articles/qahttp41dd520ee7-article",
+          "method": "GET",
+          "status": 401,
+          "code": null
+        },
+        {
+          "path": "/articles/qahttp41dd520ee7-article",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/articles/qahttp41dd520ee7-article",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/articles/cmwzjmpuh0005qzyme1fckmin/like",
+          "method": "POST",
+          "status": 402,
+          "code": "SUBSCRIPTION_OR_CREDITS_REQUIRED"
+        },
+        {
+          "path": "/articles/qahttp41dd520ee7-article",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/articles/qahttp41dd520ee7-article",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/articles/qahttp41dd520ee7-article",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        }
+      ],
+      "sql": {
+        "anonymous": 401,
+        "foreignLike": 402,
+        "grant": 200,
+        "expiryDenied": true,
+        "protectedMediaRedacted": true
+      }
+    },
+    {
+      "name": "Q&A mounted owner ACL, hidden question and hidden answer",
+      "http": [
+        {
+          "path": "/questions/cmwzjmqgq000bqzym0qdpjgr5",
+          "method": "GET",
+          "status": 401,
+          "code": null
+        },
+        {
+          "path": "/questions/cmwzjmqgq000bqzym0qdpjgr5/best",
+          "method": "POST",
+          "status": 403,
+          "code": "FORBIDDEN"
+        },
+        {
+          "path": "/questions/cmwzjmqgq000bqzym0qdpjgr5/best",
+          "method": "POST",
+          "status": 400,
+          "code": "INVALID_BEST_ANSWER"
+        },
+        {
+          "path": "/questions/cmwzjmqgq000bqzym0qdpjgr5/best",
+          "method": "POST",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/questions/cmwzjmqgq000bqzym0qdpjgr5",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/questions/cmwzjmqgq000bqzym0qdpjgr5",
+          "method": "GET",
+          "status": 404,
+          "code": "NOT_FOUND"
+        }
+      ],
+      "sql": {
+        "foreign": 403,
+        "hiddenAnswer": 400,
+        "owner": 200,
+        "hiddenQuestion": 404
+      }
+    },
+    {
+      "name": "consultation mounted owner lookup/list and foreign cancel/confirm",
+      "http": [
+        {
+          "path": "/consultations/book/lookup",
+          "method": "POST",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/consultations/book/lookup",
+          "method": "POST",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/consultations/book/lookup",
+          "method": "POST",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/consultations/my",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/consultations/my",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/consultations/bookings/cmwzjmr3x000qqzymg62db5rj/cancel",
+          "method": "POST",
+          "status": 403,
+          "code": "CONSULTATION_FORBIDDEN"
+        },
+        {
+          "path": "/consultations/trainer/bookings/cmwzjmr3x000qqzymg62db5rj/confirm",
+          "method": "POST",
+          "status": 403,
+          "code": null
+        }
+      ],
+      "sql": {
+        "ownerLookup": 200,
+        "foreignUnknown": true,
+        "foreignCancel": 403,
+        "nonStaffConfirm": 403,
+        "unchanged": true
+      }
+    },
+    {
+      "name": "articles list SQL reader size",
+      "http": [
+        {
+          "path": "/articles",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/articles",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        }
+      ],
+      "sql": {
+        "items": 50,
+        "selectCalls": 11,
+        "sqlReturnedRows": 56,
+        "responseJsonBytes": 22769,
+        "httpMs": 97.66199999999662
+      }
+    },
+    {
+      "name": "questions list SQL reader size",
+      "http": [
+        {
+          "path": "/questions",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        },
+        {
+          "path": "/questions",
+          "method": "GET",
+          "status": 200,
+          "code": null
+        }
+      ],
+      "sql": {
+        "items": 20,
+        "selectCalls": 11,
+        "sqlReturnedRows": 29,
+        "responseJsonBytes": 28137,
+        "httpMs": 171.83162499999162
+      }
+    }
+  ]
+}
