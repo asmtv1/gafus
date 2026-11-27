@@ -1,0 +1,1034 @@
+{
+  "sourceSha": "f77e07d0d608d51281b2d38653db79d663e9f4ac",
+  "inheritedSourceSha": "ae5259ad0c009710d9c589f5fd59e01422e4222c",
+  "planFingerprint": "8976d001e12ebb44bf6fd3182774c9dc2fc868c323310bb01b8edeb11bf7428e",
+  "unitJobId": "290b88246f6472ac140a5f512bac6c0a1d0ee7ff5c3ee49c",
+  "gatesJobId": "c2a3972bae1e5cb49c1c53aec3e32f0e31730dc972e2c19a",
+  "unitTaskCounts": {
+    "passed": 108
+  },
+  "webGroups": 42,
+  "changedNonDocumentationFiles": [
+    "apps/api/src/test/stage2-12-di-http.acceptance.mts",
+    "apps/web-vite/src/features/chats/Chat2Messenger.stage11.mounted.test.tsx",
+    "scripts/qa/prometheus-alertmanager-isolated.sh"
+  ],
+  "unitTasks": [
+    {
+      "id": "workspace.unit.@gafus/bull-board",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2446,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "6e42fb708cf83933348fca5d03585d04b4015f39ca057c2eaa2e279b3840e008"
+    },
+    {
+      "id": "workspace.unit.@gafus/feed-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 8574,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "5f9e27b49d3e28666d9be4a9e17ec527e977ddf7eb8603de7f55d7a04eee94d2"
+    },
+    {
+      "id": "workspace.unit.@gafus/core-client",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 4905,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "424cf63ae384f9bf1be0a7f4e3b1607e1b4947c9373ec381e07a3d366775f730"
+    },
+    {
+      "id": "workspace.unit.@gafus/admin-reengagement-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1406,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "b11cb329851c152a91baccd885e9ff06f530b9464821e702d24e38646858d50a"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-moments-04",
+      "platform": "node",
+      "part": "feature-moments-04",
+      "durationMs": 16996,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "f2b37ce5386344781e00a94c445b5487da7af1106c4218239b93dfc6e6547682"
+    },
+    {
+      "id": "workspace.unit.@gafus/consent-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2438,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "a07a439d45488b1704100ab479ec11669d38e076dfcd96319d15f909d65dce6e"
+    },
+    {
+      "id": "workspace.unit.@gafus/logger",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1879,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "94275ca031a90422d98460f5c326e31cb795173a9b84ff136538685f2d84aee0"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-consultations-01",
+      "platform": "node",
+      "part": "feature-consultations-01",
+      "durationMs": 9893,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "b044635990a35b7706ecdf847a01dea3a3b978f43563332742746a536cc66a96"
+    },
+    {
+      "id": "workspace.unit.@gafus/media-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2686,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "6556b296bf86d240a0639285ca0210a84532c065b18aafa808986f5a4613fdbe"
+    },
+    {
+      "id": "workspace.unit.@gafus/trainer-ai-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1042,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "19f72a942730b60eef3d493c842d31d13693f265204e629e74bb3e6d0e3f939d"
+    },
+    {
+      "id": "workspace.unit.@gafus/trainer-panel",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 77043,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "05f54c21c5d6f90ae30262dba4addd101d2d2cf27f8bbc62ef2091744e41d6e3"
+    },
+    {
+      "id": "workspace.unit.@gafus/admin-panel",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 21028,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "7151390a17e50d3f35d38718dab8ae8db604d3e1235c95fedcb2b0092e8cf110"
+    },
+    {
+      "id": "workspace.unit.@gafus/pets-shared",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1337,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "6c416597fe05a04f3e2b7d611b8e8ebcfbd2b7ea32c74d14ee15b547738d8bbc"
+    },
+    {
+      "id": "workspace.unit.@gafus/consultation-query-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2727,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "9771f2e57445560ca605c0ee965032c29df331272a96938f571c76f3872b9957"
+    },
+    {
+      "id": "workspace.unit.@gafus/consultation-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 3735,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "c5ae72e82f47003bbf267003a55815aa18649edf07594801d05316b33791fc62"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-articles-02",
+      "platform": "node",
+      "part": "feature-articles-02",
+      "durationMs": 852,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "99db2c02cddd11e2e2a94ac9b8f7d5a05d7b76d5d4362d42785191842ddbc62f"
+    },
+    {
+      "id": "workspace.unit.@gafus/admin-rewarded-ads-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2299,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "8363b8c19524f3128cc7e5a82692ff88e44bf67d8475f0b0c4e16829b62f5d04"
+    },
+    {
+      "id": "workspace.unit.@gafus/npd",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1252,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "ee7b21f28043857d64acb0a05868710795c544b4358ab64bdc6932b3eb63a0f3"
+    },
+    {
+      "id": "workspace.unit.@gafus/gafus-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2195,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "f2c38420ff546030b6e00ff16a991d19b0d336126dbe4c4a02023ff152462976"
+    },
+    {
+      "id": "workspace.unit.@gafus/questions-shared",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1401,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "ca4e26579575c2981e76a7071ce4e7e9649e97cc17309428e0814a766aa76862"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-training-01",
+      "platform": "node",
+      "part": "feature-training-01",
+      "durationMs": 63113,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "ede4be2821efe367eb044d8cfc22d6dcef28105ff1d127b42247cc9ba0be1d01"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-pets-02",
+      "platform": "node",
+      "part": "feature-pets-02",
+      "durationMs": 24802,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "46580e7cc2a314d7bb118624b53651effa9290ea38b97cb18717f1685e5553bb"
+    },
+    {
+      "id": "workspace.unit.@gafus/feature-flags-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1168,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "bc814b143c237493afb01e7134b31c6abcf277be83dd801eae79532da3c8c7f0"
+    },
+    {
+      "id": "workspace.unit.@gafus/worker",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 15393,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "a7d5f4beb1411f11f0cc0946c81fffb2c6afb289d3ee3d2c3c0dcf109cb9fb82"
+    },
+    {
+      "id": "workspace.unit.@gafus/error-handling",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1124,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "8e1959e40793a8bc9e3fe3b4a650b465bc717f4c16857316591199c5d86abcbb"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-moments-01",
+      "platform": "node",
+      "part": "feature-moments-01",
+      "durationMs": 29157,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "9192fec0e6c878fc621e81ee1c83a24fca34582e1c7b83616ce9b5934926ba05"
+    },
+    {
+      "id": "workspace.unit.@gafus/exam-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1191,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "6bafca4288d540b144774da761f6e8416c776b6a4a0e0996d1fb477354280ac9"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-excuses-01",
+      "platform": "node",
+      "part": "feature-excuses-01",
+      "durationMs": 4576,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "d435252037bb97b94fef2189f00d6bb964d9d58a389a3cd6129fd40193a3415b"
+    },
+    {
+      "id": "workspace.unit.@gafus/gallery-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2578,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "6259b5b01e4a0f65a1a5d412e80d153c218ed2c537d74b6d01969427179da3dc"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-training-03",
+      "platform": "node",
+      "part": "feature-training-03",
+      "durationMs": 1121,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "362eb8e40a9b161a6fa08c0ded036f5e074c4f637fb254dd335ae6a5a93eccff"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-daily-course-01",
+      "platform": "node",
+      "part": "feature-daily-course-01",
+      "durationMs": 8775,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "35464bea0744de7d5ef11e0e782f585385d3073c65d2ee12763e101437272bce"
+    },
+    {
+      "id": "workspace.unit.@gafus/course-read-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2141,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "55a6dba5feb675520327a092e4ff576b7e337aa068b1aae041345b2eafcefce1"
+    },
+    {
+      "id": "workspace.unit.@gafus/mobile",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 158795,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "b8ad32338003e9fb78cabfdd1f376942d27d2923fec6d444dfe8f017160768a8"
+    },
+    {
+      "id": "workspace.unit.@gafus/video-access",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1879,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "22e1eae949bb1b60baba0e9997d036ea7d069e15a17fb41d3662c7d5ae7805a1"
+    },
+    {
+      "id": "workspace.unit.@gafus/course-progress-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 3405,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "3e83079e21c44c8ccfc018b7a2c1d63463d28f7c686a150852cd99f40f0e8322"
+    },
+    {
+      "id": "workspace.unit.@gafus/subscription-finance-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2065,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "0fc1a4f7139352f357a6d48d0e9e61fda12796d167ed9f882eddb11aea3188c0"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-partner-01",
+      "platform": "node",
+      "part": "feature-partner-01",
+      "durationMs": 16225,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "9a1fe889d6bdea80a0cbaf174bd9bbd6c616413917bdc29c54082a71f2a3b991"
+    },
+    {
+      "id": "workspace.unit.@gafus/webpush",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1862,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "d8e3f1307fa4ded6d47358980071459045db76a294f11a657b477507c8a1f688"
+    },
+    {
+      "id": "workspace.unit.@gafus/questions-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2698,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "fff3e6d5e8a82b2b16c8e72744667d5ba770da1515b38bc4813c520aa1f72db4"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-gallery-01",
+      "platform": "node",
+      "part": "feature-gallery-01",
+      "durationMs": 18557,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "1c0da996aa3e96a35110c6ad936cb32377f2fbfefc0c30ea0f2979154b5e3645"
+    },
+    {
+      "id": "workspace.unit.@gafus/queues",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1290,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "71c3a6b6229e5e638d734c5a353838a3143c107a7d12a62ffa7af489251ec0b7"
+    },
+    {
+      "id": "workspace.unit.@gafus/mailer",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2087,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "90dbb7501375a425bf7eff6cd6be93487ee6c31233714e22fc9de0acd7040596"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-moments-02",
+      "platform": "node",
+      "part": "feature-moments-02",
+      "durationMs": 19684,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "fd8ba3ccb22d1f30934376f870e0374e4fde169d6b01f478a26019eca92af852"
+    },
+    {
+      "id": "workspace.unit.@gafus/course-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 4259,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "37e4af4fea904416334fddc6fcb99bc573f19481db970cf1497f39694c696815"
+    },
+    {
+      "id": "workspace.unit.@gafus/auth",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 3526,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "b574061dfb6b174c47a7faf3b029a14337246f6282c841a0f2ff9b5a66057648"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-gallery-02",
+      "platform": "node",
+      "part": "feature-gallery-02",
+      "durationMs": 1022,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "78a82be7e00bab3d90fcb38f308cb2773b51d79f05d89cfd3ef2d934e2d5e774"
+    },
+    {
+      "id": "workspace.unit.@gafus/subscription-payment-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 3490,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "b65350685dc334f117c2fedeb15454a288703591f807b00178fee6a5562031e5"
+    },
+    {
+      "id": "workspace.unit.@gafus/entitlements-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1435,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "1c6c1839f75d1698b34fc6f5c3979b2bc1e17bae82a273f2f27faaa63c8cd9f2"
+    },
+    {
+      "id": "workspace.unit.@gafus/subscription-read-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1620,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "b40636bd30d1a7d5dc22dbb7976d680bc90d8added23e002d071402d298be95e"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-moments-06",
+      "platform": "node",
+      "part": "feature-moments-06",
+      "durationMs": 1662,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "b687fce73ee972abdab82d1d07f29088bae23eb619a00098fc180a8eaf72d907"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.shared-01",
+      "platform": "node",
+      "part": "shared-01",
+      "durationMs": 38103,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "4d7d221fa1dc054626fd53d061ef861ff7c8c82d357c3ea638dc9a210a39fcc3"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-pets-01",
+      "platform": "node",
+      "part": "feature-pets-01",
+      "durationMs": 15626,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "4c0dcec905ea4b2a76a1223901014fec0c23e697d684603e4224c5358197eeaf"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-walks-01",
+      "platform": "node",
+      "part": "feature-walks-01",
+      "durationMs": 1247,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "0283a5666473803c5a2c8c77d806dc7623fe83824398eb587e3b2cfa4faf3797"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-courses-01",
+      "platform": "node",
+      "part": "feature-courses-01",
+      "durationMs": 12029,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "bd8ff38a15675fc3ca5ac0a4c1ac86b2d5eccc70ce5c621224476db73d381834"
+    },
+    {
+      "id": "workspace.unit.@gafus/achievements-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1003,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "ac5992b39560f89aa73b348d13e212230c2f3e4f6eff96dca73707432eee8899"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.vite-config",
+      "platform": "node",
+      "part": "vite-config",
+      "durationMs": 624,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "0c1b07b03a3640fc2ec144160611e52dc6b500242ef5a655157a34596f2bfde2"
+    },
+    {
+      "id": "workspace.unit.@gafus/chat-media-quality",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2172,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "d10a9792b14fbded620557a29bbe649f5334a8d1f923c6bf09690d06a47929ac"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.isolated-consultations-live",
+      "platform": "node",
+      "part": "isolated-consultations-live",
+      "durationMs": 20839,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "7c938b3bb24f665c1725074865dc0090e1f6036e19c1dc89a3f60dea6910f80c"
+    },
+    {
+      "id": "workspace.unit.@gafus/analytics",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1542,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "7e3178e8087566cff60080c272a5bf2389ceb9a08a4ce389975e5e97eb6065bb"
+    },
+    {
+      "id": "workspace.unit.@gafus/notifications-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2688,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "a03b661641ed325072f05871645b486561f084c3009334f9ac236e0ca644de71"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-gafus-01",
+      "platform": "node",
+      "part": "feature-gafus-01",
+      "durationMs": 42745,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "bf34929cf77b747efad49e3bcfb87c7e4387e2cb6acd47bbdbca5b9ffa09ae6e"
+    },
+    {
+      "id": "workspace.unit.@gafus/article-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2294,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "156d69d768532acb9b5e88841362c38d91410583a506d18c028a097cad59c5e0"
+    },
+    {
+      "id": "workspace.unit.@gafus/statistics",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2851,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "5034b2c743e8e00dcbcf512779cfb161c078914c059fb24fc0de8528efd6cdfe"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.isolated-consultations-flow",
+      "platform": "node",
+      "part": "isolated-consultations-flow",
+      "durationMs": 25831,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "642f6e0f048d782244b1f881952d832eee9eb21d8fa82ee37f0b91a637d272ac"
+    },
+    {
+      "id": "workspace.unit.@gafus/ui-components",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1204,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "4c915879161554ebd784d3c6a62bf9ee22898b2881373bf62202b1b06657293f"
+    },
+    {
+      "id": "workspace.unit.@gafus/media-shared",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1780,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "61534f026dbead17a3b53300d925048e1f0cdd6de3af01614e727b93aefc073f"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-moments-03",
+      "platform": "node",
+      "part": "feature-moments-03",
+      "durationMs": 17915,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "9ea9671ede23ea329ce06071b7b1d9c631878b2bfe7ae5e8f95deab658101f34"
+    },
+    {
+      "id": "workspace.unit.@gafus/subscription-trial-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1038,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "10ad022f2f9dcbe2bcb419792b8d28624557c16780662f22603d8780542c7494"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.app-01",
+      "platform": "node",
+      "part": "app-01",
+      "durationMs": 4334,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "9104d5674067eace99ad014f216e8f5c04633b2ee44d44ae9cac488049a3f4f5"
+    },
+    {
+      "id": "workspace.unit.@gafus/consultation-shared",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 4318,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "adcba67be7920c77d7ba33cbf38fd646fa0f5ee6ff824494ba1f3415a6407176"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-training-02",
+      "platform": "node",
+      "part": "feature-training-02",
+      "durationMs": 9671,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "d4f5195acfbb7226e20bf1e18a4f481473c19194506b75689da89b4bd7fc73ca"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-questions-01",
+      "platform": "node",
+      "part": "feature-questions-01",
+      "durationMs": 22682,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "6365cf95201069d7495a6ea806add9b763ac0466f34cb3366ed26d08046da6c5"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-account-01",
+      "platform": "node",
+      "part": "feature-account-01",
+      "durationMs": 7434,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "e50a8298cc44677cfaa2d92f7fe0f3f1c92fb3e70e10b6bcc6208526b4745510"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-profile-03",
+      "platform": "node",
+      "part": "feature-profile-03",
+      "durationMs": 1626,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "1c0ca188f8b93232ecd20dd0adca36a63a9b897e92328a3603001d2589aa0c26"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-articles-01",
+      "platform": "node",
+      "part": "feature-articles-01",
+      "durationMs": 8489,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "c9b9bbb160eafa9ba045ae6ab1238b291452a459fd436561f5f2494d99fde186"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-achievements-01",
+      "platform": "node",
+      "part": "feature-achievements-01",
+      "durationMs": 5032,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "078f6c9fc0da1b86b3a7cdd43813284c7ff17e38bce04d5ac37e21311935dff8"
+    },
+    {
+      "id": "workspace.unit.@gafus/feed-storage",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1592,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "e8a390200a0239a8cdacc1b61188e0a83fac316d1ce10636050ec1385f7b1a89"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-chats-01",
+      "platform": "node",
+      "part": "feature-chats-01",
+      "durationMs": 6391,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "a61017fb5d917858ad750e6e4b543237e8e976d923fe39293eceabd66186a27b"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-moments-05",
+      "platform": "node",
+      "part": "feature-moments-05",
+      "durationMs": 7830,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "9d22975d28b74d634b3200a77cf6d764123de4249adfe379d8a463aef3c0b050"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-commerce-01",
+      "platform": "node",
+      "part": "feature-commerce-01",
+      "durationMs": 4086,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "926c7ee87072d1abef561362b89a71e1a0e924cf412015d657280d10f5b28549"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.shared-02",
+      "platform": "node",
+      "part": "shared-02",
+      "durationMs": 5402,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "d7fd197daf4f43fe31f995e9131f7ae9d4b975414ba93314ecc972c7938f9e99"
+    },
+    {
+      "id": "workspace.unit.@gafus/api",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 358276,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "084661d81c2248886264caf6f6c544290cb58c5b7b3bd9b3e33a0f6090f30655"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-profile-01",
+      "platform": "node",
+      "part": "feature-profile-01",
+      "durationMs": 18966,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "f01fe9224b02c74c3617de7a62d33787fe53048f5eda32138ecc0d74db13cd2b"
+    },
+    {
+      "id": "workspace.unit.@gafus/consultation-write-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1584,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "4dcbbdf736a9e04888b3ef207d6fa707195d1f1ec92f1078aa6f82b6d4054c3b"
+    },
+    {
+      "id": "workspace.unit.@gafus/identity-write-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2989,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "b639a76a13f4c288dbdcbbeaefc5d9e282b6109b6c670b24f876ebe1d4e67c56"
+    },
+    {
+      "id": "workspace.unit.@gafus/types",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 4058,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "9fb0a9859c2931a18776eeb107985c5abf0de433d32c0747cda6ac3ea2ff7cf4"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-pets-03",
+      "platform": "node",
+      "part": "feature-pets-03",
+      "durationMs": 1541,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "a68c4045b054fa03387ab072d961157264b1fa829fcd0437cd25315e8c957c78"
+    },
+    {
+      "id": "workspace.unit.@gafus/pets-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2541,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "b1620e86c6d093d2b382f0a3c30897b7cb98fcff99412a1558dbbc0742fc66fc"
+    },
+    {
+      "id": "workspace.unit.@gafus/gallery-cloud",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 8646,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "a99909e734d2ffe678b0b34bc3be5eb75c53454cbf5492d38d66f134699cf7ee"
+    },
+    {
+      "id": "workspace.unit.@gafus/mobile-intro-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2008,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "3717e85d4da6bc311f93adda0e88361f5962f29b344866a92d34cf15355afd7d"
+    },
+    {
+      "id": "workspace.unit.@gafus/questions-write-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1243,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "e257652cb18caf09ca26ea95432ba4d54d121c242a78ba6cf5fa6643c652bb8c"
+    },
+    {
+      "id": "workspace.unit.@gafus/feed-cloud-runtime",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 5386,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "90c1ca0d8a2fa3a5ca4ddbd674214e120a6e5ec6f161d04a9d3273847cfcc200"
+    },
+    {
+      "id": "workspace.unit.@gafus/subscription-write-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1788,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "9ee5250684203d2d88b26e41b6523917377d8adfc31070bbbcf0121da3b3c270"
+    },
+    {
+      "id": "workspace.unit.@gafus/mobile-ota-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1381,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "b50a5ab011f339915da5e1661dcda833fee0eed4b15160a2993422cf7cfdf081"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.brand-01",
+      "platform": "node",
+      "part": "brand-01",
+      "durationMs": 3395,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "a8bd23d5977f8724aed316e07a1204063254e915a04504876a02f12a26ca9358"
+    },
+    {
+      "id": "workspace.unit.@gafus/reengagement",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2670,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "c61bf86fc473693d60fcd2d0dbd96fbc81e25fb6811162077226b5b2f3aec43e"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.isolated-auth-principal",
+      "platform": "node",
+      "part": "isolated-auth-principal",
+      "durationMs": 3020,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "d738b153d40b41c791e642ffb7d1edca429dd3966198a9e3087b3b7d96bdfd48"
+    },
+    {
+      "id": "workspace.unit.@gafus/gallery-storage",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 3448,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "de5418a01ad469075376e9e729e528e97fa58a2e154994048cb88813e82aff32"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.isolated-article-guest-routes",
+      "platform": "node",
+      "part": "isolated-article-guest-routes",
+      "durationMs": 1454,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "7272116cc22c45d61cbb61d0a9b662b85b11ff930c22ccd2031c429c0711b7ac"
+    },
+    {
+      "id": "workspace.unit.@gafus/cdn-upload",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 2095,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "e98d4c2bd1e14f344a45a27d10ffb86255f48deab156fe9aa8c4d64e9bf2a227"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-questions-02",
+      "platform": "node",
+      "part": "feature-questions-02",
+      "durationMs": 13247,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "3f289773fe47cc61256ccf0488bd2b0aaadae35c9055a5cf723180ed2ae6ef4a"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.shared-03",
+      "platform": "node",
+      "part": "shared-03",
+      "durationMs": 1977,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "c020e698dd677fef992ac9576489adad617221fe1df03fba8fd79fa68b7f3927"
+    },
+    {
+      "id": "workspace.unit.@gafus/subscription-shared",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1541,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "bac4e5aff9cba1438ad7d3cbc9f603b961fbf76c2073016fe862744d72b7ba87"
+    },
+    {
+      "id": "workspace.unit.@gafus/prisma",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 783,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "cbd1cd265beb630b06a36e8b87c29f6d4cc5e9243d8b5d644446a355fdc80a66"
+    },
+    {
+      "id": "workspace.unit.@gafus/feed-cloud",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 1126,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "755feae2fef06b431bec6e6d49e24b83efe8c11edee6482d2800dc941542bc1c"
+    },
+    {
+      "id": "workspace.unit.@gafus/core",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 90643,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "6dedfaaf1ead2611473610827da7d4941fb536393a3e5a194ee3ccb643c7d6fd"
+    },
+    {
+      "id": "workspace.unit.@gafus/web-vite.feature-profile-02",
+      "platform": "node",
+      "part": "feature-profile-02",
+      "durationMs": 30922,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "43347637d640ca5e151ef150be98c95d87bafd7dfdca9cd497827bf3429c801a"
+    },
+    {
+      "id": "workspace.unit.@gafus/tracking-server",
+      "platform": "node",
+      "part": "legacy-aggregate",
+      "durationMs": 938,
+      "status": "passed",
+      "exitCode": 0,
+      "rawLogSha256": "d45ac4d1b5f801cbe7c8371431b0ee9280d579516869f630dfc72ca0a4f384f6"
+    }
+  ],
+  "gates": [
+    {
+      "name": "typecheck",
+      "exitCode": 0,
+      "command": "pnpm exec turbo run typecheck --only --concurrency=1 --continue --cache=local:rw --cache-dir=/tmp/gafus-final-20261128/gates-f77e07d0d608d51281b2d38653db79d663e9f4ac/turbo",
+      "rawLogSha256": "aa86ff68b060741a9334417a891ca392aa4878e03b20bc50949d303c5b0eaf9d"
+    },
+    {
+      "name": "lint",
+      "exitCode": 0,
+      "command": "pnpm exec turbo run lint --concurrency=1 --continue --cache=local:rw --cache-dir=/tmp/gafus-final-20261128/gates-f77e07d0d608d51281b2d38653db79d663e9f4ac/turbo",
+      "rawLogSha256": "5417286bdea5260dffad41e6200f405dbe0ea64ba126ba7c683c4600d6e2e72b"
+    },
+    {
+      "name": "di-http",
+      "exitCode": 0,
+      "command": "env GAFUS_DI12_QA=1 DI12_ROLLBACK_ROOT=/Users/asmtv1/Desktop/gafus-qa-di12-rollback-20261128 bash scripts/qa/stage2-12-di-http-isolated.sh",
+      "rawLogSha256": "62eacdc6b54aaa1651f5e96ef10563c65229a93f913e8155bcfb82b50ef18a2b"
+    },
+    {
+      "name": "web-chat",
+      "exitCode": 0,
+      "command": "pnpm --filter @gafus/web-vite exec vitest run src/features/chats/Chat2Messenger.stage11.mounted.test.tsx --maxWorkers=1",
+      "rawLogSha256": "df8563bfed7c9492b96c2c735e1b2a53e9f4fa3058f2a86da12b1d5bcfb8b534"
+    },
+    {
+      "name": "guards",
+      "exitCode": 0,
+      "command": "pnpm check:core-boundaries",
+      "rawLogSha256": "f3f789b5a54bf513c77487a12671040d28417fe5bacd8a4703dcb8ae81935727"
+    },
+    {
+      "name": "built-exports",
+      "exitCode": 0,
+      "command": "pnpm check:workspace-built-exports",
+      "rawLogSha256": "b6d5b0785141a1186884bb5cc65051ea4d8d9658f37cc0ebd7a9318044388c57"
+    },
+    {
+      "name": "unit",
+      "exitCode": 0,
+      "command": "pnpm test:unit --run-id qa-final-f77e07d0-unit",
+      "rawLogSha256": "3952bb494a4c43b0b92d71c05752e1ad209385197da62a5fd44d526b056754af"
+    }
+  ]
+}

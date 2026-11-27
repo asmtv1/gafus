@@ -295,3 +295,30 @@ PASS below is scoped, not a declaration of full roadmap acceptance. Inherited ev
 ## Final decision
 
 Local consolidated candidate assembled; not release-ready and not 10/10 accepted. Typecheck and lint blockers reproduced on exact source; unit INCOMPLETE; integration PASS. No further source edits were made after freezing ae5259ad, so the reported gates are all attributable to the same source. The two harness failures remain actionable: narrow HTTP ServerType safely before calling closeAllConnections and clean the mounted Chat2 test lint violations without weakening rules or deleting assertions. Re-run mandatory gates on any successor SHA. External sandbox, authenticated browser, missing native artifacts, real backup/data recovery, actual CDN purge and production telemetry remain unverified, not PASS. Original branches and production untouched; no push/deploy. This report is a separate documentation-only commit.
+
+
+## Continuation — final local gates (supersedes the preceding historical decision)
+
+Checked source: **f77e07d0d608d51281b2d38653db79d663e9f4ac**. Earlier execution source: ae5259ad0c009710d9c589f5fd59e01422e4222c. Branch qa/final-architecture-20261128; report-only receipt commit follows the checked source. No product runtime changes between those sources: exact non-documentation diff contains only the API DI QA harness, the Web mounted Chat2 test, and the isolated Prometheus QA downloader. No test assertions removed, no lint rules weakened. Merge 6aecc682c unchanged; merge 54c47fcc3 with alert evidence and pinned upstream checksums; f77e07d0 addresses six residual warnings (intentional no-op mock comments, wrapped lines, allowed console.warn).
+
+### Repeated on the checked source
+
+| Gate | Result | Command |
+|---|---|---|
+| typecheck | PASS, exit 0; 62/62; no cache hits; 5m21.429s | `pnpm exec turbo run typecheck --only --concurrency=1 --continue --cache=local:rw --cache-dir=/tmp/gafus-final-20261128/gates-f77e07d0d608d51281b2d38653db79d663e9f4ac/turbo` |
+| lint | PASS, exit 0; 6/6; no cache hits; 1m11.42s; existing permitted warnings remain outside strict Web | `pnpm exec turbo run lint --concurrency=1 --continue --cache=local:rw --cache-dir=/tmp/gafus-final-20261128/gates-f77e07d0d608d51281b2d38653db79d663e9f4ac/turbo` |
+| di-http | PASS, exit 0; 153 HTTP requests; two Hono instances; real PG/Redis; QA rollback; owned resources removed | `env GAFUS_DI12_QA=1 DI12_ROLLBACK_ROOT=/Users/asmtv1/Desktop/gafus-qa-di12-rollback-20261128 bash scripts/qa/stage2-12-di-http-isolated.sh` |
+| web-chat | PASS, exit 0; 1/1 mounted test; 180-row typing/reconnect profile | `pnpm --filter @gafus/web-vite exec vitest run src/features/chats/Chat2Messenger.stage11.mounted.test.tsx --maxWorkers=1` |
+| guards | PASS, exit 0; 44/44 | `pnpm check:core-boundaries` |
+| built-exports | PASS, exit 0; 67 packages, 389 exports, 2762 import references; existing artifacts produced at ae5259ad, not rebuilt or re-labeled | `pnpm check:workspace-built-exports` |
+| unit | PASS, exit 0; 108/108 planned tasks; 42 Web groups; repository-standard skips preserved; source fingerprint verified | `pnpm test:unit --run-id qa-final-f77e07d0-unit` |
+
+Unit task receipts verified against the complete frozen plan (108 distinct tasks, all passed, no missing or extra task); API aggregate 2910 pass / 248 skip, Mobile 2939 pass / 1 skip. Unit job 290b88246f6472ac140a5f512bac6c0a1d0ee7ff5c3ee49c; other gates job c2a3972bae1e5cb49c1c53aec3e32f0e31730dc972e2c19a. Each process limited to one worker/serial tasks; the two independent jobs overlapped. Full unit limit 4h, not cancelled or timed out; actual durable job duration 1416440 ms (23m36.440s), exit 0. Plan fingerprint 8976d001e12ebb44bf6fd3182774c9dc2fc868c323310bb01b8edeb11bf7428e. Raw logs and named receipts in /tmp/gafus-final-20261128/gates-f77e07d0d608d51281b2d38653db79d663e9f4ac and /Users/asmtv1/Desktop/gafus-qa-final-20261128/.qa/testing/qa-final-f77e07d0-unit. Tracked sanitized summary, per-task exit/duration/log SHA256, commands and exact non-product diff: docs/audit/evidence/final-local-acceptance-20261128/.
+
+### Inherited evidence, unchanged product
+
+Integration 10/10 at ae5259ad (verified prior source fingerprint); full forced build 67/67, CI/private sourcemap 23/23, actual map manifests and restored public archives, real PG offline/consult/exam/walks, real Centrifugo ACK/retry, stage13 HTTP 5/5, full synthetic local restore and measured RTO/RPO. Their exact original SHA and boundaries remain in the previous sections: no new binary/map SHA, no additional external claim. Product logic and all build/lockfile/runtime inputs other than the named QA tests/scripts are unchanged; exact source-diff receipt records this. Build artifact binding stays ae5259ad. Alert delivery additionally inherited from actual run 09e4c9b3f, evidence at 54c47fcc3 verified 4/4 SHA256; real isolated Prometheus/Alertmanager firing/resolved for two rules, 40 rules validated and 25 named fixture scenarios; not actual external alert channel or production.
+
+### Updated decision and scope
+
+Local mandatory gates are green by the repeated checks above and explicitly inherited unchanged-product evidence. This closes earlier typecheck/lint/unit blockers in stages 2/11/12 and criterion 9, and isolated alert transport in stage 14/criterion 8. All other stage 0–14 and ten-criterion dispositions remain as in the preceding matrix except these closed local sub-gates. Browser confirmation, externally authorized sandbox callbacks, CDN purge/cache/revocation, missing exact signed archives, historical real-data restore, staging/production RPO/RTO and actual published CI/image/OTA linkage remain OPEN/BLOCKED, not PASS. Physical iPhone and Android owner-accepted. No push, deploy, production work, or changes to source branches. This is a green local candidate, not a claim of 10/10 roadmap or production acceptance.
