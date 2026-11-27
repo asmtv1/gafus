@@ -1,8 +1,8 @@
 /** Real SQL-lease Worker, synthetic account deletion and fully mocked external storage/CDN. */
 import {beforeAll,afterAll,describe,it,expect,vi} from 'vitest';
 import {randomUUID,createHash} from 'node:crypto';
-import {writeFileSync,readFileSync} from 'node:fs';
-import {resolve} from 'node:path';
+import {writeFileSync,readFileSync,realpathSync} from 'node:fs';
+import {resolve,relative,dirname} from 'node:path';
 const fake=vi.hoisted(()=>({objects:new Map<string,Set<string>>(),events:[] as any[],
   purges:new Map<string,boolean>(),submit:0,sweep:0,poll:0}));
 vi.mock('@gafus/cdn-upload',async importActual=>{
@@ -62,12 +62,18 @@ const hash=(v:string)=>createHash('sha256').update(v).digest('hex');
 function guard(){
  const db=new URL(env.DATABASE_URL??'http://invalid');
  const redisUrl=new URL(env.REDIS_URL??'http://invalid');
+ const root=realpathSync(resolve(__dirname,'../../../..'));
+ const report=env.GAFUS_TEST_REPORT_PATH??'';
+ const reportRelative=relative(root,report);
+ const reportOwned=report===resolve(root,reportRelative) &&
+  /^\.qa\/testing\/qa-[a-f0-9-]+\/tasks\/[a-f0-9]{20}\/attempt-[1-9][0-9]*\/tests\.json$/.test(reportRelative) &&
+  realpathSync(dirname(report))===dirname(report);
  if(env.NODE_ENV!=='test'||env.GAFUS_LOCAL_ISOLATED_API!=='1'||
  db.protocol!=='postgresql:'||db.hostname!=='127.0.0.1'||db.username!=='qahttp'||
  db.pathname!==`/archqa_worker_${run}`||!/^[a-f0-9]{12}$/.test(run)||
  redisUrl.protocol!=='redis:'||redisUrl.hostname!=='127.0.0.1'||redisUrl.pathname!=='/0'||
  Number(db.port)<1024||Number(redisUrl.port)<1024||db.port===redisUrl.port||
- !/^\/Users\/asmtv1\/Desktop\/gafus-refactor\/\.qa\/testing\/qa-[a-f0-9-]+\/tasks\/[a-f0-9]{20}\/tests\.json$/.test(env.GAFUS_TEST_REPORT_PATH??''))
+ !reportOwned)
  throw Error('QA_FAKE_STORAGE_ISOLATED_SQL_REDIS_GUARD_DENIED');
  dir=resolve(env.GAFUS_TEST_REPORT_PATH!,'..');
 }
