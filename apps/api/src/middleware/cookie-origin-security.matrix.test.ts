@@ -71,7 +71,7 @@ describe("cookie Origin / CSRF versus explicit Bearer authorization", () => {
     });
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ actorId: "actor" });
-    expect(auth.verify).toHaveBeenCalledWith("synthetic-mobile-token");
+    expect(auth.verify).toHaveBeenCalledWith("synthetic-mobile-token", { propagateSessionErrors: true });
   });
   it("denies cookie with missing credentials and ignores spoofed Basic auth", async () => {
     const app = testApp();

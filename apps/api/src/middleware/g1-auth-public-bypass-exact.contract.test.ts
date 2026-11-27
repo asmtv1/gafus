@@ -83,6 +83,17 @@ describe("AG1-SEC-080 exact public auth exceptions", () => {
     expect(result.status).toBe(401);
   });
 
+  it("returns a retryable 503 without authorizing on session storage failure", async () => {
+    auth.verify.mockRejectedValue(new Error("private database details"));
+    const result = await testApp().request("/api/v1/user/profile/publications", {
+      headers: { Authorization: "Bearer valid-token" },
+    });
+    expect(result.status).toBe(503);
+    expect(result.headers.get("cache-control")).toBe("no-store");
+    expect(await result.json()).toMatchObject({ success: false, code: "AUTH_UNAVAILABLE" });
+    expect(auth.completed).not.toHaveBeenCalled();
+  });
+
   it("preserves bearer authentication for a protected sibling", async () => {
     auth.verify.mockResolvedValue({ id: "test-user", role: "USER", username: "tester" });
     const result = await testApp().request("/api/v1/user/profile/publications", {
@@ -90,7 +101,7 @@ describe("AG1-SEC-080 exact public auth exceptions", () => {
     });
     expect(result.status).toBe(200);
     expect(await result.json()).toEqual({ success: true, user: "test-user" });
-    expect(auth.verify).toHaveBeenCalledWith("valid-token");
+    expect(auth.verify).toHaveBeenCalledWith("valid-token", { propagateSessionErrors: true });
     expect(auth.completed).toHaveBeenCalledWith("test-user", expect.objectContaining({
       readIsRegistrationCompleted: expect.any(Function),
       withRegistrationTransaction: expect.any(Function),

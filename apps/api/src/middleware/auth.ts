@@ -72,18 +72,19 @@ export function createAuthMiddleware(registration: RegistrationContextPorts) {
     return c.json({ success: false, error: "Недоверенный Origin" }, 403);
   }
 
-  const user = await verifyAccessToken(token);
+  let user: AuthUser | null;
+  try {
+    user = await verifyAccessToken(token, { propagateSessionErrors: true });
+    if (!user) return unauthorized("Недействительный токен");
 
-  if (!user) {
-    return unauthorized("Недействительный токен");
-  }
-
-  // A token issued before registration was finalized must not authorize a
-  // provisional account. Recheck on every protected API request and prevent
-  // caches from storing the rejected response for any protected route.
-  if (!(await isRegistrationCompleted(user.id, registration))) {
+    // Fail closed, but do not invalidate a client's session on infrastructure failure.
+    if (!(await isRegistrationCompleted(user.id, registration))) {
+      c.header("Cache-Control", "no-store");
+      return c.json({ success: false, code: "REGISTRATION_PENDING", error: "Завершите регистрацию" }, 401);
+    }
+  } catch {
     c.header("Cache-Control", "no-store");
-    return c.json({ success: false, code: "REGISTRATION_PENDING", error: "Завершите регистрацию" }, 401);
+    return c.json({ success: false, code: "AUTH_UNAVAILABLE", error: "Сервис авторизации временно недоступен" }, 503);
   }
 
   c.set("user", user);
