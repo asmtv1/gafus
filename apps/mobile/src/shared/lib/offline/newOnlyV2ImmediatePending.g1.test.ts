@@ -6,7 +6,7 @@ const trainingScreen = readFileSync(
   "utf8",
 );
 const petsScreen = readFileSync(
-  new URL("../../../../app/(main)/(tabs)/pets.tsx", import.meta.url),
+  new URL("../../../features/pets/PetPreventionSection.tsx", import.meta.url),
   "utf8",
 );
 const preventionLifecycle = readFileSync(
@@ -50,8 +50,7 @@ describe("Phase1 owner-scoped pending refresh callsite guard", () => {
   });
   it("prevention focus refresh depends on authenticated profile revision, not only stable user ID", () => {
     const section = petsScreen
-      .split("function PetPreventionSection(")[1]
-      ?.split("function PetsTabScreen(")[0];
+      .split("function PetPreventionSection(")[1];
     expect(section).toBeDefined();
     expect(section).toContain("const verifiedProfile = useAuthStore((state) => state.user)");
     expect(section).toContain("[activate, deactivate, refreshPending, verifiedProfile]");

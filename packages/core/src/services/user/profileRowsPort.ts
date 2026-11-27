@@ -79,12 +79,7 @@ export interface ProfileRowsPort {
   markOnboardingTourSeenRow(userId: string): Promise<{onboardingTourCompletedAt:Date|null}>;
   readPaidChatDisplayEntitlement(userId: string, now: Date): Promise<boolean>;
 }
-let bound: Readonly<ProfileRowsPort> | null = null;
-export function registerProfileRowsPort(port: ProfileRowsPort): void {
-  if(bound !== null && bound !== port) throw new Error("PROFILE_ROWS_PORT_ALREADY_BOUND");
-  bound=port;
-}
-export function requireProfileRowsPort(): Readonly<ProfileRowsPort> {
-  if(!bound) throw new Error("PROFILE_ROWS_PORT_UNBOUND");
-  return bound;
+export function requireProfileRowsPort(port: ProfileRowsPort | undefined): Readonly<ProfileRowsPort> {
+  if (!port) throw new Error("PROFILE_ROWS_PORT_UNBOUND");
+  return port;
 }

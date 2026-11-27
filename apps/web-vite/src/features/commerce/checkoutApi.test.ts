@@ -2,7 +2,7 @@ import { afterEach,describe,expect,it,vi } from "vitest";
 import type { ApiError } from "../../shared/api/client";
 import { checkedPaymentUrl,createCheckoutPayment,previewCheckoutPromo,
   validatePromoPreview,validatedCheckoutPlans,type CheckoutPlan } from "./checkoutApi";
-import type { AppSubscriptionOfferDto } from "../../../../../packages/core/src/services/appSubscription/types";
+import type { AppSubscriptionOfferDto } from "@gafus/types";
 const plan:CheckoutPlan={code:"MONTHLY",title:"Месяц",label:"Месяц",intervalDays:30,
   currency:"RUB",yookassaPriceRub:1465,enabled:true,appleProductId:null,
   offlineCourseDownloadIncluded:true,cynologistChatIncluded:true,

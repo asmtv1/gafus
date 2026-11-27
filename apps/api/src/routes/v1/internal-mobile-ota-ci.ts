@@ -1,10 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { getNativeOtaDescriptorForCi } from "../../modules/mobile-ota/queries.js";
+import { getNativeOtaDescriptorForCi } from "@gafus/mobile-ota-server/queries";
 import {
   ciSignedReleaseSchema, MobileOtaCiError, registerVerifiedOtaCiResult,
-} from "../../modules/mobile-ota/ci-registration.js";
+} from "@gafus/mobile-ota-server/ci-registration";
 
 export const internalMobileOtaCiRoutes = new Hono();
 internalMobileOtaCiRoutes.use("*", async (c, next) => {

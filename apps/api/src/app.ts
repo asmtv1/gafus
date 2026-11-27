@@ -1,26 +1,6 @@
-import "./modules/app-feature-flags/composition/install-core-flags.js";
-import "./modules/rewarded-credits/composition/install-core-settings.js";
-import "./modules/auth/composition/install-registration-context.js";
-import "./modules/auth/composition/install-credential-registration.js";
-import "./modules/auth/composition/install-registration-contract-rows.js";
-
-
-
-import "./modules/content-access/composition/install-policy-reads.js";
-import "./modules/gafus/composition/install-wallet-lock.js";
-import "./modules/courses/composition/install-catalog-read.js";
-import "./modules/gafus/composition/install-ledger-rows.js";
-
-import "./modules/rewarded-credits/composition/install-access-reads.js";
-import "./modules/rewarded-credits/composition/install-wallet-rows.js";
-
-
-import "./modules/auth/composition/install-core-auth-rows.js";
-
-
-import "./modules/pets/composition/install-pet-rows.js";
-import "./modules/rewarded-credits/composition/install-ad-session-rows.js";
-
+import { saveProgressJournalTx } from "@gafus/course-server/video-progress";
+import { checkVideoAccess } from "./modules/video/composition/video-access.js";
+import { readOfflineProgressVersions } from "@gafus/course-progress-server/offline-mutation-rows";
 import { internalFeedRoutes } from "./routes/internal/feed.js";
 import { internalChat2MediaJobRoutes } from "./routes/internal/chat2-media-jobs.js";
 import { internalQuestionsMediaJobRoutes } from "./routes/internal/questions-media-jobs.js";
@@ -95,6 +75,7 @@ import { sqlTraining } from "./modules/training/composition/sql-training-instanc
 import { dailyCourseRoutes } from "./routes/v1/daily-course.js";
 import { examRoutes } from "./routes/v1/exam.js";
 import { surveysRoutes } from "./routes/v1/surveys.js";
+import { applyDailyCourseStepAndDayTx } from "./modules/daily-course/composition/dailyCourseApplication.js";
 import { createOfflineRoutes } from "./routes/v1/offline.js";
 import { offlineMutationRows } from "./modules/offline/composition/offline-mutation-rows-instance.js";
 import { preventionRows } from "./modules/pet-prevention/composition/prevention-rows-instance.js";
@@ -106,6 +87,7 @@ import { walksRoutes } from "./routes/v1/walks.js";
 import { paymentsRoutes } from "./routes/v1/payments.js";
 import { googlePlayNotifications } from "./routes/v1/google-play-notifications.js";
 import { paymentProviderWebhooks } from "./routes/v1/payment-provider-webhooks.js";
+import { receiveResendWebhook } from "@gafus/mailer";
 import { publicMobileRoutes } from "./routes/v1/public-mobile.js";
 import { publicPaidCourseOutlineRoutes } from "./routes/v1/public-paid-course-outline.js";
 import { publicStatsRoutes } from "./routes/v1/public-stats.js";
@@ -129,6 +111,7 @@ import { adminConsultationScheduleRoutes } from "./routes/v1/admin-consultation-
 import { createAdminGafusOperationsRoutes } from "./routes/v1/admin-gafus-operations.js";
 import { adminReengagementTriggerRoutes } from "./routes/v1/admin-reengagement-trigger.js";
 import { adminCacheRoutes } from "./routes/v1/admin-cache.js";
+import { adminQueuesRoutes, adminQueuesAccessRoutes } from "./routes/v1/admin-queues.js";
 import { consultationsRoutes } from "./routes/v1/consultations.js";
 import { appSubscriptionRoutes } from "./routes/v1/app-subscription.js";
 import { mobileOtaRoutes } from "./routes/mobile-ota.js";
@@ -293,6 +276,12 @@ app.use("/api/v1/admin/cache/*", async (c, next) => {
 app.use("/api/v1/admin/cache", authMiddleware, apiRateLimiter);
 app.use("/api/v1/admin/cache/*", authMiddleware, apiRateLimiter);
 app.route("/api/v1/admin/cache", adminCacheRoutes);
+app.use("/api/v1/admin/queues-access", authMiddleware, apiRateLimiter);
+app.route("/api/v1/admin/queues-access", adminQueuesAccessRoutes);
+app.use("/api/v1/admin/queues", authMiddleware, apiRateLimiter);
+app.use("/api/v1/admin/queues/*", authMiddleware, apiRateLimiter);
+app.route("/api/v1/admin/queues", adminQueuesRoutes);
+
 
 const adminProfitPrivate = async (c: Context, next: () => Promise<void>) => {
   c.header("Cache-Control", "private, no-store");
@@ -694,6 +683,10 @@ app.use("/api/v1/offline/*", authMiddleware);
 // precise Prisma.TransactionClient, passed through without coercion at runtime.
 app.route("/api/v1/offline", createOfflineRoutes({
   journalRows: offlineMutationRows,
+  videoJournal: saveProgressJournalTx as unknown as import("@gafus/core/services/offline").VideoJournalPort,
+  canAccessVideo: checkVideoAccess,
+  readProgressVersions: readOfflineProgressVersions,
+  dailyJournal: applyDailyCourseStepAndDayTx as unknown as import("@gafus/core/services/offline").DailyJournalPort,
   preventionRows,
   getTrainingDays: sqlTraining.getTrainingDays,
   requireCourseStepOperationAccess: sqlTraining.requireCourseStepOperationAccess,
@@ -748,6 +741,8 @@ app.route("/api/v1/walks", walksRoutes);
 
 // Public signed/provider-verified callback before private legacy payment routes.
 app.route("/", paymentProviderWebhooks);
+// Resend signs the original request body; do not parse JSON before verification.
+app.post("/api/v1/webhooks/resend", (c) => receiveResendWebhook(c.req.raw));
 app.use("/api/v1/payments/*", authMiddleware);
 app.use("/api/v1/payments/create", paymentsRateLimiter);
 app.use("/api/v1/payments/apple/verify", paymentsRateLimiter);

@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "baselineCommit": "04052d616fa72f8edd2ad49f496f5c744c710fed",
+  "baselineCommit": "afb4fb0b4d2c95e04658f04160d5fd16dfe9ff12",
   "generated": "deterministic-snapshot-no-timestamp",
   "summary": {
-    "workspaces": 70,
-    "workspaceTestFiles": 1943,
-    "withTestScript": 57,
-    "withoutTestScript": 13,
-    "withAdvisoryUnitScript": 13,
-    "withAnyTestRoute": 70,
-    "legacyFiles": 481
+    "workspaces": 67,
+    "workspaceTestFiles": 1959,
+    "withTestScript": 55,
+    "withoutTestScript": 12,
+    "withAdvisoryUnitScript": 12,
+    "withAnyTestRoute": 67,
+    "legacyFiles": 492
   },
   "workspaces": [
     {
@@ -50,7 +50,7 @@
         "unitTest": null,
         "coverage": null
       },
-      "testFiles": 38,
+      "testFiles": 39,
       "tests": [
         "apps/admin-panel/AG4VetWebInProcessReadBridge20261018.test.mjs",
         "apps/admin-panel/src/admin-live/Admin4NpdActionEligibility.mounted.test.tsx",
@@ -74,6 +74,7 @@
         "apps/admin-panel/src/admin-live/SystemPanels.mounted.test.tsx",
         "apps/admin-panel/src/admin-live/UsersPanel.mounted.test.tsx",
         "apps/admin-panel/src/admin-live/UsersParity.test.tsx",
+        "apps/admin-panel/src/admin-live/VersionPublicationForm.mandatory.test.ts",
         "apps/admin-panel/src/admin-live/VersionPublicationForm.test.ts",
         "apps/admin-panel/src/admin-live/VideoQualityPanel.test.tsx",
         "apps/admin-panel/src/admin-live/adminBrowserRoutes.test.ts",
@@ -81,7 +82,6 @@
         "apps/admin-panel/src/admin-live/consultationNavigation.test.ts",
         "apps/admin-panel/src/admin-live/consultationScheduleRules.test.ts",
         "apps/admin-panel/src/admin-live/consultationScheduleTime.test.ts",
-        "apps/admin-panel/src/admin-live/cynologistAvatar.test.ts",
         "apps/admin-panel/src/admin-live/profitNavigation.test.ts",
         "apps/admin-panel/src/admin-live/profitPartners.test.tsx",
         "apps/admin-panel/src/admin-live/rewardedPeriod.test.ts",
@@ -89,9 +89,12 @@
         "apps/admin-panel/src/admin-live/scheduleMutationResolution.test.ts",
         "apps/admin-panel/src/admin-live/sections-nonempty.test.tsx",
         "apps/admin-panel/src/admin-live/sections-render.test.tsx",
-        "apps/admin-panel/src/admin-live/subscriptionNavigation.test.ts"
+        "apps/admin-panel/src/admin-live/subscriptionNavigation.test.ts",
+        "apps/admin-panel/src/admin-live/support/BoundedAdminPage.mounted.test.tsx"
       ],
-      "consumers": [],
+      "consumers": [
+        "@gafus/web-vite"
+      ],
       "testSelection": {
         "dedicatedEnvironment": [],
         "namedRoutes": {},
@@ -196,7 +199,7 @@
         "unitTest": null,
         "coverage": null
       },
-      "testFiles": 369,
+      "testFiles": 360,
       "tests": [
         "apps/api/__tests__/consultations.integration.test.ts",
         "apps/api/__tests__/google-play-service.realpg.test.ts",
@@ -206,7 +209,6 @@
         "apps/api/src/lib/api-server-startup.test.ts",
         "apps/api/src/lib/browser-auth.test.ts",
         "apps/api/src/lib/chat2-cutover.real-http.test.ts",
-        "apps/api/src/lib/chat2-legacy-retirement.test.ts",
         "apps/api/src/lib/chat2-mobile-version-gate.test.ts",
         "apps/api/src/lib/client-app-context.test.ts",
         "apps/api/src/lib/g1-consultation-booking-lookup.contract.test.ts",
@@ -237,16 +239,13 @@
         "apps/api/src/modules/account-cleanup/composition/enqueue.contract.test.ts",
         "apps/api/src/modules/admin-analytics/application/read-admin-analytics.test.ts",
         "apps/api/src/modules/admin-users/composition/service.contract.test.ts",
-        "apps/api/src/modules/app-feature-flags/composition/install-core-flags.contract.test.ts",
-        "apps/api/src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts",
-        "apps/api/src/modules/app-subscription/composition/install-promo-code-rows.contract.test.ts",
+        "apps/api/src/modules/app-feature-flags/composition/transactional-content-gating.contract.test.ts",
         "apps/api/src/modules/app-subscription/composition/promo-code-explicit.contract.test.ts",
         "apps/api/src/modules/app-subscription/composition/subscription-access-explicit.contract.test.ts",
         "apps/api/src/modules/app-subscription/google-play-service.test.ts",
         "apps/api/src/modules/architecture/dependency-architecture.test.ts",
         "apps/api/src/modules/articles/composition/article-like.test.ts",
         "apps/api/src/modules/auth/composition/install-credential-registration.contract.test.ts",
-        "apps/api/src/modules/auth/composition/install-email-account-rows.contract.test.ts",
         "apps/api/src/modules/auth/composition/install-password-reset.contract.test.ts",
         "apps/api/src/modules/auth/composition/install-registration-context.contract.test.ts",
         "apps/api/src/modules/auth/composition/install-registration-contract-rows.contract.test.ts",
@@ -276,15 +275,15 @@
         "apps/api/src/modules/chat2/service.test.ts",
         "apps/api/src/modules/chat2/subscribeProxy.test.ts",
         "apps/api/src/modules/consultations/application/list-cynologists.test.ts",
+        "apps/api/src/modules/content-access/composition/content-policy-instance.contract.test.ts",
         "apps/api/src/modules/content-access/composition/install-occurrence-reads.contract.test.ts",
-        "apps/api/src/modules/content-access/composition/install-policy-reads.contract.test.ts",
-        "apps/api/src/modules/courses/composition/install-catalog-read.contract.test.ts",
+        "apps/api/src/modules/courses/composition/catalog-read-instance.contract.test.ts",
         "apps/api/src/modules/daily-course/composition/dailyCourseImport.test.ts",
         "apps/api/src/modules/daily-course/composition/dailyCourseService.test.ts",
         "apps/api/src/modules/gafus/composition/install-admin-rows.contract.test.ts",
-        "apps/api/src/modules/gafus/composition/install-ledger-rows.contract.test.ts",
         "apps/api/src/modules/gafus/composition/install-unlock-rows.contract.test.ts",
-        "apps/api/src/modules/gafus/composition/install-wallet-lock.contract.test.ts",
+        "apps/api/src/modules/gafus/composition/wallet-instance.contract.test.ts",
+        "apps/api/src/modules/gafus/composition/wallet-lock-instance.contract.test.ts",
         "apps/api/src/modules/mobile-ota/ci-registration.test.ts",
         "apps/api/src/modules/mobile-ota/manifest-protocol.test.ts",
         "apps/api/src/modules/mobile-telemetry/ingest.test.ts",
@@ -302,9 +301,9 @@
         "apps/api/src/modules/questions/media-v2-jobs.test.ts",
         "apps/api/src/modules/questions/photo-retirement.test.ts",
         "apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.contract.test.ts",
-        "apps/api/src/modules/rewarded-credits/composition/install-access-reads.contract.test.ts",
-        "apps/api/src/modules/rewarded-credits/composition/install-core-settings.contract.test.ts",
-        "apps/api/src/modules/rewarded-credits/composition/install-wallet-rows.contract.test.ts",
+        "apps/api/src/modules/rewarded-credits/composition/access-reads-instance.contract.test.ts",
+        "apps/api/src/modules/rewarded-credits/composition/settings-rows-instance.contract.test.ts",
+        "apps/api/src/modules/rewarded-credits/composition/wallet-rows-instance.contract.test.ts",
         "apps/api/src/modules/trainer-ai/composition/trainer-ai.test.ts",
         "apps/api/src/modules/trainer-articles/infrastructure/own-article-cutoff.real-pg.mounted.test.ts",
         "apps/api/src/modules/trainer-courses/composition/install-core-version-rows.contract.test.ts",
@@ -388,8 +387,6 @@
         "apps/api/src/routes/v1/g1-articles-preauth-private.contract.test.ts",
         "apps/api/src/routes/v1/g1-articles-private-errors.contract.test.ts",
         "apps/api/src/routes/v1/g1-booking-realpg-http.integration.test.ts",
-        "apps/api/src/routes/v1/g1-chat-dispatch.contract.test.ts",
-        "apps/api/src/routes/v1/g1-chat-real-redis.integration.test.ts",
         "apps/api/src/routes/v1/g1-consultations.contract.test.ts",
         "apps/api/src/routes/v1/g1-course-access-private-boundary.mounted.test.ts",
         "apps/api/src/routes/v1/g1-course-editor-snapshot.actual-app.mounted.test.ts",
@@ -416,8 +413,6 @@
         "apps/api/src/routes/v1/g1-g05-pet-create.red-regression.test.ts",
         "apps/api/src/routes/v1/g1-g05-pet-create.source-contract.test.ts",
         "apps/api/src/routes/v1/g1-g05-realjwt-core-pg.integration.test.ts",
-        "apps/api/src/routes/v1/g1-g15-chat.keep.http.test.ts",
-        "apps/api/src/routes/v1/g1-g15-chat.multipart.http.test.ts",
         "apps/api/src/routes/v1/g1-g16-gallery.core-acl.test.ts",
         "apps/api/src/routes/v1/g1-g16-gallery.keep.contract.test.ts",
         "apps/api/src/routes/v1/g1-gafus-admin-dashboard.real-prisma-pg.mounted.test.ts",
@@ -565,7 +560,6 @@
         "apps/api/src/routes/v1/walks.test.ts",
         "apps/api/src/routes/v1/web-telemetry.test.ts",
         "apps/api/src/routes/v1/web2-hono-media.work.test.ts",
-        "apps/api/src/routes/v1/web5-chat-isolated-work-stream.integration.test.ts",
         "apps/api/src/test/agent2-cdn-full-isolated.actor-access.test.ts"
       ],
       "consumers": [],
@@ -611,7 +605,6 @@
           "apps/api/src/routes/v1/public-courses.real-pg.mounted.test.ts",
           "apps/api/src/routes/v1/reminders-web1-isolated-work.integration.test.ts",
           "apps/api/src/routes/v1/training.preview.real-pg-s3.test.ts",
-          "apps/api/src/routes/v1/web5-chat-isolated-work-stream.integration.test.ts",
           "apps/api/src/test/agent2-cdn-full-isolated.actor-access.test.ts"
         ],
         "namedRoutes": {
@@ -735,7 +728,7 @@
         "unitTest": "node ../../scripts/qa/workspace-gap-advisory.mjs --run --package @gafus/cdn-upload",
         "coverage": null
       },
-      "testFiles": 14,
+      "testFiles": 15,
       "tests": [
         "packages/cdn-upload/scripts/check-private-symbols-s3.test.mjs",
         "packages/cdn-upload/scripts/upload-mobile-ota-assets.test.mjs",
@@ -750,10 +743,10 @@
         "packages/cdn-upload/src/isolatedQuestionsS3.test.ts",
         "packages/cdn-upload/src/isolatedWeb4NonprodS3.test.ts",
         "packages/cdn-upload/src/questionsV2Cleanup.test.ts",
-        "packages/cdn-upload/src/questionsV2Media.test.ts"
+        "packages/cdn-upload/src/questionsV2Media.test.ts",
+        "packages/cdn-upload/src/sharedCdnPurge.test.ts"
       ],
       "consumers": [
-        "@gafus/admin-panel",
         "@gafus/api",
         "@gafus/core",
         "@gafus/exam-server",
@@ -762,7 +755,6 @@
         "@gafus/gallery-storage",
         "@gafus/media-server",
         "@gafus/questions-server",
-        "@gafus/web-vite",
         "@gafus/worker"
       ],
       "testSelection": {
@@ -808,45 +800,6 @@
       "route": "advisory-unit-script",
       "advisoryUnitOnly": true,
       "defaultProfile": "unit-advisory",
-      "publicContracts": [],
-      "migration": "legacy"
-    },
-    {
-      "name": "@gafus/chat-server",
-      "path": "packages/chat-server",
-      "owner": "@gafus/chat-server",
-      "scripts": {
-        "test": "vitest run --config vitest.config.ts",
-        "unitTest": null,
-        "coverage": null
-      },
-      "testFiles": 12,
-      "tests": [
-        "packages/chat-server/src/community.test.ts",
-        "packages/chat-server/src/g1-chat-dispatch.guards.test.ts",
-        "packages/chat-server/src/g1-g15-chat-uuid-replay.core.test.ts",
-        "packages/chat-server/src/index.test.ts",
-        "packages/chat-server/src/message-tombstone.test.ts",
-        "packages/chat-server/src/messageManagement.test.ts",
-        "packages/chat-server/src/notifications.test.ts",
-        "packages/chat-server/src/prisma-error-boundary.test.ts",
-        "packages/chat-server/src/reactions.test.ts",
-        "packages/chat-server/src/service.test.ts",
-        "packages/chat-server/src/upload-service.test.ts",
-        "packages/chat-server/src/upload.test.ts"
-      ],
-      "consumers": [
-        "@gafus/api",
-        "@gafus/worker"
-      ],
-      "testSelection": {
-        "dedicatedEnvironment": [],
-        "namedRoutes": {},
-        "remaining": "package runner selects from discovered files"
-      },
-      "route": "package-test",
-      "advisoryUnitOnly": false,
-      "defaultProfile": "unit-legacy",
       "publicContracts": [],
       "migration": "legacy"
     },
@@ -959,22 +912,23 @@
         "unitTest": null,
         "coverage": null
       },
-      "testFiles": 6,
+      "testFiles": 7,
       "tests": [
         "packages/consultation-shared/src/booking-intake-client.test.ts",
         "packages/consultation-shared/src/booking-status-presentation.test.ts",
+        "packages/consultation-shared/src/consultation-catalog-presentation.test.ts",
         "packages/consultation-shared/src/consultation-msk-format.test.ts",
-        "packages/consultation-shared/src/cynologist-chat.test.ts",
         "packages/consultation-shared/src/intake.test.ts",
+        "packages/consultation-shared/src/reminderWindow.test.ts",
         "packages/consultation-shared/src/ru-phone.test.ts"
       ],
       "consumers": [
         "@gafus/admin-panel",
-        "@gafus/chat-server",
         "@gafus/consultation-server",
         "@gafus/consultation-write-server",
         "@gafus/core",
         "@gafus/mobile",
+        "@gafus/notifications-server",
         "@gafus/trainer-panel",
         "@gafus/web-vite"
       ],
@@ -1026,7 +980,7 @@
         "unitTest": null,
         "coverage": "vitest run --coverage --config vitest.config.ts"
       },
-      "testFiles": 348,
+      "testFiles": 346,
       "tests": [
         "packages/core/src/errors/ServiceError.test.ts",
         "packages/core/src/errors/getErrorMessage.test.ts",
@@ -1145,9 +1099,6 @@
         "packages/core/src/services/course/g1-course-maintenance-version.real-pg.test.ts",
         "packages/core/src/services/course/publicOutlinePolicy.test.ts",
         "packages/core/src/services/coursePath/coursePathService.test.ts",
-        "packages/core/src/services/cynologistChat/authorRole.test.ts",
-        "packages/core/src/services/cynologistChat/reminder-time.test.ts",
-        "packages/core/src/services/cynologistChat/streamPolicy.test.ts",
         "packages/core/src/services/dailyCourse/dailyCourseCleanupScope.test.ts",
         "packages/core/src/services/dailyCourse/dailyCourseImportPreview.test.ts",
         "packages/core/src/services/dailyCourse/dailyCoursePure.test.ts",
@@ -1350,6 +1301,7 @@
         "packages/core/src/services/trainingDay/trainingDayService.visible-days.real-pg.mounted.test.ts",
         "packages/core/src/services/user/accountDeletionPreflight.test.ts",
         "packages/core/src/services/user/avatarService.test.ts",
+        "packages/core/src/services/user/chatDisplayRole.test.ts",
         "packages/core/src/services/user/deleteUserAccount.test.ts",
         "packages/core/src/services/user/g1-profile-birthdate-core.guard.test.ts",
         "packages/core/src/services/user/g1-public-profile-strict-projection.contract.test.ts",
@@ -1380,7 +1332,6 @@
       "consumers": [
         "@gafus/api",
         "@gafus/auth",
-        "@gafus/chat-server",
         "@gafus/consultation-server",
         "@gafus/course-server",
         "@gafus/feed-server",
@@ -1472,19 +1423,29 @@
         "unitTest": null,
         "coverage": null
       },
-      "testFiles": 7,
+      "testFiles": 16,
       "tests": [
+        "packages/core-client/src/chat2/draft.test.ts",
         "packages/core-client/src/chat2/realtimeSubscription.test.ts",
         "packages/core-client/src/chat2/sendAttempt.test.ts",
         "packages/core-client/src/client-smoke.test.ts",
         "packages/core-client/src/feed/publication-client.retry.test.ts",
+        "packages/core-client/src/media-delivery/boundedProbe.test.ts",
         "packages/core-client/src/media-delivery/cdnContract.test.ts",
         "packages/core-client/src/media-delivery/cdnRangeRecovery.http.test.ts",
-        "packages/core-client/src/utils/training.canonical.test.ts"
+        "packages/core-client/src/utils/training.canonical.test.ts",
+        "packages/core-client/src/walk-tracking/backtrack.test.ts",
+        "packages/core-client/src/walk-tracking/experimentalFilters.test.ts",
+        "packages/core-client/src/walk-tracking/geometry.test.ts",
+        "packages/core-client/src/walk-tracking/pagination.test.ts",
+        "packages/core-client/src/walk-tracking/replay.test.ts",
+        "packages/core-client/src/walk-tracking/smartMotion.test.ts",
+        "packages/core-client/src/walk-tracking/stepEvidence.test.ts"
       ],
       "consumers": [
         "@gafus/core",
         "@gafus/mobile",
+        "@gafus/trainer-panel",
         "@gafus/web-vite"
       ],
       "testSelection": {
@@ -1632,31 +1593,6 @@
       "migration": "legacy"
     },
     {
-      "name": "@gafus/csrf",
-      "path": "packages/csrf",
-      "owner": "@gafus/csrf",
-      "scripts": {
-        "test": "vitest run --config vitest.config.ts",
-        "unitTest": null,
-        "coverage": "vitest run --coverage --config vitest.config.ts"
-      },
-      "testFiles": 1,
-      "tests": [
-        "packages/csrf/src/csrf-crypto.test.ts"
-      ],
-      "consumers": [],
-      "testSelection": {
-        "dedicatedEnvironment": [],
-        "namedRoutes": {},
-        "remaining": "package runner selects from discovered files"
-      },
-      "route": "package-test",
-      "advisoryUnitOnly": false,
-      "defaultProfile": "unit-legacy",
-      "publicContracts": [],
-      "migration": "legacy"
-    },
-    {
       "name": "@gafus/entitlements-server",
       "path": "packages/entitlements-server",
       "owner": "@gafus/entitlements-server",
@@ -1705,7 +1641,6 @@
       "consumers": [
         "@gafus/admin-panel",
         "@gafus/bull-board",
-        "@gafus/csrf",
         "@gafus/trainer-panel",
         "@gafus/ui-components",
         "@gafus/web-vite"
@@ -1966,6 +1901,8 @@
       "consumers": [
         "@gafus/api",
         "@gafus/core",
+        "@gafus/feed-server",
+        "@gafus/questions-server",
         "@gafus/questions-write-server"
       ],
       "testSelection": {
@@ -2158,7 +2095,6 @@
         "@gafus/course-progress-server",
         "@gafus/course-read-server",
         "@gafus/course-server",
-        "@gafus/csrf",
         "@gafus/exam-server",
         "@gafus/mobile",
         "@gafus/notifications-server",
@@ -2166,7 +2102,6 @@
         "@gafus/questions-shared",
         "@gafus/questions-write-server",
         "@gafus/queues",
-        "@gafus/react-query",
         "@gafus/reengagement",
         "@gafus/statistics",
         "@gafus/subscription-payment-server",
@@ -2229,8 +2164,9 @@
         "unitTest": null,
         "coverage": null
       },
-      "testFiles": 9,
+      "testFiles": 10,
       "tests": [
+        "packages/media-server/src/chat2DeletionRows.test.ts",
         "packages/media-server/src/deletedMediaPurge.compat.test.ts",
         "packages/media-server/src/feedRankedRows.test.ts",
         "packages/media-server/src/mediaDbPorts.compat.test.ts",
@@ -2303,10 +2239,11 @@
         "unitTest": null,
         "coverage": null
       },
-      "testFiles": 403,
+      "testFiles": 420,
       "tests": [
         "apps/mobile/plugins/withDogWalkBackgroundSteps.test.cjs",
         "apps/mobile/plugins/withDogWalkWidgetEmbed.test.cjs",
+        "apps/mobile/plugins/withGafusNativeOtaGuard.test.cjs",
         "apps/mobile/plugins/withHermesCompiler.test.cjs",
         "apps/mobile/plugins/withIosOtaBuildNumber.test.cjs",
         "apps/mobile/plugins/withIosStoreKitOnlyPodfile.test.cjs",
@@ -2315,6 +2252,7 @@
         "apps/mobile/plugins/withVoximplantIosPods.test.cjs",
         "apps/mobile/scripts/android-aab-16k.test.mjs",
         "apps/mobile/scripts/android-aab-compressor.test.mjs",
+        "apps/mobile/scripts/android-aab-r8.test.mjs",
         "apps/mobile/scripts/build-ota-175-local.test.mjs",
         "apps/mobile/scripts/native-crash-uptrace-config.test.cjs",
         "apps/mobile/scripts/native-release-contract.test.mjs",
@@ -2322,7 +2260,6 @@
         "apps/mobile/scripts/ota-175-ios-store.test.mjs",
         "apps/mobile/scripts/ota-175-release-configuration.test.mjs",
         "apps/mobile/scripts/ota-payment-profile.test.mjs",
-        "apps/mobile/scripts/ota-revision-release.test.mjs",
         "apps/mobile/scripts/ota-target.test.mjs",
         "apps/mobile/scripts/prepare-sdk57-private-symbols.test.mjs",
         "apps/mobile/scripts/prepare-self-hosted-native-build.test.mjs",
@@ -2334,6 +2271,7 @@
         "apps/mobile/scripts/setup-ota-175-device.test.mjs",
         "apps/mobile/scripts/source-recovery-preflight.test.mjs",
         "apps/mobile/scripts/verify-android-aab-app-links.test.mjs",
+        "apps/mobile/scripts/verify-android-media-permissions.test.mjs",
         "apps/mobile/scripts/verify-expo-ota-code-signing-cert.test.mjs",
         "apps/mobile/scripts/verify-ios-payment-native-deps.test.mjs",
         "apps/mobile/scripts/verify-ota-preview-native-trust.test.mjs",
@@ -2351,6 +2289,9 @@
         "apps/mobile/src/features/app-subscription/lib/applePhaseAHttpReviewAdapter.g1-sourceMock.test.ts",
         "apps/mobile/src/features/app-subscription/lib/appleTokenInitializationAdapter.g1-mounted.test.tsx",
         "apps/mobile/src/features/app-subscription/lib/appleTokenInitializationAdapter.g1-review.test.ts",
+        "apps/mobile/src/features/app-subscription/lib/googlePlayOffers.test.ts",
+        "apps/mobile/src/features/app-subscription/lib/googlePlayPaywallState.test.ts",
+        "apps/mobile/src/features/app-subscription/lib/googlePlayPremiumBenefits.test.ts",
         "apps/mobile/src/features/app-subscription/lib/googlePlayPurchaseTokens.test.ts",
         "apps/mobile/src/features/app-subscription/lib/promoCodePresentation.test.ts",
         "apps/mobile/src/features/app-subscription/lib/rewardedAccessPrompt.test.ts",
@@ -2366,6 +2307,7 @@
         "apps/mobile/src/features/chat2/Chat2RoomScreen.header.test.ts",
         "apps/mobile/src/features/chat2/Chat2RoomScreen.image-preview.test.ts",
         "apps/mobile/src/features/chat2/Chat2RoomScreen.keyboard.test.ts",
+        "apps/mobile/src/features/chat2/Chat2RoomScreen.media.mounted.test.tsx",
         "apps/mobile/src/features/chat2/Chat2RoomScreen.mediaFailure.test.ts",
         "apps/mobile/src/features/chat2/Chat2RoomScreen.photo-send-gate.test.ts",
         "apps/mobile/src/features/chat2/Chat2RoomScreen.video-preview.test.ts",
@@ -2530,8 +2472,11 @@
         "apps/mobile/src/features/walk/androidWalkWidgetNativeContract.test.ts",
         "apps/mobile/src/features/walk/iosWalkWidgetActions.test.ts",
         "apps/mobile/src/features/walk/iosWalkWidgetNativeContract.test.ts",
+        "apps/mobile/src/features/walk/location-permissions/WalkLocationDisclosure.test.tsx",
+        "apps/mobile/src/features/walk/location-permissions/walkLocationPermissionFlow.test.ts",
         "apps/mobile/src/features/walk/walkAdaptiveGps.test.ts",
         "apps/mobile/src/features/walk/walkGpsMath.test.ts",
+        "apps/mobile/src/features/walk/walkGpsStorage.sqlite.test.ts",
         "apps/mobile/src/features/walk/walkGpsTask.test.ts",
         "apps/mobile/src/features/walk/walkGpsTaskRegistration.test.ts",
         "apps/mobile/src/features/walk/walkHistoryFormat.test.ts",
@@ -2559,12 +2504,10 @@
         "apps/mobile/src/shared/components/media/scopedMediaCache.test.ts",
         "apps/mobile/src/shared/components/media/socialVideoTimeline.test.ts",
         "apps/mobile/src/shared/components/ui/Loading.test.tsx",
-        "apps/mobile/src/shared/hooks/legacyOwnerlessReplayQuarantine.g1.test.tsx",
         "apps/mobile/src/shared/hooks/useDailyCourse.g1-newOnlyV2.test.ts",
+        "apps/mobile/src/shared/hooks/useOfflineJournalReplay.mounted.test.tsx",
         "apps/mobile/src/shared/hooks/usePrefetchOtherTabsAfterCourses.g1-principal.test.tsx",
         "apps/mobile/src/shared/hooks/useRoleAwareScreenCapture.mounted.test.tsx",
-        "apps/mobile/src/shared/hooks/useSyncProgressOnReconnect.g1-principalBoundary.test.tsx",
-        "apps/mobile/src/shared/hooks/useSyncProgressOnReconnect.g1-reconnect.test.tsx",
         "apps/mobile/src/shared/hooks/useTrainingDay.g1-offlinePauseV2.test.ts",
         "apps/mobile/src/shared/hooks/useTrainingDay.g1-offlinePracticeV2.test.ts",
         "apps/mobile/src/shared/hooks/useTrainingDay.g1-offlineStartV2.test.ts",
@@ -2587,6 +2530,7 @@
         "apps/mobile/src/shared/lib/api/consultations.g1-bookingGuard.test.ts",
         "apps/mobile/src/shared/lib/api/consultations.g1-dto.test.ts",
         "apps/mobile/src/shared/lib/api/consultations.test.ts",
+        "apps/mobile/src/shared/lib/api/courseCatalogPages.test.ts",
         "apps/mobile/src/shared/lib/api/courseParticipation.test.ts",
         "apps/mobile/src/shared/lib/api/courses.g1-public-access-guard.test.ts",
         "apps/mobile/src/shared/lib/api/coursesQuery.g1-completeFields.test.ts",
@@ -2610,6 +2554,7 @@
         "apps/mobile/src/shared/lib/api/pets.g1-list-guard.v93.test.ts",
         "apps/mobile/src/shared/lib/api/pets.g1-multipart.test.ts",
         "apps/mobile/src/shared/lib/api/pets.g1-weight-get.v98-guard.test.ts",
+        "apps/mobile/src/shared/lib/api/petsReadValidation.counts.test.ts",
         "apps/mobile/src/shared/lib/api/profileTabQueries.g1-ownerPushStatus.test.ts",
         "apps/mobile/src/shared/lib/api/profileTabQueries.g1-pets-owner-read.v93.test.ts",
         "apps/mobile/src/shared/lib/api/questions-photo-upload.test.ts",
@@ -2626,12 +2571,14 @@
         "apps/mobile/src/shared/lib/api/user.g1-username-guard.test.ts",
         "apps/mobile/src/shared/lib/api/userAccountDelete.g1-source.test.ts",
         "apps/mobile/src/shared/lib/app-version.test.ts",
+        "apps/mobile/src/shared/lib/authTokenStorage.test.ts",
         "apps/mobile/src/shared/lib/error-reporting/mobileTelemetrySelfTest.test.ts",
         "apps/mobile/src/shared/lib/hlsQuality.test.ts",
         "apps/mobile/src/shared/lib/links/verifiedAppLinks.test.ts",
         "apps/mobile/src/shared/lib/media/encodeUploadImage.test.ts",
         "apps/mobile/src/shared/lib/media/iosCompatiblePhotoPicker.test.ts",
         "apps/mobile/src/shared/lib/media/iosPhotoPickerSurfaces.integration.test.ts",
+        "apps/mobile/src/shared/lib/media/mediaPicker.test.ts",
         "apps/mobile/src/shared/lib/media/mp4UploadProbe.test.ts",
         "apps/mobile/src/shared/lib/media/nativeMediaImportRegression.test.ts",
         "apps/mobile/src/shared/lib/media/photoRetryMessage.test.ts",
@@ -2657,9 +2604,11 @@
         "apps/mobile/src/shared/lib/offline/downloadHLSForOffline.test.ts",
         "apps/mobile/src/shared/lib/offline/hlsOfflineManifest.g1-corruptMaster.test.ts",
         "apps/mobile/src/shared/lib/offline/hlsOfflineManifest.g1-schemeSafety.test.ts",
+        "apps/mobile/src/shared/lib/offline/journalReplayScheduler.test.ts",
         "apps/mobile/src/shared/lib/offline/newOnlyV2DailyPending.g1.test.ts",
         "apps/mobile/src/shared/lib/offline/newOnlyV2DualQueueStateMachine.g1.test.ts",
         "apps/mobile/src/shared/lib/offline/newOnlyV2ImmediatePending.g1.test.ts",
+        "apps/mobile/src/shared/lib/offline/newOnlyV2Native.simulator.test.ts",
         "apps/mobile/src/shared/lib/offline/newOnlyV2PracticeContract.g1.test.ts",
         "apps/mobile/src/shared/lib/offline/newOnlyV2PracticePending.g1.test.ts",
         "apps/mobile/src/shared/lib/offline/newOnlyV2PreventionContract.g1.test.ts",
@@ -2669,9 +2618,15 @@
         "apps/mobile/src/shared/lib/offline/newOnlyV2TimerPending.g1.test.ts",
         "apps/mobile/src/shared/lib/offline/newOnlyV2TimerRestore.g1.test.ts",
         "apps/mobile/src/shared/lib/offline/newOnlyV2VideoWriter.g1.test.ts",
+        "apps/mobile/src/shared/lib/offline/offlineCourseSession.test.ts",
         "apps/mobile/src/shared/lib/offline/offlineHlsRoundTrip.test.ts",
         "apps/mobile/src/shared/lib/offline/offlineStorage.g1.test.ts",
+        "apps/mobile/src/shared/lib/offline/ownedQueueRecovery.test.ts",
+        "apps/mobile/src/shared/lib/offline/pendingStepWrite.test.ts",
+        "apps/mobile/src/shared/lib/offline/replayPreventionJournal.test.ts",
+        "apps/mobile/src/shared/lib/offline/replayProgressJournal.test.ts",
         "apps/mobile/src/shared/lib/ota/installationIdentity.test.ts",
+        "apps/mobile/src/shared/lib/ota/mandatoryPolicyQuery.test.ts",
         "apps/mobile/src/shared/lib/ota/telemetry.test.ts",
         "apps/mobile/src/shared/lib/otaDownloadSize.test.ts",
         "apps/mobile/src/shared/lib/otaPolicy.test.ts",
@@ -2679,6 +2634,7 @@
         "apps/mobile/src/shared/lib/security/screenCapturePolicy.test.ts",
         "apps/mobile/src/shared/lib/tabBarSafeArea.test.ts",
         "apps/mobile/src/shared/lib/telemetry/mobileTelemetryContract.test.ts",
+        "apps/mobile/src/shared/lib/telemetry/mobileTelemetryDeviceEligibility.test.ts",
         "apps/mobile/src/shared/lib/telemetry/mobileTelemetryQueue.test.ts",
         "apps/mobile/src/shared/lib/telemetry/nativeCrashCapture.test.ts",
         "apps/mobile/src/shared/lib/utils/nativeIntent.g1.test.ts",
@@ -2694,13 +2650,10 @@
         "apps/mobile/src/shared/stores/authStore.g1-sessionRace.test.ts",
         "apps/mobile/src/shared/stores/authStore.test.ts",
         "apps/mobile/src/shared/stores/courseStore.test.ts",
-        "apps/mobile/src/shared/stores/legacyOwnerlessReplayQuarantine.g1.test.ts",
         "apps/mobile/src/shared/stores/networkStatusStore.test.ts",
         "apps/mobile/src/shared/stores/newOnlyV2AuthIntegration.g1.test.ts",
         "apps/mobile/src/shared/stores/offlineStore.test.ts",
         "apps/mobile/src/shared/stores/pendingLogoutRevocations.test.ts",
-        "apps/mobile/src/shared/stores/preventionSyncStore.test.ts",
-        "apps/mobile/src/shared/stores/progressSyncStore.test.ts",
         "apps/mobile/src/shared/stores/resetAll.g1.test.ts",
         "apps/mobile/src/shared/stores/stepStore.test.ts",
         "apps/mobile/src/shared/stores/timerStore.test.ts",
@@ -2759,12 +2712,14 @@
         "unitTest": "node ../../scripts/qa/workspace-gap-advisory.mjs --run --package @gafus/mobile-ota-server",
         "coverage": null
       },
-      "testFiles": 17,
+      "testFiles": 19,
       "tests": [
         "packages/mobile-ota-server/src/mandatory-control.test.ts",
         "packages/mobile-ota-server/src/mandatory-policy.test.ts",
         "packages/mobile-ota-server/src/repository.selection.test.ts",
         "packages/mobile-ota-server/src/tester-access.test.ts",
+        "packages/mobile-ota-server/src/version-publication.mandatory.test.ts",
+        "packages/mobile-ota-server/tests/checkout-audience.test.ts",
         "packages/mobile-ota-server/tests/ci-registration-production-symbols.test.ts",
         "packages/mobile-ota-server/tests/ci-registration.realpg.test.ts",
         "packages/mobile-ota-server/tests/deployment-commands.realpg.test.ts",
@@ -2815,9 +2770,11 @@
         "unitTest": null,
         "coverage": null
       },
-      "testFiles": 8,
+      "testFiles": 10,
       "tests": [
         "packages/notifications-server/src/adminBroadcastService.test.ts",
+        "packages/notifications-server/src/chat2OutboxRows.test.ts",
+        "packages/notifications-server/src/consultation-email-outbox.test.ts",
         "packages/notifications-server/src/g1-push-owner-security.test.ts",
         "packages/notifications-server/src/g1PushRealPG.integration.test.ts",
         "packages/notifications-server/src/pushSubscriptionService.test.ts",
@@ -2963,7 +2920,6 @@
         "@gafus/api",
         "@gafus/article-server",
         "@gafus/auth",
-        "@gafus/chat-server",
         "@gafus/consent-server",
         "@gafus/consultation-query-server",
         "@gafus/consultation-server",
@@ -3125,7 +3081,6 @@
       "consumers": [
         "@gafus/api",
         "@gafus/bull-board",
-        "@gafus/chat-server",
         "@gafus/consultation-write-server",
         "@gafus/core",
         "@gafus/feed-server",
@@ -3136,31 +3091,6 @@
         "@gafus/webpush",
         "@gafus/worker"
       ],
-      "testSelection": {
-        "dedicatedEnvironment": [],
-        "namedRoutes": {},
-        "remaining": "advisory script selects its declared source contracts"
-      },
-      "route": "advisory-unit-script",
-      "advisoryUnitOnly": true,
-      "defaultProfile": "unit-advisory",
-      "publicContracts": [],
-      "migration": "legacy"
-    },
-    {
-      "name": "@gafus/react-query",
-      "path": "packages/react-query",
-      "owner": "@gafus/react-query",
-      "scripts": {
-        "test": null,
-        "unitTest": "node ../../scripts/qa/workspace-gap-advisory.mjs --run --package @gafus/react-query",
-        "coverage": null
-      },
-      "testFiles": 1,
-      "tests": [
-        "packages/react-query/src/constants.test.ts"
-      ],
-      "consumers": [],
       "testSelection": {
         "dedicatedEnvironment": [],
         "namedRoutes": {},
@@ -3294,13 +3224,18 @@
         "unitTest": null,
         "coverage": null
       },
-      "testFiles": 6,
+      "testFiles": 11,
       "tests": [
         "packages/subscription-payment-server/src/appleJws.archqa.acceptance.test.ts",
         "packages/subscription-payment-server/src/appleSubscriptionState.realpg.test.ts",
+        "packages/subscription-payment-server/src/appleSubscriptionState.test.ts",
+        "packages/subscription-payment-server/src/appleSyncOwner.test.ts",
+        "packages/subscription-payment-server/src/appleTransactionPeriod.test.ts",
+        "packages/subscription-payment-server/src/googlePlayRows.test.ts",
         "packages/subscription-payment-server/src/paymentRiskBoundaries.test.ts",
         "packages/subscription-payment-server/src/sharedPolicies.contract.test.ts",
         "packages/subscription-payment-server/src/subscriptionTransitions.realpg.test.ts",
+        "packages/subscription-payment-server/src/verifiedYookassaTransitions.test.ts",
         "packages/subscription-payment-server/src/yookassaProvider.test.ts"
       ],
       "consumers": [
@@ -3341,7 +3276,7 @@
       ],
       "consumers": [
         "@gafus/api",
-        "@gafus/chat-server",
+        "@gafus/consultation-server",
         "@gafus/core",
         "@gafus/subscription-payment-server",
         "@gafus/worker"
@@ -3623,8 +3558,9 @@
         "unitTest": null,
         "coverage": null
       },
-      "testFiles": 12,
+      "testFiles": 13,
       "tests": [
+        "packages/types/src/contracts/appSubscriptionRead.test.ts",
         "packages/types/src/contracts/applicationError.test.ts",
         "packages/types/src/contracts/nativeCrashFrames.test.ts",
         "packages/types/src/contracts/usernameAvailability.test.ts",
@@ -3747,7 +3683,7 @@
         "unitTest": null,
         "coverage": null
       },
-      "testFiles": 308,
+      "testFiles": 309,
       "tests": [
         "apps/web-vite/scripts/achievements-read-batch-runner.test.mjs",
         "apps/web-vite/scripts/feed-author-read-runner.test.mjs",
@@ -4052,6 +3988,7 @@
         "apps/web-vite/src/shared/router/legacy-inventory.test.tsx",
         "apps/web-vite/src/shared/router/legacy-route-compat.test.tsx",
         "apps/web-vite/src/shared/router/location.test.tsx",
+        "apps/web-vite/src/shared/router/routeAccess.test.ts",
         "apps/web-vite/src/shared/ui/BackButton.test.tsx",
         "apps/web-vite/src/shared/ui/Buttons.test.tsx",
         "apps/web-vite/src/shared/ui/Loading.test.tsx",
@@ -4446,6 +4383,9 @@
         "scripts/qa/vite-release-dist-artifacts.mjs",
         "scripts/qa/vite-release-dist-artifacts.test.mjs",
         "scripts/qa/vk-review-schema-isolated-pg.sh",
+        "scripts/qa/walk-gps-replay.mjs",
+        "scripts/qa/walk-smart-field-replay.mjs",
+        "scripts/qa/walk-smart-tracking-replay.mjs",
         "scripts/qa/walks-load-and-db-recovery-isolated-pg.sh",
         "scripts/qa/web-e2e-stand.mjs",
         "scripts/qa/web-vite-chunked-regression.mjs",
@@ -4528,10 +4468,10 @@
       "owner": "qa/infrastructure",
       "files": [
         "scripts/check-api-composition-installs.mjs",
+        "scripts/check-api-composition-installs.test.mjs",
         "scripts/check-app-prisma-boundary.mjs",
         "scripts/check-architecture-layers.mjs",
         "scripts/check-architecture-layers.test.mjs",
-        "scripts/check-community-chat-live.mjs",
         "scripts/check-core-client-boundary.mjs",
         "scripts/check-core-client-boundary.test.mjs",
         "scripts/check-core-feed-persistence-ratchet.mjs",
@@ -4539,16 +4479,22 @@
         "scripts/check-core-server-boundary.mjs",
         "scripts/check-core-server-facades.mjs",
         "scripts/check-core-server-facades.test.mjs",
-        "scripts/check-cynologist-chat-live.mjs",
         "scripts/check-domain-package-prisma-boundary.mjs",
+        "scripts/check-feature-flag-policy.mjs",
         "scripts/check-mobile-core-boundary.mjs",
+        "scripts/check-mobile-core-boundary.test.mjs",
         "scripts/check-types-logger-imports.mjs",
         "scripts/check-types-logger-imports.test.mjs",
         "scripts/check-utc-sql-clock.mjs",
         "scripts/check-utc-sql-clock.test.mjs",
         "scripts/check-web-core-boundary.mjs",
+        "scripts/check-wire-contract-imports.mjs",
+        "scripts/check-wire-contract-imports.test.mjs",
         "scripts/check-worker-prisma-boundary.mjs",
         "scripts/check-workspace-graph.mjs",
+        "scripts/check-workspace-public-exports.mjs",
+        "scripts/check-workspace-public-exports.test.mjs",
+        "scripts/mobile-build.test.mjs",
         "scripts/observability/browser-error-e2e-probe.test.mjs",
         "scripts/observability/check-workflow-release-gates.mjs",
         "scripts/observability/check-workflow-release-gates.test.mjs",
@@ -4613,7 +4559,6 @@
         "scripts/refactor/web1-wallet-css-cascade-smoke.mjs",
         "scripts/refactor/web2-gallery-album-header-checked-20261026.mjs",
         "scripts/refactor/web2-hono-bootstrap-import-smoke.mjs",
-        "scripts/refactor/web5-chat-hono-isolated-work-test.sh",
         "scripts/test-api-auth.sh",
         "scripts/verify-ota-legacy-prisma-compat.mjs",
         "scripts/verify-ota-legacy-runtime.mjs",
@@ -4678,6 +4623,7 @@
         "ci-cd/scripts/release-graph.contract.test.mjs",
         "ci-cd/scripts/release-image-manifest.test.mjs",
         "ci-cd/scripts/runtime-workspace-dependencies.contract.test.mjs",
+        "ci-cd/scripts/test_provision_api_metrics_key.py",
         "ci-cd/scripts/verify-cloudru-manifests.sh",
         "ci-cd/scripts/verify-cloudru-manifests.test.mjs",
         "ci-cd/scripts/verify-production-migration-ledger.py",
@@ -4729,6 +4675,7 @@
         "infra/cloudru/run-feed-cdn-borrowed-smoke.sh",
         "infra/cloudru/s3-cors.test.mjs",
         "infra/cloudru/s3-smoke.mjs",
+        "infra/cloudru/shared-yandex-cdn-readiness.test.mjs",
         "infra/cloudru/signed-browser-smoke.mjs",
         "infra/cloudru/yc-cdn-cli.test.mjs",
         "infra/voximplant/gafus-consultation-conference.test.mjs",
@@ -4799,6 +4746,7 @@
         ".github/workflows/gafus-self-hosted-ota-production.yml",
         ".github/workflows/gafus-uptrace-collector-qa.yml",
         ".github/workflows/gafus-uptrace-nonprod-acceptance.yml",
+        ".github/workflows/gafus-yandex-cdn-iam-canary.yml",
         ".github/workflows/infrastructure-jobs.yml",
         ".github/workflows/production-deploy-reusable.yml",
         ".github/workflows/production-job-release-reusable.yml",

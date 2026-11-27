@@ -1,3 +1,4 @@
+import { resolveArticleEntitlement } from "../../content-access/composition/content-policy-instance.js";
 /**
  * Article-like API composition: same existing SQL advisory-locked toggle.
  * The Core policy must first resolve article-specific subscription or
@@ -13,5 +14,5 @@ import { articleExists, toggleArticleLikeAtomic } from "@gafus/article-server/li
 const persistence: ArticleLikePorts = { articleExists, toggleArticleLikeAtomic };
 
 export function toggleArticleLikeWithMonetizedAccess(input: ArticleLikeInput): Promise<boolean> {
-  return coreToggle(input, persistence);
+  return coreToggle(input, persistence, resolveArticleEntitlement);
 }

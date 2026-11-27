@@ -1,9 +1,8 @@
 import { withGafusAdminRows, type GafusAdminRows, type GafusAdminRowsPort } from "./adminRowsPort";
-export { registerGafusAdminRowsPort } from "./adminRowsPort";
 export type { GafusAdminRowsPort } from "./adminRowsPort";
 import { getGafusSettingsTx, DEFAULT_GAFUS_SETTINGS } from "../gafus/settingsService";
-import { lockGafusUser } from "../gafus/locking";
-import { changeGafusBalanceTx } from "../gafus/walletService";
+import type { GafusLockPort } from "../gafus/locking";
+import type { GafusWalletService } from "../gafus/walletService";
 import { GafusError } from "../gafus/errors";
 import type { GafusSettingsConfig } from "../gafus/types";
 
@@ -14,7 +13,7 @@ function withAdminRows<T>(port: GafusAdminRowsPort | undefined,
   operation: (rows: GafusAdminRows) => Promise<T>,
   options?: { maxWait: number; timeout: number },
 ): Promise<T> {
-  return port ? port.withTransaction(operation, options) : withGafusAdminRows(operation, options);
+  return withGafusAdminRows(operation, options, port);
 }
 
 type MutableSetting = Exclude<keyof GafusSettingsConfig, "revision">;
@@ -111,7 +110,7 @@ export async function adjustGafusBalanceAdmin(input: {
   delta: number;
   requestId: string;
   reason: string;
-}, rowsPort?: GafusAdminRowsPort) {
+}, wallet: Pick<GafusWalletService, "changeGafusBalanceTx">, lock: Pick<GafusLockPort, "lockGafusUser">, rowsPort?: GafusAdminRowsPort) {
   if (!input.reason.trim() || input.reason.trim().length < 5) throw new Error("REASON_REQUIRED");
   if (!Number.isSafeInteger(input.delta) || Math.abs(input.delta) > 10000 || input.delta === 0) {
     throw new GafusError("GAFUS_INVALID_AMOUNT", "Invalid admin balance adjustment");
@@ -120,7 +119,7 @@ export async function adjustGafusBalanceAdmin(input: {
   return withAdminRows(rowsPort,
     async (tx) => {
       await requireAdminTx(tx, input.actorId);
-      await lockGafusUser(tx.rawTx, input.userId);
+      await lock.lockGafusUser(tx.rawTx, input.userId);
       const key = `gafus:admin:${input.actorId}:${input.requestId}`;
       const existing = await tx.findTransactionByKey(key);
       if (existing) {
@@ -139,7 +138,7 @@ export async function adjustGafusBalanceAdmin(input: {
       const before = wallet?.balance ?? 0;
       if (input.delta < 0 && before < -input.delta)
         throw new GafusError("GAFUS_INSUFFICIENT_BALANCE", "Insufficient funds");
-      const transaction = await changeGafusBalanceTx(tx.rawTx, {
+      const transaction = await wallet.changeGafusBalanceTx(tx.rawTx, {
         userId: input.userId,
         amount: input.delta,
         kind: input.delta > 0 ? "ADMIN_CREDIT" : "ADMIN_DEBIT",
@@ -198,7 +197,7 @@ export async function reviewGafusFraudSignalAdmin(input: {
   action: "DISMISS" | "CONFIRM";
   requestedReversal?: number;
   reason: string;
-}, rowsPort?: GafusAdminRowsPort) {
+}, wallet: Pick<GafusWalletService, "changeGafusBalanceTx">, lock: Pick<GafusLockPort, "lockGafusUser">, rowsPort?: GafusAdminRowsPort) {
   const reason = input.reason.trim();
   if (reason.length < 5 || reason.length > 1000) throw new Error("REASON_REQUIRED");
   if (
@@ -214,7 +213,7 @@ export async function reviewGafusFraudSignalAdmin(input: {
       await requireAdminTx(tx, input.actorId);
       const signal = await tx.findFraudSignal(input.signalId);
       if (!signal) throw new Error("FRAUD_SIGNAL_NOT_FOUND");
-      await lockGafusUser(tx.rawTx, signal.userId);
+      await lock.lockGafusUser(tx.rawTx, signal.userId);
       const current = await tx.findFraudSignal(input.signalId);
       if (current?.status !== "OPEN") throw new Error("FRAUD_SIGNAL_ALREADY_REVIEWED");
       const requested = input.action === "CONFIRM" ? (input.requestedReversal ?? 0) : 0;
@@ -223,7 +222,7 @@ export async function reviewGafusFraudSignalAdmin(input: {
       const recovered = Math.min(balance, requested);
       let transactionId: string | null = null;
       if (recovered > 0) {
-        const spent = await changeGafusBalanceTx(tx.rawTx, {
+        const spent = await wallet.changeGafusBalanceTx(tx.rawTx, {
           userId: signal.userId,
           amount: -recovered,
           kind: "ADMIN_DEBIT",

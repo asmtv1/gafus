@@ -1,21 +1,6 @@
-import { fileURLToPath } from "node:url";
-
 /** Explicit isolated local-only Admin Vite. No remote origin, no mock production secrets. */
 export default {
   root: import.meta.dirname,
-  // cdn-upload's published utils.js is CommonJS; Vite's dev ESM server cannot
-  // import its named exports untransformed. Resolve the shared pure TS source
-  // here, without changing package artifacts or duplicating URL semantics.
-  resolve: {
-    alias: [
-      {
-        find: /^@gafus\/cdn-upload\/utils$/,
-        replacement: fileURLToPath(
-          new URL("../../../../packages/cdn-upload/src/utils.ts", import.meta.url),
-        ),
-      },
-    ],
-  },
   appType: "spa",
   // Next keeps TSX JSX untouched; Rolldown/Vite 8 needs an explicit JSX transform.
   oxc: { jsx: { runtime: "automatic" } },

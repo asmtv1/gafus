@@ -20,7 +20,7 @@ const logger = createWebLogger("training-day");
 export type TrainingDayMutationActor = { id: string; role: "TRAINER" | "ADMIN" };
 
 export async function getTrainingDayForEdit(id: string, actor?: TrainingDayMutationActor, rowsPort?: TrainingDayRowsPort) {
-  return (rowsPort ?? requireTrainingDayRowsPort()).readTrainingDayForEdit(id, actor);
+  return (requireTrainingDayRowsPort(rowsPort)).readTrainingDayForEdit(id, actor);
 }
 
 /** Результат удаления дней (courseIds для инвалидации кэша в app) */
@@ -38,7 +38,7 @@ export async function createTrainingDay(
   rowsPort?: TrainingDayRowsPort,
 ): Promise<ActionResult & { dayId?: string }> {
   try {
-    const day = await (rowsPort ?? requireTrainingDayRowsPort()).insertTrainingDay(input, actor);
+    const day = await (requireTrainingDayRowsPort(rowsPort)).insertTrainingDay(input, actor);
     logger.info("Тренировочный день создан", { dayId: day.id, authorId: input.authorId });
     return { success: true, dayId: day.id };
   } catch (error) {
@@ -73,7 +73,7 @@ export async function updateTrainingDay(
   rowsPort?: TrainingDayRowsPort,
 ): Promise<ActionResult> {
   try {
-    await (rowsPort ?? requireTrainingDayRowsPort()).replaceTrainingDay(input, actor);
+    await (requireTrainingDayRowsPort(rowsPort)).replaceTrainingDay(input, actor);
     invalidateTrainingDaysContentCache([input.id]);
     await publishCourseContentChange();
     logger.info("Тренировочный день обновлён", { dayId: input.id });
@@ -111,7 +111,7 @@ export async function deleteDays(
   rowsPort?: TrainingDayRowsPort,
 ): Promise<DeleteDaysResult> {
   try {
-    const deleted = await (rowsPort ?? requireTrainingDayRowsPort()).deleteTrainingDayRows(input.dayIds, actor);
+    const deleted = await (requireTrainingDayRowsPort(rowsPort)).deleteTrainingDayRows(input.dayIds, actor);
     if (!deleted) return { success: false };
     invalidateTrainingDaysContentCache(deleted.deletedDayIds);
     await publishCourseContentChange();
@@ -141,5 +141,5 @@ export async function getVisibleDays(
   isAdminOrModerator: boolean,
   rowsPort?: TrainingDayRowsPort,
 ) {
-  return (rowsPort ?? requireTrainingDayRowsPort()).listVisibleTrainingDays(authorId, isAdminOrModerator);
+  return (requireTrainingDayRowsPort(rowsPort)).listVisibleTrainingDays(authorId, isAdminOrModerator);
 }

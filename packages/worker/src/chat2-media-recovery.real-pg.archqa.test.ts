@@ -1,3 +1,4 @@
+import { createCountDueChat2VideoRecovery } from "@gafus/media-server/chat2-video-recovery";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
@@ -47,7 +48,7 @@ async function seed(input: {
 function tick() {
   const video = vi.fn(async () => ({ dispatched: 1 }));
   const run = createChat2MediaRecoveryTick({
-    database: prisma,
+    countDueVideos: createCountDueChat2VideoRecovery(prisma),
     video: video as never,
     now: () => now,
   });

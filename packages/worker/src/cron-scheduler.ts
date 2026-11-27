@@ -19,8 +19,9 @@ import {
   reconcileAppleAppSubscriptionsFromServer,
   reconcileStaleYookassaPendingAppSubscriptions,
 } from "./composition/app-subscription-payment";
-import { reconcileMissedConsultationReminders } from "@gafus/consultation-server/booking-application";
-import { reconcileConsultationEmailLog } from "@gafus/consultation-server/mail-delivery";
+import { reconcileMissedConsultationReminders, reconcileOverdueConsultationBookings } from "@gafus/consultation-server/booking-application";
+import { recoverUnstartedConsultationEmails } from "@gafus/notifications-server/consultation-email-outbox";
+import { canDispatchConsultationMail, reconcileConsultationEmailLog } from "@gafus/consultation-server/mail-delivery";
 import { TRAINING_REMINDER_CRON_EXPRESSION } from "./training-reminder-schedule";
 import { sendTrainingReminders } from "./training-reminders-sender";
 import { processDueYookassaAppSubscriptionRenewals } from "./app-subscription-renewals";
@@ -36,13 +37,33 @@ const logger = createWorkerLogger("cron-scheduler");
 /**
  * Запустить все cron задачи
  */
-export function startCronJobs(): void {
+export function startCronJobs(): () => void {
+  const tasks: ReturnType<typeof cron.schedule>[] = [];
+  const schedule = (...args: Parameters<typeof cron.schedule>) => {
+    const task = cron.schedule(...args);
+    tasks.push(task);
+    return task;
+  };
+  try {
+    registerCronJobs(schedule);
+  } catch (error) {
+    for (const task of tasks) task.stop();
+    throw error;
+  }
+  return () => {
+    for (const task of tasks) task.stop();
+    tasks.length = 0;
+  };
+}
+
+function registerCronJobs(schedule: typeof cron.schedule): void {
   logger.info("Запуск cron-планировщика...");
   // Durable DB outbox. Atomic leases guard overlapping cron runs and multiple workers.
   // No extra traffic until MAIL_OUTBOX_ENABLED and the encryption key are configured.
-  cron.schedule("* * * * *", () => {
+  schedule("* * * * *", () => {
     void processDueTransactionalMailOutbox({
       batchSize: 10,
+      canDispatchConsultationMail,
       onTerminalCommitted: async (key) => {
         if (!/^consultation-[A-Za-z0-9_-]{1,128}$/.test(key)) return;
         const outcome = await reconcileConsultationEmailLog(key.slice("consultation-".length));
@@ -70,14 +91,14 @@ export function startCronJobs(): void {
 
   // Mail failures must be visible even if an external mail provider is unreachable.
   // Read-only, every 15 minutes; no automatic replay of stored UNKNOWN attempts.
-  cron.schedule("3,18,33,48 * * * *", () => {
+  schedule("3,18,33,48 * * * *", () => {
     void monitorMailDelivery().catch((error) =>
       logger.error("Mail delivery monitoring failed", error as Error),
     );
   }, { timezone: "UTC" });
   // Rollout independently from wallet earning/spending; default remains off.
   if (process.env.GAFUS_NOTIFICATIONS_ENABLED === "true") {
-    cron.schedule(
+    schedule(
       "* * * * *",
       () => {
         void processGafusNotifications()
@@ -91,7 +112,7 @@ export function startCronJobs(): void {
   }
   if (process.env.FEED_SMART_ML_TRAIN_ENABLED === "true") {
     // Trained models are evaluated and stored as SHADOW; promotion is manual.
-    cron.schedule(
+    schedule(
       "0 4 * * 1",
       () => {
         void trainCurrentSmartFeedRanker()
@@ -110,7 +131,7 @@ export function startCronJobs(): void {
   if (process.env.FEED_SMART_AFFINITY_ENABLED === "true") {
     // Materialization is additive and independent of the main feed switch.
     // Run on one worker to avoid concurrent refresh of the same author pairs.
-    cron.schedule(
+    schedule(
       "7,22,37,52 * * * *",
       () => {
         void refreshCurrentSmartAuthorAffinities()
@@ -123,7 +144,7 @@ export function startCronJobs(): void {
     );
   }
   if (process.env.FEED_SMART_MONITOR_ENABLED === "true") {
-    cron.schedule(
+    schedule(
       "8,18,28,38,48,58 * * * *",
       () => {
         void getCurrentSmartFeedHealth()
@@ -144,14 +165,14 @@ export function startCronJobs(): void {
   }
   if (process.env.FEED_SMART_STATS_ENABLED === "true") {
     // One SQL aggregation over a bounded recent set, independent from feed traffic.
-    cron.schedule("*/5 * * * *", () => {
+    schedule("*/5 * * * *", () => {
       void refreshCurrentSmartFeedStats()
         .then((count) => {
           if (count) logger.info("Smart feed statistics refreshed", { count });
         })
         .catch((error) => logger.error("Smart feed aggregation failed", error as Error));
     });
-    cron.schedule(
+    schedule(
       "15 3 * * *",
       () => {
         void pruneCurrentSmartFeedSignals()
@@ -167,7 +188,7 @@ export function startCronJobs(): void {
   // Feed S3 cleanup + retired photo reconciliation are entirely local.
   // Never wake the video Cloud pool merely to remove photo/source objects.
   if(process.env.FEED_LOCAL_STORAGE_JANITOR_ENABLED==="true"){
-    cron.schedule("* * * * *",()=>{
+    schedule("* * * * *",()=>{
       void import("./feed-local-maintenance")
         .then(({runFeedLocalMaintenanceTick})=>runFeedLocalMaintenanceTick())
         .catch(()=>logger.error("Feed local S3 cleanup failed",
@@ -177,7 +198,7 @@ export function startCronJobs(): void {
   // Gallery no longer launches Cloud.ru photo/image Jobs. S3 deletion,
   // legacy moves and bounded maintenance run in this existing Worker.
   if (process.env.GALLERY_LOCAL_STORAGE_JANITOR_ENABLED==="true") {
-    cron.schedule("* * * * *",()=>{
+    schedule("* * * * *",()=>{
       void import("./gallery-local-maintenance")
         .then(({runGalleryLocalMaintenanceTick})=>runGalleryLocalMaintenanceTick())
         .catch(()=>logger.error("Gallery local S3 janitor failed",new Error("GALLERY_LOCAL_JANITOR_FAILED")));
@@ -186,7 +207,7 @@ export function startCronJobs(): void {
   // Feed VIDEO and Chat VIDEO still use Cloud.ru Jobs. Photo conversion does not.
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED === "true") {
     if (process.env.FEED_PROCESSOR_READY === "true") {
-      cron.schedule("* * * * *", () => {
+      schedule("* * * * *", () => {
         void import("./feed-media-recovery.js")
           .then(({ runFeedMediaRecoveryTick }) => runFeedMediaRecoveryTick())
           .catch(() => logger.error("Feed recovery tick failed", new Error("FEED_CLOUD_RECOVERY_FAILED")));
@@ -199,7 +220,7 @@ export function startCronJobs(): void {
       process.env.CHAT2_PROCESSOR_READY==="true" &&
       process.env.CHAT2_V2_CORE_ENABLED==="true" &&
       process.env.CHAT2_V2_MEDIA_ENABLED==="true"){
-    cron.schedule("* * * * *",()=>{
+    schedule("* * * * *",()=>{
       void import("./chat2-media-recovery.js")
         .then(({runChat2MediaRecoveryTick})=>runChat2MediaRecoveryTick())
         .catch(error=>logger.error("Chat2 media recovery tick failed",error as Error));
@@ -208,7 +229,7 @@ export function startCronJobs(): void {
   // One-way terminal reconciliation for photo/album-copy tasks created before
   // client WebP cutover; no new image Jobs or Cloud wake-up is possible.
   if(process.env.FEED_RETIRED_PHOTO_QUEUE_SWEEP_ENABLED==="true"){
-    cron.schedule("* * * * *",()=>{
+    schedule("* * * * *",()=>{
       void import("./feed-retired-photo-queue")
         .then(({runRetiredFeedPhotoQueueTick})=>runRetiredFeedPhotoQueueTick())
         .catch(()=>logger.error("Retired Feed photo queue cleanup failed",
@@ -219,7 +240,7 @@ export function startCronJobs(): void {
   // Every tick resets expired CLIENT_PROCESSING leases via Hono + PostgreSQL.
   if(process.env.CHAT2_V2_MEDIA_ENABLED==="true" &&
      process.env.CHAT2_V2_CORE_ENABLED==="true"){
-    cron.schedule("* * * * *",()=>{
+    schedule("* * * * *",()=>{
       void import("./chat2-photo-cleanup")
         .then(({runChat2PhotoCleanupTick})=>runChat2PhotoCleanupTick())
         .catch(()=>logger.error("Chat2 client photo recovery failed",
@@ -230,7 +251,7 @@ export function startCronJobs(): void {
   // HMAC janitor alive regardless of video Cloud pool / retired photo flags.
   if (process.env.QUESTIONS_V2_MEDIA_ENABLED==="true" &&
       process.env.QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED==="true") {
-    cron.schedule("* * * * *",()=>{
+    schedule("* * * * *",()=>{
       void import("./questions-photo-recovery")
         .then(({runQuestionsPhotoRecoveryTick})=>runQuestionsPhotoRecoveryTick())
         .catch(error=>logger.error("Questions Photo V2 recovery failed",error as Error));
@@ -239,7 +260,7 @@ export function startCronJobs(): void {
   // Independent durable Beget per-object purge outbox. Disabled by default;
   // no CDN actions until a specifically verified production release enables it.
   if (process.env.MEDIA_CDN_PURGE_WORKER_ENABLED === "true") {
-    cron.schedule("* * * * *", () => {
+    schedule("* * * * *", () => {
       void import("./media-cdn-purge-worker")
         .then(({ processDueMediaCdnPurges }) => processDueMediaCdnPurges())
         .catch(() => logger.error("Media edge purge unavailable", new Error("MEDIA_PURGE_SCHEDULER_FAILED")));
@@ -252,7 +273,7 @@ export function startCronJobs(): void {
   // jobs for retry instead of acknowledging an unverified S3/CDN deletion.
   if (process.env.ACCOUNT_STORAGE_CLEANUP_ENABLED === undefined ||
       process.env.ACCOUNT_STORAGE_CLEANUP_ENABLED === "true") {
-    cron.schedule("* * * * *", () => {
+    schedule("* * * * *", () => {
       processAccountStorageCleanup().catch(() =>
         logger.error("Account storage cleanup unavailable", new Error("CLEANUP_SCHEDULER_FAILED")),
       );
@@ -263,25 +284,25 @@ export function startCronJobs(): void {
   // deletion is scheduled until migration review and explicit local activation.
   if (process.env.PET_MEDIA_DELETION_OUTBOX_ENABLED === "true" &&
       process.env.PET_MEDIA_CLEANUP_WORKER_ENABLED === "true") {
-    cron.schedule("* * * * *", () => {
+    schedule("* * * * *", () => {
       void import("./petMediaDeletionRuntime")
         .then(({processDuePetMediaDeletionIntents})=>processDuePetMediaDeletionIntents(3))
         .catch(() => logger.error("PET_MEDIA_DELETION_SCHEDULER_FAILED"));
     }, {timezone:"UTC"});
   }
   if (process.env.FEED_MAINTENANCE_ENABLED === "true") {
-    cron.schedule("* * * * *", () => {
+    schedule("* * * * *", () => {
       void import("./feed-worker")
         .then(({ processFeedBackgroundTasks }) => processFeedBackgroundTasks())
         .catch((error) => logger.error("Feed background processing failed", error as Error));
     });
   }
-  cron.schedule("* * * * *", () => {
+  schedule("* * * * *", () => {
     reconcileQuestionNotifications().catch((error) =>
       logger.error("Question push reconciliation failed", error as Error),
     );
   });
-  cron.schedule("17 * * * *", () => {
+  schedule("17 * * * *", () => {
     cleanupUnusedQuestionPhotos().catch((error) =>
       logger.error("Question photo cleanup failed", error as Error),
     );
@@ -291,7 +312,7 @@ export function startCronJobs(): void {
   // EXPAND QuestionLegacyPhotoDeletion migration before enabling this Worker.
   // Opt-in because older production schemas have not been migrated yet.
   if (process.env.QUESTIONS_LEGACY_PHOTO_DELETE_WORKER_ENABLED === "true") {
-    cron.schedule("* * * * *", () => {
+    schedule("* * * * *", () => {
       void processDueLegacyQuestionPhotoDeletions({limit:20}).catch(() =>
         logger.error("QUESTIONS_LEGACY_DELETE_WORKER_FAILED",
           new Error("QUESTIONS_LEGACY_DELETE_WORKER_FAILED")),
@@ -300,7 +321,7 @@ export function startCronJobs(): void {
   }
 
   // Задача 1: Re-engagement планировщик (ежедневно в 8:00 МСК)
-  cron.schedule(
+  schedule(
     "0 8 * * *",
     async () => {
       logger.info("Запуск re-engagement планировщика по расписанию");
@@ -319,7 +340,7 @@ export function startCronJobs(): void {
   );
 
   // Задача 2: Сбор ежедневных метрик (ежедневно в 23:55 МСК)
-  cron.schedule(
+  schedule(
     "55 23 * * *",
     async () => {
       logger.info("Запуск сбора ежедневных метрик по расписанию");
@@ -338,7 +359,7 @@ export function startCronJobs(): void {
   );
 
   // Задача 3: напоминания о тренировках (UTC — как в контейнере; локаль пользователя в логике sendTrainingReminders)
-  cron.schedule(
+  schedule(
     TRAINING_REMINDER_CRON_EXPRESSION,
     async () => {
       logger.info("Запуск проверки напоминаний о тренировках");
@@ -359,7 +380,7 @@ export function startCronJobs(): void {
   );
 
   // Задача 4: продления недельной подписки YooKassa (каждые 15 минут)
-  cron.schedule(
+  schedule(
     "*/15 * * * *",
     async () => {
       logger.info("Запуск renewal reminders app subscription");
@@ -397,7 +418,7 @@ export function startCronJobs(): void {
   );
 
   // Задача 5: страховочная догонялка консультационных уведомлений (каждую минуту)
-  cron.schedule(
+  schedule(
     "* * * * *",
     async () => {
       try {
@@ -409,6 +430,19 @@ export function startCronJobs(): void {
         await processDueNpdReceiptEmailDeliveries();
       } catch (error) {
         logger.error("Ошибка отправки чеков НПД по email", error as Error);
+      }
+
+      try {
+        const result = await reconcileOverdueConsultationBookings();
+        if (result.failed) logger.warn("Consultation SLA reconciliation incomplete", result);
+      } catch {
+        logger.error("Consultation SLA reconciliation failed", new Error("CONSULTATION_SLA_RECOVERY_FAILED"));
+      }
+      try {
+        const result = await recoverUnstartedConsultationEmails();
+        if (result.failed) logger.warn("Consultation email queue recovery incomplete", result);
+      } catch {
+        logger.error("Consultation email queue recovery failed", new Error("CONSULTATION_MAIL_RECOVERY_FAILED"));
       }
 
       logger.info("Запуск reconciliation консультационных напоминаний");

@@ -5,7 +5,9 @@ import {RouteLink} from "../../shared/router/location";
 import {ApiError} from "../../shared/api/client";
 import original from "../../brand/LegacyGallery.module.css";
 import parity from "./GalleryAlbumSourceParity.module.css";
-import {GalleryImage,GalleryViewerPhoto,nextMediaRefresh,useGallerySwipe} from "./GalleryAlbums";
+import { GalleryImage } from "./GalleryImage";
+import { GalleryViewerPhoto } from "./GalleryViewerPhoto";
+import { nextMediaRefresh, useGallerySwipe } from "./galleryPresentation";
 import {getPublicAlbum,listPublicAlbums,listPublicPhotos,signedGalleryImage,
   type AlbumPhoto} from "./galleryApi";
 import {PrimaryButton} from "../../shared/ui";

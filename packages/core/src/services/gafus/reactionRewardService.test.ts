@@ -12,10 +12,10 @@ const mocks = vi.hoisted(() => ({
   program: { postId: "post-1", thresholdStep: 10, settingsRevision: 1 },
 }));
 
-vi.mock("./rewardService", () => ({
+const rewards = ({
   awardActivityTx: vi.fn(),
   awardBonusTx: (...args: unknown[]) => mocks.award(...args),
-}));
+});
 vi.mock("./settingsService", () => ({
   getGafusSettingsTx: vi.fn(async () => ({
     economyEnabled: mocks.enabled, earningEnabled: mocks.enabled,
@@ -23,11 +23,10 @@ vi.mock("./settingsService", () => ({
   })),
 }));
 
-import {
-  advanceGafusReactionMilestonesTx,
-  registerGafusPostPublicationTx,
-} from "./reactionRewardService";
-import { awardActivityTx } from "./rewardService";
+import { createGafusReactionRewardService } from "./reactionRewardService";
+const { advanceGafusReactionMilestonesTx, registerGafusPostPublicationTx } =
+  createGafusReactionRewardService(rewards);
+const { awardActivityTx } = rewards;
 
 function fixture() {
   return {

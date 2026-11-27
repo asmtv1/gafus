@@ -14,7 +14,7 @@ vi.mock("@gafus/prisma", () => ({
   prisma: {
     pushSubscription: {
       findMany: (...args: unknown[]) => mockPushSubscriptionFindMany(...args),
-      deleteMany: (...args: unknown[]) => mockPushSubscriptionDeleteMany(...args),
+
     },
   },
 }));
@@ -35,6 +35,7 @@ vi.mock("@gafus/webpush", () => ({
     }),
     shouldDeleteSubscription: (...args: unknown[]) => mockShouldDeleteSubscription(...args),
   },
+  deleteInvalidPushRegistrations: (...args: unknown[]) => mockPushSubscriptionDeleteMany(...args),
   partitionPushSubscriptions: (...args: unknown[]) => mockPartitionPushSubscriptions(...args),
   sendExpoPushNotifications: (...args: unknown[]) => mockSendExpoPushNotifications(...args),
 }));
@@ -149,8 +150,9 @@ describe("sendBroadcastPush", () => {
     const result = await sendBroadcastPush("Title", "Body");
 
     expect(result.success).toBe(true);
-    expect(mockPushSubscriptionDeleteMany).toHaveBeenCalledWith({
-      where: { endpoint: { in: ["https://invalid.example.com/1"] } },
-    });
+    expect(mockPushSubscriptionDeleteMany).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ endpoint: "https://invalid.example.com/1" })]),
+      new Set(["https://invalid.example.com/1"]),
+    );
   });
 });

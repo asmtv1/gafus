@@ -9,7 +9,7 @@ const logger=createWorkerLogger("chat2-media-processing-trigger");
 /** Only activate after BOTH chat pools, isolated Core and storage are verified.
  * Mirrors Feed: bounded serial launch requests, 2 independent jobs per kind.
  */
-export function startChat2MediaProcessingTriggerWorker():void{
+export function startChat2MediaProcessingTriggerWorker() {
   if(process.env.CLOUDRU_MEDIA_JOBS_ENABLED!=="true" ||
      process.env.CHAT2_PROCESSOR_READY!=="true" ||
      process.env.CHAT2_V2_CORE_ENABLED!=="true" ||
@@ -34,4 +34,5 @@ export function startChat2MediaProcessingTriggerWorker():void{
   worker.on("failed",(_job,error)=>logger.error("Chat2 media wake failed",error));
   worker.on("error",error=>logger.error("Chat2 media wake worker error",error));
   logger.success("Chat2 media immediate wake worker started");
+  return worker;
 }

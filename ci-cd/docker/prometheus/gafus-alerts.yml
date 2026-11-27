@@ -38,6 +38,8 @@ groups:
         labels:
           severity: warning
         annotations:
+          owner: identity-mail
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#password-reset"
           summary: "Failed durable mail deliveries require inspection"
       - alert: GafusMailQueueStalled
         expr: gafus_mail_queue_stalled > 0
@@ -45,7 +47,69 @@ groups:
         labels:
           severity: warning
         annotations:
+          owner: identity-mail
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#password-reset"
           summary: "Durable mail delivery queue has stalled items"
+
+      - alert: GafusPasswordResetMailStalled
+        expr: (gafus_mail_reset_queue_stalled > 0) or (gafus_mail_reset_attempt_stalled_1h > 0)
+        for: 2m
+        labels:
+          severity: warning
+          owner: identity-mail
+        annotations:
+          summary: "Password reset delivery is stalled or provider acceptance is unresolved"
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#password-reset"
+      - alert: GafusMailProviderAttemptStalled
+        expr: (gafus_mail_stalled_pending > 0) or (gafus_mail_unresolved_unknown > 0)
+        for: 5m
+        labels:
+          severity: warning
+          owner: identity-mail
+        annotations:
+          summary: "Mail provider acceptance needs reconciliation; do not blindly resend"
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#password-reset"
+      - alert: GafusMailMetricsUnavailable
+        expr: (gafus_mail_metrics_available == 0) or absent(gafus_mail_metrics_available)
+        for: 10m
+        labels:
+          severity: warning
+          owner: identity-mail
+        annotations:
+          summary: "Mail monitoring unavailable; no-data is not successful delivery"
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
+      # A slow rendered-frame histogram is conditioned on real rendered samples.
+      # Abandoned and unsupported measurements are coverage, not zero duration.
+      - alert: GafusVideoFirstFrameSlow
+        expr: |
+          (histogram_quantile(0.95, sum by (surface, platform, le) (rate(gafus_video_first_frame_seconds_bucket[10m]))) > 5)
+          and on(surface, platform)
+          (sum by(surface, platform) (increase(gafus_video_first_frame_seconds_count[10m])) >= 30)
+        for: 10m
+        labels:
+          severity: warning
+          owner: media-client
+        annotations:
+          summary: "Observed p95 time to first rendered frame exceeds five seconds"
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#first-frame"
+      - alert: GafusServerDiagnosticExportDrops
+        expr: sum(increase(gafus_server_diagnostic_otlp_dropped_total[10m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+          owner: observability
+        annotations:
+          summary: "Server diagnostic exporter dropped observations; inspect coverage"
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
+      - alert: GafusServerDiagnosticExportBlocked
+        expr: gafus_server_diagnostic_otlp_auth_suspended == 1
+        for: 5m
+        labels:
+          severity: warning
+          owner: observability
+        annotations:
+          summary: "Server diagnostic export authentication is suspended"
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
 
       # Legacy Questions object-delete outbox: no owner/path labels.
       # Worker exports zero-valued gauges while opt-in is disabled.
@@ -71,6 +135,91 @@ groups:
         annotations:
           summary: "Questions legacy delete metrics are missing from the Worker"
 
+      # Device-reported events are deduplicated but are not installation counts.
+      # Do not derive a failure percentage from CHECKED (not an attempt counter).
+      - alert: GafusOtaReportedErrors
+        expr: gafus_mobile_telemetry_ota_reported_events_1h{event="UPDATE_ERROR"} >= 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          owner: mobile-release
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#ota-signature-and-mandatory-update"
+          summary: "At least five OTA error events reported in one hour for {{ $labels.platform }}"
+      - alert: GafusOtaSignatureRejected
+        expr: gafus_mobile_telemetry_ota_reported_events_1h{event="SIGNATURE_REJECTED"} > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          owner: mobile-release
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#ota-signature-and-mandatory-update"
+          summary: "Native OTA signature rejection reported on {{ $labels.platform }}; verify signed release and trust configuration"
+      - alert: GafusMandatoryOtaIncomplete
+        expr: gafus_mobile_telemetry_ota_reported_events_1h{event="MANDATORY_INCOMPLETE"} >= 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          owner: mobile-release
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#ota-signature-and-mandatory-update"
+          summary: "At least three incomplete mandatory OTA attempts reported in one hour on {{ $labels.platform }}; inspect release recovery"
+      # These counts are a synced server cohort, not an estimate of all local walks.
+      # A 10-minute grace allows metadata-first synchronization; late tracks can heal it.
+      - alert: GafusWalkGpsNoPoints
+        expr: (gafus_mobile_telemetry_walk_gps_no_points_1h >= 3) and (gafus_mobile_telemetry_walk_gps_no_points_1h / clamp_min(gafus_mobile_telemetry_walk_gps_eligible_1h, 1) >= 0.1)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          owner: mobile-tracking
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#gps-without-points"
+          summary: "At least three synced GPS-enabled walks have no points after sync grace, at least 10% of eligible walks; inspect client traces and track synchronization"
+      - alert: GafusWalkGpsMetricsUnavailable
+        expr: (gafus_mobile_telemetry_walk_gps_available == 0) or absent(gafus_mobile_telemetry_walk_gps_available)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          owner: observability
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
+          summary: "Synced walk GPS metrics unavailable; absence is not successful synchronization"
+      - alert: GafusOtaMetricsUnavailable
+        expr: (gafus_mobile_telemetry_ota_metrics_available == 0) or absent(gafus_mobile_telemetry_ota_metrics_available)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          owner: observability
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
+          summary: "OTA event metrics unavailable; absence is not successful rollout"
+      - alert: GafusMediaCdnPurgeStalled
+        expr: (gafus_media_cdn_purge_oldest_age_seconds > 3600) and (gafus_media_cdn_purge_pending > 0)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          owner: media-cdn
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#cdn-purge"
+          summary: "CDN invalidation backlog exceeds one hour; inspect durable receipts"
+      - alert: GafusMediaCdnPurgeExpiredLease
+        expr: gafus_media_cdn_purge_expired_leases > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          owner: media-cdn
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#cdn-purge"
+          summary: "CDN invalidation lease remains expired; inspect Worker recovery"
+      - alert: GafusMediaCdnPurgeMetricsUnavailable
+        expr: (gafus_media_cdn_purge_available == 0) or absent(gafus_media_cdn_purge_available)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          owner: observability
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
+          summary: "CDN invalidation metrics unavailable"
       - alert: GafusMediaLeaseStalled
         expr: gafus_media_stalled_processing > 0
         for: 5m
@@ -131,6 +280,8 @@ groups:
         labels:
           severity: warning
         annotations:
+          owner: chat2-worker
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#chat2-outbox"
           summary: "Oldest Chat2 outbox event is older than five minutes"
       - alert: GafusChat2DispatchRetryStorm
         # Gate on both absolute volume and retry share to avoid low-volume noise.
@@ -146,6 +297,8 @@ groups:
         labels:
           severity: warning
         annotations:
+          owner: chat2-worker
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#chat2-outbox"
           summary: "GAFUS Chat2 outbox has sustained excessive dispatch retries"
       - alert: GafusChat2OutboxDeadLetters
         expr: gafus_chat2_outbox_dead_letters > 0
@@ -153,6 +306,8 @@ groups:
         labels:
           severity: warning
         annotations:
+          owner: chat2-worker
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#chat2-outbox"
           summary: "Chat2 outbox dead letters need an admin review"
       - alert: GafusChat2OutboxMetricsMissing
         expr: absent(gafus_chat2_outbox_pending)
@@ -160,6 +315,8 @@ groups:
         labels:
           severity: warning
         annotations:
+          owner: observability
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
           summary: "Chat2 outbox metrics are not exported by the worker"
       - alert: GafusApi5xxElevated
         expr: (sum(rate(http_requests_total{status="5xx"}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 0.001) > 0.05) and (sum(increase(http_requests_total[5m])) >= 100)
@@ -181,6 +338,8 @@ groups:
         labels:
           severity: critical
         annotations:
+          owner: chat2-worker
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#chat2-outbox"
           summary: "Chat2 has queued events but no successful dispatches for ten minutes"
       - alert: GafusWorkerAttemptMetricsMissing
         expr: absent(job_attempts_total)
@@ -202,4 +361,6 @@ groups:
         labels:
           severity: warning
         annotations:
+          owner: observability
+          runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
           summary: "API operations metrics endpoint is not being scraped"

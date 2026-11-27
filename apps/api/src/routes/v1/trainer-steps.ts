@@ -1,3 +1,4 @@
+import { trainerStepRows } from "../../modules/trainer-steps/composition/trainer-step-rows-instance.js";
 import type { TrainerStepRowsPort } from "@gafus/core/services/trainerStep";
 /**
  * AG4 TR013 frozen CURRENT trainer visible-steps read contract.
@@ -9,11 +10,11 @@ import type { TrainerStepRowsPort } from "@gafus/core/services/trainerStep";
  */
 import { Hono } from "hono";
 import type { TrainerVisibleStepsRead } from
-  "../../../../../packages/types/src/data/trainer-read-contracts";
-import { readVisibleStepsApplication as legacyReadVisibleStepsApplication, createVisibleStepsApplicationForRows } from "../../modules/trainer-steps/composition/read-visible-steps.js";
+  "@gafus/types/trainer-read-contracts";
+import { createVisibleStepsApplicationForRows } from "../../modules/trainer-steps/composition/read-visible-steps.js";
 
-export function createTrainerStepsRoutes(rowsPort?: TrainerStepRowsPort) {
- const readVisibleStepsApplication = rowsPort ? createVisibleStepsApplicationForRows(rowsPort) : legacyReadVisibleStepsApplication;
+export function createTrainerStepsRoutes(rowsPort: TrainerStepRowsPort) {
+ const readVisibleStepsApplication = createVisibleStepsApplicationForRows(rowsPort);
  const trainerStepsRoutes = new Hono();
 
 trainerStepsRoutes.get("/", async c=>{
@@ -49,4 +50,4 @@ trainerStepsRoutes.get("/", async c=>{
 
  return trainerStepsRoutes;
 }
-export const trainerStepsRoutes = createTrainerStepsRoutes();
+export const trainerStepsRoutes = createTrainerStepsRoutes(trainerStepRows);

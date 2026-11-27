@@ -69,7 +69,7 @@ vi.mock("@gafus/logger",()=>({createWebLogger:()=>({info:vi.fn(),warn:vi.fn(),er
 vi.mock("./transactionalAuthMail",()=>({getPublicWebBaseUrl:()=>"https://synthetic.invalid",sendEmailChangeConfirmEmail:m.mail,sendPasswordResetLinkEmail:vi.fn()}));
 import {prisma} from "@gafus/prisma";
 import { requestEmailChange,confirmEmailChangeByToken } from "./emailAccountFlows";
-import { registerEmailAccountRowsPort } from "./emailAccountFlows";
+
 import {
   readPasswordResetRequestUser,
   claimPasswordResetEmailToken,
@@ -82,7 +82,7 @@ import {
   retireOlderEmailChangeTokens,
   consumeEmailChangeConfirmation,
 } from "@gafus/identity-write-server/email-account-rows";
-registerEmailAccountRowsPort({
+const fixtureEmailAccountRowsPort = {
   readPasswordResetRequestUser,
   claimPasswordResetEmailToken,
   rollbackFailedPasswordResetEmailToken,
@@ -93,7 +93,7 @@ registerEmailAccountRowsPort({
   rollbackUndeliveredEmailChange,
   retireOlderEmailChangeTokens,
   consumeEmailChangeConfirmation,
-});
+};
 
 const db=prisma as PrismaClient;
 (url?describe:describe.skip)("W1 isolated PG14 email-change source integration, fake email",()=>{
@@ -113,55 +113,55 @@ const db=prisma as PrismaClient;
  function email(label:string){return `w1-${label}-${owner}@example.test`;}
  const rows=async()=>db.emailChangeToken.findMany({where:{userId:owner},select:{token:true,newEmail:true,expiresAt:true}});
  it("W1-DB-01: isolated identity and single request->confirm, replay no second update",async()=>{
-  const target=email("single");await requestEmailChange(owner,target);
+  const target=email("single");await requestEmailChange(owner,target, fixtureEmailAccountRowsPort);
   const one=await rows();expect(one).toHaveLength(1);expect(mailed).toHaveLength(1);
   expect(one[0]?.token).toBe(mailed[0]);expect((await db.user.findUnique({where:{id:owner}}))?.email).toBe(ownerEmail);
-  await confirmEmailChangeByToken(mailed[0]!);
+  await confirmEmailChangeByToken(mailed[0]!, fixtureEmailAccountRowsPort);
   expect((await db.user.findUnique({where:{id:owner}}))?.email).toBe(target);
-  expect(await rows()).toHaveLength(0);await expect(confirmEmailChangeByToken(mailed[0]!)).rejects.toThrow("недействительна");
+  expect(await rows()).toHaveLength(0);await expect(confirmEmailChangeByToken(mailed[0]!, fixtureEmailAccountRowsPort)).rejects.toThrow("недействительна");
   expect((await db.user.findUnique({where:{id:foreign}}))?.email).toBe(foreignEmail);
  });
  it("W1-DB-02: mail failure must not destroy previously sent valid token",async()=>{
-  const first=email("first"),second=email("second");await requestEmailChange(owner,first);const old=mailed[0]!;
+  const first=email("first"),second=email("second");await requestEmailChange(owner,first, fixtureEmailAccountRowsPort);const old=mailed[0]!;
   m.mail.mockRejectedValueOnce(new Error("SYNTHETIC_MAIL_DOWN"));
-  await expect(requestEmailChange(owner,second)).rejects.toThrow();
+  await expect(requestEmailChange(owner,second, fixtureEmailAccountRowsPort)).rejects.toThrow();
   const after=await rows();expect(after).toHaveLength(1);expect(after[0]?.token).toBe(old);
-  await confirmEmailChangeByToken(old);expect((await db.user.findUnique({where:{id:owner}}))?.email).toBe(first);
+  await confirmEmailChangeByToken(old, fixtureEmailAccountRowsPort);expect((await db.user.findUnique({where:{id:owner}}))?.email).toBe(first);
  });
  it("W1-DB-03: two synchronized real SQL requests -> only one active token",async()=>{
   m.requestBarrier=true;m.barrierOwner=owner;
-  const responses=await Promise.allSettled([requestEmailChange(owner,email("one")),requestEmailChange(owner,email("two"))]);
+  const responses=await Promise.allSettled([requestEmailChange(owner,email("one"), fixtureEmailAccountRowsPort),requestEmailChange(owner,email("two"), fixtureEmailAccountRowsPort)]);
   expect(responses.map(x=>x.status)).toEqual(["fulfilled","fulfilled"]);
   expect(await rows()).toHaveLength(1);
   expect(mailed).toHaveLength(2);
  });
  it("W1-DB-04: two concurrent confirmations of same token get only one success",async()=>{
-  await requestEmailChange(owner,email("concurrent"));const t=mailed[0]!;
+  await requestEmailChange(owner,email("concurrent"), fixtureEmailAccountRowsPort);const t=mailed[0]!;
   m.confirmBarrier=true;m.confirmToken=t;
-  const responses=await Promise.allSettled([confirmEmailChangeByToken(t),confirmEmailChangeByToken(t)]);
+  const responses=await Promise.allSettled([confirmEmailChangeByToken(t, fixtureEmailAccountRowsPort),confirmEmailChangeByToken(t, fixtureEmailAccountRowsPort)]);
   expect(responses.filter(x=>x.status==="fulfilled")).toHaveLength(1);
   expect(await rows()).toHaveLength(0);
   expect((await db.user.findUnique({where:{id:owner}}))?.email).toBe(email("concurrent"));
  });
  it("W1-DB-05: second user takes target before confirmation -> conflict/no owner update",async()=>{
-  const target=email("occupied");await requestEmailChange(owner,target);const t=mailed[0]!;
+  const target=email("occupied");await requestEmailChange(owner,target, fixtureEmailAccountRowsPort);const t=mailed[0]!;
   await db.user.update({where:{id:foreign},data:{email:target}});
-  await expect(confirmEmailChangeByToken(t)).rejects.toThrow("уже занят");
+  await expect(confirmEmailChangeByToken(t, fixtureEmailAccountRowsPort)).rejects.toThrow("уже занят");
   expect((await db.user.findUnique({where:{id:owner}}))?.email).toBe(ownerEmail);expect(await rows()).toHaveLength(1);
  });
  it("W1-DB-07: actual SQL rollback after token delete keeps user and token unchanged",async()=>{
-  const target=email("rollback");await requestEmailChange(owner,target);const t=mailed[0]!;
+  const target=email("rollback");await requestEmailChange(owner,target, fixtureEmailAccountRowsPort);const t=mailed[0]!;
   m.failTxnDelete=true;
-  await expect(confirmEmailChangeByToken(t)).rejects.toThrow("SYNTHETIC_TX_AFTER_DELETE_FAILURE");
+  await expect(confirmEmailChangeByToken(t, fixtureEmailAccountRowsPort)).rejects.toThrow("SYNTHETIC_TX_AFTER_DELETE_FAILURE");
   m.failTxnDelete=false;
   expect((await db.user.findUnique({where:{id:owner}}))?.email).toBe(ownerEmail);
   expect(await rows()).toHaveLength(1);
   expect((await rows())[0]?.token).toBe(t);
  });
  it("W1-DB-06: expired token and cross-account ownership",async()=>{
-  const target=email("expired");await requestEmailChange(owner,target);const t=mailed[0]!;
+  const target=email("expired");await requestEmailChange(owner,target, fixtureEmailAccountRowsPort);const t=mailed[0]!;
   await db.emailChangeToken.update({where:{token:t},data:{expiresAt:new Date(Date.now()-1000)}});
-  await expect(confirmEmailChangeByToken(t)).rejects.toThrow("недействительна");
+  await expect(confirmEmailChangeByToken(t, fixtureEmailAccountRowsPort)).rejects.toThrow("недействительна");
   expect((await db.user.findUnique({where:{id:owner}}))?.email).toBe(ownerEmail);
   expect((await db.user.findUnique({where:{id:foreign}}))?.email).toBe(foreignEmail);
  });

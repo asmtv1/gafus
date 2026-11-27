@@ -1,3 +1,4 @@
+import { transactionalContentPolicy } from "../../content-access/composition/transactional-policy-instance.js";
 /**
  * API composition for video playback. Query projections run in the
  * course-read-server adapter; Core owns occurrence-aware entitlement policy.
@@ -20,5 +21,5 @@ export const { checkVideoAccess, getVideoManifestInfo } = createVideoAccessServi
   dayOccurrences: readVideoCourseDayOccurrences,
   hasPublishedDailyCourseVideo,
   allowedCourseStep: (userId, dayOnCourseId, stepOnDayId, now) =>
-    hasAllowedVideoCourseStepAccess(userId, dayOnCourseId, stepOnDayId, now, occurrenceReadPort),
+    hasAllowedVideoCourseStepAccess(userId, dayOnCourseId, stepOnDayId, now, transactionalContentPolicy.resolveCourseStepAccessTx, occurrenceReadPort),
 });

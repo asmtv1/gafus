@@ -1,3 +1,4 @@
+import { authRows } from "../../modules/auth/composition/auth-rows-instance.js";
 /**
  * Auth Routes
  * Endpoints для авторизации: login, register, refresh, logout
@@ -165,7 +166,7 @@ authRoutes.post(
       if (browser && !isTrustedBrowserOrigin(c)) {
         return c.json({ success: false, error: "Недоверенный Origin" }, 403);
       }
-      const result = await validateCredentials(username, password);
+      const result = await validateCredentials(authRows, username, password);
 
       if (!result.success) {
         logger.warn("Login attempt failed", { username: username.toLowerCase().trim() });
@@ -185,7 +186,7 @@ authRoutes.post(
       const refreshToken = await generateRefreshToken(user.id, tokenId);
       const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
-      await createRefreshSession(user.id, tokenId, tokenHash, {
+      await createRefreshSession(authRows, user.id, tokenId, tokenHash, {
         deviceId: c.req.header("x-device-id"),
         userAgent: c.req.header("user-agent"),
         ipAddress: c.req.header("x-forwarded-for")?.split(",")[0],
@@ -261,7 +262,7 @@ authRoutes.post(
         );
       }
 
-      const user = await getAuthUserById(result.userId);
+      const user = await getAuthUserById(authRows, result.userId);
       if (!user) {
         return c.json({ success: false, error: "Ошибка регистрации" }, 500);
       }
@@ -277,7 +278,7 @@ authRoutes.post(
       const refreshToken = await generateRefreshToken(user.id, tokenId);
       const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
-      await createRefreshSession(user.id, tokenId, tokenHash, {
+      await createRefreshSession(authRows, user.id, tokenId, tokenHash, {
         userAgent,
         ipAddress,
         expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS),
@@ -363,7 +364,7 @@ authRoutes.post(
       }
 
       const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-      const result = await validateRefreshToken(tokenHash);
+      const result = await validateRefreshToken(authRows, tokenHash);
 
       if (!result.valid) {
         if (result.reason === "recently_consumed") {
@@ -377,7 +378,7 @@ authRoutes.post(
             userId: result.userId,
             ip: c.req.header("x-forwarded-for")?.split(",")[0],
           });
-          await revokeAllUserTokens(result.userId);
+          await revokeAllUserTokens(authRows, result.userId);
           return c.json(
             {
               success: false,
@@ -404,7 +405,7 @@ authRoutes.post(
       const newTokenHash = crypto.createHash("sha256").update(newRefreshToken).digest("hex");
 
       try {
-        await rotateRefreshToken(tokenHash, user.id, newTokenHash, newTokenId, {
+        await rotateRefreshToken(authRows, tokenHash, user.id, newTokenHash, newTokenId, {
           deviceId: c.req.header("x-device-id"),
           userAgent: c.req.header("user-agent"),
           ipAddress: c.req.header("x-forwarded-for")?.split(",")[0],
@@ -455,7 +456,7 @@ authRoutes.post(
       }
       if (refreshToken) {
         const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-        await revokeRefreshToken(tokenHash);
+        await revokeRefreshToken(authRows, tokenHash);
       }
       if (browser) clearBrowserSession(c);
       return c.json({ success: true }, 200, { "Cache-Control": "no-store" });
@@ -478,7 +479,7 @@ authRoutes.post(
 authRoutes.post("/logout-all", authMiddleware, bodyLimit({ maxSize: 1024 }), async (c) => {
   c.header("Cache-Control", "private, no-store");
   try {
-    await revokeAllUserTokens(c.get("user").id);
+    await revokeAllUserTokens(authRows, c.get("user").id);
     if (isBrowserCookieMode(c)) clearBrowserSession(c);
     return c.json({ success: true }, 200);
   } catch {
@@ -676,7 +677,7 @@ authRoutes.post(
     try {
       const { newPassword } = c.req.valid("json");
       const userId = c.get("user").id;
-      await setPassword(userId, newPassword);
+      await setPassword(authRows, userId, newPassword);
       return c.json({ success: true });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "";
@@ -711,7 +712,7 @@ authRoutes.post(
     try {
       const { currentPassword, newPassword } = c.req.valid("json");
       const userId = c.get("user").id;
-      await changePassword(userId, currentPassword, newPassword);
+      await changePassword(authRows, userId, currentPassword, newPassword);
       return c.json({ success: true });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "";
@@ -757,7 +758,7 @@ authRoutes.get(
     try {
       const { username } = c.req.valid("query");
       const user = c.get("user");
-      const available = await isUsernameAvailable(username, user.id);
+      const available = await isUsernameAvailable(authRows, username, user.id);
       const response: UsernameAvailabilityServiceResponse = {
         success: true,
         data: { available },
@@ -791,8 +792,8 @@ authRoutes.post(
     try {
       const user = c.get("user");
       const { newUsername } = c.req.valid("json");
-      await changeUsername(user.id, newUsername);
-      const updated = await getAuthUserById(user.id);
+      await changeUsername(authRows, user.id, newUsername);
+      const updated = await getAuthUserById(authRows, user.id);
       if (!updated || updated.id !== user.id) {
         // Core may already have committed. Never imply rollback or auto-retry.
         logger.error(

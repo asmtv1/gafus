@@ -5,16 +5,17 @@ const fake=vi.hoisted(()=>({config:vi.fn(async()=>({
   accessDurationSeconds:604800,revision:1,
 }))}));
 vi.mock("./settingsService",()=>({getGafusSettingsTx:fake.config}));
-vi.mock("../contentAccess",()=>({
+const content = vi.hoisted(()=>({
   resolveArticleTargetTx:vi.fn(async(_tx:unknown,id:string)=>({
     type:"ARTICLE",articleId:id,targetKey:`article:${id}`,
   })),
   resolveArticleAccessTx:vi.fn(async()=>({allowed:false,eligibleForGafus:true,expiresAt:null,source:"DENIED"})),
 }));
-vi.mock("./walletService",()=>({
+vi.mock("../contentAccess", () => content);
+const wallet = ({
   ensureGafusWalletTx:vi.fn(async()=>({balance:5})),
   changeGafusBalanceTx:vi.fn(async()=>({transactionId:"debit-1",balance:4,replay:false})),
-}));
+});
 beforeEach(()=>{vi.resetModules();vi.clearAllMocks();});
 function port() {
   const tx={dbConnection:"same-advisory-locked-tx"} as unknown as GafusTx;
@@ -29,15 +30,15 @@ describe("atomic Gafus unlock PostgreSQL transaction port",()=>{
     const c=await import("./accessGrantService");
     await expect(c.unlockArticleWithGafus({
       userId:"owner-1",articleId:"article-1",clientRequestId:"request-001",
-    })).rejects.toThrow("GAFUS_UNLOCK_PORT_UNBOUND");
+    }, wallet, content as never)).rejects.toThrow("GAFUS_UNLOCK_PORT_UNBOUND");
   });
   it("uses one same advisory-locked transaction from replay to debit to owner grant",async()=>{
     const c=await import("./accessGrantService");const p=await import("./gafusUnlockPort");
-    const rows=port();p.registerGafusUnlockRowsPort(rows);
+    const rows=port();const fixtureGafusUnlockRowsPort = rows;
     const res=await c.unlockArticleWithGafus({
       userId:"owner-1",articleId:"article-1",clientRequestId:"request-001",
       now:new Date("2026-11-12T08:00:00.000Z"),
-    });
+    }, wallet, content as never, fixtureGafusUnlockRowsPort);
     expect(res).toMatchObject({spent:1,balance:4,accessSource:"GAFUS",replay:false});
     expect(rows.withGafusUnlockTransaction).toHaveBeenCalledWith("owner-1",expect.any(Function));
     expect(rows.readGafusUnlockReplayTx).toHaveBeenCalledWith(rows.tx,"gafus:unlock:owner-1:request-001");
@@ -49,9 +50,5 @@ describe("atomic Gafus unlock PostgreSQL transaction port",()=>{
       rows.insertGafusUnlockGrantTx.mock.invocationCallOrder[0],
     );
   });
-  it("cannot replace an active PostgreSQL transaction port",async()=>{
-    const p=await import("./gafusUnlockPort");const rows=port();p.registerGafusUnlockRowsPort(rows);
-    p.registerGafusUnlockRowsPort(rows);
-    expect(()=>p.registerGafusUnlockRowsPort(port())).toThrow("GAFUS_UNLOCK_PORT_ALREADY_BOUND");
-  });
+
 });

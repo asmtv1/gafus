@@ -28,13 +28,16 @@ export async function readTrainerAISettingsSummary(trainerId:string,authorizedRo
 export async function readTrainerAIHistoryRows(trainerId:string,skip:number,take:number,authorizedRoles:readonly UserRole[]){
   if(!trainerId || !authorizedRoles.length)throw new Error("FORBIDDEN");
   const where={trainerId,trainer:{role:{in:[...authorizedRoles]}}};
-  const [total,messages]=await Promise.all([
-    prisma.trainerAIChat.count({where}),
-    prisma.trainerAIChat.findMany({
-      where,orderBy:[{createdAt:"desc"},{id:"desc"}],take,skip,
-      select:{id:true,role:true,content:true,tokensUsed:true,attachments:true,createdAt:true},
-    }),
-  ]);
+  if(!Number.isSafeInteger(skip)||skip<0||!Number.isInteger(take)||take<1||take>100)
+    throw new Error("INVALID_HISTORY_PAGE");
+  // Preserve full history but never ask PostgreSQL/Prisma for an out-of-range
+  // giant OFFSET. Both reads use the same current-role predicate.
+  const total=await prisma.trainerAIChat.count({where});
+  if(skip>=total)return {total,messages:[]};
+  const messages=await prisma.trainerAIChat.findMany({
+    where,orderBy:[{createdAt:"desc"},{id:"desc"}],take,skip,
+    select:{id:true,role:true,content:true,tokensUsed:true,attachments:true,createdAt:true},
+  });
   return {total,messages};
 }
 

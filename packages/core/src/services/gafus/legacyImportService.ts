@@ -1,4 +1,4 @@
-import { changeGafusBalanceTx } from "./walletService";
+import type { GafusWalletService } from "./walletService";
 
 /** The operator import policy is independent of SQL/Prisma. API composition
  * injects the current server repository; each credit remains in its own
@@ -14,7 +14,7 @@ export interface LegacyGafusImportPorts {
   }[]>;
   runOneTransaction: (
     actorId: string, candidate: { userId: string; balance: number },
-    credit: typeof changeGafusBalanceTx,
+    credit: GafusWalletService["changeGafusBalanceTx"],
   ) => Promise<{ imported: boolean; replay: boolean; amount: number }>;
 }
 
@@ -54,7 +54,7 @@ export async function importLegacyRewardedBatch(input: {
   confirmed: boolean;
   batchSize?: number;
   cursor?: string;
-}, persistence: LegacyGafusImportPorts) {
+}, persistence: LegacyGafusImportPorts, credit: GafusWalletService["changeGafusBalanceTx"]) {
   await requireAdmin(input.actorId, persistence);
   requireCutover();
   if (!input.confirmed) throw new Error("LEGACY_IMPORT_CONFIRMATION_REQUIRED");
@@ -71,7 +71,7 @@ export async function importLegacyRewardedBatch(input: {
   let replays = 0;
   const actorId = input.actorId;
   for (const wallet of batch) {
-    const result = await persistence.runOneTransaction(actorId,wallet,changeGafusBalanceTx);
+    const result = await persistence.runOneTransaction(actorId,wallet,credit);
     if (result.imported) {
       imported++;
       credits += result.amount;

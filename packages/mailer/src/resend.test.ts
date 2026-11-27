@@ -27,7 +27,7 @@ describe("Resend transport", () => {
     expect(url).toBe("https://api.resend.com/emails");
     expect(request.headers["Idempotency-Key"]).toBe(input.deliveryKey);
     expect(JSON.parse(request.body).attachments[0]).toMatchObject({ content: "bG9nbw==", content_id: "logo" });
-    expect(db.upsert.mock.calls[0][0].create).toEqual({ id: input.deliveryKey, recipientCount: 1 });
+    expect(db.upsert.mock.calls[0][0].create).toEqual({ id: input.deliveryKey, recipientCount: 1, category: "general" });
     expect(db.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "ACCEPTED", providerMessageId: "provider-id" }) }));
   });
 

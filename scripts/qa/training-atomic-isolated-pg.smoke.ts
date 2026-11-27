@@ -1,3 +1,4 @@
+import { getPremiumOrRewardedAccess, requirePremiumOrRewardedUnlock } from "../../apps/api/src/modules/rewarded-credits/composition/gafus-access.js";
 /** Real PostgreSQL atomic learner course mutation; isolated by shell launcher. */
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -10,8 +11,18 @@ if (process.env.GAFUS_TRAINING_ATOMIC_QA !== "1" || url.hostname !== "127.0.0.1"
     url.pathname !== "/gafus_refactor_training_atomic_qa" || url.port === "5432" || !url.port) {
   throw Error("REFUSE_NON_DISPOSABLE_TRAINING_DATABASE");
 }
-const service = createTrainingService(getCoreTrainingDependencies());
-const another = createTrainingService(getCoreTrainingDependencies());
+const { checkCourseAccess, checkCourseAccessById } = await import("../../apps/api/src/modules/courses/composition/catalog-read-instance.js");
+const { hasActiveGafusCourseStepAccess } = await import("../../packages/core/src/services/contentAccess/index.js");
+const { getTrainingDayContent } = await import("../../packages/core/src/services/training/trainingDayContent.js");
+const { occurrenceReadPort } = await import("../../apps/api/src/modules/content-access/composition/occurrence-reads-instance.js");
+const { dayContentReadPort, contentRevisionReadPort } = await import("../../apps/api/src/modules/training/composition/training-content-rows-instance.js");
+const deps = {
+  ...getCoreTrainingDependencies({ checkCourseAccess, checkCourseAccessById, getPremiumOrRewardedAccess, requirePremiumOrRewardedUnlock }),
+  hasActiveGafusCourseStepAccess: (input: Parameters<typeof hasActiveGafusCourseStepAccess>[0]) => hasActiveGafusCourseStepAccess(input, occurrenceReadPort),
+  getTrainingDayContent: (courseType: string, dayOnCourseId: string) => getTrainingDayContent(courseType, dayOnCourseId, { contentRows: dayContentReadPort, revisionRows: contentRevisionReadPort }),
+};
+const service = createTrainingService(deps);
+const another = createTrainingService(deps);
 assert.notEqual(service.updateStepAndDay, another.updateStepAndDay, "two instances are independent");
 
 async function main() {

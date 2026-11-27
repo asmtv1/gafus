@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { useAuthStore, useCourseStore, useStepStore } from "@/shared/stores";
-import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
+import { favoritesForActor } from "@/shared/lib/api/favoritesQuery";
 import { resetUserStores } from "@/shared/stores/resetAll";
 import { flushMobileIntroEvents } from "@/shared/lib/api/mobile-intro";
 import { useNetworkStatusStore } from "@/shared/stores/networkStatusStore";
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const userId = useAuthStore((state) => state.user?.id);
   const isOffline = useNetworkStatusStore((state) => state.isOffline);
   const isLoading = useAuthStore((state) => state.isLoading);
-  const prevAuthRef = useRef<{ authenticated: boolean; userId: string | null } | null>(null);
+  const prevAuthRef = useRef<{ authenticated: boolean; userId: string | null; epoch: string | null } | null>(null);
   const favoritesLoadedRef = useRef<string | null>(null);
   const verified = newOnlyV2NativeQueues.getVerifiedBinding();
   const verifiedEpoch = isAuthenticated && userId && sessionEpoch &&
@@ -54,17 +54,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (isLoading) return;
     const previous = prevAuthRef.current;
     const principalId = isAuthenticated ? (userId ?? null) : null;
-    prevAuthRef.current = { authenticated: isAuthenticated, userId: principalId };
+    prevAuthRef.current = { authenticated: isAuthenticated, userId: principalId, epoch: verifiedEpoch };
 
     if (previous?.authenticated && !isAuthenticated) {
       resetUserStores();
-    } else if (previous?.authenticated && isAuthenticated && previous.userId !== principalId) {
-      // A direct authenticated USER-A → USER-B switch must discard private
-      // in-memory queries without deleting native offline files or queues.
+    } else if (previous?.authenticated && isAuthenticated && (previous.userId !== principalId || previous.epoch !== verifiedEpoch)) {
+      // A direct account switch or verified session rotation must discard
+      // old private in-memory queries without deleting durable offline data.
       queryClient.clear();
       useCourseStore.setState({ favorites: [] });
     }
-  }, [isAuthenticated, isLoading, queryClient, userId]);
+  }, [isAuthenticated, isLoading, queryClient, userId, verifiedEpoch]);
 
   useEffect(() => {
     if (isLoading || (isAuthenticated && !verifiedEpoch)) return;
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     (async () => {
       try {
-        const res = await queryClient.fetchQuery(favoritesQueryOptions);
+        const res = await queryClient.fetchQuery(favoritesForActor({ ownerId: userId, authEpoch: verifiedEpoch }));
         // An earlier principal's request can resolve after the user switches.
         // Never copy its private favorites into the next account's store.
         const current = useAuthStore.getState();

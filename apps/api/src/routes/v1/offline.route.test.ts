@@ -14,9 +14,9 @@ vi.mock("@gafus/course-read-server/offline-application", () => ({
 }));
 vi.mock("@gafus/core/services/offline", () => ({
 }));
-vi.mock("@gafus/core/services/training", () => ({
-  getTrainingDays: mocks.getTrainingDays,
-}));
+vi.mock("../../modules/training/composition/sql-training-instance.js", () => ({ sqlTraining: {
+  getTrainingDays: mocks.getTrainingDays
+} }));
 vi.mock("@gafus/core/services/appSubscription", () => ({
   getAppSubscriptionAccess: mocks.getAppSubscriptionAccess,
   isOfflineCourseDownloadIncludedPlanCode: (planCode: unknown) =>

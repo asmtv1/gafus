@@ -7,7 +7,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import {
   ciSignedReleaseSchema, validateSignedOtaCiResult, matchesStoredOtaCiReplay,
   type NativeTrustRecord, type StoredOtaCiReplay, type StoredOtaArtifact,
-} from "./ci-registration";
+} from "@gafus/mobile-ota-server/ci-registration";
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "gafus-ci-crypto-"));
 const keyFile = path.join(temp, "key.pem");

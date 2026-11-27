@@ -1,6 +1,6 @@
 import {
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
-  type getMobileFeatureFlagEnabled,
+  type AppFeatureFlagsPorts,
   type ClientAppContext,
 } from "../appFeatureFlags";
 import {
@@ -17,7 +17,7 @@ export interface SubscriptionOfferPorts {
     appleAppAccountToken: string | null;
     savedRegistrationPromoCode: { code: string; isActive: boolean; archivedAt: Date | null } | null;
   }>;
-  readMobileFlag: typeof getMobileFeatureFlagEnabled;
+  readMobileFlag: AppFeatureFlagsPorts["getMobileFeatureFlagEnabled"];
   readPromoCodeState: typeof getAppSubscriptionPromoCodeOfferState;
 }
 

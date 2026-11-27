@@ -258,7 +258,8 @@ vi.mock("./telemetry", () => ({
 }));
 vi.mock("./uploads", () => ({}));
 
-import { FeedPostCard, FeedScreen } from "./screens";
+import { FeedPostCard } from "./FeedPostCard";
+import { FeedScreen } from "./FeedScreen";
 import type { FeedPostDto } from "@gafus/types";
 
 const post = {

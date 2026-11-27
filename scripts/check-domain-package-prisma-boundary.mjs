@@ -16,6 +16,10 @@ const legacyAdapters = [
 // direct persistence until their transport contracts are redesigned; no additional
 // module can start importing the database without failing CI.
 const permittedInfrastructure = new Set([
+  "packages/media-server/src/chat2DeletionRows.ts", // Chat2 durable receipt and fenced recovery SQL
+  "packages/notifications-server/src/chat2-outbox-rows.ts", // Chat2 durable receipt and fenced recovery SQL
+  "packages/feed-server/src/feedVideoRecoveryRows.ts", // bounded due-video recovery projection, no external dispatch
+  "packages/media-server/src/chat2VideoRecoveryRows.ts", // bounded due-video recovery projection, no external dispatch
   "packages/mobile-ota-server/src/version-publication-repository.ts", // serializable platform/version publication lock, replay and immutable audit append
   "packages/mobile-ota-server/src/version-selection-repository.ts", // observed native installation and exact signed version lookup
   "packages/mobile-ota-server/src/ci-registration.ts", // verified signed Expo manifest, immutable asset and idempotent CI receipt SQL
@@ -43,7 +47,6 @@ const permittedInfrastructure = new Set([
   "packages/subscription-write-server/src/npdEmailDeliveryService.ts", // durable receipt delivery
   "packages/subscription-write-server/src/renewalCandidatesService.ts", // exhaustion checkpoint before fetching candidates
   "packages/subscription-write-server/src/renewalAttemptService.ts", // unique active renewal intent/idempotence CAS
-  "packages/subscription-write-server/src/renewalFinalizationService.ts", // atomic billing period, partner commission and NPD receipt
   "packages/subscription-write-server/src/renewalProviderResultService.ts", // transactional provider failure/cancel semantics
   "packages/subscription-write-server/src/renewalReminderService.ts", // atomic next-period reminder stamp
   "packages/subscription-finance-server/src/npd-operation-persistence.ts", // NPD transactional lease, CAS finish, receipt + email journal
@@ -183,6 +186,7 @@ const permittedInfrastructure = new Set([
   "packages/course-progress-server/src/dailyCourseService.ts", // daily course and import/cleanup transaction ownership
   "packages/course-read-server/src/videoAccessRead.ts", // trainer-video and course occurrence projections: no entitlement decisions
   "packages/course-read-server/src/gafus-entitlement-reads.ts", // exact owner scoped user-step and video occurrence projections; grants remain Core-owned
+  "packages/course-read-server/src/catalogCards.ts", // bounded viewer-scoped card projection
   "packages/course-read-server/src/legacyCatalogRows.ts", // public course catalogue SQL with viewer-scoped favorites, access and progress rows
   "packages/course-read-server/src/coursePathRead.ts", // owner-course path progress and non-private training-day IDs
   "packages/course-read-server/src/offlineRead.ts", // read-only offline course/version projection: no ACL inference or writes

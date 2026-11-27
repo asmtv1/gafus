@@ -3,7 +3,44 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { TrainerOptInRoute } from "./optInRoute";
-import type { CourseFormSourceMockTransport } from "./trainerCourseFullFormSourceMockTransport20261023";
+import { TrainerCourseFullFormSourceMock20261023 } from "./__fixtures__/TrainerCourseFullFormSourceMock20261023";
+
+// The historical form is a fixture, not an alternative production editor.
+function FixtureRoute(p: Parameters<typeof TrainerOptInRoute>[0] & {
+  enableCourseFullFormSourceMock?: boolean;
+  courseFullFormSourceMockTransport?: CourseFormSourceMockTransport;
+}) {
+  const fullFormPath =
+    p.pathname === "/main-panel/courses/new" ||
+    /^\/main-panel\/courses\/[^/]+\/edit\/?$/.test(p.pathname);
+  const current = p.getCurrentSession
+    ? p.getCurrentSession()
+    : {
+        actor: p.actor,
+        token: p.token,
+        authEpoch: p.authEpoch,
+      };
+  const mockAllowed =
+    p.enableCourseFullFormSourceMock === true &&
+    !!p.courseFullFormSourceMockTransport &&
+    !!p.token &&
+    !!p.authEpoch &&
+    !!current &&
+    current.actor.id === p.actor.id &&
+    current.actor.role === p.actor.role &&
+    current.token === p.token &&
+    current.authEpoch === p.authEpoch &&
+    (p.actor.role === "TRAINER" || p.actor.role === "ADMIN");
+  if (fullFormPath && mockAllowed)
+    return createElement(TrainerCourseFullFormSourceMock20261023, {
+      ...p,
+      enabled: true,
+      transport: p.courseFullFormSourceMockTransport,
+      key: JSON.stringify([p.actor.id, p.actor.role, p.token, p.authEpoch, p.pathname]),
+    });
+  return createElement(TrainerOptInRoute, p);
+}
+import type { CourseFormSourceMockTransport } from "./__fixtures__/trainerCourseFullFormSourceMockTransport20261023";
 import type { PanelActor } from "./consultationContract";
 const h = { "cache-control": "private, no-store", "referrer-policy": "no-referrer" };
 const actor: PanelActor = { id: "trainer-a", role: "TRAINER" };
@@ -87,7 +124,7 @@ async function mount(extra: Record<string, unknown> = {}) {
     courseFullFormSourceMockTransport: mock,
     ...extra,
   };
-  await act(async () => root.render(createElement(TrainerOptInRoute, props)));
+  await act(async () => root.render(createElement(FixtureRoute, props)));
   await flush();
   return props;
 }

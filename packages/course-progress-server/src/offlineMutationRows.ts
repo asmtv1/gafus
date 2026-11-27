@@ -1,3 +1,4 @@
+import { stepProgressVersion } from "./stepProgressVersion";
 /** SQL-only source-review offline v2 journal port; not activated by routing. */
 
 import { Prisma, prisma } from "@gafus/prisma";
@@ -182,4 +183,18 @@ export function commitPreventionReceipt(
     ownerId,
     "RESERVED",
   );
+}
+
+
+/** One owner-scoped query for a newly downloaded course, not one per day/step. */
+export async function readOfflineProgressVersions(ownerId: string, courseId: string): Promise<Record<string, string>> {
+  const rows = await prisma.userStep.findMany({
+    where: { userTraining: { userId: ownerId, dayOnCourse: { courseId } } },
+    select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true, updatedAt: true,
+      userTraining: { select: { dayOnCourseId: true } } },
+  });
+  return Object.fromEntries(rows.flatMap(row => {
+    const version = stepProgressVersion(row);
+    return version ? [[row.userTraining.dayOnCourseId + ":" + row.stepOnDayId, version]] : [];
+  }));
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultMobileDateFilter, mobileIntroFilterFromSearch, mobileIntroReportUrl, mobileIntroRouteUrl } from "./MobileIntroPanel";
+import { defaultMobileDateFilter, mobileIntroFilterFromSearch, mobileIntroReportUrl, mobileIntroRouteUrl } from "./mobileIntroNavigation";
 
 describe("legacy Next mobile intro date parity", () => {
   it("defaults to last 30 Samara calendar days", () => {

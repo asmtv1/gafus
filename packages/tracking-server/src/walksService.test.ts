@@ -2,30 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocked = vi.hoisted(() => ({
   findUser: vi.fn(),
-  upsert: vi.fn(),
-  findMany: vi.fn(),
-  transaction: vi.fn(),
-  findTombstones: vi.fn(),
+  execute: vi.fn(), query: vi.fn(), transaction: vi.fn(),
 }));
 vi.mock("@gafus/prisma", () => ({ prisma: {
-  user: { findUnique: mocked.findUser },
-  dogWalkRecord: { upsert: mocked.upsert, findMany: mocked.findMany },
-  dogWalkTombstone: { findMany: mocked.findTombstones },
-  $transaction: mocked.transaction,
+  user: { findUnique: mocked.findUser }, $queryRaw: mocked.query, $transaction: mocked.transaction,
 } }));
 import { assertWalkHistoryAccess, syncCompletedDogWalks } from "./walksService.js";
 
 beforeEach(() => {
-  mocked.findUser.mockReset();
-  mocked.upsert.mockReset().mockResolvedValue({});
-  mocked.findMany.mockReset().mockResolvedValue([]);
-  mocked.findTombstones.mockReset().mockResolvedValue([]);
-  mocked.transaction.mockReset().mockImplementation((fn: (tx: {
-    dogWalkTombstone: { findMany: typeof mocked.findTombstones };
-    dogWalkRecord: { upsert: typeof mocked.upsert };
-  }) => Promise<unknown>) =>
-    fn({ dogWalkTombstone: { findMany: mocked.findTombstones },
-      dogWalkRecord: { upsert: mocked.upsert } }));
+  vi.resetAllMocks();
+  mocked.execute.mockResolvedValue(1);
+  mocked.query.mockResolvedValue([]);
+  mocked.transaction.mockImplementation(fn => fn({ $executeRaw: mocked.execute }));
 });
 
 describe("dog walk persisted owner access", () => {
@@ -54,13 +42,13 @@ describe("dog walk persisted owner access", () => {
       timerMode: "stopwatch",
       incompleteSteps: false,
     }]);
-    const param = mocked.upsert.mock.calls[0][0];
-    expect(param.where.userId_clientId).toEqual({
-      userId: "jwt-actor", clientId: "fb2f0e7b-0c4d-4918-b518-45ed15ca19e2",
-    });
-    expect(param.create.userId).toBe("jwt-actor");
-    expect(mocked.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { userId: "jwt-actor" },
-    }));
+    expect(mocked.findUser).toHaveBeenCalledTimes(1);
+    expect(mocked.execute).toHaveBeenCalledTimes(2);
+    const [sql, owner, payload, markerOwner] = mocked.execute.mock.calls[1];
+    expect(owner).toBe("jwt-actor");
+    expect(markerOwner).toBe(owner);
+    expect(JSON.parse(payload)).toMatchObject([{ clientId: "fb2f0e7b-0c4d-4918-b518-45ed15ca19e2" }]);
+    expect(sql.join("?")).toContain('ON CONFLICT ("userId", "clientId") DO UPDATE');
+    expect(mocked.query.mock.calls[0][0].join("?")).toContain('NOT EXISTS');
   });
 });

@@ -1,3 +1,4 @@
+import { petRows } from "../../modules/pets/composition/pet-rows-instance.js";
 /** G1 documents: Hono auth and DTO contract; Core mocked, no provider I/O. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -60,7 +61,7 @@ describe("G1 pet document route security & DTO (mock Core)", () => {
   it("uses JWT actor for listing, ignoring forged userId", async () => {
     const r = await request("?userId=user-B");
     expect(r.status).toBe(200);
-    expect(m.listPetDocuments).toHaveBeenCalledWith("pet-A", "user-A");
+    expect(m.listPetDocuments).toHaveBeenCalledWith(petRows, "pet-A", "user-A");
     expect(await r.json()).toEqual({ success: true, data: [{ id: "doc-A" }] });
   });
   it("maps missing/foreign pet to 404", async () => {
@@ -74,13 +75,13 @@ describe("G1 pet document route security & DTO (mock Core)", () => {
     m.preparePetDocumentDownload.mockResolvedValueOnce(null);
     const r = await request("/doc-A/download?userId=user-A");
     expect(r.status).toBe(404);
-    expect(m.preparePetDocumentDownload).toHaveBeenCalledWith("doc-A", "user-B", "pet-A");
+    expect(m.preparePetDocumentDownload).toHaveBeenCalledWith(petRows, "doc-A", "user-B", "pet-A");
     expect(await r.json()).toMatchObject({ success: false, code: "DOCUMENT_NOT_FOUND" });
   });
   it("passes JWT owner to Core before returning signed link", async () => {
     const r = await request("/doc-A/download");
     expect(r.status).toBe(200);
-    expect(m.preparePetDocumentDownload).toHaveBeenCalledWith("doc-A", "user-A", "pet-A");
+    expect(m.preparePetDocumentDownload).toHaveBeenCalledWith(petRows, "doc-A", "user-A", "pet-A");
     expect(await r.json()).toMatchObject({ success: true, data: { documentId: "doc-A" } });
   });
   it("rejects untrusted browser Origin before mutation", async () => {
@@ -101,7 +102,7 @@ describe("G1 pet document route security & DTO (mock Core)", () => {
   it("normalizes rename and preserves existing JSON DTO", async () => {
     const r = await request("/doc-A", "PUT", { name: "  updated " });
     expect(r.status).toBe(200);
-    expect(m.renamePetDocument).toHaveBeenCalledWith("doc-A", "user-A", "updated", "pet-A");
+    expect(m.renamePetDocument).toHaveBeenCalledWith(petRows, "doc-A", "user-A", "updated", "pet-A");
     expect(await r.json()).toMatchObject({ success: true, data: { name: "updated.pdf" } });
   });
   it("foreign rename remains 404", async () => {
@@ -109,20 +110,20 @@ describe("G1 pet document route security & DTO (mock Core)", () => {
     m.renamePetDocument.mockResolvedValueOnce(null);
     const r = await request("/doc-A", "PUT", { name: "forged" });
     expect(r.status).toBe(404);
-    expect(m.renamePetDocument).toHaveBeenCalledWith("doc-A", "user-B", "forged", "pet-A");
+    expect(m.renamePetDocument).toHaveBeenCalledWith(petRows, "doc-A", "user-B", "forged", "pet-A");
   });
   it("foreign deletion remains 404 and uses JWT actor", async () => {
     m.verifyAccessToken.mockResolvedValueOnce(stranger);
     m.deletePetDocument.mockResolvedValueOnce(false);
     const r = await request("/doc-A", "DELETE");
     expect(r.status).toBe(404);
-    expect(m.deletePetDocument).toHaveBeenCalledWith("doc-A", "user-B", "pet-A");
+    expect(m.deletePetDocument).toHaveBeenCalledWith(petRows, "doc-A", "user-B", "pet-A");
     expect(await r.json()).toMatchObject({ success: false, code: "DOCUMENT_NOT_FOUND" });
   });
   it("authorized delete preserves existing JSON", async () => {
     const r = await request("/doc-A", "DELETE");
     expect(r.status).toBe(200);
-    expect(m.deletePetDocument).toHaveBeenCalledWith("doc-A", "user-A", "pet-A");
+    expect(m.deletePetDocument).toHaveBeenCalledWith(petRows, "doc-A", "user-A", "pet-A");
     expect(await r.json()).toEqual({ success: true });
   });
   it("rejects missing multipart file before upload", async () => {
@@ -166,3 +167,5 @@ describe("G1 pet document route security & DTO (mock Core)", () => {
     expect(await r.text()).not.toContain("SECRET_TEST_STORAGE_TOKEN");
   });
 });
+
+vi.mock("../../modules/pets/composition/pet-rows-instance.js", () => ({ petRows: {} }));

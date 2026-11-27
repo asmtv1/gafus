@@ -12,30 +12,7 @@ import parsePhoneNumberFromString from "libphonenumber-js";
 import { z } from "zod/v3";
 
 import { resetPasswordByToken, type PasswordResetPorts } from "./passwordReset";
-import {
-  readAuthUsernameChangeActor,
-  readAuthUsernameCandidate,
-  updateAuthUsername,
-  readAuthCurrentUsername,
-  readAuthUsernameOwner,
-  readAuthUserSummary,
-  readLoginCredentials,
-  readAuthRegistrationPending,
-  createAuthRefreshToken,
-  readAuthRefreshToken,
-  rotateAuthRefreshToken,
-  revokeAuthRefreshToken,
-  revokeAllAuthSessions,
-  readAuthVkPhone,
-  readAuthPhoneOwnerExcluding,
-  updateAuthVkPhone,
-  readAuthPasswordSetAt,
-  setAuthPasswordOnce,
-  readAuthNotificationEmail,
-  readAuthPasswordForChange,
-  changeAuthPasswordCAS,
-  type RegistrationChannel,
-} from "./authRowsPort";
+import type { AuthRowsPort, RegistrationChannel } from "./authRowsPort";
 import { createWebLogger } from "@gafus/logger";
 
 import {
@@ -135,7 +112,7 @@ export async function registerUserService(
 /**
  * Сбрасывает пароль по токену
  */
-export async function resetPassword(token: string, password: string, ports?: PasswordResetPorts): Promise<void> {
+export async function resetPassword(token: string, password: string, ports: PasswordResetPorts): Promise<void> {
   logger.info("Resetting password");
   await resetPasswordByToken(token, password, ports);
 }
@@ -147,7 +124,7 @@ const USERNAME_REGEX = /^[a-z0-9_]+$/;
 /**
  * Смена логина пользователя. Уведомление на email, если указан.
  */
-export async function changeUsername(userId: string, newUsername: string): Promise<void> {
+export async function changeUsername(rows: AuthRowsPort, userId: string, newUsername: string): Promise<void> {
   const normalized = newUsername.trim().toLowerCase();
 
   if (normalized.length < USERNAME_MIN_LENGTH || normalized.length > USERNAME_MAX_LENGTH) {
@@ -157,7 +134,7 @@ export async function changeUsername(userId: string, newUsername: string): Promi
     throw new Error("Логин: минимум 3 символа, только латиница, цифры и _");
   }
 
-  const currentUser = await readAuthUsernameChangeActor(userId);
+  const currentUser = await rows.readAuthUsernameChangeActor(userId);
 
   if (!currentUser) {
     throw new Error("Пользователь не найден");
@@ -167,13 +144,13 @@ export async function changeUsername(userId: string, newUsername: string): Promi
     return;
   }
 
-  const existing = await readAuthUsernameCandidate(normalized);
+  const existing = await rows.readAuthUsernameCandidate(normalized);
   if (existing) {
     throw new Error("Логин уже занят");
   }
 
   try {
-    await updateAuthUsername(userId, normalized);
+    await rows.updateAuthUsername(userId, normalized);
   } catch (error) {
     const prismaError = error as { code?: string };
     if (prismaError.code === "P2002") {
@@ -200,6 +177,7 @@ export async function changeUsername(userId: string, newUsername: string): Promi
  * Нормализация: trim + lowercase, как в changeUsername.
  */
 export async function isUsernameAvailable(
+  rows: AuthRowsPort,
   username: string,
   currentUserId?: string,
 ): Promise<boolean> {
@@ -214,11 +192,11 @@ export async function isUsernameAvailable(
   }
 
   if (currentUserId) {
-    const currentUser = await readAuthCurrentUsername(currentUserId);
+    const currentUser = await rows.readAuthCurrentUsername(currentUserId);
     if (currentUser?.username === normalized) return true;
   }
 
-  const existing = await readAuthUsernameOwner(normalized);
+  const existing = await rows.readAuthUsernameOwner(normalized);
 
   return !existing || existing.id === currentUserId;
 }
@@ -229,9 +207,10 @@ export async function isUsernameAvailable(
  * Получает минимальные данные пользователя для auth-ответа (id, username, role, phone).
  */
 export async function getAuthUserById(
+  rows: AuthRowsPort,
   userId: string,
 ): Promise<{ id: string; username: string; role: string; phone: string | null } | null> {
-  const user = await readAuthUserSummary(userId);
+  const user = await rows.readAuthUserSummary(userId);
   return user;
 }
 
@@ -239,11 +218,12 @@ export async function getAuthUserById(
  * Проверяет учётные данные пользователя (login).
  */
 export async function validateCredentials(
+  rows: AuthRowsPort,
   username: string,
   password: string,
 ): Promise<ValidateCredentialsSuccess | ValidateCredentialsFailure> {
   const normalized = username.toLowerCase().trim();
-  const user = await readLoginCredentials(normalized);
+  const user = await rows.readLoginCredentials(normalized);
   if (!user || user.registrationPending) return { success: false };
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return { success: false };
@@ -255,23 +235,25 @@ export async function validateCredentials(
  * tokenId и tokenHash генерируются в API, core только сохраняет.
  */
 export async function createRefreshSession(
+  rows: AuthRowsPort,
   userId: string,
   tokenId: string,
   tokenHash: string,
   metadata: RefreshSessionMetadata,
 ): Promise<void> {
-  const user = await readAuthRegistrationPending(userId);
+  const user = await rows.readAuthRegistrationPending(userId);
   if (!user || user.registrationPending) throw new Error("Registration is not completed");
-  await createAuthRefreshToken(userId, tokenId, tokenHash, metadata);
+  await rows.createAuthRefreshToken(userId, tokenId, tokenHash, metadata);
 }
 
 /**
  * Валидирует refresh-токен (наличие, срок, revoke).
  */
 export async function validateRefreshToken(
+  rows: AuthRowsPort,
   tokenHash: string,
 ): Promise<ValidateRefreshSuccess | ValidateRefreshFailure> {
-  const stored = await readAuthRefreshToken(tokenHash);
+  const stored = await rows.readAuthRefreshToken(tokenHash);
   if (!stored) return { valid: false, reason: "not_found" };
   if (stored.revokedAt) {
     // A competing refresh can observe the just-rotated token. Reject without
@@ -304,13 +286,14 @@ export class RefreshRotationConflictError extends Error {
 }
 
 export async function rotateRefreshToken(
+  rows: AuthRowsPort,
   oldTokenHash: string,
   userId: string,
   newTokenHash: string,
   newTokenId: string,
   metadata: RefreshSessionMetadata,
 ): Promise<void> {
-  const rotated = await rotateAuthRefreshToken(
+  const rotated = await rows.rotateAuthRefreshToken(
     oldTokenHash,
     userId,
     newTokenHash,
@@ -324,15 +307,15 @@ export async function rotateRefreshToken(
 /**
  * Отзывает refresh-токен по хешу.
  */
-export async function revokeRefreshToken(tokenHash: string): Promise<void> {
-  await revokeAuthRefreshToken(tokenHash);
+export async function revokeRefreshToken(rows: AuthRowsPort, tokenHash: string): Promise<void> {
+  await rows.revokeAuthRefreshToken(tokenHash);
 }
 
 /**
  * Отзывает все refresh-токены пользователя.
  */
-export async function revokeAllUserTokens(userId: string): Promise<void> {
-  await revokeAllAuthSessions(userId);
+export async function revokeAllUserTokens(rows: AuthRowsPort, userId: string): Promise<void> {
+  await rows.revokeAllAuthSessions(userId);
 }
 
 // ========== VK-only: setVkPhone, setPassword, changePassword ==========
@@ -340,8 +323,8 @@ export async function revokeAllUserTokens(userId: string): Promise<void> {
 /**
  * Установка номера телефона для VK-пользователя (phone = "vk_...").
  */
-export async function setVkPhone(userId: string, phone: string): Promise<void> {
-  const user = await readAuthVkPhone(userId);
+export async function setVkPhone(rows: AuthRowsPort, userId: string, phone: string): Promise<void> {
+  const user = await rows.readAuthVkPhone(userId);
   if (!user) throw new Error("Пользователь не найден");
   if (!user.phone?.startsWith("vk_")) {
     throw new Error("Смена номера недоступна через этот метод");
@@ -353,18 +336,18 @@ export async function setVkPhone(userId: string, phone: string): Promise<void> {
   }
   const formatted = parsed.format("E.164");
 
-  const existing = await readAuthPhoneOwnerExcluding(userId, formatted);
+  const existing = await rows.readAuthPhoneOwnerExcluding(userId, formatted);
   if (existing) throw new Error("Номер телефона уже занят");
 
-  await updateAuthVkPhone(userId, formatted);
+  await rows.updateAuthVkPhone(userId, formatted);
   logger.success("vkPhone set", { userId });
 }
 
 /**
  * Установка пароля для VK-only пользователя (passwordSetAt === null).
  */
-export async function setPassword(userId: string, newPassword: string): Promise<void> {
-  const user = await readAuthPasswordSetAt(userId);
+export async function setPassword(rows: AuthRowsPort, userId: string, newPassword: string): Promise<void> {
+  const user = await rows.readAuthPasswordSetAt(userId);
   if (!user) throw new Error("Пользователь не найден");
   if (user.passwordSetAt !== null) {
     throw new Error("Пароль уже установлен, используйте смену пароля");
@@ -372,11 +355,11 @@ export async function setPassword(userId: string, newPassword: string): Promise<
 
   newPasswordSchema.parse(newPassword);
   const hash = await bcrypt.hash(newPassword, 12);
-  if (!(await setAuthPasswordOnce(userId, hash)))
+  if (!(await rows.setAuthPasswordOnce(userId, hash)))
     throw new Error("Пароль уже установлен, используйте смену пароля");
   logger.success("setPassword completed", { userId });
 
-  const u = await readAuthNotificationEmail(userId);
+  const u = await rows.readAuthNotificationEmail(userId);
   if (u?.email?.trim()) {
     await sendPasswordChangedNoticeEmail(u.email).catch((err) =>
       logger.error(
@@ -392,11 +375,12 @@ export async function setPassword(userId: string, newPassword: string): Promise<
  * Смена пароля (для пользователей с passwordSetAt !== null).
  */
 export async function changePassword(
+  rows: AuthRowsPort,
   userId: string,
   currentPassword: string,
   newPassword: string,
 ): Promise<void> {
-  const user = await readAuthPasswordForChange(userId);
+  const user = await rows.readAuthPasswordForChange(userId);
   if (!user) throw new Error("Пользователь не найден");
   if (user.passwordSetAt === null) {
     throw new Error("Сначала установите пароль");
@@ -407,11 +391,11 @@ export async function changePassword(
 
   newPasswordSchema.parse(newPassword);
   const hash = await bcrypt.hash(newPassword, 12);
-  if (!(await changeAuthPasswordCAS(userId, user.password, hash)))
+  if (!(await rows.changeAuthPasswordCAS(userId, user.password, hash)))
     throw new Error("Неверный текущий пароль");
   logger.success("changePassword completed", { userId });
 
-  const u = await readAuthNotificationEmail(userId);
+  const u = await rows.readAuthNotificationEmail(userId);
   if (u?.email?.trim()) {
     await sendPasswordChangedNoticeEmail(u.email).catch((err) =>
       logger.error(

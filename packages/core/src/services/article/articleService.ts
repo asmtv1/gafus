@@ -16,7 +16,7 @@ import type { ActionResult } from "@gafus/types";
 import type { ArticleListDto, ArticleDetailDto, ArticleViewerDto } from "@gafus/types";
 import { createArticleSchema, updateArticleSchema, type CreateArticleSchemaInput } from "./schemas";
 import type { MonetizedAccessPlatform } from "../rewardedCredits";
-import { resolveArticleEntitlement } from "../contentAccess/policy";
+import type { ContentPolicy } from "../contentAccess/policy";
 
 const logger = createWebLogger("article-service");
 
@@ -58,6 +58,7 @@ export type GetArticlesResult =
 
 export async function getArticles(
   rowsPort: ArticleReadPort,
+  resolveArticleEntitlement: ContentPolicy["resolveArticleEntitlement"],
   userId?: string,
   take = 50,
   skip = 0,
@@ -96,15 +97,17 @@ export type GetArticleBySlugResult =
 
 export async function getArticleBySlug(
   rowsPort: ArticleReadPort,
+  resolveArticleEntitlement: ContentPolicy["resolveArticleEntitlement"],
   slug: string,
   userId?: string,
 ): Promise<GetArticleBySlugResult> {
-  return getArticleBySlugForMonetizedAccess(rowsPort, { slug, userId, platform: "WEB_DESKTOP" });
+  return getArticleBySlugForMonetizedAccess(rowsPort, resolveArticleEntitlement, { slug, userId, platform: "WEB_DESKTOP" });
 }
 
 /** Single server-side paywall for both Web and Mobile, including direct links. */
 export async function getArticleBySlugForMonetizedAccess(
   rowsPort: ArticleReadPort,
+  resolveArticleEntitlement: ContentPolicy["resolveArticleEntitlement"],
   input: {
     slug: string;
     userId?: string;

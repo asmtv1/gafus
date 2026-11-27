@@ -4,7 +4,7 @@
 import { createHash } from "node:crypto";
 import {
   resolveCourseStepTargetTx,
-  resolveCourseStepAccessTx,
+  type TransactionalContentPolicy,
 } from "../contentAccess";
 import { extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
 import { z } from "zod/v3";
@@ -123,6 +123,7 @@ export async function authorizeVideoOccurrenceV3(
   tx: Parameters<typeof resolveCourseStepTargetTx>[0],
   ownerId: string,
   v: VideoOccurrenceV3,
+  resolveAccess: TransactionalContentPolicy["resolveCourseStepAccessTx"],
   now = new Date(),
 ): Promise<Decision> {
   const video = await tx.trainerVideo.findUnique({
@@ -149,7 +150,7 @@ export async function authorizeVideoOccurrenceV3(
       !stepContainsExactTrainerVideoUrl(step.step.videoUrl, video)
     )
       return "NOT_FOUND";
-    const access = await resolveCourseStepAccessTx(tx, ownerId, target, now);
+    const access = await resolveAccess(tx, ownerId, target, now);
     if (access.allowed) return "ALLOWED";
     // Retired rewarded-ad grants are never educational entitlements.
     // Only current Premium, a valid Gafus unlock, or free/assigned access

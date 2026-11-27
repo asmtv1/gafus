@@ -22,7 +22,7 @@ describe("AG1 nullable measurements Core owner-scoped persistence", () => {
   it("C01 only four approved null fields map to Prisma nullable columns", async () => {
     const d = { heightCm: null, neckGirthCm: null,
       muzzleGirthCm: null, bellyGirthCm: null };
-    const value = await updatePet("pet-A", "owner-A", d);
+    const value = await updatePet(petRows, "pet-A", "owner-A", d);
     expect(m.findFirst).toHaveBeenCalledWith({
       where: { id: "pet-A", ownerId: "owner-A" },
     });
@@ -33,7 +33,7 @@ describe("AG1 nullable measurements Core owner-scoped persistence", () => {
     expect(value).toMatchObject(d);
   });
   it("C02 omitted fields never written, partial null does not clear birthDate", async () => {
-    await updatePet("pet-A", "owner-A", { neckGirthCm: null, heightCm: 31 });
+    await updatePet(petRows, "pet-A", "owner-A", { neckGirthCm: null, heightCm: 31 });
     const data = m.update.mock.calls[0][0].data as Record<string, unknown>;
     expect(data).toEqual({ neckGirthCm: null, heightCm: 31 });
     expect(data).not.toHaveProperty("name");
@@ -41,15 +41,15 @@ describe("AG1 nullable measurements Core owner-scoped persistence", () => {
     expect(data).not.toHaveProperty("weightKg");
   });
   it("C03 direct Core legacy weight write is explicitly rejected, never silently ignored", async () => {
-    await expect(updatePet("pet-A", "owner-A", { weightKg: 22 }))
+    await expect(updatePet(petRows, "pet-A", "owner-A", { weightKg: 22 }))
       .rejects.toBeInstanceOf(PetWeightUpdateUnsupportedError);
-    await expect(updatePet("pet-A", "owner-A", { weightKg: null } as never))
+    await expect(updatePet(petRows, "pet-A", "owner-A", { weightKg: null } as never))
       .rejects.toBeInstanceOf(PetWeightUpdateUnsupportedError);
     expect(m.update).not.toHaveBeenCalled();
   });
   it("C04 foreign pet not found, no mutation or transaction", async () => {
     m.findFirst.mockResolvedValueOnce(null);
-    expect(await updatePet("pet-B", "owner-A", { neckGirthCm: null })).toBeNull();
+    expect(await updatePet(petRows, "pet-B", "owner-A", { neckGirthCm: null })).toBeNull();
     expect(m.update).not.toHaveBeenCalled();
     expect(m.tx).not.toHaveBeenCalled();
   });
@@ -57,5 +57,5 @@ describe("AG1 nullable measurements Core owner-scoped persistence", () => {
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
-registerPetRowsPort(originalPetRowsPort as PetRowsPort);
+import type { PetRowsPort } from "./petRowsPort";
+const petRows = originalPetRowsPort as PetRowsPort;

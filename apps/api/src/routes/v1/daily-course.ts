@@ -7,7 +7,7 @@ import type {
   TodayDailyCourseRead,
   DailyCourseDayRead,
   DailyCourseBoundDayRead,
-} from "../../../../../packages/types/src/data/training";
+} from "@gafus/types/training";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
@@ -132,7 +132,7 @@ dailyCourseRoutes.get("/day", zValidator("query", scheduleQuerySchema), async (c
         noStoreHeaders,
       );
     }
-    const optedIn = c.req.header("X-Gafus-Web-Daily-Binding") === "1";
+    const optedIn = c.req.header("X-Gafus-Web-Daily-Binding") === "1" || c.req.header("X-Gafus-Sync-Protocol") === "2";
     // Legacy/native wire is unchanged, including its positional stepIndex.
     const { serverNow: _serverNow, ...legacyResult } = result;
     const data = optedIn
@@ -140,7 +140,7 @@ dailyCourseRoutes.get("/day", zValidator("query", scheduleQuerySchema), async (c
       : {
           ...legacyResult,
           steps: result.steps.map(
-            ({ bundleStepId: _bindingId, timerSnapshot: _timer, ...step }) => step,
+            ({ bundleStepId: _bindingId, timerSnapshot: _timer, offlineProgressVersion: _version, ...step }) => step,
           ),
         };
     return c.json({ success: true, data }, 200, noStoreHeaders) satisfies Response &

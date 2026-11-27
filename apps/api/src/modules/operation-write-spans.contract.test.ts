@@ -30,7 +30,9 @@ vi.mock("@gafus/core/services/petPrevention", () => ({
   upsertPreventionEntriesBatch: m.batch, updateEntry: m.update,
   deleteEntry: m.remove,
 }));
-vi.mock("@gafus/core/services/training", () => ({ updateStepAndDay: m.trainingStep }));
+vi.mock("./training/composition/sql-training-instance.js", () => ({ sqlTraining: {
+  updateStepAndDay: m.trainingStep
+} }));
 vi.mock("@gafus/core/services/user", () => ({
   getOnboardingTourStatus: m.status, markOnboardingTourSeen: m.seen,
 }));

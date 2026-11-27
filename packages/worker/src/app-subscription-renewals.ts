@@ -2,7 +2,7 @@ import {
   listDueYookassaSubscriptionRenewals, getRenewalBuyerEmail,
   prepareYookassaRenewalAttempt, isYookassaRenewalStillEligible,
   recordYookassaRenewalFailure, recordYookassaRenewalProviderId,
-  recordYookassaRenewalCanceled, finalizeVerifiedSubscriptionRenewal,
+  recordYookassaRenewalCanceled,
 } from "@gafus/subscription-write-server";
 import { acquireRenewalLock } from "./renewalLock";
 
@@ -16,9 +16,8 @@ import {
   buildYookassaRenewalPaymentPayload, classifyYookassaRenewalProviderResponse,
   type YookassaRenewalProviderResponse,
 } from "@gafus/core/services/appSubscription";
-import { ensureNpdReceiptForSucceededPayment } from "@gafus/subscription-finance-server/npd-receipts";
 import { enrichPaymentFinance } from "@gafus/subscription-payment-server/payment-finance";
-import { recordPartnerCommissionForPayment } from "@gafus/subscription-payment-server/partner";
+import { finalizeVerifiedSubscriptionRenewal } from "@gafus/subscription-payment-server/transitions";
 
 const logger = createWorkerLogger("app-subscription-renewals");
 const RENEWALS_LOCK_KEY = 90210017;
@@ -140,7 +139,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
           await recordYookassaRenewalFailure({
             paymentId: payment.id, subscriptionId: row.id,
             code: "NETWORK", reason: failureReason, retry: true, pastDue: true,
-            now, attemptCount: attemptCountForThisRun,
+            now, attemptCount: attemptCountForThisRun, periodStart,
           });
           incrementRenewalFailedTotal(1);
           skipped += 1;
@@ -153,7 +152,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
             code: "YOOKASSA_REJECTED",
             reason: `YooKassa HTTP ${res.status}`,
             retry: true, pastDue: true, now,
-            attemptCount: attemptCountForThisRun,
+            attemptCount: attemptCountForThisRun, periodStart,
           });
           incrementRenewalFailedTotal(1);
           skipped += 1;
@@ -167,14 +166,15 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
             paymentId: payment.id, subscriptionId: row.id,
             code: "INVALID_PROVIDER_RESPONSE",
             reason: "Missing YooKassa payment id",
-            retry: false, pastDue: false, now, attemptCount: attemptCountForThisRun,
+            retry: false, pastDue: false, now, attemptCount: attemptCountForThisRun, periodStart,
           });
           incrementRenewalFailedTotal(1);
           skipped += 1;
           continue;
         }
 
-        await recordYookassaRenewalProviderId(payment.id, verdict.paymentId);
+        const attached = await recordYookassaRenewalProviderId(payment.id, verdict.paymentId);
+        if (attached.count !== 1) throw new Error("RENEWAL_PROVIDER_ID_CONFLICT");
 
         if (verdict.kind === "canceled") {
           await recordYookassaRenewalCanceled(payment.id, verdict.paymentId);
@@ -187,7 +187,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
             paymentId: payment.id, subscriptionId: row.id,
             code: "PROVIDER_AMOUNT_MISMATCH",
             reason: "YooKassa renewal amount or currency mismatch",
-            retry: false, pastDue: true, now, attemptCount: attemptCountForThisRun,
+            retry: false, pastDue: true, now, attemptCount: attemptCountForThisRun, periodStart,
           });
           incrementRenewalFailedTotal(1);
           skipped += 1;
@@ -203,13 +203,12 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
             paymentId: payment.id,
             subscriptionId: row.id,
             userId: row.userId,
-            planCode: plan.code,
-            kind: paymentKind,
+            amountRub,
             providerPaymentId: verdict.paymentId,
             currency,
             periodStart,
             periodEnd,
-          }, { recordPartnerCommissionForPayment, ensureNpdReceiptForSucceededPayment });
+          });
         }
 
         processed += 1;

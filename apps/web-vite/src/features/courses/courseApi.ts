@@ -115,12 +115,29 @@ function projectCourse(course: CourseListItem): CourseListItem {
 /** The Web catalog never issues anonymous HTTP requests. The App and
  * component boundaries reject missing principals before invoking this API. */
 export async function listCourses(): Promise<CourseListItem[]> {
-  const data = await apiRequest<unknown>("/api/v1/courses");
-  if (!Array.isArray(data) || !data.every(isCourse) ||
-    new Set(data.map(course => course.id)).size !== data.length) {
-    throw new Error("Сервер вернул некорректный список курсов");
+  const error = () => new Error("Сервер вернул некорректный список курсов");
+  let path = "/api/v1/courses";
+  const courses: CourseListItem[] = [];
+  const seen = new Set<string>();
+  for (;;) {
+    const data = await apiRequest<unknown>(path, { accept: "application/vnd.gafus.course-cards+json" });
+    // Older API instances return the complete list during a rolling deployment.
+    const legacy = Array.isArray(data);
+    if (!data || typeof data !== "object" || (legacy && courses.length > 0)) throw error();
+    const page = data as { items?: unknown; next?: unknown };
+    const items = legacy ? data : page.items;
+    if (!Array.isArray(items) || !items.every(isCourse)) throw error();
+    for (const course of items) {
+      if (seen.has(course.id)) throw error();
+      seen.add(course.id);
+      courses.push(course);
+    }
+    if (legacy || page.next === null) return newestFirstFromCore(courses).map(projectCourse);
+    const next = page.next as { id?: unknown; createdAt?: unknown } | null;
+    if (!items.length || !next || typeof next.id !== "string" || next.id !== items[items.length - 1].id ||
+        typeof next.createdAt !== "string" || !Number.isFinite(Date.parse(next.createdAt))) throw error();
+    path = "/api/v1/courses?" + new URLSearchParams({ afterId: next.id, before: next.createdAt });
   }
-  return newestFirstFromCore(data).map(projectCourse);
 }
 
 /** Reuses existing authenticated Hono POST /courses/favorites.

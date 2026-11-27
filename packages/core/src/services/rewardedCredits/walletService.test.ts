@@ -108,29 +108,23 @@ vi.mock("@gafus/prisma", () => ({
   prisma: createMockClient(),
 }));
 
-vi.mock("./settingsService", () => ({
-  resolveRewardedPlatformSettings: vi.fn().mockResolvedValue({
+const resolveRewardedPlatformSettings = vi.fn().mockResolvedValue({
     platform: "ANDROID",
     platformEnabled: true,
     placementId: "demo-rewarded-yandex",
     dailyAdLimit: 1,
     testMode: true,
-  }),
-}));
+  });
 
 vi.mock("../appSubscription", () => ({
   getAppSubscriptionAccess: vi.fn().mockResolvedValue({ hasActiveSubscription: false }),
 }));
 
-import {
-  getRewardedCreditsStatus,
-  grantRewardedCreditsToWallet,
-  refundRewardedCredits,
-  spendRewardedCredits,
-} from "./walletService";
+import { createRewardedWalletService } from "./walletService";
+import { getAppSubscriptionAccess } from "../appSubscription";
 // Keep the original PostgreSQL row implementation against this test's
 // synthetic Prisma transaction, via the same typed API composition boundary.
-import { registerRewardedWalletPort, type RewardedWalletTx } from "./rewardedWalletPort";
+import type { RewardedWalletTx } from "./rewardedWalletPort";
 import {
   withLockedRewardedWallet, ensureRewardedWalletRow,
   updateRewardedWalletRow, countTodayRewardedAds,
@@ -139,7 +133,7 @@ import {
   type RewardedWalletTx as SqlRewardedWalletTx,
 } from "@gafus/gafus-server/rewarded-wallet-rows";
 const sqlTx = (tx: RewardedWalletTx): SqlRewardedWalletTx => tx as unknown as SqlRewardedWalletTx;
-registerRewardedWalletPort({
+const { getRewardedCreditsStatus, grantRewardedCreditsToWallet, refundRewardedCredits, spendRewardedCredits } = createRewardedWalletService({
   withLockedRewardedWallet: (userId, fn) =>
     withLockedRewardedWallet(userId, tx => fn(tx as unknown as RewardedWalletTx)),
   ensureRewardedWalletRow: (userId, tx) => ensureRewardedWalletRow(userId, tx ? sqlTx(tx) : undefined),
@@ -148,7 +142,7 @@ registerRewardedWalletPort({
   hasRewardedTargetSpendRow: (tx, userId, target) => hasRewardedTargetSpendRow(sqlTx(tx), userId, target),
   findRewardedTransactionByKey: (tx, key) => findRewardedTransactionByKey(sqlTx(tx), key),
   appendRewardedWalletEntry: (tx, entry) => appendRewardedWalletEntry(sqlTx(tx), entry),
-});
+}, resolveRewardedPlatformSettings, getAppSubscriptionAccess);
 
 
 describe("rewarded credits wallet", () => {

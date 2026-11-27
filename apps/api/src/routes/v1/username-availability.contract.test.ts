@@ -1,3 +1,4 @@
+import { authRows } from "../../modules/auth/composition/auth-rows-instance.js";
 import { Hono, type Context, type Next } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseUsernameAvailabilitySuccess } from "@gafus/types";
@@ -134,3 +135,5 @@ describe("username HTTP400 missing-key Zod diagnostics", () => {
     expect(await response.json()).toEqual({success:false,error:{issues:result.error.issues,name:"ZodError"}});
   });
 });
+
+vi.mock("../../modules/auth/composition/auth-rows-instance.js", () => ({ authRows: {} }));

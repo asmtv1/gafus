@@ -72,6 +72,7 @@ const courseSelect = {
 
 export async function readCatalogCourseRows(userId?: string) {
   return prisma.course.findMany({
+    where: userId ? { OR: [{ isPrivate: false }, { access: { some: { userId } } }] } : { isPrivate: false },
     select: {
       ...courseSelect,
       // The catalog only needs the current viewer's entitlement. Selecting all

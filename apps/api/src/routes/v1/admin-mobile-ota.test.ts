@@ -8,7 +8,7 @@ const mocked = vi.hoisted(() => ({
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: mocked.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: mocked.completed }));
 vi.mock("../../modules/admin-users/composition/service.js", () => ({ readAdminActorRole: mocked.readRole }));
-vi.mock("../../modules/mobile-ota/deployment-commands.js", () => ({
+vi.mock("@gafus/mobile-ota-server/deployment-commands", () => ({
   listMobileOtaDeployments: mocked.list,
   updateMobileOtaDeployment: mocked.update,
   createMobileOtaDeployment: mocked.create,
@@ -16,8 +16,8 @@ vi.mock("../../modules/mobile-ota/deployment-commands.js", () => ({
     constructor(public code: string) { super(code); }
   },
 }));
-vi.mock("../../modules/mobile-ota/patch-commands.js", async (importOriginal) => ({
-  ...await importOriginal<typeof import("../../modules/mobile-ota/patch-commands")>(),
+vi.mock("@gafus/mobile-ota-server/patch-commands", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@gafus/mobile-ota-server/patch-commands")>(),
   registerSourcePatchDefinition: mocked.registerPatch,
   registerSourcePatchApplication: mocked.applyPatch,
   listSourcePatchApplications: mocked.listPatchApplications,

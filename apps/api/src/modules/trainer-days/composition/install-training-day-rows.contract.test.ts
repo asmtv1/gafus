@@ -12,13 +12,11 @@ vi.mock("@gafus/course-progress-server/training-day-rows",()=>({
 describe("API trainer day owner-scoped SQL composition",()=>{
   it("injects exact TRAINER actor to SQL and never widens visibility",async()=>{
     const core=await import("@gafus/core/services/trainingDay");
-    await import("./install-training-day-rows");
+    const { trainingDayRows } = await import("./training-day-rows-instance");
     const trainer={id:"trainer-1",role:"TRAINER" as const};
-    await expect(core.getTrainingDayForEdit("day-1",trainer)).resolves.toBeNull();
+    await expect(core.getTrainingDayForEdit("day-1",trainer,trainingDayRows)).resolves.toBeNull();
     expect(sql.read).toHaveBeenCalledExactlyOnceWith("day-1",trainer);
-    await expect(core.getVisibleDays(trainer.id,false)).resolves.toEqual([]);
+    await expect(core.getVisibleDays(trainer.id,false,trainingDayRows)).resolves.toEqual([]);
     expect(sql.list).toHaveBeenCalledExactlyOnceWith(trainer.id,false);
-    expect(()=>core.registerTrainingDayRowsPort({} as never))
-      .toThrow("TRAINING_DAY_ROWS_PORT_ALREADY_BOUND");
   });
 });

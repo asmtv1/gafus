@@ -1,3 +1,4 @@
+import { selectDefaultSubscriptionPlan } from "@gafus/core-client/utils/subscription-selection";
 import { resolveAppSubscriptionTier, type AppSubscriptionTier } from "@gafus/types";
 import { Loading } from "../../shared/ui";
 import { useEffect,useMemo,useRef,useState } from "react";
@@ -53,7 +54,7 @@ export function SubscriptionCheckout({ownerId,search="",embedded=false,context="
   const plans=checked.plans;
   const chosen=consultation
     ? plans.find(p=>resolveAppSubscriptionTier(p.planTier ?? p.code)==="PREMIUM"&&p.consultationBookingIncluded===true)??null
-    : plans.find(p=>p.code===selected)??plans.find(p=>resolveAppSubscriptionTier(p.planTier ?? p.code)==="STANDARD")??plans[0]??null;
+    : plans.find(p=>p.code===selected)??selectDefaultSubscriptionPlan(plans);
   const promoVisible=!!chosen&&(resolveAppSubscriptionTier(chosen.planTier ?? chosen.code)==="STANDARD"||resolveAppSubscriptionTier(chosen.planTier ?? chosen.code)==="PREMIUM")&&
     chosen.promoCodeEligible&&offer.data?.promoCode?.entryEnabled===true&&
     offer.data.promoCode.eligible===true;

@@ -89,7 +89,7 @@ export async function reconcileGooglePlayPurchases() {
     } catch {
       failed++;
       // Rotate failures through the batch so an unavailable token cannot starve others.
-      await markGooglePlayReconciliationFailure(row.googlePlayPurchaseToken);
+      await markGooglePlayReconciliationFailure(row.googlePlayPurchaseToken, row.googlePlayCheckedAt);
     }
   }
   return { checked: rows.length, failed };

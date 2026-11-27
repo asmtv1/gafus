@@ -30,9 +30,9 @@ export function clearG03PostwriteReadbackFault(): void {
   observed = null;
 }
 
-export async function getAuthUserById(userId: string) {
+export async function getAuthUserById(rows: Parameters<typeof realGetAuthUserById>[0], userId: string) {
   // IMPORTANT: actual Core GET and SQL read always execute first.
-  const actual = await realGetAuthUserById(userId);
+  const actual = await realGetAuthUserById(rows, userId);
   const fault = armed;
   if (fault && actual && userId === fault.actorId && actual.username === fault.username) {
     armed = null;

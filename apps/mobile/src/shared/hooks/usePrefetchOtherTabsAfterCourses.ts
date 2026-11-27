@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { achievementsForActor } from "@/shared/lib/api/achievementsQuery";
 import { articlesQueryOptions } from "@/shared/lib/api/articlesQuery";
-import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
+import { favoritesForActor } from "@/shared/lib/api/favoritesQuery";
 import {
   petsQueryOptions,
   petListForActor,
@@ -94,10 +94,12 @@ export function usePrefetchOtherTabsAfterCourses({
             return;
           }
 
-          if (authDoneRef.current) return;
+          // Without the verified session binding, skip all private prefetch.
+          if (authDoneRef.current || !pushActor) return;
 
-          if (!hasSuccessData(queryClient, favoritesQueryOptions.queryKey)) {
-            await queryClient.prefetchQuery(favoritesQueryOptions);
+          const favorites = favoritesForActor(pushActor);
+          if (!hasSuccessData(queryClient, favorites.queryKey)) {
+            await queryClient.prefetchQuery(favorites);
           }
           await delay(STAGGER_MS);
           if (cancelled) return;

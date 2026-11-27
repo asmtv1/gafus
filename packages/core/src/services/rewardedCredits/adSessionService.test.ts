@@ -164,8 +164,7 @@ const prismaMocks = vi.hoisted(() => {
 });
 
 vi.mock("@gafus/prisma", () => ({ prisma: prismaMocks }));
-vi.mock("./settingsService", () => ({
-  resolveRewardedPlatformSettings: vi.fn().mockImplementation((platform) =>
+const resolveRewardedPlatformSettings = vi.fn().mockImplementation((platform) =>
     Promise.resolve({
       platform,
       platformEnabled: state.platformEnabled,
@@ -173,15 +172,13 @@ vi.mock("./settingsService", () => ({
       dailyAdLimit: state.dailyAdLimit,
       testMode: true,
     }),
-  ),
-}));
+  );
 
-import {
-  createRewardedAdSession,
-  getRewardedAdStatus,
-  grantRewardedTargetAccess,
-  recordRewardedAdEvent,
-} from "./adSessionService";
+import { createRewardedAdSessionService } from "./adSessionService";
+import * as originalRewardedAdRowsPort from "@gafus/gafus-server/rewarded-ad-rows";
+import type { RewardedAdRowsPort } from "./rewardedAdRowsPort";
+const { createRewardedAdSession, getRewardedAdStatus, grantRewardedTargetAccess, recordRewardedAdEvent } =
+  createRewardedAdSessionService(originalRewardedAdRowsPort as RewardedAdRowsPort, resolveRewardedPlatformSettings);
 
 const TARGET = { targetType: "ARTICLE", targetId: "article-1" } as const;
 const START = new Date("2026-08-05T10:00:00.000Z");
@@ -660,8 +657,3 @@ describe("rewarded ad direct target access", () => {
     expect(state.sessions.get(session.sessionId)?.status).toBe("EXPIRED");
   });
 });
-
-// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
-import * as originalRewardedAdRowsPort from "@gafus/gafus-server/rewarded-ad-rows";
-import { registerRewardedAdRowsPort, type RewardedAdRowsPort } from "./rewardedAdRowsPort";
-registerRewardedAdRowsPort(originalRewardedAdRowsPort as RewardedAdRowsPort);

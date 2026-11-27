@@ -11,7 +11,7 @@ import type {
 } from "@gafus/types";
 import { calculateDayStatusFromStatuses } from "@gafus/types";
 
-import { checkCourseAccessById } from "../course";
+import type { CatalogReadService } from "../course";
 import { findSurveyTemplate } from "./templates";
 
 const logger = createWebLogger("survey-service");
@@ -108,6 +108,7 @@ export async function getSurveyResponse(
 
 async function validateSurveyStep(
   persistence: SurveyPersistencePort,
+  checkCourseAccessById: CatalogReadService["checkCourseAccessById"],
   userId: string,
   input: SubmitSurveyResponseInput,
 ): Promise<
@@ -148,11 +149,12 @@ async function validateSurveyStep(
 
 export async function submitSurveyResponse(
   persistence: SurveyPersistencePort,
+  checkCourseAccessById: CatalogReadService["checkCourseAccessById"],
   userId: string,
   input: SubmitSurveyResponseInput,
 ): Promise<SubmitSurveyResponseResult> {
   try {
-    const validation = await validateSurveyStep(persistence, userId, input);
+    const validation = await validateSurveyStep(persistence, checkCourseAccessById, userId, input);
     if (!validation.ok) {
       return { success: false, error: validation.error, code: validation.code };
     }

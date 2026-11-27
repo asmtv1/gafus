@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
 for tool in initdb pg_ctl createdb psql python3; do command -v "$tool" >/dev/null || { echo "SMART_SQL_QA_TOOL_MISSING:$tool"; exit 2; }; done
-compiled=packages/worker/dist/worker/src/smart-feed-sql-smoke.js
+compiled=packages/worker/dist/worker/tools/smart-feed-sql-smoke.js
 [ -f "$compiled" ] || { echo 'SMART_SQL_QA_COMPILED_WORKER_MISSING: rebuild @gafus/worker'; exit 2; }
 DIR="$(mktemp -d /tmp/gafus-smart-worker-pg.XXXXXX)"
 PORT="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"

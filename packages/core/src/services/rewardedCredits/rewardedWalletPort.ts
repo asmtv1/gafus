@@ -52,12 +52,3 @@ export interface RewardedWalletPort {
     tx: RewardedWalletTx, entry: RewardedWalletEntry,
   ): Promise<{ id: string }>;
 }
-let bound: Readonly<RewardedWalletPort> | null = null;
-export function registerRewardedWalletPort(port: RewardedWalletPort): void {
-  if (bound !== null && bound !== port) throw new Error("REWARDED_WALLET_PORT_ALREADY_BOUND");
-  bound = port;
-}
-export function requireRewardedWalletPort(): Readonly<RewardedWalletPort> {
-  if (!bound) throw new Error("REWARDED_WALLET_PORT_UNBOUND");
-  return bound;
-}

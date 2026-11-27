@@ -65,7 +65,7 @@ beforeEach(() => {
 });
 describe("Cloud.ru pet document transaction compensation", () => {
   it("keeps the provider marker in DB and returns a fresh signed URL to the owner", async () => {
-    const item = await uploadPetDocument("p", "u", uploaded);
+    const item = await uploadPetDocument(petRows, "p", "u", uploaded);
     expect(item.url).toBe("https://s3.cloud.ru/short-lived-signed");
     expect(fixture.makePath.mock.calls[0]?.[3]).toBe("pdf");
     expect(
@@ -75,12 +75,12 @@ describe("Cloud.ru pet document transaction compensation", () => {
   });
   it("does not write to private S3 when the pet is absent or owned by someone else", async () => {
     fixture.preflightPet.mockResolvedValue(null);
-    await expect(uploadPetDocument("p", "u", uploaded)).rejects.toThrow("Питомец не найден");
+    await expect(uploadPetDocument(petRows, "p", "u", uploaded)).rejects.toThrow("Питомец не найден");
     expect(fixture.upload).not.toHaveBeenCalled();
     expect(fixture.transaction).not.toHaveBeenCalled();
   });
   it("uploads before opening the owner-locked database transaction", async () => {
-    await uploadPetDocument("p", "u", uploaded);
+    await uploadPetDocument(petRows, "p", "u", uploaded);
     const uploadOrder = fixture.upload.mock.invocationCallOrder[0];
     const transactionOrder = fixture.transaction.mock.invocationCallOrder[0];
     expect(uploadOrder).toBeLessThan(transactionOrder!);
@@ -88,13 +88,13 @@ describe("Cloud.ru pet document transaction compensation", () => {
   });
   it("tries deleting exact UUID on ambiguous S3 PUT timeout", async () => {
     fixture.upload.mockRejectedValue(new Error("UPLOAD_TIMEOUT"));
-    await expect(uploadPetDocument("p", "u", uploaded)).rejects.toThrow("UPLOAD_TIMEOUT");
+    await expect(uploadPetDocument(petRows, "p", "u", uploaded)).rejects.toThrow("UPLOAD_TIMEOUT");
     expect(fixture.deleted).toHaveBeenCalledWith(location);
     expect(fixture.transaction).not.toHaveBeenCalled();
   });
   it("cleans the exact Cloud object only after an unsuccessful COMMIT and no saved record", async () => {
     commitFails = true;
-    await expect(uploadPetDocument("p", "u", uploaded)).rejects.toThrow("COMMIT_INDETERMINATE");
+    await expect(uploadPetDocument(petRows, "p", "u", uploaded)).rejects.toThrow("COMMIT_INDETERMINATE");
     expect(fixture.readCommitted).toHaveBeenCalledWith({
       where: { url: location, petId: "p", ownerId: "u" },
       select: { id: true },
@@ -104,18 +104,18 @@ describe("Cloud.ru pet document transaction compensation", () => {
   it("never deletes the object when the COMMIT actually succeeded before a lost response", async () => {
     commitFails = true;
     fixture.readCommitted.mockResolvedValue({ id: "id" });
-    await expect(uploadPetDocument("p", "u", uploaded)).rejects.toThrow("COMMIT_INDETERMINATE");
+    await expect(uploadPetDocument(petRows, "p", "u", uploaded)).rejects.toThrow("COMMIT_INDETERMINATE");
     expect(fixture.deleted).not.toHaveBeenCalled();
   });
   it("fails closed when DB cannot confirm whether a committed document exists", async () => {
     commitFails = true;
     fixture.readCommitted.mockRejectedValue(new Error("DATABASE_UNAVAILABLE"));
-    await expect(uploadPetDocument("p", "u", uploaded)).rejects.toThrow("COMMIT_INDETERMINATE");
+    await expect(uploadPetDocument(petRows, "p", "u", uploaded)).rejects.toThrow("COMMIT_INDETERMINATE");
     expect(fixture.deleted).not.toHaveBeenCalled();
   });
 });
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
-registerPetRowsPort(originalPetRowsPort as PetRowsPort);
+import type { PetRowsPort } from "./petRowsPort";
+const petRows = originalPetRowsPort as PetRowsPort;

@@ -34,16 +34,9 @@ export interface CourseVersionRowsPort {
     actor: CourseVersionActor,
   ): Promise<CourseLogoVersionResult>;
 }
-let installedCourseVersionPort: Readonly<CourseVersionRowsPort> | null = null;
-export function registerCourseVersionRowsPort(port: CourseVersionRowsPort): void {
-  if (installedCourseVersionPort !== null && installedCourseVersionPort !== port) {
-    throw new Error("COURSE_VERSION_PORT_ALREADY_BOUND");
-  }
-  installedCourseVersionPort = port;
-}
-function requireCourseVersionRowsPort(): Readonly<CourseVersionRowsPort> {
-  if (installedCourseVersionPort === null) throw new Error("COURSE_VERSION_PORT_UNBOUND");
-  return installedCourseVersionPort;
+function requireCourseVersionRowsPort(port: CourseVersionRowsPort | undefined): Readonly<CourseVersionRowsPort> {
+  if (!port) throw new Error("COURSE_VERSION_PORT_UNBOUND");
+  return port;
 }
 
 function validActor(actor: CourseVersionActor): boolean {
@@ -65,7 +58,7 @@ export async function readCourseNameVersion(
   if (!idPattern.test(courseId) || !validActor(actor))
     return { status: "invalid" };
   try {
-    const rows = await (rowsPort ?? requireCourseVersionRowsPort()).readCourseVersionRows(courseId, actor);
+    const rows = await (requireCourseVersionRowsPort(rowsPort)).readCourseVersionRows(courseId, actor);
     if (rows.length === 0) return { status: "not_found" };
     if (rows.length !== 1 || !isDbRow(rows[0]))
       return { status: "unknown" };
@@ -93,7 +86,7 @@ export async function updateCourseNameVersioned(
     return { status: "invalid" };
   let rows: VersionedName[];
   try {
-    rows = await (rowsPort ?? requireCourseVersionRowsPort()).writeCourseNameVersionRows(input, actor);
+    rows = await (requireCourseVersionRowsPort(rowsPort)).writeCourseNameVersionRows(input, actor);
   } catch {
     logger.error("COURSE_VERSION_WRITE_UNKNOWN");
     return { status: "unknown" };
@@ -142,7 +135,7 @@ export async function setCourseLogoVersioned(
       typeof input.logoUrl !== "string" || input.logoUrl.length > 2000)
     return { status: "invalid" };
   try {
-    return await (rowsPort ?? requireCourseVersionRowsPort()).setCourseLogoVersionRows(input,actor);
+    return await (requireCourseVersionRowsPort(rowsPort)).setCourseLogoVersionRows(input,actor);
   } catch {
     logger.error("COURSE_LOGO_VERSION_UNKNOWN");
     return { status: "unknown" };

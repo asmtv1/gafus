@@ -2,7 +2,7 @@
 import type { NewOnlyV2Queues, V2SessionBinding } from "./newOnlyV2Queues";
 
 type ReadQueue = Pick<NewOnlyV2Queues, "getVerifiedBinding" | "getPending">;
-export type LocalPracticePending = { eventId: string; stepIndex: number };
+export type LocalPracticePending = { eventId: string; stepIndex: number; occurrenceId?: string; originalStepId?: string };
 
 export async function readOwnPendingPractice(
   queue: ReadQueue,
@@ -20,6 +20,9 @@ export async function readOwnPendingPractice(
     const payload = event.payload;
     if (payload.courseId !== courseId || payload.dayOnCourseId !== dayOnCourseId) return [];
     if (!Number.isSafeInteger(payload.stepIndex) || (payload.stepIndex as number) < 0) return [];
-    return [{ eventId: event.eventId, stepIndex: payload.stepIndex as number }];
+    return [{ eventId: event.eventId, stepIndex: payload.stepIndex as number,
+      ...(typeof payload.expectedStepOnDayId === "string" && typeof payload.expectedStepId === "string"
+        ? { occurrenceId: payload.expectedStepOnDayId, originalStepId: payload.expectedStepId } : {}),
+    }];
   });
 }

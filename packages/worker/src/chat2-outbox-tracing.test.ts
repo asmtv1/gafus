@@ -10,7 +10,7 @@ vi.mock("@gafus/logger/server-telemetry", () => ({
   withServerSpan: trace.run,
   markServerSpanError: trace.mark,
 }));
-import { traceChat2DispatchStage } from "./chat2-outbox-tracing";
+import { traceChat2DispatchStage, chat2DispatchTiming } from "./chat2-outbox-tracing";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -49,5 +49,17 @@ describe("Chat2 child spans in durable event context", () => {
     expect(trace.mark).toHaveBeenCalledWith(expect.anything(), "CHAT2_PUBLISH_STAGE_FAILED");
     expect(JSON.stringify(trace.mark.mock.calls)).not.toContain("SECRET_BROKER_FAILURE_user_42");
     expect(trace.end).toHaveBeenCalledOnce();
+  });
+});
+
+describe("durable queue wait versus total event age",()=>{
+  it("excludes deliberate backoff from ready-queue delay",()=>{
+    expect(chat2DispatchTiming({createdAt:new Date(1000),nextAttemptAt:new Date(8000)},10000)).toEqual({
+      "gafus.queue_wait_ms":2000,"gafus.event_age_ms":9000,
+    });
+  });
+  it("never exports invalid, future or unbounded durations",()=>{
+    expect(chat2DispatchTiming({createdAt:new Date(NaN),nextAttemptAt:new Date(20000)},10000)).toEqual({});
+    expect(chat2DispatchTiming({createdAt:new Date(0),nextAttemptAt:new Date(0)},1_000_000_001)).toEqual({});
   });
 });

@@ -2,7 +2,7 @@ import { z } from "zod/v3";
 import type {
   TrainerDailyBundleStepCandidateItem,
   TrainerDailyBundleStepCandidatesRead,
-} from "../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 import type { DailyBundleTransport } from "./TrainerDailyBundlesOptInRoute";
 export const TR014_CANDIDATES_PATH = "/api/v1/trainer/daily-course/bundle-step-candidates" as const;
 export const candidateSchema = z

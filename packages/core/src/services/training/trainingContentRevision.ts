@@ -15,18 +15,6 @@ import { recordCourseCacheEvent } from "./trainingContentMetrics";
 export interface CourseContentRevisionReadPort {
   readDurableCourseContentRevision(): Promise<string | null>;
 }
-let durableRevisionReadPort: Readonly<CourseContentRevisionReadPort> | null = null;
-export function registerCourseContentRevisionReadPort(port: CourseContentRevisionReadPort): void {
-  if (durableRevisionReadPort !== null && durableRevisionReadPort !== port) {
-    throw new Error("COURSE_CONTENT_REVISION_PORT_ALREADY_BOUND");
-  }
-  durableRevisionReadPort = port;
-}
-function requireCourseContentRevisionReadPort(): Readonly<CourseContentRevisionReadPort> {
-  if (!durableRevisionReadPort) throw new Error("COURSE_CONTENT_REVISION_PORT_UNBOUND");
-  return durableRevisionReadPort;
-}
-
 // Redis outages must not emit a log line for every user reading a lesson.
 const READ_WARNING_INTERVAL_MS = 30_000;
 let lastReadWarningAt = Number.NEGATIVE_INFINITY;
@@ -67,10 +55,11 @@ export async function getSharedCourseContentRevision(): Promise<string | null> {
  * or database error fails closed to direct Prisma content reads.
  */
 export async function getVerifiedCourseContentRevision(
-  explicitReadPort?: CourseContentRevisionReadPort,
+  explicitReadPort: CourseContentRevisionReadPort,
 ): Promise<string | null> {
   try {
-    return await (explicitReadPort ?? requireCourseContentRevisionReadPort()).readDurableCourseContentRevision();
+    if (!explicitReadPort) throw new Error("COURSE_CONTENT_REVISION_PORT_UNBOUND");
+    return await explicitReadPort.readDurableCourseContentRevision();
   } catch (error) {
     recordCourseCacheEvent("dbRevisionFailure");
     if (Date.now() - lastReadWarningAt >= READ_WARNING_INTERVAL_MS) {

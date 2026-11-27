@@ -80,26 +80,7 @@ export interface VetVisitRowsPort {
     enqueueOwnPetVetCleanupTx: (tx: VetVisitDbTx, petId: string, ownerId: string, enqueue: VetVisitOutboxEnqueue) => Promise<void>;
     isVetVisitDbError(error: unknown): error is VetVisitDbError;
 }
-let installed: Readonly<VetVisitRowsPort> | null = null;
-export function registerVetVisitRowsPort(port: VetVisitRowsPort): void {
-    if (installed && installed !== port)
-        throw new Error("VET_VISIT_ROWS_PORT_ALREADY_BOUND");
-    installed = port;
+export function requireVetVisitRowsPort(port: VetVisitRowsPort | undefined): Readonly<VetVisitRowsPort> {
+  if (!port) throw new Error("VET_VISIT_ROWS_PORT_UNBOUND");
+  return port;
 }
-function requireRows(): Readonly<VetVisitRowsPort> {
-    if (!installed)
-        throw new Error("VET_VISIT_ROWS_PORT_UNBOUND");
-    return installed;
-}
-export const ownPetForVet: VetVisitRowsPort["ownPetForVet"] = (...args) => requireRows().ownPetForVet(...args);
-export const lockVetPetRowTx: VetVisitRowsPort["lockVetPetRowTx"] = (...args) => requireRows().lockVetPetRowTx(...args);
-export const listOwnPetVetRows: VetVisitRowsPort["listOwnPetVetRows"] = (...args) => requireRows().listOwnPetVetRows(...args);
-export const upsertOwnPetVetVisit: VetVisitRowsPort["upsertOwnPetVetVisit"] = (...args) => requireRows().upsertOwnPetVetVisit(...args);
-export const removeOwnPetVetVisit: VetVisitRowsPort["removeOwnPetVetVisit"] = (...args) => requireRows().removeOwnPetVetVisit(...args);
-export const requireOwnPetVetVisit: VetVisitRowsPort["requireOwnPetVetVisit"] = (...args) => requireRows().requireOwnPetVetVisit(...args);
-export const reservePetVetAttachment: VetVisitRowsPort["reservePetVetAttachment"] = (...args) => requireRows().reservePetVetAttachment(...args);
-export const commitPetVetAttachment: VetVisitRowsPort["commitPetVetAttachment"] = (...args) => requireRows().commitPetVetAttachment(...args);
-export const removeOwnPetVetAttachment: VetVisitRowsPort["removeOwnPetVetAttachment"] = (...args) => requireRows().removeOwnPetVetAttachment(...args);
-export const readOwnPetVetAttachment: VetVisitRowsPort["readOwnPetVetAttachment"] = (...args) => requireRows().readOwnPetVetAttachment(...args);
-export const enqueueOwnPetVetCleanupTx: VetVisitRowsPort["enqueueOwnPetVetCleanupTx"] = (...args) => requireRows().enqueueOwnPetVetCleanupTx(...args);
-export function isVetVisitDbError(error: unknown): error is VetVisitDbError { return requireRows().isVetVisitDbError(error); }

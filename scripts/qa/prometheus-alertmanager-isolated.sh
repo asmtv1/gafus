@@ -43,6 +43,7 @@ test -x "$PROM" && test -x "$PROMTOOL" && test -x "$AM" && test -x "$AMTOOL"
 "$PROMTOOL" check rules ci-cd/docker/prometheus/gafus-alerts.yml
 "$PROMTOOL" test rules ci-cd/docker/prometheus/gafus-alerts.promtool.test.yml
 "$PROMTOOL" test rules ci-cd/docker/prometheus/gafus-alerts-agent2.promtool.test.yml
+"$PROMTOOL" test rules ci-cd/docker/prometheus/gafus-alerts-operational.promtool.test.yml
 cat > "$DIR/alertmanager.yml" <<EOF
 global:
   resolve_timeout: 10s

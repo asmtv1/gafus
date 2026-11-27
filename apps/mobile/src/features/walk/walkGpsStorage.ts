@@ -100,6 +100,9 @@ async function openDb() {
           pending INTEGER NOT NULL DEFAULT 1,
           PRIMARY KEY(ownerId,walkId)
         );
+        CREATE TABLE IF NOT EXISTS walk_history_sync (
+          ownerId TEXT PRIMARY KEY, cursor TEXT, confirmed TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS walk_journals (
           ownerId TEXT NOT NULL PRIMARY KEY,
           document TEXT NOT NULL,
@@ -881,6 +884,14 @@ export async function persistGpsBatch(samples: WalkFix[], receivedAt = Date.now(
   }
   return stored;
 }
+/** Bounded owner-scoped existence probe for completion diagnostics. */
+export async function hasStoredGpsPoint(ownerId: string, walkId: string): Promise<boolean> {
+  const db = await openDb();
+  return Boolean(await db.getFirstAsync<{seq: number}>(
+    "SELECT seq FROM gps_points WHERE ownerId=? AND walkId=? LIMIT 1", ownerId, walkId,
+  ));
+}
+
 export async function gpsWalkMeters(ownerId: string, walkId: string): Promise<number | null> {
   return readGpsMeters(await openDb(), ownerId, walkId);
 }
@@ -1188,4 +1199,52 @@ export async function saveGpsMotionPolicy(
     walkId,
     JSON.stringify(state),
   );
+}
+
+type WalkSyncCheckpoint = { cursor: string | null; confirmed: Record<string, string> };
+export async function readWalkSyncCheckpoint(ownerId: string): Promise<WalkSyncCheckpoint> {
+  const db = await openDb();
+  const row = await db.getFirstAsync<{ cursor: string | null; confirmed: string }>(
+    "SELECT cursor, confirmed FROM walk_history_sync WHERE ownerId=?", ownerId);
+  return { cursor: row?.cursor ?? null, confirmed: row ? JSON.parse(row.confirmed) : {} };
+}
+
+/** Advance the cursor only in the same commit as the corresponding local history. */
+export async function commitWalkSyncPage<T>(
+  ownerId: string, previous: WalkSyncCheckpoint, cursor: string | null, current: () => boolean,
+  merge: (document: string | null, deleted: Set<string>) => { document: string; confirmed: Record<string, string>; result: T },
+): Promise<T> {
+  const db = await openDb();
+  let result!: T;
+  await db.withExclusiveTransactionAsync(async tx => {
+    if (!current()) throw new Error("WALK_SYNC_ACTOR_CHANGED");
+    const checkpoint = await tx.getFirstAsync<{ cursor: string | null; confirmed: string }>(
+      "SELECT cursor, confirmed FROM walk_history_sync WHERE ownerId=?", ownerId);
+    const oldConfirmed = JSON.stringify(previous.confirmed);
+    if ((checkpoint?.cursor ?? null) !== previous.cursor || (checkpoint?.confirmed ?? "{}") !== oldConfirmed)
+      throw new Error("WALK_SYNC_CONCURRENT");
+    const journal = await tx.getFirstAsync<{ document: string }>("SELECT document FROM walk_journals WHERE ownerId=?", ownerId);
+    const markers = await tx.getAllAsync<{walkId:string}>("SELECT walkId FROM walk_delete_markers WHERE ownerId=?", ownerId);
+    const merged = merge(journal?.document ?? null, new Set(markers.map(row => row.walkId)));
+    if (merged.document !== journal?.document) {
+      await tx.runAsync(`INSERT INTO walk_journals(ownerId,document,revision) VALUES(?,?,1)
+        ON CONFLICT(ownerId) DO UPDATE SET document=excluded.document,revision=walk_journals.revision+1`, ownerId, merged.document);
+    }
+    const confirmed = JSON.stringify(merged.confirmed);
+    if (!checkpoint || previous.cursor !== cursor || confirmed !== oldConfirmed)
+      await tx.runAsync(`INSERT INTO walk_history_sync(ownerId,cursor,confirmed) VALUES(?,?,?)
+        ON CONFLICT(ownerId) DO UPDATE SET cursor=excluded.cursor,confirmed=excluded.confirmed`, ownerId,cursor,confirmed);
+    if (!current()) throw new Error("WALK_SYNC_ACTOR_CHANGED");
+    result = merged.result;
+  });
+  return result;
+}
+
+export async function listPendingGpsWalks(ownerId: string): Promise<string[]> {
+  const db = await openDb();
+  const rows = await db.getAllAsync<{ walkId: string }>(`SELECT s.walkId FROM gps_sessions s
+    WHERE s.ownerId=? AND EXISTS (SELECT 1 FROM gps_points p
+      WHERE p.ownerId=s.ownerId AND p.walkId=s.walkId AND p.seq > COALESCE(
+        (SELECT lastSeq FROM gps_sync_cursor c WHERE c.ownerId=s.ownerId AND c.walkId=s.walkId), 0))`, ownerId);
+  return rows.map(row => row.walkId);
 }

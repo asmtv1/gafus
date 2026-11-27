@@ -1,5 +1,5 @@
 /** SOURCE REVIEW ONLY. Never import this composition in apps/api/src/app.ts. */
-import "../../modules/reminders/composition/install-ag4-review-rows.review.js";
+import { reminderRows } from "../../modules/reminders/composition/reminder-rows.js";
 import { Hono } from "hono";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
@@ -92,7 +92,7 @@ remindersRoutes.post("/", zValidator("json", createSchema), async (c) => {
       : (await createReminderAG4(user.id, {
         name: body.name, reminderTime: body.reminderTime,
         reminderDays: body.reminderDays, timezone: body.timezone,
-      }, key)).reminder;
+      }, key, reminderRows)).reminder;
     return c.json({ success: true, data });
   } catch (error) {
     if (error instanceof ReminderConflictError || error instanceof ReminderUnknownError) {

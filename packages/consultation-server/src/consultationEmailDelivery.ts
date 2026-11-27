@@ -1,3 +1,4 @@
+import { consultationEmailReminderKind, isConsultationReminderDue } from "@gafus/consultation-shared/reminder-window";
 import { ConsultationEmailStatus, prisma } from "@gafus/prisma";
 import { sendConsultationEmailFromLog as sendCoreConsultationEmail } from "@gafus/core/services/consultation/transactional-mail";
 import { readConsultationBookingForMailLog } from "@gafus/consultation-query-server";
@@ -8,6 +9,24 @@ const sendConsultationEmailFromLog = (id: string, type: ConsultationEmailType) =
 
 export type ConsultationMailOutcome = "missing" | "sent" | "already-sent" | "queued" | "failed";
 const keyFor = (id: string) => `consultation-${id}`;
+
+/** Recheck queued reminder payloads, including ones created by an older worker. */
+export async function canDispatchConsultationMail(key: string, recipient: string | string[]): Promise<boolean> {
+  const log = await prisma.consultationEmailLog.findUnique({
+    where: { id: key.slice("consultation-".length) },
+    select: { type: true, status: true, booking: { select: {
+      status: true, slot: { select: { startAt: true, endAt: true } },
+      client: { select: { email: true } }, cynologist: { select: { user: { select: { email: true } } } },
+    } } },
+  });
+  if (!log || log.status !== "PENDING") return false;
+  const kind = consultationEmailReminderKind(log.type);
+  if (!kind) return true;
+  const email = log.type === "TRAINER_CONSULTATION_REMINDER_30M"
+    ? log.booking.cynologist.user.email : log.booking.client.email;
+  return Boolean(email && recipient === email && log.booking.status === "CONFIRMED" &&
+    isConsultationReminderDue(log.booking.slot, kind, new Date()));
+}
 
 /**
  * Read-only provider/outbox evidence followed by an owner+status conditional CAS.
@@ -156,6 +175,13 @@ export async function processConsultationEmailLog(
   let accepted = false;
   try {
     const result = await sendConsultationEmailFromLog(emailLogId, log.type);
+    if (result.kind === "STALE_REMINDER") {
+      const stopped = await prisma.consultationEmailLog.updateMany({
+        where: { id: emailLogId, status: ConsultationEmailStatus.PENDING, attempts: 0 },
+        data: { status: ConsultationEmailStatus.FAILED, lastError: "CONSULTATION_REMINDER_EXPIRED" },
+      });
+      return stopped.count ? "failed" : reconcileConsultationEmailLog(emailLogId);
+    }
     if (result.kind === "QUEUED") {
       await recordEnqueueOnce(emailLogId);
       return "queued";

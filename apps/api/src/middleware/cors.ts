@@ -151,8 +151,9 @@ const checkOrigin = (origin: string): string | null => {
 const existingCorsMiddleware = cors({
   origin: checkOrigin,
   allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization", "X-Device-Id", "X-Gafus-Auth-Transport"],
-  exposeHeaders: ["X-Request-Id"],
+  allowHeaders: ["Content-Type", "Authorization", "X-Device-Id", "X-Gafus-Auth-Transport",
+    "X-Client-Platform", "X-Client-Version", "X-Client-Build", "X-Client-Ota-Revision", "traceparent"],
+  exposeHeaders: ["X-Request-Id", "X-Trace-Id", "X-Operation-Id"],
   credentials: true,
   maxAge: 86400, // 24 hours
 });

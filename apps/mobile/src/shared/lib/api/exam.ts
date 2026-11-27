@@ -1,4 +1,4 @@
-import type { ExamResultWire } from "../../../../../../packages/types/src/data/exam";
+import type { ExamResultWire } from "@gafus/types/exam";
 import { apiClient, apiClientMultipart, type ApiResponse } from "./client";
 
 // Preserve the existing Mobile export; the producer owns the JSON wire shape.

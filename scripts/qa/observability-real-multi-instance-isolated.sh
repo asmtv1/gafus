@@ -16,6 +16,9 @@ done
 BROKER="$ROOT/.local-pg-scratch/chat2-bin/centrifugo"
 if [[ ! -x "$BROKER" ]]; then BROKER="$ROOT/../gafus-refactor/.local-pg-scratch/chat2-bin/centrifugo"; fi
 [[ -x "$BROKER" && ! -L "$BROKER" ]] || { echo A2_LOCAL_BROKER_BINARY_UNAVAILABLE; exit 2; }
+for cli in apps/api/node_modules/.bin/tsx packages/worker/node_modules/.bin/tsx packages/prisma/node_modules/.bin/prisma; do
+  [[ -x "$cli" ]] || { echo "A2_LOCAL_WORKSPACE_CLI_UNAVAILABLE:$cli"; exit 2; }
+done
 umask 077
 # Archive previous receipts and start with fresh paths for the new run.
 A2_HISTORY="artifacts/a2-obs-history/$(date -u +%Y%m%dT%H%M%SZ)-$$"
@@ -91,6 +94,20 @@ export REDIS_URL='redis://127.0.0.1:56242'
 }
 PSQL=(psql -X -qAt -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 56241 -U a2obs -d gafus_a2_observability)
 "${PSQL[@]}" -c "INSERT INTO \"Chat2Conversation\" (\"id\",\"kind\",\"visibility\",\"name\",\"createdAt\",\"updatedAt\") VALUES ('a2-obs-room','GROUP','PRIVATE','a2-obs-synthetic',now(),now())"
+# An explicitly approved real-provider mode may use only synthetic QA
+# source/target/archive buckets with independently scoped profiles.
+A2_OBS_OTA_ORIGIN="https://ota-restore.invalid/source-ota"
+if [[ -n "${A2_EXTERNAL_DRILL_CONFIG:-}" ]]; then
+  [[ "${A2_EXTERNAL_DRILL_APPROVED:-}" == synthetic-isolated-provider ]] || { echo A2_EXTERNAL_DRILL_NOT_APPROVED; exit 2; }
+  A2_OBS_OTA_ORIGIN="$(node --input-type=module - "$A2_EXTERNAL_DRILL_CONFIG" <<'DRILL_ORIGIN'
+import {readFileSync,lstatSync,realpathSync} from "node:fs";
+import {validateRealDrillConfig} from "./scripts/qa/observability-external-archive-config.mjs";
+const file=process.argv[2], st=lstatSync(file);
+if(!file.startsWith("/") || realpathSync(file)!==file || !st.isFile() || st.mode&0o077)throw Error("QA_EXTERNAL_PRIVATE_CONFIG_REQUIRED");
+console.log(validateRealDrillConfig(JSON.parse(readFileSync(file,"utf8"))).otaOrigin);
+DRILL_ORIGIN
+)"
+fi
 export A2_OBS_KEY="$(openssl rand -hex 32)"
 export A2_OBS_BROKER_URL='http://127.0.0.1:56243/api/publish'
 env -i PATH="$PATH" HOME="$HOME" GAFUS_A2_OBS_ISOLATED=1 \
@@ -98,11 +115,14 @@ env -i PATH="$PATH" HOME="$HOME" GAFUS_A2_OBS_ISOLATED=1 \
   node scripts/qa/observability-local-trace-sink.mjs > "$WORK/otlp-receiver.log" 2>&1 & trace_pid=$!
 for i in {1..35}; do curl -sf --max-time 1 http://127.0.0.1:56248/health >/dev/null 2>&1 && break; sleep .25; done
 curl -sf --max-time 1 http://127.0.0.1:56248/health >/dev/null || { echo A2_LOCAL_OTLP_RECEIVER_FAILED; tail -6 "$WORK/otlp-receiver.log"; exit 1; }
-for port in 56244 56245; do
+launch_a2_api(){
+  local port="$1" label="${2:-initial}"
   (
     cd apps/api
     env -i PATH="$PATH" HOME="$HOME" NODE_ENV=development API_HOST=127.0.0.1 \
       A2_OBS_API_PORT="$port" GAFUS_A2_OBS_ISOLATED=1 \
+      A2_OBS_WORK_DIR="$WORK" A2_OBS_OTA_ORIGIN="$A2_OBS_OTA_ORIGIN" MOBILE_OTA_DELIVERY_ENV=preview \
+      CHAT2_MOBILE_IOS_MIN_VERSION=1.7.5 CHAT2_MOBILE_ANDROID_MIN_VERSION=1.7.5 \
       DATABASE_URL="$DATABASE_URL" REDIS_URL="$REDIS_URL" \
       API_METRICS_KEY="$A2_OBS_KEY" \
       GALLERY_ENABLED=false FEED_ENABLED=false CLOUDRU_MEDIA_JOBS_ENABLED=false \
@@ -111,8 +131,9 @@ for port in 56244 56245; do
       OTEL_TRACES_SAMPLER_ARG=1 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:56248/v1/traces \
       JWT_SECRET="$A2_OBS_KEY" JWT_REFRESH_SECRET="$A2_OBS_KEY" \
       ./node_modules/.bin/tsx src/a2-observability-private-server.ts
-  ) > "$WORK/api-$port.log" 2>&1 & child_pids+=("$!")
-done
+  ) > "$WORK/api-$port-$label.log" 2>&1 & child_pids+=("$!")
+}
+for port in 56244 56245; do launch_a2_api "$port"; done
 launch_a2_worker(){
   local port="$1" label="${2:-initial}"
   (
@@ -198,7 +219,7 @@ expected={'chat2.synthetic.outbox.enqueue','chat2.outbox.dispatch','chat2.outbox
           'chat2.outbox.ack','chat2.synthetic.callback.reconcile'}
 assert expected<=names,(expected-names,names)
 assert all(s['operationId']==first['operationId']==callback['operationId'] for s in spans)
-assert any(s['traceId']==first['traceId'] and s['name']=='chat2.outbox.dispatch' for s in spans)
+assert any(s.get('sourceTraceId')==first['traceId'] and s['name']=='chat2.outbox.dispatch' for s in spans)
 assert any(s['traceId']==callback['traceId'] and s['name']=='chat2.synthetic.callback.reconcile' for s in spans)
 assert first['traceId']!=callback['traceId']
 record={'runPrefix':'a2-obs-','recordedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -255,9 +276,22 @@ done
 [[ "$good" == 4 ]] || { echo A2_REDIS_RECOVERY_FAILED; exit 1; }
 echo A2_REAL_REDIS_OUTAGE_ALL_API_AND_WORKERS_RECOVERED
 # Full-service local restore, on a *new* PG data directory, with both real APIs
-# and Worker loops staying alive. The timestamp starts before the crash and
-# ends only when every service is ready again, including their DB connections.
+# and Worker loops restarted on a fresh snapshot. RTO ends after the real
+# authenticated user scenario and its external ACK, not just readiness.
 now_ms(){ python3 -c 'import time;print(int(time.time()*1000))'; }
+run_restore_user(){
+  GAFUS_A2_OBS_ISOLATED=1 A2_OBS_WORK_DIR="$WORK" A2_OBS_KEY="$A2_OBS_KEY" \
+    node scripts/qa/observability-restore-user-scenario.mjs "$1"
+}
+run_restore_user seed
+user_seed_op="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["operationId"])' "$WORK/restore-user-seed.json")"
+[[ "$user_seed_op" =~ ^[a-f0-9-]{36}$ ]]
+for i in {1..90}; do
+  user_seed_ack="$("${PSQL[@]}" -c "SELECT count(*) FROM \"Chat2OutboxEvent\" WHERE \"operationId\"='$user_seed_op' AND \"deliveredAt\" IS NOT NULL")"
+  [[ "$user_seed_ack" == 1 ]] && break
+  sleep .3
+done
+[[ "$user_seed_ack" == 1 ]] || { echo A2_PRE_BACKUP_USER_OUTBOX_NOT_ACKED; exit 1; }
 last_receipt="$WORK/last-restored-operation.json"
 curl -sf --max-time 5 -X POST -H "Authorization: Bearer $A2_OBS_KEY" \
   http://127.0.0.1:56244/__a2_obs_enqueue > "$last_receipt"
@@ -269,6 +303,7 @@ pg_dump -Fc -h 127.0.0.1 -p 56241 -U a2obs -d gafus_a2_observability -f "$WORK/b
 test -s "$WORK/backup.dump"
 pg_restore --list "$WORK/backup.dump" > "$WORK/backup-toc.txt"
 grep -q Chat2OutboxEvent "$WORK/backup-toc.txt"
+GAFUS_A2_OBS_ISOLATED=1 node scripts/qa/observability-external-archive.mjs capture "$WORK"
 late_receipt="$WORK/post-backup-operation.json"
 curl -sf --max-time 5 -X POST -H "Authorization: Bearer $A2_OBS_KEY" \
   http://127.0.0.1:56245/__a2_obs_enqueue > "$late_receipt"
@@ -278,6 +313,30 @@ late_ack_ms="$(now_ms)"
 # Immediate stop approximates a crash; old data directory remains isolated under
 # WORK and is never reused by the restarted service. Restore only from dump.
 recovery_start_ms="$(now_ms)"
+for port in 56244 56245 56246 56247; do
+  pid="$(lsof -tiTCP:$port -sTCP:LISTEN 2>/dev/null | head -1)"
+  [[ -n "$pid" ]] || { echo "A2_RECOVERY_SERVICE_PID_MISSING:$port"; exit 1; }
+  owned_command="$(ps -p "$pid" -o command=)"
+  [[ "$owned_command" == *"$ROOT/"* && "$owned_command" == *src/a2-observability-private-* ]] ||
+    { echo "A2_RECOVERY_UNOWNED_PROCESS:$port"; exit 1; }
+  kill -TERM "$pid"
+done
+for i in {1..60}; do
+  listeners=0
+  for port in 56244 56245 56246 56247; do
+    if lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | grep -q LISTEN; then listeners=$((listeners+1)); fi
+  done
+  [[ "$listeners" == 0 ]] && break
+  sleep .2
+done
+[[ "$listeners" == 0 ]] || { echo A2_RECOVERY_OLD_SERVICES_STILL_RUNNING; exit 1; }
+# Reap launch-owned wrappers; don't retain old PIDs after restart.
+for pid in "${child_pids[@]:-}"; do
+  [[ -n "$pid" ]] || continue
+  if kill -0 "$pid" 2>/dev/null; then kill -TERM "$pid" 2>/dev/null || true; fi
+  wait "$pid" 2>/dev/null || true
+done
+child_pids=()
 pg_ctl -D "$pg_data" -m immediate -w stop >/dev/null
 pg_started=0
 pg_data="$WORK/pg-recovered"
@@ -285,12 +344,15 @@ initdb -D "$pg_data" -A trust -U a2obs --no-instructions > "$WORK/recovery-init.
 pg_ctl -D "$pg_data" -l "$WORK/recovered-pg.log" -o "-h 127.0.0.1 -p 56241 -k $WORK/sock -c max_connections=60 -c timezone=UTC" -w start >/dev/null
 pg_started=1
 createdb -h 127.0.0.1 -p 56241 -U a2obs gafus_a2_observability
+GAFUS_A2_OBS_ISOLATED=1 node scripts/qa/observability-external-archive.mjs restore "$WORK"
 pg_restore --exit-on-error --no-owner --no-privileges -h 127.0.0.1 -p 56241 -U a2obs \
-  -d gafus_a2_observability "$WORK/backup.dump" > "$WORK/recovery-restore.log" 2>&1 || {
+  -d gafus_a2_observability "$WORK/restored-external.dump" > "$WORK/recovery-restore.log" 2>&1 || {
   echo A2_RESTORE_SCHEMA_OR_DATA_FAILED; tail -12 "$WORK/recovery-restore.log" | cut -c1-130; exit 1;
 }
 new_data="$("${PSQL[@]}" -c 'show data_directory')"
 [[ "$new_data" == "$WORK/pg-recovered" ]] || { echo A2_RECOVERY_WRONG_POSTGRES_DIR; exit 1; }
+for port in 56244 56245; do launch_a2_api "$port" recovered; done
+for port in 56246 56247; do launch_a2_worker "$port" recovered; done
 [[ "$("${PSQL[@]}" -c "SELECT count(*) FROM \"Chat2OutboxEvent\" WHERE \"id\"='$restored_id'")" == 1 ]]
 [[ "$("${PSQL[@]}" -c "SELECT count(*) FROM \"Chat2OutboxEvent\" WHERE \"id\"='$lost_id'")" == 0 ]]
 [[ "$("${PSQL[@]}" -c "SELECT count(*) FROM \"Chat2OutboxEvent\" WHERE \"id\"='a2-obs-preserved-dlq' AND \"deadLetteredAt\" IS NOT NULL")" == 1 ]]
@@ -324,22 +386,67 @@ done
   exit 1
 }
 drain_complete_ms="$(now_ms)"
-export A2_RESTORE_RTO_MS="$((recovery_ready_ms-recovery_start_ms))"
+run_restore_user verify
+user_op="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["operationId"])' "$WORK/restore-user-verify.json")"
+[[ "$user_op" =~ ^[a-f0-9-]{36}$ ]]
+for i in {1..90}; do
+  user_ack="$("${PSQL[@]}" -c "SELECT count(*) FROM \"Chat2OutboxEvent\" WHERE \"operationId\"='$user_op' AND \"deliveredAt\" IS NOT NULL")"
+  [[ "$user_ack" == 1 ]] && break
+  sleep .3
+done
+[[ "$user_ack" == 1 ]] || { echo A2_POST_RESTORE_USER_OUTBOX_NOT_ACKED; exit 1; }
+user_complete_ms="$(now_ms)"
+for i in {1..50}; do
+  curl -sf --max-time 3 -H "Authorization: Bearer $A2_OBS_KEY" \
+    "http://127.0.0.1:56248/search?operationId=$user_op" > "$WORK/restore-user-otlp.json" || true
+  if python3 - "$WORK/restore-user-otlp.json" "$WORK/restore-user-verify.json" <<'TRACE_USER' 2>/dev/null
+import json,sys
+spans=json.load(open(sys.argv[1]))['spans']; user=json.load(open(sys.argv[2]))
+names={s['name'] for s in spans}
+assert {'chat2.message.create.transaction','chat2.outbox.dispatch','chat2.outbox.publish','chat2.outbox.ack'}<=names
+assert all(s['operationId']==user['operationId'] for s in spans)
+http=next(s for s in spans if s.get('clientPlatform')=='ios' and s.get('clientVersion')=='1.7.6' and s.get('clientBuild')=='900001' and s.get('otaRevision')==1)
+assert http['traceId']==user['traceId']
+dispatch=next(s for s in spans if s['name']=='chat2.outbox.dispatch')
+assert dispatch['sourceTraceId']==user['traceId']
+assert dispatch['queueWaitMs']>=0 and dispatch['eventAgeMs']>=dispatch['queueWaitMs']
+TRACE_USER
+  then user_trace_pass=1; break; fi
+  sleep .4
+done
+[[ "${user_trace_pass:-0}" == 1 ]] || { echo A2_REAL_USER_TRACE_CHAIN_MISSING; exit 1; }
+export A2_EXTERNAL_ARCHIVE_RECEIPT="$WORK/external-archive/restore-receipt.json"
+export A2_RESTORE_RTO_MS="$((user_complete_ms-recovery_start_ms))"
+export A2_RESTORE_READINESS_MS="$((recovery_ready_ms-recovery_start_ms))"
+export A2_RESTORE_USER_RECEIPT="$WORK/restore-user-verify.json"
 export A2_RESTORE_RPO_GAP_MS="$((late_ack_ms-last_ack_ms))"
 export A2_RESTORE_DRAIN_MS="$((drain_complete_ms-recovery_ready_ms))"
 python3 - 'artifacts/a2-obs-real-service-restore.json' <<'RESTORE_RECEIPT'
 import json,sys,os,datetime
 r={'runPrefix':'a2-obs-','recordedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),
- 'scope':'disposable real PG crash -> independent PG cluster -> pg_restore, live 2 API + 2 Chat2 Worker',
+ 'scope':'disposable PG crash -> encrypted external archive (storageMode in receipt) -> independent PG cluster and restored objects -> fresh 2 API + 2 Chat2 Worker -> authenticated user operation and ACK; synthetic media and X.509 signed preview OTA',
+ 'externalArchive':json.load(open(os.environ['A2_EXTERNAL_ARCHIVE_RECEIPT'])),
  'fullServiceRtoMs':int(os.environ['A2_RESTORE_RTO_MS']),
+ 'serviceReadinessMs':int(os.environ['A2_RESTORE_READINESS_MS']),
+ 'userScenario':json.load(open(os.environ['A2_RESTORE_USER_RECEIPT']))['checks'],
+ 'postRestoreRealUserOutboxAck':True,'freshServiceProcesses':True,'realUserTraceChain':True,
  'observedAcknowledgedRpoGapMs':int(os.environ['A2_RESTORE_RPO_GAP_MS']),
  'observedAcknowledgedWriteLossCount':1,
  'restoredPreviouslyAcknowledgedWrite':True,'postBackupAcknowledgedWriteAbsent':True,
  'restoredPendingOutbox':True,'restoredDeadLetter':True,'restoredPendingWorkerDrainMs':int(os.environ['A2_RESTORE_DRAIN_MS']),
  'allServiceReadiness':True,'checks':'PASS','stagingRpoRto':'PENDING'}
+limits={key:os.environ.get(env) for key,env in [
+ ('fullServiceRtoMs','A2_RESTORE_MAX_RTO_MS'),('observedAcknowledgedRpoGapMs','A2_RESTORE_MAX_RPO_MS')]}
+if any(v is not None and (not v.isdecimal() or int(v)<=0) for v in limits.values()):
+ raise SystemExit('A2_RESTORE_INVALID_PRODUCT_BUDGET')
+r['productBudgetStatus']='UNSPECIFIED' if any(v is None for v in limits.values()) else (
+ 'PASS' if all(r[k]<=int(v) for k,v in limits.items()) else 'FAIL')
+r['productBudgetMs']={k:int(v) if v is not None else None for k,v in limits.items()}
 with open(sys.argv[1],'w') as f:json.dump(r,f,indent=2);f.write('\n')
-print('A2_PRIVATE_RESTORE_FULL_SERVICE_READY_PASS',r['fullServiceRtoMs'],r['observedAcknowledgedRpoGapMs'],r['restoredPendingWorkerDrainMs'])
+if r['productBudgetStatus']=='FAIL':raise SystemExit('A2_RESTORE_PRODUCT_BUDGET_EXCEEDED')
+print('A2_PRIVATE_RESTORE_USER_SCENARIO_PASS',r['fullServiceRtoMs'],r['observedAcknowledgedRpoGapMs'],r['restoredPendingWorkerDrainMs'])
 RESTORE_RECEIPT
+if [[ "${1:-}" == --restore-only ]]; then exit 0; fi
 for window in 1 2 3; do
   node scripts/qa/observability-multi-instance.mjs \
     --target=http://127.0.0.1:56244/ready --target=http://127.0.0.1:56245/ready \

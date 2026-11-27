@@ -16,6 +16,13 @@ vi.mock("@gafus/prisma", () => ({
     },
   },
 }));
+// SQL fencing and broker behavior are under test; telemetry is covered separately.
+vi.mock("@gafus/logger", () => ({createWorkerLogger: () => ({warn:vi.fn(),error:vi.fn(),info:vi.fn()})}));
+vi.mock("@gafus/logger/server-telemetry", () => ({
+  configureServerTelemetry:vi.fn(),startCorrelatedSpan:() => ({end:vi.fn()}),
+  withServerSpan:async (_span: unknown, action:()=>Promise<unknown>)=>action(),
+  markServerSpanError:vi.fn(),
+}));
 vi.mock("@gafus/queues", () => ({ pushQueue: { add: vi.fn() } }));
 vi.mock("@gafus/cdn-upload", () => ({
   chat2DeletePrivateMedia: vi.fn(), chat2V2DeleteObjects: vi.fn(),

@@ -1,5 +1,6 @@
+import { useBoundedAdminPage } from "./support/useBoundedAdminPage";
+import { AdminPageControls } from "./support/AdminPageControls";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getCDNUrl } from "@gafus/cdn-upload/utils";
 import { AdminHttpError, requestAdmin } from "./api";
 import {
   formatConsultationConfirmSlotMsk,
@@ -8,6 +9,7 @@ import {
 import {
   plainConsultationAboutHtml,
   cynologistDisplayInitials,
+  cynologistAvatarSrc,
 } from "@gafus/consultation-shared/consultation-catalog-presentation";
 
 type Trainer = {
@@ -58,31 +60,6 @@ function validTrainers(source: unknown): Trainer[] | null {
   }
   return source as Trainer[];
 }
-/** Matches the former Next catalog: already absolute URLs or original CDN-backed relative media keys. */
-export function cynologistAvatarSrc(value: string | null | undefined): string | null {
-  const path = value?.trim();
-  if (
-    !path ||
-    [...path].some((char) => {
-      const code = char.charCodeAt(0);
-      return code <= 31 || code === 127;
-    })
-  )
-    return null;
-  if (/^https?:\/\//i.test(path)) {
-    try {
-      const url = new URL(path);
-      return url.username || url.password ? null : path;
-    } catch {
-      return null;
-    }
-  }
-  if (/^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith("//") || path.includes("\\")) {
-    return null;
-  }
-  return getCDNUrl(path);
-}
-
 function TrainerAvatar({ trainer }: { trainer: Trainer }) {
   const [failed, setFailed] = useState(false);
   const src = cynologistAvatarSrc(trainer.avatarUrl);
@@ -251,15 +228,13 @@ function validBookingRows(value: unknown): value is Booking[] {
 export function Bookings({ source }: { source: unknown }) {
   const [status, setStatus] = useState("ALL");
   const [search, setSearch] = useState("");
-  if (!validBookingRows(source)) return <p role="alert">Некорректный ответ списка бронирований</p>;
-  const bookings = source;
-  const rows = bookings.filter(
-    (booking) =>
-      (status === "ALL" || booking.status === status) &&
+  const paging=useBoundedAdminPage(source,"/api/v1/consultations/admin/bookings",validBookingRows,search,status);
+  const bookings=validBookingRows(source)?source:null;
+  if (!paging.paged && !bookings) return <p role="alert">Некорректный ответ списка бронирований</p>;
+  const rows=paging.paged ? paging.data?.items??[] : bookings!.filter(
+    booking=>(status==="ALL"||booking.status===status) &&
       `${booking.cynologistDisplayName ?? ""} ${booking.clientUsername ?? ""} ${booking.petName ?? ""}`
-        .toLocaleLowerCase("ru-RU")
-        .includes(search.toLocaleLowerCase("ru-RU")),
-  );
+        .toLocaleLowerCase("ru-RU").includes(search.toLocaleLowerCase("ru-RU")));
   return (
     <section className="content-card">
       <p className="note">
@@ -269,7 +244,7 @@ export function Bookings({ source }: { source: unknown }) {
         <h2>Все брони консультаций</h2>
         <label>
           Статус
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select value={status} onChange={(e) => {setStatus(e.target.value);paging.resetPage();}}>
             <option value="ALL">Все</option>
             {Object.entries(statusLabel).map(([key, label]) => (
               <option key={key} value={key}>
@@ -282,13 +257,13 @@ export function Bookings({ source }: { source: unknown }) {
           Поиск
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            maxLength={128} onChange={(e) => {setSearch(e.target.value);paging.resetPage();}}
             placeholder="Кинолог, клиент, питомец"
           />
         </label>
       </div>
       <p className="note">
-        Последние бронирования (до 500), время — МСК. Подтверждение и отмена — в сценариях тренера и
+        {paging.paged ? "Все бронирования" : "Последние бронирования (до 500)"}, время — МСК. Подтверждение и отмена — в сценариях тренера и
         пользователя.
       </p>
       <div className="table-scroll">
@@ -325,10 +300,10 @@ export function Bookings({ source }: { source: unknown }) {
           </tbody>
         </table>
       </div>
-      {!rows.length && <p className="empty">Бронирований нет</p>}
-      <p className="note">
-        Показано: {rows.length} из {bookings.length}
-      </p>
+      {!rows.length && (!paging.paged || paging.data) && <p className="empty">Бронирований нет</p>}
+      {paging.paged ? <AdminPageControls page={paging.data?.pagination??null} loading={paging.loading}
+        error={paging.error} onPage={paging.setPage} onSize={paging.setPageSize} onRetry={paging.retry}/>
+        : <p className="note">Показано: {rows.length} из {bookings!.length}</p>}
     </section>
   );
 }

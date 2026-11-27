@@ -1,87 +1,48 @@
-/**
- * Подсчёт серий занятий по датам тренировок.
- * Общая логика для API и web.
- */
+/** Streaks use local calendar days, not elapsed 24-hour periods. */
+const DAY_MS = 86_400_000;
 
-/**
- * Вычисляет текущую серию (дни подряд до последней активности).
- * Если последняя активность — вчера или сегодня, серия продолжается.
- */
+function calendarDay(date: Date): number {
+  // Keep the existing local-day policy, but convert its civil components into
+  // a UTC ordinal. A DST transition no longer turns one day into 23/25 hours.
+  const civil = new Date(0);
+  civil.setUTCFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+  return civil.getTime() / DAY_MS;
+}
+
+function uniqueDays(trainingDates: readonly (Date | string)[]): Set<number> {
+  const days = new Set<number>();
+  for (const value of trainingDates) {
+    const date = typeof value === "string" ? new Date(value) : value;
+    if (!Number.isNaN(date.getTime())) days.add(calendarDay(date));
+  }
+  return days;
+}
+
+/** Today or yesterday must be part of an active streak. Ignore future activity. */
 export function calculateCurrentStreak(trainingDates: Date[] | string[]): number {
-  if (trainingDates.length === 0) return 0;
-
-  const normalizedDates = new Set<string>();
-  trainingDates.forEach((date) => {
-    const d = typeof date === "string" ? new Date(date) : new Date(date.getTime());
-    if (Number.isNaN(d.getTime())) return;
-    d.setHours(0, 0, 0, 0);
-    normalizedDates.add(d.toISOString());
-  });
-
-  if (normalizedDates.size === 0) return 0;
-
-  const uniqueDates = Array.from(normalizedDates)
-    .map((iso) => new Date(iso))
-    .sort((a, b) => b.getTime() - a.getTime());
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const lastDate = uniqueDates[0];
-  const daysDiff = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-  if (daysDiff > 1) return 0;
-
+  const days = uniqueDays(trainingDates);
+  const today = calendarDay(new Date());
+  let day = days.has(today) ? today : today - 1;
   let streak = 0;
-  const expectedDate = new Date(lastDate);
-  const dateSet = new Set(uniqueDates.map((d) => d.toISOString()));
-  const MAX_ITERATIONS = 365;
-
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const expectedDateStr = expectedDate.toISOString();
-    if (dateSet.has(expectedDateStr)) {
-      streak++;
-      expectedDate.setDate(expectedDate.getDate() - 1);
-    } else {
-      break;
-    }
+  // The loop is bounded by the number of distinct activity days, not by an
+  // arbitrary one-year cap that undercounts long-running streaks.
+  while (days.has(day)) {
+    streak++;
+    day--;
   }
   return streak;
 }
 
-/**
- * Вычисляет самую длинную серию занятий за всё время.
- */
+/** Longest sequence of consecutive calendar days in the provided history. */
 export function calculateLongestStreak(trainingDates: Date[] | string[]): number {
-  if (trainingDates.length === 0) return 0;
-
-  const normalizedDates = new Set<string>();
-  trainingDates.forEach((date) => {
-    const d = typeof date === "string" ? new Date(date) : new Date(date.getTime());
-    if (Number.isNaN(d.getTime())) return;
-    d.setHours(0, 0, 0, 0);
-    normalizedDates.add(d.toISOString());
-  });
-
-  if (normalizedDates.size === 0) return 0;
-
-  const sortedDates = Array.from(normalizedDates)
-    .map((iso) => new Date(iso))
-    .sort((a, b) => a.getTime() - b.getTime());
-
-  let longestStreak = 1;
-  let currentStreak = 1;
-
-  for (let i = 1; i < sortedDates.length; i++) {
-    const prevDate = sortedDates[i - 1];
-    const currentDate = sortedDates[i];
-    const daysDiff = Math.floor(
-      (currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    if (daysDiff === 1) {
-      currentStreak++;
-      longestStreak = Math.max(longestStreak, currentStreak);
-    } else {
-      currentStreak = 1;
-    }
+  const sorted = [...uniqueDays(trainingDates)].sort((a, b) => a - b);
+  let longest = 0;
+  let current = 0;
+  let previous: number | undefined;
+  for (const day of sorted) {
+    current = previous !== undefined && day === previous + 1 ? current + 1 : 1;
+    longest = Math.max(longest, current);
+    previous = day;
   }
-  return longestStreak;
+  return longest;
 }

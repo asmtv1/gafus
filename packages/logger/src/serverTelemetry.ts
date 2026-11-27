@@ -129,6 +129,9 @@ const SAFE_TRACE_ATTRIBUTES = new Set([
   "gafus.job_attempt", "gafus.retry_class", "gafus.cloudru.phase",
   "peer.service", "db.system", "db.operation.name", "gafus.error_code",
   "gafus.job_type", "gafus.stage",
+  "gafus.client_platform", "gafus.client_version", "gafus.client_build", "gafus.ota_revision",
+  "gafus.queue_wait_ms", "gafus.event_age_ms",
+  "gafus.video_surface", "gafus.video_platform", "gafus.video_frame_outcome", "gafus.video_first_frame_ms",
 ]);
 export function safeSpanAttributes(
   input: Record<string, string | number | boolean> | undefined,

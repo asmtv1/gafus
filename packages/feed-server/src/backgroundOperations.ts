@@ -18,6 +18,6 @@ export async function runFeedBackgroundOperations(
 export async function getFeedPushSubscriptions(userId: string) {
   return prisma.pushSubscription.findMany({
     where: { userId },
-    select: { endpoint: true, keys: true },
+    select: { id: true, userId: true, updatedAt: true, endpoint: true, keys: true },
   });
 }

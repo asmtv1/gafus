@@ -27,7 +27,7 @@ vi.mock("./registrationContracts", () => ({
 import { canRegisterEmailDomain } from "./registerEmailDomainDns";
 
 import { registerUserWithCredentials } from "./registerUserWithCredentials";
-import { registerCredentialRegistrationPort } from "./registerUserWithCredentials";
+
 import {
   withRegistrationTransaction,
   readCredentialRegistrationReplayUserTx,
@@ -37,7 +37,7 @@ import {
   createCompletedConsentLogsInTransaction,
   attributePartnerReferralIfCurrentPartnerInTransaction,
 } from "@gafus/identity-write-server/registration-contract-rows";
-registerCredentialRegistrationPort({
+const fixtureCredentialRegistrationPort = {
   withRegistrationTransaction,
   readCredentialRegistrationReplayUserTx,
   insertCredentialRegistrationUserTx,
@@ -45,7 +45,7 @@ registerCredentialRegistrationPort({
   registrationUniqueErrorTargets,
   createCompletedConsentLogsInTransaction,
   attributePartnerReferralIfCurrentPartnerInTransaction,
-});
+};
 
 
 const context = {
@@ -65,7 +65,7 @@ describe("registerUserWithCredentials atomic registration", () => {
 
   it.each(["WEB", "IOS", "ANDROID"])("rejects an unmail-able domain for %s before hashing or writing", async (channel) => {
     vi.mocked(canRegisterEmailDomain).mockResolvedValue(false);
-    await expect(registerUserWithCredentials({ ...input, email: "new@qwe.ru", registrationChannel: channel as import("@gafus/prisma").RegistrationChannel })).resolves.toEqual({
+    await expect(registerUserWithCredentials({ ...input, email: "new@qwe.ru", registrationChannel: channel as import("@gafus/prisma").RegistrationChannel }, fixtureCredentialRegistrationPort)).resolves.toEqual({
       ok: false, code: "VALIDATION_ERROR",
       messageRu: "Почта с доменом @qwe.ru не принимает письма. Укажите настоящий адрес электронной почты",
     });
@@ -75,13 +75,13 @@ describe("registerUserWithCredentials atomic registration", () => {
   });
 
   it("requires accepted consent context even for an old no-promo client", async () => {
-    await expect(registerUserWithCredentials({ ...input, registrationContext: undefined })).resolves.toMatchObject({ ok: false, code: "VALIDATION_ERROR" });
+    await expect(registerUserWithCredentials({ ...input, registrationContext: undefined }, fixtureCredentialRegistrationPort)).resolves.toMatchObject({ ok: false, code: "VALIDATION_ERROR" });
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it("creates user, saved ordinary promo, completed linked consents and attempt in one transaction", async () => {
     mocks.savePromo.mockResolvedValue({ normalizedCode: "ORDINARY" });
-    await expect(registerUserWithCredentials({ ...input, promoCode: "ordinary" })).resolves.toEqual({ ok: true, userId: "user-1", wasCreated: true });
+    await expect(registerUserWithCredentials({ ...input, promoCode: "ordinary" }, fixtureCredentialRegistrationPort)).resolves.toEqual({ ok: true, userId: "user-1", wasCreated: true });
     expect(mocks.savePromo).toHaveBeenCalledWith(tx, { userId: "user-1", rawCode: "ORDINARY" }, undefined);
     expect(mocks.attributeReferral).toHaveBeenCalledWith(tx, "user-1", "ORDINARY");
     expect(mocks.createConsents).toHaveBeenCalledWith(tx, expect.objectContaining({ userId: "user-1", tempSessionId: context.tempSessionId }));
@@ -90,18 +90,18 @@ describe("registerUserWithCredentials atomic registration", () => {
 
   it("rolls the whole attempt back when consent persistence fails", async () => {
     mocks.createConsents.mockRejectedValueOnce(new Error("consent write failed"));
-    await expect(registerUserWithCredentials(input)).rejects.toThrow("consent write failed");
+    await expect(registerUserWithCredentials(input, fixtureCredentialRegistrationPort)).rejects.toThrow("consent write failed");
     expect(mocks.attemptUpdate).not.toHaveBeenCalled();
   });
 
   it("replays only after password verification and does not create duplicates", async () => {
     mocks.attempt.mockResolvedValue({ id: "attempt-1", completedAt: new Date(), userId: "user-1", result: "SUCCEEDED" }); mocks.userFindUnique.mockResolvedValue({ id: "user-1", password: "stored-hash" });
-    await expect(registerUserWithCredentials(input)).resolves.toEqual({ ok: true, userId: "user-1", wasCreated: false });
+    await expect(registerUserWithCredentials(input, fixtureCredentialRegistrationPort)).resolves.toEqual({ ok: true, userId: "user-1", wasCreated: false });
     expect(mocks.userCreate).not.toHaveBeenCalled(); expect(mocks.createConsents).not.toHaveBeenCalled(); expect(mocks.compare).toHaveBeenCalledWith("Password1x", "stored-hash");
   });
 
   it("rejects a completed-attempt replay with a changed password", async () => {
     mocks.attempt.mockResolvedValue({ id: "attempt-1", completedAt: new Date(), userId: "user-1", result: "SUCCEEDED" }); mocks.userFindUnique.mockResolvedValue({ id: "user-1", password: "stored-hash" }); mocks.compare.mockResolvedValue(false);
-    await expect(registerUserWithCredentials(input)).resolves.toMatchObject({ ok: false, code: "ATTEMPT_MISMATCH" });
+    await expect(registerUserWithCredentials(input, fixtureCredentialRegistrationPort)).resolves.toMatchObject({ ok: false, code: "ATTEMPT_MISMATCH" });
   });
 });

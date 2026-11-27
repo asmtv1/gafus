@@ -56,7 +56,7 @@ export async function sendPasswordResetLinkEmail(to: string, resetUrl: string): 
       to,
       deliveryMode: deferred ? "deferred" : "immediate",
       maxQueueAgeMs: 45 * 60_000,
-      category: "auth",
+      category: "password_reset",
       subject,
       text,
       blocksHtml: [

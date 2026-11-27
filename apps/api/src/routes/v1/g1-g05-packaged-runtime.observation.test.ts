@@ -20,7 +20,7 @@ vi.mock("@gafus/logger", () => ({
 import { createPet } from "@gafus/core/services/pets";
 import { withPetSqlTx, claimPetCreationReceipt } from "@gafus/pets-server/pet-rows";
 // Packaging smoke must install the production Pet SQL adapter explicitly.
-import "../../modules/pets/composition/install-pet-rows";
+import { petRows } from "../../modules/pets/composition/pet-rows-instance";
 
 const owner = "synthetic-owner-G05";
 const createInput = (name: string, extra: Record<string, unknown> = {}) => ({
@@ -59,14 +59,14 @@ describe("G05 current shared packaged Core smoke (NO SQL)", () => {
     expect(claim).toContain('ON CONFLICT ("ownerId","clientRequestId") DO NOTHING');
   });
   it("P03 normal unkeyed packaged runtime still creates independently (legacy-compatible)", async () => {
-    const a = await createPet(owner, createInput("A"));
-    const b = await createPet(owner, createInput("A"));
+    const a = await createPet(petRows, owner, createInput("A"));
+    const b = await createPet(petRows, owner, createInput("A"));
     expect(a.id).not.toBe(b.id);
     expect(mock.create).toHaveBeenCalledTimes(2);
     expect(mock.transaction).not.toHaveBeenCalled();
   });
   it("P04 packaged Core preserves supplied 4.25 initial pet weight", async () => {
-    const result = await createPet(owner, createInput("Weight"));
+    const result = await createPet(petRows, owner, createInput("Weight"));
     expect(result.weightKg).toBe(4.25);
     expect(mock.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ weightKg: 4.25 }) }),
@@ -74,7 +74,7 @@ describe("G05 current shared packaged Core smoke (NO SQL)", () => {
   });
   it("P05 packaged legacy runtime wraps database errors without exposing raw details", async () => {
     mock.create.mockRejectedValueOnce(new Error("synthetic-sql-secret-not-for-client"));
-    await expect(createPet(owner, createInput("DB failure"))).rejects.toThrow(
+    await expect(createPet(petRows, owner, createInput("DB failure"))).rejects.toThrow(
       "Не удалось создать питомца",
     );
     expect(mock.error).toHaveBeenCalledTimes(1);
@@ -82,7 +82,7 @@ describe("G05 current shared packaged Core smoke (NO SQL)", () => {
   it("P06 a keyed create fails closed without a transactional receipt store", async () => {
     const key = "c12a6c9c-1f72-4476-a342-bfdd9ba68c23";
     mock.transaction.mockRejectedValueOnce(new Error("synthetic-transaction-unavailable-secret"));
-    await expect(createPet(owner, createInput("keyed", { clientRequestId: key }))).rejects.toThrow(
+    await expect(createPet(petRows, owner, createInput("keyed", { clientRequestId: key }))).rejects.toThrow(
       "Не удалось создать питомца",
     );
     expect(mock.transaction).toHaveBeenCalledTimes(1);

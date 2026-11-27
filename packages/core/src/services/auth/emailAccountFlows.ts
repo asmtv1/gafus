@@ -26,7 +26,7 @@ export interface EmailAccountRowsPort {
     id: string; email: string | null; passwordResetRequestedAt: Date | null;
   } | null>;
   claimPasswordResetEmailToken(input: {
-    userId: string; tokenHash: string; expiresAt: Date; requestedAt: Date; throttleMs: number;
+    userId: string; expectedEmail: string; tokenHash: string; expiresAt: Date; requestedAt: Date; throttleMs: number;
   }): Promise<boolean>;
   rollbackFailedPasswordResetEmailToken(input: {
     userId: string; tokenHash: string; requestedAt: Date; previousRequestedAt: Date | null;
@@ -44,16 +44,9 @@ export interface EmailAccountRowsPort {
   retireOlderEmailChangeTokens(userId: string, token: string, stagedAt: Date): Promise<unknown>;
   consumeEmailChangeConfirmation(token: string): Promise<string | null | undefined>;
 }
-let installedEmailAccountRowsPort: Readonly<EmailAccountRowsPort> | null = null;
-export function registerEmailAccountRowsPort(port: EmailAccountRowsPort): void {
-  if (installedEmailAccountRowsPort !== null && installedEmailAccountRowsPort !== port) {
-    throw new Error("EMAIL_ACCOUNT_ROWS_PORT_ALREADY_BOUND");
-  }
-  installedEmailAccountRowsPort = port;
-}
-function requireEmailAccountRowsPort(): Readonly<EmailAccountRowsPort> {
-  if (!installedEmailAccountRowsPort) throw new Error("EMAIL_ACCOUNT_ROWS_PORT_UNBOUND");
-  return installedEmailAccountRowsPort;
+function requireEmailAccountRowsPort(port: EmailAccountRowsPort | undefined): Readonly<EmailAccountRowsPort> {
+  if (!port) throw new Error("EMAIL_ACCOUNT_ROWS_PORT_UNBOUND");
+  return port;
 }
 
 
@@ -76,7 +69,7 @@ export async function sendPasswordResetRequestByEmail(rawEmail: string, rows?: E
   }
   const email = parsed.data;
 
-  const user = await (rows ?? requireEmailAccountRowsPort()).readPasswordResetRequestUser(email);
+  const user = await (requireEmailAccountRowsPort(rows)).readPasswordResetRequestUser(email);
 
   if (!user?.email) {
     logger.info("Сброс пароля: пользователь с email не найден", {});
@@ -98,8 +91,8 @@ export async function sendPasswordResetRequestByEmail(rawEmail: string, rows?: E
   // Keep previously delivered links usable until the new message is accepted.
   // Claim the throttle atomically to stop concurrent requests from racing.
   const requestedAt = new Date(now);
-  const claimed = await (rows ?? requireEmailAccountRowsPort()).claimPasswordResetEmailToken({
-    userId: user.id, tokenHash, expiresAt, requestedAt,
+  const claimed = await (requireEmailAccountRowsPort(rows)).claimPasswordResetEmailToken({
+    userId: user.id, expectedEmail: user.email, tokenHash, expiresAt, requestedAt,
     throttleMs: PASSWORD_RESET_THROTTLE_MS,
   });
   if (!claimed) return;
@@ -113,7 +106,7 @@ export async function sendPasswordResetRequestByEmail(rawEmail: string, rows?: E
   } catch (error) {
     // A failed provider request must neither invalidate the older link nor
     // impose a 2-minute cooldown. Never remove a newer concurrent request.
-    await (rows ?? requireEmailAccountRowsPort()).rollbackFailedPasswordResetEmailToken({
+    await (requireEmailAccountRowsPort(rows)).rollbackFailedPasswordResetEmailToken({
       userId: user.id, tokenHash, requestedAt,
       previousRequestedAt: user.passwordResetRequestedAt,
     }).catch((rollbackError) => {
@@ -123,7 +116,7 @@ export async function sendPasswordResetRequestByEmail(rawEmail: string, rows?: E
   }
   // Only after accepted delivery invalidate the older links. Failure to clean
   // up is safer than invalidating the newly delivered link.
-  await (rows ?? requireEmailAccountRowsPort()).retireOlderPasswordResetEmailTokens(user.id, tokenHash).catch((error) => {
+  await (requireEmailAccountRowsPort(rows)).retireOlderPasswordResetEmailTokens(user.id, tokenHash).catch((error) => {
     logger.error("Password reset old-token cleanup unavailable", error as Error);
   });
 }
@@ -141,7 +134,7 @@ export async function requestEmailChange(
   }
   const newEmail = parsed.data;
 
-  const user = await (rows ?? requireEmailAccountRowsPort()).readEmailChangeAccount(userId);
+  const user = await (requireEmailAccountRowsPort(rows)).readEmailChangeAccount(userId);
   if (!user) throw new Error("Пользователь не найден");
   if (user.passwordSetAt != null &&
       (!currentPassword || !(await bcrypt.compare(currentPassword, user.password)))) {
@@ -151,7 +144,7 @@ export async function requestEmailChange(
     throw new Error("Этот email уже указан в профиле");
   }
 
-  const taken = await (rows ?? requireEmailAccountRowsPort()).readEmailOwner(newEmail);
+  const taken = await (requireEmailAccountRowsPort(rows)).readEmailOwner(newEmail);
   if (taken) throw new Error("Этот email уже занят");
 
   const token = crypto.randomBytes(32).toString("base64url");
@@ -161,7 +154,7 @@ export async function requestEmailChange(
   // Stage before sending: a delivered link is never missing solely because
   // the database failed AFTER provider acceptance. Keep the prior link active
   // during delivery and remove ONLY the staged token on delivery failure.
-  const stagedAt = await (rows ?? requireEmailAccountRowsPort()).stageEmailChange({
+  const stagedAt = await (requireEmailAccountRowsPort(rows)).stageEmailChange({
     userId, newEmail, token, expiresAt,
     expectedPassword: user.password,
     expectedPasswordSetAt: user.passwordSetAt,
@@ -170,13 +163,13 @@ export async function requestEmailChange(
   try {
     await sendEmailChangeConfirmEmail(newEmail, confirmUrl);
   } catch (error) {
-    await (rows ?? requireEmailAccountRowsPort()).rollbackUndeliveredEmailChange(userId, token).catch((cleanupError) => {
+    await (requireEmailAccountRowsPort(rows)).rollbackUndeliveredEmailChange(userId, token).catch((cleanupError) => {
       logger.error("Email change delivery cleanup unavailable", cleanupError as Error);
     });
     throw error;
   }
   // One active delivered request per owner. Never delete the new token.
-  await (rows ?? requireEmailAccountRowsPort()).retireOlderEmailChangeTokens(userId, token, stagedAt).catch((error) => {
+  await (requireEmailAccountRowsPort(rows)).retireOlderEmailChangeTokens(userId, token, stagedAt).catch((error) => {
     logger.error("Email change old-token cleanup unavailable", error as Error);
   });
 }
@@ -190,7 +183,7 @@ export async function confirmEmailChangeByToken(rawToken: string, rows?: EmailAc
   }
 
   try {
-    const previousEmail = await (rows ?? requireEmailAccountRowsPort()).consumeEmailChangeConfirmation(token);
+    const previousEmail = await (requireEmailAccountRowsPort(rows)).consumeEmailChangeConfirmation(token);
     if (previousEmail?.trim()) {
       await sendEmailChangedNoticeEmail(previousEmail).catch((error) => {
         logger.error("Email change old-address notice unavailable", error as Error);

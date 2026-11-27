@@ -62,7 +62,7 @@ beforeEach(() => {
 });
 describe("vet preview owner DTO", () => {
   it("exposes an active queue state without leaking private storage keys", async () => {
-    const [visit] = await listPetVetVisits("p", "u");
+    const [visit] = await listPetVetVisits("p", "u", fixtureVetVisitRowsPort);
     expect(visit?.attachments[0]).toMatchObject({ hasPreview: false, previewProcessing: true });
     expect(visit?.attachments[0]).not.toHaveProperty("originalKey");
     expect(m.active).toHaveBeenCalledWith(
@@ -73,21 +73,21 @@ describe("vet preview owner DTO", () => {
   });
   it("does not report a failed or finished queue as processing", async () => {
     m.active.mockResolvedValue([]);
-    const [visit] = await listPetVetVisits("p", "u");
+    const [visit] = await listPetVetVisits("p", "u", fixtureVetVisitRowsPort);
     expect(visit?.attachments[0]?.previewProcessing).toBe(false);
   });
 });
 describe("vet image processing mode", () => {
   it("never schedules a Cloud photo preview Job even with retired async flag",async()=>{
     process.env.VET_PREVIEW_ASYNC_ENABLED="true";
-    await addPetVetAttachment("p","u","v",photo());
+    await addPetVetAttachment("p","u","v",photo(), fixtureVetVisitRowsPort);
     expect(m.write.mock.calls[0]![3]).toEqual({asyncPreview:false});
     expect(m.create.mock.calls[0]![0].data.previewKey).toMatch(/thumb.webp$/);
     expect(m.queue).not.toHaveBeenCalled();
     expect(m.reserve.mock.invocationCallOrder[0]).toBeLessThan(m.write.mock.invocationCallOrder[0]!);
   });
   it("keeps the old synchronous thumbnail by default", async () => {
-    await addPetVetAttachment("p", "u", "v", photo());
+    await addPetVetAttachment("p", "u", "v", photo(), fixtureVetVisitRowsPort);
     expect(m.write.mock.calls[0]![3]).toEqual({ asyncPreview: false });
     expect(m.create.mock.calls[0]![0].data.previewKey).toMatch(/thumb.webp$/);
     expect(m.queue).not.toHaveBeenCalled();
@@ -95,7 +95,7 @@ describe("vet image processing mode", () => {
   it("never creates a PDF thumbnail job", async () => {
     process.env.VET_PREVIEW_ASYNC_ENABLED = "true";
     m.sniff.mockResolvedValue({ mime: "application/pdf", ext: "pdf" });
-    await addPetVetAttachment("p", "u", "v", new File(["%PDF-1.4"], "vet.pdf"));
+    await addPetVetAttachment("p", "u", "v", new File(["%PDF-1.4"], "vet.pdf"), fixtureVetVisitRowsPort);
     expect(m.queue).not.toHaveBeenCalled();
     expect(m.create.mock.calls[0]![0].data.previewKey).toBeNull();
   });
@@ -103,5 +103,5 @@ describe("vet image processing mode", () => {
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalVetVisitRowsPort from "@gafus/pets-server/vet-visit-write-rows";
-import { registerVetVisitRowsPort } from "./vetVisitRowsPort";
-registerVetVisitRowsPort({ ...originalVetVisitRowsPort, isVetVisitDbError: (error): error is originalVetVisitRowsPort.VetVisitDbError => error instanceof originalVetVisitRowsPort.VetVisitDbError });
+
+const fixtureVetVisitRowsPort = { ...originalVetVisitRowsPort, isVetVisitDbError: (error): error is originalVetVisitRowsPort.VetVisitDbError => error instanceof originalVetVisitRowsPort.VetVisitDbError };

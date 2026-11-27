@@ -162,8 +162,15 @@ describe("app subscription payment service", () => {
     mockSubscriptionFindFirst.mockResolvedValue(null);
     // The extracted Apple state adapter compares a locked prior period before
     // accepting a new verified JWS. Preserve the same PG read in unit fixtures.
-    mockSubscriptionFindUniqueOrThrow.mockResolvedValue({
-      status: "PENDING", currentPeriodStart: null, currentPeriodEnd: null,
+    mockSubscriptionFindUniqueOrThrow.mockImplementation(async ({where}: {where:{id:string}}) => {
+      const rows = [...mockSubscriptionFindFirst.mock.results].reverse();
+      for (const result of rows) {
+        const row = await result.value;
+        if (row?.id !== where.id) continue;
+        return { ...row, status: row.status ?? "PENDING", currentPeriodStart: row.currentPeriodStart ?? null,
+          currentPeriodEnd: row.currentPeriodEnd ?? null };
+      }
+      return { status:"PENDING", currentPeriodStart:null, currentPeriodEnd:null };
     });
     mockSubscriptionFindMany.mockResolvedValue([]);
     mockSubscriptionCreate.mockImplementation(
@@ -229,7 +236,6 @@ describe("app subscription payment service", () => {
           findFirst: mockSubscriptionFindFirst,
           findUniqueOrThrow: mockSubscriptionFindUniqueOrThrow,
           update: mockSubscriptionUpdate,
-          updateMany: mockSubscriptionUpdateMany,
           updateMany: mockSubscriptionUpdateMany,
         },
         appSubscriptionEvent: {
@@ -2339,11 +2345,13 @@ describe("app subscription payment service", () => {
       .mockResolvedValueOnce({
         id: "sub-1",
         userId: "user-1",
+        appleOriginalTransactionId: "orig-batch-1",
         appleProductId: "premium-week",
       })
       .mockResolvedValueOnce({
         id: "sub-2",
         userId: "user-2",
+        appleOriginalTransactionId: "orig-batch-2",
         appleProductId: "premium-week",
       });
     mockGetAllSubscriptionStatuses.mockImplementation(async (originalTransactionId: string) => ({
@@ -2403,6 +2411,7 @@ describe("app subscription payment service", () => {
     mockPaymentFindUnique.mockResolvedValue({
       id: "pay-expired",
       userId: "user-1",
+      appleOriginalTransactionId: "orig-expired",
       status: "CANCELED",
     });
     verifyAndDecodeTransaction.mockResolvedValue({

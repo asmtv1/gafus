@@ -19,18 +19,13 @@
       "@gafus/media-server/trainer-transcoding": [
         "../media-server/dist/trainerTranscoding.d.ts"
       ],
-      "@gafus/core/services/mediaDelivery/purgeWorker": [
-        "../core/src/services/mediaDelivery/purgeWorker.ts"
-      ],
       "@gafus/core/services/pets": [
         "../../packages/core/src/services/pets/index.ts"
       ],
       "@gafus/core/services/gallery": [
         "../../packages/core/src/services/gallery/index.ts"
       ],
-      "@gafus/core/services/consent": [
-        "../../packages/core/src/services/consent"
-      ],
+
       "@gafus/core/services/appSubscription/plans": [
         "../../packages/core/src/services/appSubscription/plans.ts"
       ],
@@ -43,9 +38,7 @@
       "@gafus/core/services/reminders": [
         "../../packages/core/src/services/reminders/index.ts"
       ],
-      "@gafus/core/services/exam": [
-        "../../packages/core/src/services/exam/index.ts"
-      ],
+
       "@gafus/core/services/gafus": [
         "../../packages/core/src/services/gafus/index.ts"
       ],
@@ -61,9 +54,7 @@
       "@gafus/core/errors": [
         "../../packages/core/src/errors/index.ts"
       ],
-      "@gafus/core/services/notifications": [
-        "../../packages/core/src/services/notifications"
-      ],
+
       "@gafus/prisma": [
         "../../packages/prisma/src/index.ts"
       ],
@@ -390,11 +381,24 @@
       ],
       "@gafus/mobile-ota-server/diagnostics-spool-repository": [
         "../mobile-ota-server/dist/diagnostics-spool-repository.d.ts"
+      ],
+      "@gafus/media-server/chat2-video-recovery": [
+        "../media-server/dist/chat2VideoRecoveryRows.d.ts"
+      ],
+      "@gafus/feed-server/feed-video-recovery": [
+        "../feed-server/dist/feedVideoRecoveryRows.d.ts"
+      ],
+      "@gafus/notifications-server/chat2-outbox-rows": [
+        "../notifications-server/dist/chat2-outbox-rows.d.ts"
+      ],
+      "@gafus/media-server/chat2-deletion-rows": [
+        "../media-server/dist/chat2DeletionRows.d.ts"
       ]
     }
   },
   "include": [
-    "src"
+    "src",
+    "tools"
   ],
   "exclude": [
     "node_modules",

@@ -11,7 +11,6 @@ import { TrainerOptInRoute } from "./optInRoute";
 import type { PublicTemplateTransport } from "./TrainerPublicTemplatesOptInRoute";
 import type { VisibleStepTransport } from "./TrainerVisibleStepsOptInRoute";
 import type { PanelActor } from "./consultationContract";
-import type { CourseFormSourceMockTransport } from "./trainerCourseFullFormSourceMockTransport20261023";
 /** Actual opt-in Vite entry -> existing route -> Hono consumer -> booking UI. */
 export function mountTrainerEntry(
   mount: Element,
@@ -33,9 +32,6 @@ export function mountTrainerEntry(
     enableProposedCourseDraft?: boolean;
     enableCourseVersionEditor?: boolean;
     courseVersionOperations?: VersionedCourseOperations;
-    /** Dormant test-injected full form ONLY; absent from main.tsx. */
-    enableCourseFullFormSourceMock?: boolean;
-    courseFullFormSourceMockTransport?: CourseFormSourceMockTransport;
     enableVisibleSteps?: boolean;
     visibleStepsTransport?: VisibleStepTransport;
     enablePublicTemplates?: boolean;

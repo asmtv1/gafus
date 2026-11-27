@@ -486,7 +486,7 @@ class VideoTranscodingWorker {
   }
 }
 
-// Создаём и экспортируем worker
-const videoTranscodingWorker = new VideoTranscodingWorker();
-
-export default videoTranscodingWorker;
+export function startVideoTranscodingWorker(): () => Promise<void> {
+  const worker = new VideoTranscodingWorker();
+  return () => worker.close();
+}

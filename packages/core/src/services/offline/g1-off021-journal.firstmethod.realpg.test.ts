@@ -11,17 +11,16 @@ import { beforeAll, afterAll, afterEach, beforeEach, describe, expect, it, vi } 
 import type { PrismaClient } from "@prisma/client";
 import { prisma } from "@gafus/prisma";
 import {
-  submitNewOfflinePracticeMutation,
-  findNewOfflineMutationReceipt,
+  submitNewOfflinePracticeMutation as coreSubmit,
+  findNewOfflineMutationReceipt as coreLookup,
 } from "./offlineMutationJournal";
-// Vitest's existing Core -> Course -> Offline ESM cycle exposes partial exports.
-// Resolve a separately-evaluated copy of the REAL current trainingService source;
-// no Core SQL delegate is mocked or replaced, same Prisma client and TX used.
-vi.mock("../training/trainingService", async () => {
-  // @ts-expect-error Vite query suffix is supported by the test module loader only.
-  return import("../training/trainingService.ts?g1_off021_real_core");
-});
-import { updateStepAndDay } from "../training/trainingService";
+import { sqlTraining } from "../../../../../apps/api/src/modules/training/composition/sql-training-instance";
+const { updateStepAndDay } = sqlTraining;
+import { offlineMutationRows } from "../../../../../apps/api/src/modules/offline/composition/offline-mutation-rows-instance";
+const submitNewOfflinePracticeMutation = (input: Parameters<typeof coreSubmit>[0]) =>
+  coreSubmit(input, { applyStepDayAndCourseTx: sqlTraining.applyStepDayAndCourseTx as unknown as NonNullable<Parameters<typeof coreSubmit>[1]>["applyStepDayAndCourseTx"] }, offlineMutationRows);
+const findNewOfflineMutationReceipt = (ownerId: string, eventId: string) =>
+  coreLookup(ownerId, eventId, offlineMutationRows);
 const ROOT = "/Users/asmtv1/Desktop/gafus-refactor";
 const URL =
   "postgresql://off021_journal_owner@127.0.0.1:55455/gafus_off021_journal_ag1_20261017?schema=public";

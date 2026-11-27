@@ -34,7 +34,7 @@ if (
   window.location.pathname === "/main-panel" ||
   window.location.pathname.startsWith("/main-panel/")
 ) {
-  void import("../../admin-panel/src/admin-live/mountInWeb")
+  void import("@gafus/admin-panel/mount-in-web")
     .then(({ mountAdminInWeb }) => mountAdminInWeb(root))
     .catch(() => {
       root.textContent = "Не удалось загрузить админ-панель. Обновите страницу.";

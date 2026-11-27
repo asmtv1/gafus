@@ -1,6 +1,6 @@
 import { useMemo, type ReactElement } from "react";
 import { z } from "zod/v3";
-import { VoxConsultationRoom } from "../../../../packages/ui-components/src/VoxConsultationRoom";
+import { VoxConsultationRoom } from "@gafus/ui-components/voximplant-room";
 import type { PanelActor } from "./consultationContract";
 
 const segment = /^[A-Za-z0-9_-]{1,128}$/;

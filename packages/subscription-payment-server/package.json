@@ -15,6 +15,10 @@
       "types": "./dist/paymentService.d.ts",
       "default": "./dist/paymentService.js"
     },
+    "./transitions": {
+      "types": "./dist/subscriptionTransitions.d.ts",
+      "default": "./dist/subscriptionTransitions.js"
+    },
     "./payment-pure": {
       "types": "./dist/paymentPure.d.ts",
       "default": "./dist/paymentPure.js"

@@ -1,4 +1,5 @@
 /* eslint-disable @gafus/require-client-catch-tracer -- malformed avatar URL is expected external data; never log signed links. */
+import { chat2RoomAvatar } from "@gafus/core-client/chat2/room-presentation";
 import { useState, type ReactNode } from "react";
 import { Image, type ImageStyle } from "react-native";
 import type { Conversation } from "./api";
@@ -52,11 +53,7 @@ export function chat2ParticipantAvatarUrl(
   room: Pick<Conversation, "kind" | "members"> & Partial<Pick<Conversation, "avatarUrl">> | null,
   ownerId: string,
 ): string | null {
-  if (!room) return null;
-  const raw = room.kind === "DIRECT" || room.kind === "CYNOLOGIST"
-    ? room.members.find((member) => member.userId !== ownerId)?.avatarUrl
-    : room.avatarUrl;
-  return safeChat2AvatarUrl(raw);
+  return safeChat2AvatarUrl(chat2RoomAvatar(room, ownerId));
 }
 
 export function Chat2Avatar({

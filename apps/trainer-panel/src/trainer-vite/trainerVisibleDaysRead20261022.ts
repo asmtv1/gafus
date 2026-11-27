@@ -2,7 +2,7 @@ import { z } from "zod/v3";
 import type {
   TrainerVisibleDayItem,
   TrainerVisibleDaysRead,
-} from "../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 export const visibleDaySchema = z
   .object({
     id: z.string().min(1),

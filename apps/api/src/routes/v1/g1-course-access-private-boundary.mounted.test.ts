@@ -6,7 +6,7 @@ const m = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: m.token }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: async () => true }));
-vi.mock("@gafus/core/services/course", () => ({
+vi.mock("../../modules/courses/composition/catalog-read-instance.js", () => ({
   getCoursesWithProgress: vi.fn(),
   checkCourseAccess: m.byType,
   checkCourseAccessById: m.byId,

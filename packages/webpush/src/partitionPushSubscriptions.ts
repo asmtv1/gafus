@@ -6,11 +6,15 @@ export interface PushSubscriptionKeys {
 export interface PushSubscriptionJSON {
   endpoint: string;
   keys: PushSubscriptionKeys;
+  registration?: { id: string; userId: string; updatedAt: Date };
 }
 
 export interface SubscriptionLike {
   endpoint: string;
   keys: unknown;
+  id?: string;
+  userId?: string;
+  updatedAt?: Date;
 }
 
 function parseKeys(raw: unknown): PushSubscriptionKeys | null {
@@ -38,10 +42,12 @@ export function partitionPushSubscriptions(subscriptions: SubscriptionLike[]): {
   expo: PushSubscriptionJSON[];
 } {
   const normalized = subscriptions
-    .map((subscription) => {
+    .map((subscription): PushSubscriptionJSON | null => {
       const keys = parseKeys(subscription.keys);
       if (!keys || !subscription.endpoint) return null;
-      return { endpoint: subscription.endpoint, keys };
+      const { id, userId, updatedAt } = subscription;
+      return { endpoint: subscription.endpoint, keys,
+        ...(id && userId && updatedAt instanceof Date ? { registration: { id, userId, updatedAt } } : {}) };
     })
     .filter((subscription): subscription is PushSubscriptionJSON => subscription !== null);
 

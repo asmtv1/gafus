@@ -5,13 +5,7 @@ import type { PrismaClient } from "@gafus/prisma";
 import { createFeedPolls } from "../../../../feed-server/src/pollRows";
 import { createFeedService } from "../../../../feed-server/src/postRows";
 import { activateFeedPostRevisionTx } from "../../../../feed-server/src/publicationRows";
-import { registerGafusLockPort, registerGafusLedgerRowsPort } from "@gafus/core/services/gafus";
-import { lockGafusUser, withGafusUserLock } from "@gafus/gafus-server/wallet-lock";
 
-import {
-  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
-  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
-} from "@gafus/gafus-server/wallet-records";
 
 // Only an explicitly selected disposable local DB may run this suite.
 const url = process.env.FEED_POLL_TEST_DATABASE_URL;
@@ -29,16 +23,6 @@ const Client = require("@prisma/client").PrismaClient as new (args: {
 }) => PrismaClient;
 const db = url ? new Client({ datasources: { db: { url } } }) : null;
 
-// Publication grants Gafus rewards. The isolated integration test must
-// compose the REAL same-transaction PostgreSQL wallet adapters, just like
-// the API bootstrap. Never replace the advisory lock with an in-memory stub.
-if (url) {
-  registerGafusLockPort({ lockGafusUser, withGafusUserLock });
-  registerGafusLedgerRowsPort({
-    ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
-    appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
-  });
-}
 
 (url ? describe : describe.skip)("feed polls / isolated PostgreSQL", () => {
   let owner: string, reader: string, stranger: string, postId: string, at: Date;

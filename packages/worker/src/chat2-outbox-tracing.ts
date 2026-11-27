@@ -42,3 +42,18 @@ export async function traceChat2DispatchStage<T>(
     span.end();
   }
 }
+
+/** Queue eligibility delay excludes deliberate backoff. Event age includes
+ * time spent in backoff and prior attempts; both are bounded trace attributes. */
+export function chat2DispatchTiming(item: { createdAt: Date; nextAttemptAt: Date }, nowMs: number) {
+  const attributes: Record<string, number> = {};
+  for (const [key, date] of [
+    ["gafus.queue_wait_ms", item.nextAttemptAt],
+    ["gafus.event_age_ms", item.createdAt],
+  ] as const) {
+    const elapsed = nowMs - date?.getTime();
+    if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 1_000_000_000)
+      attributes[key] = Math.floor(elapsed);
+  }
+  return attributes;
+}

@@ -13,7 +13,7 @@ vi.mock("@gafus/cdn-upload", () => ({
   extractVideoIdFromCdnUrl: vi.fn(() => "video-parity"),
 }));
 
-import { authorizeVideoOccurrenceV3 } from "./videoPositionOccurrenceV3";
+import { authorizeVideoOccurrenceV3 as coreAuthorize } from "./videoPositionOccurrenceV3";
 
 function createFakeTransaction() {
   return {
@@ -88,3 +88,5 @@ describe("offline video occurrence follows the same Gafus/Premium policy", () =>
     expect(tx.rewardedTargetAccess.findFirst).not.toHaveBeenCalled();
   });
 });
+
+function authorizeVideoOccurrenceV3(tx: Parameters<typeof coreAuthorize>[0], ownerId: string, occurrence: Parameters<typeof coreAuthorize>[2], now?: Date) { return coreAuthorize(tx, ownerId, occurrence, checks.resolveAccess, now); }

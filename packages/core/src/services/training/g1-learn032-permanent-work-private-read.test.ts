@@ -17,7 +17,8 @@ vi.mock("../rewardedCredits", () => ({
 vi.mock("../trainerCourse/courseVersionService", () => ({ setCourseLogoVersioned: forbidden }));
 
 import { prisma } from "@gafus/prisma";
-import { getTrainingDays, getTrainingDayWithMonetizedSteps } from "./trainingService.ts";
+import { sqlTraining } from "../../../../../apps/api/src/modules/training/composition/sql-training-instance";
+const { getTrainingDays, getTrainingDayWithMonetizedSteps } = sqlTraining;
 
 const assertSafe = (ok: boolean, code: string): void => {
   if (!ok) throw Error(code);

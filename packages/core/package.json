@@ -9,10 +9,6 @@
       "types": "./dist/core/src/index.d.ts",
       "default": "./dist/core/src/index.js"
     },
-    "./services/feed/publication-client": {
-      "types": "./dist/core/src/services/feed/publication-client.d.ts",
-      "default": "./dist/core/src/services/feed/publication-client.js"
-    },
     "./services/article": {
       "types": "./dist/core/src/services/article/index.d.ts",
       "default": "./dist/core/src/services/article/index.js"
@@ -169,10 +165,6 @@
       "types": "./dist/core/src/services/consultation/errors.d.ts",
       "default": "./dist/core/src/services/consultation/errors.js"
     },
-    "./services/consultation/bookingService": {
-      "types": "./dist/core/src/services/consultation/bookingService.d.ts",
-      "default": "./dist/core/src/services/consultation/bookingService.js"
-    },
     "./services/consultation/consultationMskFormat": {
       "types": "./dist/core/src/services/consultation/consultationMskFormat.d.ts",
       "default": "./dist/core/src/services/consultation/consultationMskFormat.js"
@@ -269,10 +261,6 @@
       "types": "./dist/core/src/services/mediaDelivery/index.d.ts",
       "default": "./dist/core/src/services/mediaDelivery/index.js"
     },
-    "./services/mediaDelivery/purgeWorker": {
-      "types": "./dist/core/src/services/mediaDelivery/purgeWorker.d.ts",
-      "default": "./dist/core/src/services/mediaDelivery/purgeWorker.js"
-    },
     "./services/appSubscription/renewalPolicy": {
       "types": "./dist/core/src/services/appSubscription/renewalPolicy.d.ts",
       "default": "./dist/core/src/services/appSubscription/renewalPolicy.js"
@@ -304,10 +292,6 @@
     "./services/consultation/availabilityService": {
       "types": "./dist/core/src/services/consultation/availabilityService.d.ts",
       "default": "./dist/core/src/services/consultation/availabilityService.js"
-    },
-    "./services/consultation/slotService": {
-      "types": "./dist/core/src/services/consultation/slotService.d.ts",
-      "default": "./dist/core/src/services/consultation/slotService.js"
     },
     "./services/training/cache-publication": {
       "types": "./dist/core/src/services/training/cachePublication.d.ts",

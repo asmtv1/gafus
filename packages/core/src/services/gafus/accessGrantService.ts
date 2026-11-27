@@ -1,11 +1,11 @@
 import { requireGafusUnlockRowsPort, type GafusUnlockRowsPort } from "./gafusUnlockPort";
 import { GafusError } from "./errors";
 import { getGafusSettingsTx } from "./settingsService";
-import { changeGafusBalanceTx, ensureGafusWalletTx } from "./walletService";
+import type { GafusWalletService } from "./walletService";
 import {
-  resolveCourseStepTargetTx, resolveCourseStepAccessTx,
-  resolveMiniGuideTargetTx, resolveMiniGuideAccessTx,
-  resolveArticleTargetTx, resolveArticleAccessTx,
+  resolveCourseStepTargetTx,
+  resolveMiniGuideTargetTx,
+  resolveArticleTargetTx, type TransactionalContentPolicy,
 } from "../contentAccess";
 
 export type GafusUnlockTarget =
@@ -32,9 +32,9 @@ export async function unlockContentWithGafus(input: {
   target: GafusUnlockTarget;
   clientRequestId: string;
   now?: Date;
-}, unlockRows?: GafusUnlockRowsPort): Promise<GafusUnlockResult> {
+}, walletService: Pick<GafusWalletService, "ensureGafusWalletTx" | "changeGafusBalanceTx">, policy: TransactionalContentPolicy, unlockRows?: GafusUnlockRowsPort): Promise<GafusUnlockResult> {
   validateUnlockInput(input);
-  const rows = unlockRows ?? requireGafusUnlockRowsPort();
+  const rows = requireGafusUnlockRowsPort(unlockRows);
   const now = input.now ?? new Date();
   const idempotencyKey = `gafus:unlock:${input.userId}:${input.clientRequestId}`;
 
@@ -68,11 +68,11 @@ export async function unlockContentWithGafus(input: {
     }
 
     const entitlement = target.type === "COURSE_STEP"
-      ? await resolveCourseStepAccessTx(tx, input.userId, target, now)
+      ? await policy.resolveCourseStepAccessTx(tx, input.userId, target, now)
       : target.type === "MINI_GUIDE"
-        ? await resolveMiniGuideAccessTx(tx, input.userId, target, now)
-        : await resolveArticleAccessTx(tx, input.userId, target, now);
-    const wallet = await ensureGafusWalletTx(tx, input.userId);
+        ? await policy.resolveMiniGuideAccessTx(tx, input.userId, target, now)
+        : await policy.resolveArticleAccessTx(tx, input.userId, target, now);
+    const wallet = await walletService.ensureGafusWalletTx(tx, input.userId);
     if (entitlement.allowed) return {
       spent: 0, balance: wallet.balance, accessSource: entitlement.source,
       expiresAt: entitlement.expiresAt?.toISOString() ?? null, replay: true,
@@ -89,7 +89,7 @@ export async function unlockContentWithGafus(input: {
     if (wallet.balance < cost) {
       throw new GafusError("GAFUS_INSUFFICIENT_BALANCE", "Not enough Gafus");
     }
-    const debit = await changeGafusBalanceTx(tx, {
+    const debit = await walletService.changeGafusBalanceTx(tx, {
       userId: input.userId, amount: -cost, kind: "SPEND", idempotencyKey,
       targetType: target.type, targetKey: target.targetKey,
       settingsRevision: settings.revision,
@@ -117,30 +117,30 @@ export async function unlockContentWithGafus(input: {
 export async function unlockCourseStepWithGafus(input: {
   userId: string; dayOnCourseId: string; stepOnDayId: string;
   clientRequestId: string; now?: Date;
-}, unlockRows?: GafusUnlockRowsPort) {
+}, walletService: Pick<GafusWalletService, "ensureGafusWalletTx" | "changeGafusBalanceTx">, policy: TransactionalContentPolicy, unlockRows?: GafusUnlockRowsPort) {
   return unlockContentWithGafus({
     userId: input.userId, clientRequestId: input.clientRequestId,
     target: { type: "COURSE_STEP", dayOnCourseId: input.dayOnCourseId, stepOnDayId: input.stepOnDayId },
     now: input.now,
-  }, unlockRows);
+  }, walletService, policy, unlockRows);
 }
 
 export async function unlockArticleWithGafus(input: {
   userId: string; articleId: string; clientRequestId: string; now?: Date;
-}, unlockRows?: GafusUnlockRowsPort) {
+}, walletService: Pick<GafusWalletService, "ensureGafusWalletTx" | "changeGafusBalanceTx">, policy: TransactionalContentPolicy, unlockRows?: GafusUnlockRowsPort) {
   return unlockContentWithGafus({
     userId: input.userId, clientRequestId: input.clientRequestId,
     target: { type: "ARTICLE", articleId: input.articleId },
     now: input.now,
-  }, unlockRows);
+  }, walletService, policy, unlockRows);
 }
 
 export async function unlockMiniGuideWithGafus(input: {
   userId: string; courseId: string; clientRequestId: string; now?: Date;
-}, unlockRows?: GafusUnlockRowsPort) {
+}, walletService: Pick<GafusWalletService, "ensureGafusWalletTx" | "changeGafusBalanceTx">, policy: TransactionalContentPolicy, unlockRows?: GafusUnlockRowsPort) {
   return unlockContentWithGafus({
     userId: input.userId, clientRequestId: input.clientRequestId,
     target: { type: "MINI_GUIDE", courseId: input.courseId },
     now: input.now,
-  }, unlockRows);
+  }, walletService, policy, unlockRows);
 }

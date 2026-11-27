@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FeedPostEditorDto } from "@gafus/types";
-import { createFeedPublicationManager } from "./publication-client";
+import { createFeedPublicationManager } from "@gafus/core-client/feed/publication-client";
 
 function editor(status: FeedPostEditorDto["status"]): FeedPostEditorDto {
   return { id: "post-1", version: 0, status, attachments: [], pendingRevision: null } as FeedPostEditorDto;

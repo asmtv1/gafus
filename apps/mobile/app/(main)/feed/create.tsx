@@ -1,1 +1,1 @@
-export { FeedComposeScreen as default } from "@/features/feed/screens";
+export { FeedComposeScreen as default } from "@/features/feed/FeedComposeScreen";

@@ -8,12 +8,6 @@ import { readRankedFeedRows } from "@gafus/media-server/feed-ranked-rows";
 import { createFeedPreferences } from "./preferences";
 import { createFeedSocial } from "../../../../feed-server/src/socialRows";
 import { enqueueFeedAccountCleanup } from "../../../../feed-server/src/cleanupRows";
-import { registerGafusLockPort, registerGafusLedgerRowsPort, type GafusLockPort, type GafusLedgerRowsPort } from "@gafus/core/services/gafus";
-import { lockGafusUser, withGafusUserLock } from "@gafus/gafus-server/wallet-lock";
-import {
-  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
-  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
-} from "@gafus/gafus-server/wallet-records";
 import type { FeedStoragePort } from "./ports";
 
 // Never infer a database from the application's environment or reset shared schemas.
@@ -33,22 +27,6 @@ const Client = require("@prisma/client").PrismaClient as new (args: {
 }) => PrismaClient;
 const db = url ? new Client({ datasources: { db: { url } } }) : null;
 (url ? describe : describe.skip)("feed / real PostgreSQL", () => {
-  // Compose the real SQL wallet adapters for publication rewards. All writes
-  // share the feed transaction; no in-memory ledger or bypassed reward hook.
-  beforeAll(() => {
-    registerGafusLockPort({
-      lockGafusUser: lockGafusUser as unknown as GafusLockPort["lockGafusUser"],
-      withGafusUserLock: withGafusUserLock as unknown as GafusLockPort["withGafusUserLock"],
-    });
-    registerGafusLedgerRowsPort({
-      ensureWalletRow: ensureWalletRow as unknown as GafusLedgerRowsPort["ensureWalletRow"],
-      findLedgerEntry: findLedgerEntry as unknown as GafusLedgerRowsPort["findLedgerEntry"],
-      updateWalletBalanceRow: updateWalletBalanceRow as unknown as GafusLedgerRowsPort["updateWalletBalanceRow"],
-      appendLedgerEntry: appendLedgerEntry as unknown as GafusLedgerRowsPort["appendLedgerEntry"],
-      readWalletBalanceRow,
-      readWalletLedgerRows,
-    });
-  });
   let owner: string, reader: string, stranger: string, at: Date;
   let posts: ReturnType<typeof createFeedService>, social: ReturnType<typeof createFeedSocial>;
   const objects = new Map<string, { etag: string; bytes: number; contentType: string }>();

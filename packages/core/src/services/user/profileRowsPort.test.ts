@@ -35,8 +35,8 @@ describe("owner-scoped user profile SQL read/write port",()=>{
       onboardingTourCompletedAt:new Date("2026-11-01T09:30:00.000Z"),accounts:[{id:"vk-1"}],
       profile:{fullName:"Public",city:"Самара",birthDate:new Date("2000-02-29T00:00:00.000Z"),
         about:null,telegram:null,instagram:null,website:null,avatarUrl:null},
-    }));port.registerProfileRowsPort(db);
-    const result=await svc.getUserProfileForApi("owner-A");
+    }));const fixtureProfileRowsPort = db;
+    const result=await svc.getUserProfileForApi("owner-A", fixtureProfileRowsPort);
     expect(db.readUserProfileForApiRow).toHaveBeenCalledExactlyOnceWith("owner-A");
     expect(result).toMatchObject({id:"owner-A",hasAppPassword:true,
       onboardingTourCompletedAt:"2026-11-01T09:30:00.000Z",
@@ -50,14 +50,10 @@ describe("owner-scoped user profile SQL read/write port",()=>{
     const port=await import("./profileRowsPort");const svc=await import("./profileService");
     const db=stub();db.readPublicProfileRow=vi.fn(async()=>({
       id:"owner-A",username:"owner",role:"USER" as const,profile:null,diplomas:[],pets:[],authoredCourses:[],
-    }));port.registerProfileRowsPort(db);
-    await expect(svc.getPublicProfile("owner")).resolves.toMatchObject({username:"owner",role:"USER",chatRole:null});
+    }));const fixtureProfileRowsPort = db;
+    await expect(svc.getPublicProfile("owner", fixtureProfileRowsPort)).resolves.toMatchObject({username:"owner",role:"USER",chatRole:null});
     expect(db.readPublicProfileRow).toHaveBeenCalledExactlyOnceWith("owner");
     expect(db.readPaidChatDisplayEntitlement).toHaveBeenCalledWith("owner-A",expect.any(Date));
   });
-  it("refuses hot replacement of an active SQL profile owner adapter",async()=>{
-    const port=await import("./profileRowsPort");const db=stub();port.registerProfileRowsPort(db);
-    port.registerProfileRowsPort(db);
-    expect(()=>port.registerProfileRowsPort(stub())).toThrow("PROFILE_ROWS_PORT_ALREADY_BOUND");
-  });
+
 });

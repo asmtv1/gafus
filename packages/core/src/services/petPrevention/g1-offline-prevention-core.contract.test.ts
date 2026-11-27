@@ -35,36 +35,36 @@ const event=(clientId=CID,productName="Original")=>({clientId,type:"VACCINATION"
 beforeEach(()=>{vi.clearAllMocks();m.pets=new Map([["petA","A"],["petB","B"]]);m.rows=new Map();m.created=0;m.updated=0;m.txn=0;m.failCreate=false;});
 describe("AG3 prevention actual Core orchestration with fake Prisma (NO SQL)",()=>{
  it("PC01 first batch returns created=1, errors=[], row bound to A and petA",async()=>{
-  const r=await upsertPreventionEntriesBatch("A","petA",[event()]);
+  const r=await upsertPreventionEntriesBatch("A","petA",[event()], fixturePreventionRowsPort);
   expect(r).toEqual({success:true,data:{created:1,updated:0,errors:[]}});
   expect(m.rows.get("petA:"+CID)).toMatchObject({ownerId:"A",petId:"petA",productName:"Original"});
  });
  it("PC02 replay same event results created=0 updated=1: re-ACK but not exactly-once no-write",async()=>{
-  await upsertPreventionEntriesBatch("A","petA",[event()]);const r=await upsertPreventionEntriesBatch("A","petA",[event()]);
+  await upsertPreventionEntriesBatch("A","petA",[event()], fixturePreventionRowsPort);const r=await upsertPreventionEntriesBatch("A","petA",[event()], fixturePreventionRowsPort);
   expect(r).toEqual({success:true,data:{created:0,updated:1,errors:[]}});expect(m.rows).toHaveProperty("size",1);
  });
  it("PC03 same clientId with different body silently overwrites existing row",async()=>{
-  await upsertPreventionEntriesBatch("A","petA",[event()]);
-  const r=await upsertPreventionEntriesBatch("A","petA",[event(CID,"Changed-with-same-clientId")]);
+  await upsertPreventionEntriesBatch("A","petA",[event()], fixturePreventionRowsPort);
+  const r=await upsertPreventionEntriesBatch("A","petA",[event(CID,"Changed-with-same-clientId")], fixturePreventionRowsPort);
   expect(r).toEqual({success:true,data:{created:0,updated:1,errors:[]}});
   expect(m.rows.get("petA:"+CID)?.productName).toBe("Changed-with-same-clientId");
  });
  it("PC04 other principal can't batch upsert petA; no data modifications",async()=>{
-  await upsertPreventionEntriesBatch("A","petA",[event()]);const c=m.txn;
-  expect(await upsertPreventionEntriesBatch("B","petA",[event(CID,"ATTACK")])).toEqual({success:false,error:"Питомец не найден"});
+  await upsertPreventionEntriesBatch("A","petA",[event()], fixturePreventionRowsPort);const c=m.txn;
+  expect(await upsertPreventionEntriesBatch("B","petA",[event(CID,"ATTACK")], fixturePreventionRowsPort)).toEqual({success:false,error:"Питомец не найден"});
   expect(m.txn).toBe(c);expect(m.rows.get("petA:"+CID)?.ownerId).toBe("A");
  });
  it("PC05 one idempotency key scoped by petId: A and B pets do not collide",async()=>{
-  await upsertPreventionEntriesBatch("A","petA",[event()]);const r=await upsertPreventionEntriesBatch("B","petB",[event()]);
+  await upsertPreventionEntriesBatch("A","petA",[event()], fixturePreventionRowsPort);const r=await upsertPreventionEntriesBatch("B","petB",[event()], fixturePreventionRowsPort);
   expect(r).toEqual({success:true,data:{created:1,updated:0,errors:[]}});expect(m.rows.size).toBe(2);
  });
  it("PC06 transaction rollback on batch fail leaves no partial mock writes",async()=>{
-  m.failCreate=true;const r=await upsertPreventionEntriesBatch("A","petA",[event()]);
+  m.failCreate=true;const r=await upsertPreventionEntriesBatch("A","petA",[event()], fixturePreventionRowsPort);
   expect(r.success).toBe(false);expect(m.rows.size).toBe(0);
  });
 });
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPreventionRowsPort from "@gafus/pets-server/prevention-rows";
-import { registerPreventionRowsPort, type PreventionRowsPort } from "./preventionRowsPort";
-registerPreventionRowsPort(originalPreventionRowsPort as PreventionRowsPort);
+import { type PreventionRowsPort } from "./preventionRowsPort";
+const fixturePreventionRowsPort = originalPreventionRowsPort as PreventionRowsPort;

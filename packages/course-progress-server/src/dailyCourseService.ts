@@ -1,3 +1,4 @@
+import { stepProgressVersion, assertStepProgressVersion, remainingAfterOfflineDelay } from "./stepProgressVersion";
 import { isPrismaUniqueConstraintError, prisma } from "@gafus/prisma";
 import {
   cleanupScheduleWhere,
@@ -72,6 +73,7 @@ export interface DailyCourseStepDto {
   id: string;
   /** Immutable identity of this occurrence within its daily bundle. */
   bundleStepId: string;
+  offlineProgressVersion?: string;
   stepId: string;
   stepIndex: number;
   status: TrainingStatus;
@@ -477,6 +479,7 @@ export function createDailyCourseService({
       return {
         id: userStep?.id ?? link.step.id,
         bundleStepId: link.id,
+        offlineProgressVersion: stepProgressVersion(userStep),
         stepId: link.step.id,
         stepIndex: index,
         status,
@@ -696,243 +699,263 @@ export function createDailyCourseService({
     scheduleId: string,
     stepIndex: number,
     operation: DailyCourseStepOperation,
-    binding?: { expectedBundleStepId: string; expectedStepId: string },
-  ): Promise<{ allCompleted: boolean; stepJustCompleted: boolean }> {
+    binding?: { expectedBundleStepId: string; expectedStepId: string; journal?: { expectedVersion?: string; recordedAt?: number } },
+  ): Promise<{ allCompleted: boolean; stepJustCompleted: boolean; progressVersion?: string }> {
     return prisma.$transaction(
-      async (tx: Tx) => {
-        // Same-learner bound HTTP commands must serialize BEFORE the potentially
-        // conflicting DailyCourseUserTraining unique upsert. Without this actor
-        // lock two new concurrent starts can return a Prisma P2002 / HTTP 500.
-        // NO KEY UPDATE leaves FK KEY SHARE compatible; other actors stay free.
-        // Legacy Native index-only mutations are intentionally untouched.
-        if (binding) {
-          await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR NO KEY UPDATE`;
-        }
-        // A bound Web mutation locks schedule and bundle occurrence before reading
-        // ordering or writing progress. A trainer's reorder/delete/reassignment
-        // waits for this transaction, or makes this request fail with 409.
-        if (binding) {
-          const scheduleRows = await tx.$queryRaw<{ bundleId: string }[]>`
-          SELECT "bundleId" FROM "DailyCourseSchedule"
-          WHERE "id" = ${scheduleId} FOR SHARE
-        `;
-          if (scheduleRows.length !== 1) throw new Error("STALE_DAILY_STEP_BINDING");
-          const linkRows = await tx.$queryRaw<{ bundleId: string; stepId: string }[]>`
-          SELECT "bundleId", "stepId" FROM "DailyCourseBundleStep"
-          WHERE "id" = ${binding.expectedBundleStepId} FOR SHARE
-        `;
-          if (
-            linkRows.length !== 1 ||
-            linkRows[0].bundleId !== scheduleRows[0].bundleId ||
-            linkRows[0].stepId !== binding.expectedStepId
-          )
-            throw new Error("STALE_DAILY_STEP_BINDING");
-        }
-        const schedule = await tx.dailyCourseSchedule.findFirst({
-          where: { id: scheduleId, isPublished: true, date: { lte: getTodayDate() } },
-          select: {
-            id: true,
-            bundle: {
-              select: {
-                stepLinks: {
-                  orderBy: { order: "asc" },
-                  select: { id: true, stepId: true, step: { select: { durationSec: true } } },
-                },
-              },
-            },
-          },
-        });
-
-        if (!schedule) {
-          throw new Error("SCHEDULE_NOT_FOUND");
-        }
-
-        const stepLink = binding
-          ? schedule.bundle.stepLinks.find((link) => link.id === binding.expectedBundleStepId)
-          : schedule.bundle.stepLinks[stepIndex];
-        if (binding && (!stepLink || stepLink.stepId !== binding.expectedStepId)) {
-          throw new Error("STALE_DAILY_STEP_BINDING");
-        }
-        if (!stepLink) {
-          throw new Error("STEP_NOT_FOUND");
-        }
-        if (operation.type === "start" || operation.type === "pause") {
-          validateRemainingSec(operation.remainingSec, stepLink.step.durationSec);
-        }
-
-        const userTraining = await tx.dailyCourseUserTraining.upsert({
-          where: { userId_scheduleId: { userId, scheduleId } },
-          create: { userId, scheduleId, status: TrainingStatus.NOT_STARTED },
-          update: {},
-          select: { id: true },
-        });
-
-        const existingStep = await tx.dailyCourseUserStep.findFirst({
-          where: { dailyCourseUserTrainingId: userTraining.id, bundleStepId: stepLink.id },
-          select: { id: true, status: true },
-        });
-
-        if (
-          (operation.type === "pause" ||
-            operation.type === "resume" ||
-            operation.type === "reset") &&
-          !existingStep
-        ) {
-          throw new Error("STEP_NOT_FOUND");
-        }
-
-        if (operation.type === "reset" && existingStep?.status === TrainingStatus.NOT_STARTED) {
-          throw new Error("INVALID_STATE: cannot reset not started");
-        }
-
-        let stepJustCompleted = false;
-
-        switch (operation.type) {
-          case "start":
-            if (existingStep) {
-              {
-                const result = await tx.dailyCourseUserStep.updateMany({
-                  where: {
-                    id: existingStep.id,
-                    status: {
-                      in: [
-                        TrainingStatus.NOT_STARTED,
-                        TrainingStatus.RESET,
-                        TrainingStatus.IN_PROGRESS,
-                      ],
-                    },
-                  },
-                  data: {
-                    status: TrainingStatus.IN_PROGRESS,
-                    paused: false,
-                    remainingSec: operation.remainingSec ?? 0,
-                  },
-                });
-                if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
-              }
-            } else {
-              try {
-                await tx.dailyCourseUserStep.create({
-                  data: {
-                    dailyCourseUserTrainingId: userTraining.id,
-                    bundleStepId: stepLink.id,
-                    status: TrainingStatus.IN_PROGRESS,
-                    paused: false,
-                    remainingSec: operation.remainingSec ?? 0,
-                  },
-                });
-              } catch (error) {
-                if (!isPrismaUniqueConstraintError(error)) throw error;
-                const result = await tx.dailyCourseUserStep.updateMany({
-                  where: {
-                    dailyCourseUserTrainingId: userTraining.id,
-                    bundleStepId: stepLink.id,
-                    status: {
-                      in: [
-                        TrainingStatus.NOT_STARTED,
-                        TrainingStatus.RESET,
-                        TrainingStatus.IN_PROGRESS,
-                      ],
-                    },
-                  },
-                  data: {
-                    status: TrainingStatus.IN_PROGRESS,
-                    paused: false,
-                    remainingSec: operation.remainingSec ?? 0,
-                  },
-                });
-                if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
-              }
-            }
-            break;
-          case "pause": {
-            const result = await tx.dailyCourseUserStep.updateMany({
-              where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: false },
-              data: { paused: true, remainingSec: operation.remainingSec },
-            });
-            if (result.count === 0) throw new Error("INVALID_STATE: cannot pause step");
-            break;
-          }
-          case "resume": {
-            const result = await tx.dailyCourseUserStep.updateMany({
-              where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: true },
-              data: { paused: false },
-            });
-            if (result.count === 0) throw new Error("INVALID_STATE: cannot resume step");
-            break;
-          }
-          case "reset": {
-            const result = await tx.dailyCourseUserStep.updateMany({
-              where: {
-                id: existingStep!.id,
-                status: { in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED] },
-              },
-              data: { status: TrainingStatus.RESET, paused: false, remainingSec: null },
-            });
-            if (result.count === 0) throw new Error("INVALID_STATE: cannot reset step");
-            break;
-          }
-          case "complete":
-            if (existingStep) {
-              const result = await tx.dailyCourseUserStep.updateMany({
-                where: { id: existingStep.id, status: { not: TrainingStatus.COMPLETED } },
-                data: { status: TrainingStatus.COMPLETED, paused: false, remainingSec: null },
-              });
-              stepJustCompleted = result.count > 0;
-            } else {
-              try {
-                await tx.dailyCourseUserStep.create({
-                  data: {
-                    dailyCourseUserTrainingId: userTraining.id,
-                    bundleStepId: stepLink.id,
-                    status: TrainingStatus.COMPLETED,
-                  },
-                });
-                stepJustCompleted = true;
-              } catch (error) {
-                if (!isPrismaUniqueConstraintError(error)) throw error;
-                const result = await tx.dailyCourseUserStep.updateMany({
-                  where: {
-                    dailyCourseUserTrainingId: userTraining.id,
-                    bundleStepId: stepLink.id,
-                    status: { not: TrainingStatus.COMPLETED },
-                  },
-                  data: { status: TrainingStatus.COMPLETED, paused: false, remainingSec: null },
-                });
-                stepJustCompleted = result.count > 0;
-              }
-            }
-            break;
-        }
-
-        const userSteps = await tx.dailyCourseUserStep.findMany({
-          where: { dailyCourseUserTrainingId: userTraining.id },
-          select: { bundleStepId: true, status: true },
-        });
-        const statusByBundleStepId = new Map(
-          userSteps.map((step) => [step.bundleStepId, step.status]),
-        );
-        const allStatuses = schedule.bundle.stepLinks.map(
-          (link) => statusByBundleStepId.get(link.id) ?? TrainingStatus.NOT_STARTED,
-        );
-        const correctedStatus = calculateDayStatusFromStatuses(allStatuses);
-        const allCompleted = correctedStatus === TrainingStatus.COMPLETED;
-        const nextCurrentStepIndex = allCompleted
-          ? schedule.bundle.stepLinks.length - 1
-          : allStatuses.findIndex((status) => status !== TrainingStatus.COMPLETED);
-
-        await tx.dailyCourseUserTraining.update({
-          where: { id: userTraining.id },
-          data: {
-            status: correctedStatus as PrismaTrainingStatus,
-            currentStepIndex: nextCurrentStepIndex < 0 ? 0 : nextCurrentStepIndex,
-          },
-        });
-
-        return { allCompleted, stepJustCompleted };
-      },
+      (tx: Tx) => applyDailyCourseStepAndDayTx(tx, userId, scheduleId, stepIndex, operation, binding),
       { timeout: 10000 },
     );
+  }
+
+  /** Shared transaction body for online commands and durable journal receipts. */
+  async function applyDailyCourseStepAndDayTx(
+    tx: Tx,
+    userId: string,
+    scheduleId: string,
+    stepIndex: number,
+    operation: DailyCourseStepOperation,
+    binding?: { expectedBundleStepId: string; expectedStepId: string; journal?: { expectedVersion?: string; recordedAt?: number } },
+  ): Promise<{ allCompleted: boolean; stepJustCompleted: boolean; progressVersion?: string }> {
+    // All online and offline commands for the same learner/schedule share the lock.
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`daily-progress:${userId}:${scheduleId}`}))::text AS locked`;
+    // Same-learner bound HTTP commands must serialize BEFORE the potentially
+    // conflicting DailyCourseUserTraining unique upsert. Without this actor
+    // lock two new concurrent starts can return a Prisma P2002 / HTTP 500.
+    // NO KEY UPDATE leaves FK KEY SHARE compatible; other actors stay free.
+    // Legacy Native index-only mutations are intentionally untouched.
+    if (binding) {
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR NO KEY UPDATE`;
+    }
+    // A bound Web mutation locks schedule and bundle occurrence before reading
+    // ordering or writing progress. A trainer's reorder/delete/reassignment
+    // waits for this transaction, or makes this request fail with 409.
+    if (binding) {
+      const scheduleRows = await tx.$queryRaw<{ bundleId: string }[]>`
+      SELECT "bundleId" FROM "DailyCourseSchedule"
+      WHERE "id" = ${scheduleId} FOR SHARE
+    `;
+      if (scheduleRows.length !== 1) throw new Error("STALE_DAILY_STEP_BINDING");
+      const linkRows = await tx.$queryRaw<{ bundleId: string; stepId: string }[]>`
+      SELECT "bundleId", "stepId" FROM "DailyCourseBundleStep"
+      WHERE "id" = ${binding.expectedBundleStepId} FOR SHARE
+    `;
+      if (
+        linkRows.length !== 1 ||
+        linkRows[0].bundleId !== scheduleRows[0].bundleId ||
+        linkRows[0].stepId !== binding.expectedStepId
+      )
+        throw new Error("STALE_DAILY_STEP_BINDING");
+    }
+    const schedule = await tx.dailyCourseSchedule.findFirst({
+      where: { id: scheduleId, isPublished: true, date: { lte: getTodayDate() } },
+      select: {
+        id: true,
+        bundle: {
+          select: {
+            stepLinks: {
+              orderBy: { order: "asc" },
+              select: { id: true, stepId: true, step: { select: { durationSec: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!schedule) {
+      throw new Error("SCHEDULE_NOT_FOUND");
+    }
+
+    const stepLink = binding
+      ? schedule.bundle.stepLinks.find((link) => link.id === binding.expectedBundleStepId)
+      : schedule.bundle.stepLinks[stepIndex];
+    if (binding && (!stepLink || stepLink.stepId !== binding.expectedStepId)) {
+      throw new Error("STALE_DAILY_STEP_BINDING");
+    }
+    if (!stepLink) {
+      throw new Error("STEP_NOT_FOUND");
+    }
+    if (operation.type === "start" || operation.type === "pause") {
+      validateRemainingSec(operation.remainingSec, stepLink.step.durationSec);
+    }
+
+    const userTraining = await tx.dailyCourseUserTraining.upsert({
+      where: { userId_scheduleId: { userId, scheduleId } },
+      create: { userId, scheduleId, status: TrainingStatus.NOT_STARTED },
+      update: {},
+      select: { id: true },
+    });
+
+    const existingStep = await tx.dailyCourseUserStep.findFirst({
+      where: { dailyCourseUserTrainingId: userTraining.id, bundleStepId: stepLink.id },
+      select: { id: true, status: true, paused: true, remainingSec: true, updatedAt: true },
+    });
+
+    assertStepProgressVersion(existingStep, binding?.journal?.expectedVersion);
+
+    if (
+      (operation.type === "pause" ||
+        operation.type === "resume" ||
+        operation.type === "reset") &&
+      !existingStep
+    ) {
+      throw new Error("STEP_NOT_FOUND");
+    }
+
+    if (operation.type === "reset" && existingStep?.status === TrainingStatus.NOT_STARTED) {
+      throw new Error("INVALID_STATE: cannot reset not started");
+    }
+
+    let stepJustCompleted = false;
+
+    switch (operation.type) {
+      case "start":
+        if (existingStep) {
+          {
+            const result = await tx.dailyCourseUserStep.updateMany({
+              where: {
+                id: existingStep.id,
+                status: {
+                  in: [
+                    TrainingStatus.NOT_STARTED,
+                    TrainingStatus.RESET,
+                    TrainingStatus.IN_PROGRESS,
+                  ],
+                },
+              },
+              data: {
+                status: TrainingStatus.IN_PROGRESS,
+                paused: false,
+                remainingSec: binding?.journal?.recordedAt !== undefined ? remainingAfterOfflineDelay(operation.remainingSec ?? 0, binding.journal.recordedAt) : operation.remainingSec ?? 0,
+              },
+            });
+            if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
+          }
+        } else {
+          try {
+            await tx.dailyCourseUserStep.create({
+              data: {
+                dailyCourseUserTrainingId: userTraining.id,
+                bundleStepId: stepLink.id,
+                status: TrainingStatus.IN_PROGRESS,
+                paused: false,
+                remainingSec: binding?.journal?.recordedAt !== undefined ? remainingAfterOfflineDelay(operation.remainingSec ?? 0, binding.journal.recordedAt) : operation.remainingSec ?? 0,
+              },
+            });
+          } catch (error) {
+            if (!isPrismaUniqueConstraintError(error)) throw error;
+            const result = await tx.dailyCourseUserStep.updateMany({
+              where: {
+                dailyCourseUserTrainingId: userTraining.id,
+                bundleStepId: stepLink.id,
+                status: {
+                  in: [
+                    TrainingStatus.NOT_STARTED,
+                    TrainingStatus.RESET,
+                    TrainingStatus.IN_PROGRESS,
+                  ],
+                },
+              },
+              data: {
+                status: TrainingStatus.IN_PROGRESS,
+                paused: false,
+                remainingSec: binding?.journal?.recordedAt !== undefined ? remainingAfterOfflineDelay(operation.remainingSec ?? 0, binding.journal.recordedAt) : operation.remainingSec ?? 0,
+              },
+            });
+            if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
+          }
+        }
+        break;
+      case "pause": {
+        const result = await tx.dailyCourseUserStep.updateMany({
+          where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: false },
+          data: { paused: true, remainingSec: operation.remainingSec },
+        });
+        if (result.count === 0) throw new Error("INVALID_STATE: cannot pause step");
+        break;
+      }
+      case "resume": {
+        const result = await tx.dailyCourseUserStep.updateMany({
+          where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: true },
+          data: { paused: false, ...(binding?.journal?.recordedAt !== undefined ? { remainingSec: remainingAfterOfflineDelay(existingStep!.remainingSec ?? 0, binding.journal.recordedAt) } : {}) },
+        });
+        if (result.count === 0) throw new Error("INVALID_STATE: cannot resume step");
+        break;
+      }
+      case "reset": {
+        const result = await tx.dailyCourseUserStep.updateMany({
+          where: {
+            id: existingStep!.id,
+            status: { in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED] },
+          },
+          data: { status: TrainingStatus.RESET, paused: false, remainingSec: null },
+        });
+        if (result.count === 0) throw new Error("INVALID_STATE: cannot reset step");
+        break;
+      }
+      case "complete":
+        if (existingStep) {
+          const result = await tx.dailyCourseUserStep.updateMany({
+            where: { id: existingStep.id, status: { not: TrainingStatus.COMPLETED } },
+            data: { status: TrainingStatus.COMPLETED, paused: false, remainingSec: null },
+          });
+          stepJustCompleted = result.count > 0;
+        } else {
+          try {
+            await tx.dailyCourseUserStep.create({
+              data: {
+                dailyCourseUserTrainingId: userTraining.id,
+                bundleStepId: stepLink.id,
+                status: TrainingStatus.COMPLETED,
+              },
+            });
+            stepJustCompleted = true;
+          } catch (error) {
+            if (!isPrismaUniqueConstraintError(error)) throw error;
+            const result = await tx.dailyCourseUserStep.updateMany({
+              where: {
+                dailyCourseUserTrainingId: userTraining.id,
+                bundleStepId: stepLink.id,
+                status: { not: TrainingStatus.COMPLETED },
+              },
+              data: { status: TrainingStatus.COMPLETED, paused: false, remainingSec: null },
+            });
+            stepJustCompleted = result.count > 0;
+          }
+        }
+        break;
+    }
+
+    const userSteps = await tx.dailyCourseUserStep.findMany({
+      where: { dailyCourseUserTrainingId: userTraining.id },
+      select: { bundleStepId: true, status: true },
+    });
+    const statusByBundleStepId = new Map(
+      userSteps.map((step) => [step.bundleStepId, step.status]),
+    );
+    const allStatuses = schedule.bundle.stepLinks.map(
+      (link) => statusByBundleStepId.get(link.id) ?? TrainingStatus.NOT_STARTED,
+    );
+    const correctedStatus = calculateDayStatusFromStatuses(allStatuses);
+    const allCompleted = correctedStatus === TrainingStatus.COMPLETED;
+    const nextCurrentStepIndex = allCompleted
+      ? schedule.bundle.stepLinks.length - 1
+      : allStatuses.findIndex((status) => status !== TrainingStatus.COMPLETED);
+
+    await tx.dailyCourseUserTraining.update({
+      where: { id: userTraining.id },
+      data: {
+        status: correctedStatus as PrismaTrainingStatus,
+        currentStepIndex: nextCurrentStepIndex < 0 ? 0 : nextCurrentStepIndex,
+      },
+    });
+
+    const journalStep = binding?.journal ? await tx.dailyCourseUserStep.findUnique({
+      where: { dailyCourseUserTrainingId_bundleStepId: { dailyCourseUserTrainingId: userTraining.id, bundleStepId: stepLink.id } },
+      select: { id: true, status: true, paused: true, remainingSec: true, updatedAt: true },
+    }) : null;
+    return { allCompleted, stepJustCompleted,
+      ...(binding?.journal ? { progressVersion: stepProgressVersion(journalStep) } : {}) };
+
   }
 
   async function getDailyCourseScheduleStatistics(
@@ -1750,6 +1773,7 @@ export function createDailyCourseService({
     getTodayDailyCourse,
     getDailyCourseDayWithUserSteps,
     updateDailyCourseStepAndDay,
+    applyDailyCourseStepAndDayTx,
     getDailyCourseScheduleStatistics,
     getDailyCourseScheduleRange,
     getDailyCourseCandidates,

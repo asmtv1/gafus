@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getCourseMetadata, getCourseOutline } from "@gafus/core/services/course";
+import { getCourseMetadata, getCourseOutline } from "../../modules/courses/composition/catalog-read-instance.js";
 import { publicPaidCourseOutlineRoutes } from "./public-paid-course-outline";
 
-vi.mock("@gafus/core/services/course", () => ({
+vi.mock("../../modules/courses/composition/catalog-read-instance.js", () => ({
   getCourseMetadata: vi.fn(), getCourseOutline: vi.fn(),
 }));
 const dayFields = { type: "regular", equipment: "Поводок", estimatedDuration: 10, theoryMinutes: 2 };

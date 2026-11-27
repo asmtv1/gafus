@@ -21,12 +21,12 @@ import {
   writeCourseNameVersionRows,
   setCourseLogoVersionRows,
 } from "@gafus/course-progress-server/course-version-rows";
-import { registerCourseVersionRowsPort } from "./courseVersionService";
-registerCourseVersionRowsPort({
+
+const fixtureCourseVersionRowsPort = {
   readCourseVersionRows,
   writeCourseNameVersionRows,
   setCourseLogoVersionRows,
-});
+};
 
 const A={id:"trainerA",role:"TRAINER"};
 const B={id:"trainerB",role:"TRAINER"};
@@ -62,17 +62,17 @@ beforeEach(()=>{
 });
 describe("AG1 Course.version existing Core source CAS contract",()=>{
   it("owner-private version read returns integer, foreign read masked",async()=>{
-    expect(await readCourseNameVersion("course1",A)).toEqual({
+    expect(await readCourseNameVersion("course1",A, fixtureCourseVersionRowsPort)).toEqual({
       status:"found",data:{id:"course1",name:"old",version:1},
     });
     expect(sqlCalls[0]?.sql).toContain('AND "authorId" = ?');
-    expect(await readCourseNameVersion("course1",B)).toEqual({
+    expect(await readCourseNameVersion("course1",B, fixtureCourseVersionRowsPort)).toEqual({
       status:"not_found",
     });
     expect(m.publish).not.toHaveBeenCalled();
   });
   it("ADMIN version read does not add author predicate (server actor only)",async()=>{
-    expect(await readCourseNameVersion("course1",ADMIN)).toEqual({
+    expect(await readCourseNameVersion("course1",ADMIN, fixtureCourseVersionRowsPort)).toEqual({
       status:"found",data:{id:"course1",name:"old",version:1},
     });
     expect(sqlCalls[0]?.sql).not.toContain('"authorId"');
@@ -80,7 +80,7 @@ describe("AG1 Course.version existing Core source CAS contract",()=>{
   it("owner CAS uses same UPDATE id+author+version, DB increments once",async()=>{
     expect(await updateCourseNameVersioned({
       courseId:"course1",name:"new",expectedVersion:1,
-    },A)).toEqual({
+    },A, fixtureCourseVersionRowsPort)).toEqual({
       status:"updated",data:{id:"course1",name:"new",version:2},
     });
     expect(sqlCalls).toHaveLength(1);
@@ -95,12 +95,12 @@ describe("AG1 Course.version existing Core source CAS contract",()=>{
   it("second editor stale version cannot mutate or publish",async()=>{
     await updateCourseNameVersioned({
       courseId:"course1",name:"winner",expectedVersion:1,
-    },A);
+    },A, fixtureCourseVersionRowsPort);
     vi.clearAllMocks();sqlCalls.length=0;
     m.query.mockImplementation(sqlRead);
     expect(await updateCourseNameVersioned({
       courseId:"course1",name:"loser",expectedVersion:1,
-    },A)).toEqual({status:"stale"});
+    },A, fixtureCourseVersionRowsPort)).toEqual({status:"stale"});
     expect(name).toBe("winner");
     expect(version).toBe(2);
     expect(sqlCalls).toHaveLength(2);
@@ -110,7 +110,7 @@ describe("AG1 Course.version existing Core source CAS contract",()=>{
   it("foreign owner update returns not_found and never changes row",async()=>{
     expect(await updateCourseNameVersioned({
       courseId:"course1",name:"foreign",expectedVersion:1,
-    },B)).toEqual({status:"not_found"});
+    },B, fixtureCourseVersionRowsPort)).toEqual({status:"not_found"});
     expect(version).toBe(1);
     expect(name).toBe("old");
     expect(m.publish).not.toHaveBeenCalled();
@@ -118,7 +118,7 @@ describe("AG1 Course.version existing Core source CAS contract",()=>{
   it("ADMIN CAS supports own verified privilege; no author SQL bypass from body",async()=>{
     expect(await updateCourseNameVersioned({
       courseId:"course1",name:"admin fix",expectedVersion:1,
-    },ADMIN)).toEqual({
+    },ADMIN, fixtureCourseVersionRowsPort)).toEqual({
       status:"updated",data:{id:"course1",name:"admin fix",version:2},
     });
     expect(sqlCalls[0]?.sql).not.toContain('"authorId"');
@@ -130,21 +130,21 @@ describe("AG1 Course.version existing Core source CAS contract",()=>{
     {courseId:"bad/course",name:"bad",expectedVersion:1},
     {courseId:"course1",name:"",expectedVersion:1},
   ])("invalid input %j fails before any query or side effect",async input=>{
-    expect(await updateCourseNameVersioned(input,A)).toEqual({status:"invalid"});
+    expect(await updateCourseNameVersioned(input,A, fixtureCourseVersionRowsPort)).toEqual({status:"invalid"});
     expect(m.query).not.toHaveBeenCalled();
     expect(m.publish).not.toHaveBeenCalled();
   });
   it("non trainer/admin actor fails without SQL or side effects",async()=>{
     expect(await updateCourseNameVersioned({
       courseId:"course1",name:"denied",expectedVersion:1,
-    },{id:"user1",role:"USER"})).toEqual({status:"invalid"});
+    },{id:"user1",role:"USER"}, fixtureCourseVersionRowsPort)).toEqual({status:"invalid"});
     expect(m.query).not.toHaveBeenCalled();
   });
   it("unknown DB failure is not a stale409 or replay",async()=>{
     m.query.mockRejectedValueOnce(Error("private SQL password"));
     expect(await updateCourseNameVersioned({
       courseId:"course1",name:"test",expectedVersion:1,
-    },A)).toEqual({status:"unknown"});
+    },A, fixtureCourseVersionRowsPort)).toEqual({status:"unknown"});
     expect(m.invalidate).not.toHaveBeenCalled();
     expect(m.publish).not.toHaveBeenCalled();
   });
@@ -152,7 +152,7 @@ describe("AG1 Course.version existing Core source CAS contract",()=>{
     m.publish.mockRejectedValueOnce(Error("provider timeout"));
     expect(await updateCourseNameVersioned({
       courseId:"course1",name:"changed",expectedVersion:1,
-    },A)).toEqual({status:"unknown"});
+    },A, fixtureCourseVersionRowsPort)).toEqual({status:"unknown"});
     expect(version).toBe(2);
     expect(name).toBe("changed");
     expect(m.invalidate).toHaveBeenCalledOnce();

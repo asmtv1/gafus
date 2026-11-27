@@ -1,3 +1,4 @@
+import { petRows } from "../../modules/pets/composition/pet-rows-instance.js";
 /** Live Hono handlers, mocked Core, no SQL or production I/O. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,7 +36,7 @@ const pet = (body: object) => request("/api/v1/pets/pet-A", body);
 const profile = (body: object) => request("/api/v1/user/profile", body);
 beforeEach(() => {
   vi.clearAllMocks();
-  petUpdate.mockImplementation(async (id: string, owner: string, fields: object) => ({
+  petUpdate.mockImplementation(async (_rows: unknown, id: string, owner: string, fields: object) => ({
     id,
     ownerId: owner,
     ...fields,
@@ -50,12 +51,12 @@ describe("AG1 pet nullable measurement clear, stable fieldErrors", () => {
     const fields = { heightCm: null, neckGirthCm: null, muzzleGirthCm: null, bellyGirthCm: null };
     const res = await pet(fields);
     expect(res.status).toBe(200);
-    expect(petUpdate).toHaveBeenCalledWith("pet-A", "owner-A", fields);
+    expect(petUpdate).toHaveBeenCalledWith(petRows, "pet-A", "owner-A", fields);
   });
   it("P02 null/number partial patch retains omitted fields", async () => {
     const res = await pet({ heightCm: 34, neckGirthCm: null });
     expect(res.status).toBe(200);
-    expect(petUpdate).toHaveBeenCalledWith("pet-A", "owner-A", {
+    expect(petUpdate).toHaveBeenCalledWith(petRows, "pet-A", "owner-A", {
       heightCm: 34,
       neckGirthCm: null,
     });
@@ -129,10 +130,10 @@ describe("AG1 pet nullable measurement clear, stable fieldErrors", () => {
   });
   it("P06 forged owner ignored; old mobile toggle and date still work", async () => {
     expect((await pet({ heightCm: null, ownerId: "B" })).status).toBe(200);
-    expect(petUpdate).toHaveBeenCalledWith("pet-A", "owner-A", { heightCm: null });
+    expect(petUpdate).toHaveBeenCalledWith(petRows, "pet-A", "owner-A", { heightCm: null });
     petUpdate.mockClear();
     expect((await pet({ showInProfile: false, birthDate: "2021-06-10" })).status).toBe(200);
-    expect(petUpdate).toHaveBeenCalledWith("pet-A", "owner-A", {
+    expect(petUpdate).toHaveBeenCalledWith(petRows, "pet-A", "owner-A", {
       showInProfile: false,
       birthDate: "2021-06-10",
     });
@@ -196,3 +197,5 @@ describe("AG1 profile nullable/validation Web Mobile contract", () => {
     expect(profileUpdate).toHaveBeenCalledWith("owner-A", { city: "Самара" }, profileRows);
   });
 });
+
+vi.mock("../../modules/pets/composition/pet-rows-instance.js", () => ({ petRows: {} }));

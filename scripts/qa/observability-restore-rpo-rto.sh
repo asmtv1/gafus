@@ -1,5 +1,9 @@
 #!/bin/bash
-# Separate Agent 2 copy; measures database restore only, not full-service RTO.
+# Default is DB-only; --service invokes the real recovery acceptance.
+if [[ "${1:-}" == --service ]]; then
+  exec bash "$(dirname "$0")/observability-real-multi-instance-isolated.sh" --restore-only
+fi
+# Database-only measurement is never a full-service RTO.
 set -euo pipefail
 now_ms(){ python3 -c 'import time; print(int(time.time()*1000))'; }
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

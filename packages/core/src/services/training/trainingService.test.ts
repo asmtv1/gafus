@@ -1,19 +1,12 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
-import {
-  getTrainingDays,
-  getTrainingDayWithMonetizedSteps,
-  getTrainingDayWithUserSteps,
-  requireCourseStepOperationAccess,
-  resolveCourseStepRewardedTarget,
-} from "./trainingService.ts";
-import { checkCourseAccess } from "../course";
+
+
 import { clearTrainingDayContentCache } from "./trainingDayContent";
 // Core explicitly composes the same server-side course/day read SQL
 // in this synthetic local Prisma test; the production process uses API bootstrap.
-import { registerTrainingDayContentReadPort } from "./trainingDayContentReadPort";
 import { readTrainingDayContent } from "@gafus/course-read-server";
-registerTrainingDayContentReadPort({ readTrainingDayContent });
+import { getTrainingDayContent } from "./trainingDayContent";
 
 
 vi.mock("./trainingContentRevision", () => ({
@@ -75,10 +68,8 @@ vi.mock("@gafus/prisma", () => ({
   isPrismaUniqueConstraintError: (err: unknown) => mockIsPrismaUniqueConstraintError(err),
 }));
 
-vi.mock("../course", () => ({
-  checkCourseAccess: vi.fn().mockResolvedValue({ hasAccess: true }),
-  checkCourseAccessById: (...args: unknown[]) => mockCheckCourseAccessById(...args),
-}));
+const checkCourseAccess = vi.fn().mockResolvedValue({ hasAccess: true });
+
 
 vi.mock("../contentAccess", () => ({
   hasActiveGafusCourseStepAccess: (...args: unknown[]) => mockHasActiveGafusAccess(...args),
@@ -678,7 +669,7 @@ describe("requireCourseStepOperationAccess", () => {
   it("rejects a client courseId that does not own the target day", async () => {
     mockDayOnCourseFindUnique.mockResolvedValue({
       course: { id: "course-real", type: "real", isPaid: false, isPrivate: false },
-      day: { stepLinks: [{ id: "step-link-1", step: { type: "BREAK" } }] },
+      day: { stepLinks: [{ id: "step-link-1", stepId: "step-link-1-id", step: { type: "BREAK" } }] },
     });
 
     await expect(
@@ -699,11 +690,11 @@ describe("requireCourseStepOperationAccess", () => {
     for (const type of ["BREAK", "DIARY"]) {
       mockDayOnCourseFindUnique.mockResolvedValue({
         course: { id: "paid-course", type: "paid", isPaid: true, isPrivate: false },
-        day: { stepLinks: [{ id: "free-step", step: { type } }] },
+        day: { stepLinks: [{ id: "free-step", stepId: "free-step-id", step: { type } }] },
       });
       await expect(requireCourseStepOperationAccess({
         userId: "user-1", platform: "ANDROID", dayOnCourseId: "day-1", stepIndex: 0,
-      })).resolves.toEqual({ courseId: "paid-course", courseType: "paid" });
+      })).resolves.toEqual({ courseId: "paid-course", courseType: "paid", binding: { expectedCourseId: "paid-course", expectedStepOnDayId: "free-step", expectedStepId: "free-step-id" } });
     }
     expect(mockHasActiveGafusAccess).not.toHaveBeenCalled();
     expect(mockRequirePremiumOrRewardedUnlock).not.toHaveBeenCalled();
@@ -714,11 +705,11 @@ describe("requireCourseStepOperationAccess", () => {
     mockHasActiveGafusAccess.mockResolvedValue(true);
     mockDayOnCourseFindUnique.mockResolvedValue({
       course: { id: "guide", type: "guide", isPaid: true, isPrivate: false },
-      day: { stepLinks: [{ id: "guide-step", step: { type: "PRACTICE" } }] },
+      day: { stepLinks: [{ id: "guide-step", stepId: "guide-step-id", step: { type: "PRACTICE" } }] },
     });
     await expect(requireCourseStepOperationAccess({
       userId: "user-1", platform: "IOS", dayOnCourseId: "day-1", stepIndex: 0,
-    })).resolves.toEqual({ courseId: "guide", courseType: "guide" });
+    })).resolves.toEqual({ courseId: "guide", courseType: "guide", binding: { expectedCourseId: "guide", expectedStepOnDayId: "guide-step", expectedStepId: "guide-step-id" } });
     expect(mockHasActiveGafusAccess).toHaveBeenCalledWith({
       userId: "user-1", dayOnCourseId: "day-1", stepOnDayId: "guide-step",
     });
@@ -728,7 +719,7 @@ describe("requireCourseStepOperationAccess", () => {
   it("checks access against the course resolved from the day", async () => {
     mockDayOnCourseFindUnique.mockResolvedValue({
       course: { id: "course-real", type: "real", isPaid: true, isPrivate: false },
-      day: { stepLinks: [{ id: "step-link-1", step: { type: "PRACTICE" } }] },
+      day: { stepLinks: [{ id: "step-link-1", stepId: "step-link-1-id", step: { type: "PRACTICE" } }] },
     });
 
     await expect(
@@ -739,7 +730,7 @@ describe("requireCourseStepOperationAccess", () => {
         dayOnCourseId: "day-1",
         stepIndex: 0,
       }),
-    ).resolves.toEqual({ courseId: "course-real", courseType: "real" });
+    ).resolves.toEqual({ courseId: "course-real", courseType: "real", binding: { expectedCourseId: "course-real", expectedStepOnDayId: "step-link-1", expectedStepId: "step-link-1-id" } });
 
     expect(mockCheckCourseAccessById).toHaveBeenCalledWith("course-real", "user-1");
   });
@@ -1383,5 +1374,19 @@ describe("getTrainingDayWithUserSteps", () => {
 // Unit fixture composes the real SQL-backed training service explicitly, just
 // like the API startup. Its mocked Prisma is scoped to this Vitest process.
 import { createTrainingService as createTrainingServiceForTest } from "@gafus/course-progress-server/training-service";
-import { registerTrainingServicePort, getCoreTrainingDependencies } from "./trainingService";
-registerTrainingServicePort(createTrainingServiceForTest(getCoreTrainingDependencies()));
+import { getCoreTrainingDependencies } from "./trainingService";
+const trainingContentPorts = {
+  contentRows: { readTrainingDayContent },
+  revisionRows: { readDurableCourseContentRevision: async () => "0" },
+};
+const {
+getTrainingDays,
+  getTrainingDayWithMonetizedSteps,
+  getTrainingDayWithUserSteps,
+  requireCourseStepOperationAccess,
+  resolveCourseStepRewardedTarget,
+} = createTrainingServiceForTest({
+  ...getCoreTrainingDependencies({ checkCourseAccess, checkCourseAccessById: mockCheckCourseAccessById, getPremiumOrRewardedAccess: mockGetPremiumOrRewardedAccess, requirePremiumOrRewardedUnlock: mockRequirePremiumOrRewardedUnlock }),
+  hasActiveGafusCourseStepAccess: (input) => mockHasActiveGafusAccess(input),
+  getTrainingDayContent: (courseType, dayOnCourseId) => getTrainingDayContent(courseType, dayOnCourseId, trainingContentPorts),
+});

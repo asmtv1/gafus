@@ -1,3 +1,6 @@
+import { trainerCourseRows } from "../../modules/trainer-courses/composition/trainer-course-rows-instance.js";
+import { trainerStepRows } from "../../modules/trainer-steps/composition/trainer-step-rows-instance.js";
+import { trainingDayRows } from "../../modules/trainer-days/composition/training-day-rows-instance.js";
 import type { TrainerCourseRowsPort } from "@gafus/core/services/trainerCourse";
 import type { TrainerStepRowsPort } from "@gafus/core/services/trainerStep";
 /**
@@ -117,26 +120,17 @@ export type TrainerAuthoringPorts = {
   countOwnedSteps: (ids: string[], actorId: string, elevated: boolean) => Promise<number>;
 };
 
-export const productionAuthoringPorts: TrainerAuthoringPorts = {
-  createCourse: (input, actorId) => createCourseCore(input, actorId),
-  countOwnedDays: countOwnedTrainingDays,
-  createArticle: (body, userId) => createArticleCore(body, userId),
-  createStep: (input, ownerId) => createStepCore(input, ownerId),
-  createDay: (input, actor) => createTrainingDayCore(input, actor),
-  countOwnedSteps: countOwnedTrainingSteps,
-};
-
-/** Production app composition: avoid the legacy Core global registry for days. */
-export function createProductionAuthoringPorts(dayRows: TrainingDayRowsPort, stepRows?: TrainerStepRowsPort, courseRows?: TrainerCourseRowsPort): TrainerAuthoringPorts {
+export function createProductionAuthoringPorts(dayRows: TrainingDayRowsPort, stepRows: TrainerStepRowsPort, courseRows: TrainerCourseRowsPort): TrainerAuthoringPorts {
   return {
-    ...productionAuthoringPorts,
-    createCourse: (input, ownerId) => courseRows
-      ? createCourseCore(input, ownerId, courseRows)
-      : createCourseCore(input, ownerId),
+    createCourse: (input, ownerId) => createCourseCore(input, ownerId, courseRows),
+    countOwnedDays: countOwnedTrainingDays,
+    createArticle: (body, userId) => createArticleCore(body, userId),
     createStep: (input, ownerId) => createStepCore(input, ownerId, stepRows),
     createDay: (input, actor) => createTrainingDayCore(input, actor, dayRows),
+    countOwnedSteps: countOwnedTrainingSteps,
   };
 }
+export const productionAuthoringPorts = createProductionAuthoringPorts(trainingDayRows, trainerStepRows, trainerCourseRows);
 
 const bad = { success: false, code: "BAD_INPUT", error: "Некорректные данные" } as const;
 const denied = { success: false, code: "FORBIDDEN", error: "Недостаточно прав" } as const;

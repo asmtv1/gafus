@@ -29,18 +29,14 @@ describe("Trainer-day SQL owner-scoped port",()=>{
   });
   it("forwards exact actor to SQL inside create/replace, then cache publish",async()=>{
     const svc=await import("./trainingDayService");const p=await import("./trainingDayRowsPort");
-    const db=adapter();p.registerTrainingDayRowsPort(db);
-    await expect(svc.createTrainingDay(draft,trainer)).resolves.toEqual({success:true,dayId:"day-new"});
+    const db=adapter();const fixtureTrainingDayRowsPort = db;
+    await expect(svc.createTrainingDay(draft,trainer, fixtureTrainingDayRowsPort)).resolves.toEqual({success:true,dayId:"day-new"});
     expect(db.insertTrainingDay).toHaveBeenCalledExactlyOnceWith(draft,trainer);
     const updated={...draft,id:"day-A"};
-    await expect(svc.updateTrainingDay(updated,trainer)).resolves.toMatchObject({success:true});
+    await expect(svc.updateTrainingDay(updated,trainer, fixtureTrainingDayRowsPort)).resolves.toMatchObject({success:true});
     expect(db.replaceTrainingDay).toHaveBeenCalledExactlyOnceWith(updated,trainer);
     expect(cache.invalidate).toHaveBeenCalledExactlyOnceWith(["day-A"]);
     expect(cache.publish).toHaveBeenCalledTimes(1);
   });
-  it("does not silently change the installed authoritative SQL adapter",async()=>{
-    const p=await import("./trainingDayRowsPort");const db=adapter();
-    p.registerTrainingDayRowsPort(db);p.registerTrainingDayRowsPort(db);
-    expect(()=>p.registerTrainingDayRowsPort(adapter())).toThrow("TRAINING_DAY_ROWS_PORT_ALREADY_BOUND");
-  });
+
 });

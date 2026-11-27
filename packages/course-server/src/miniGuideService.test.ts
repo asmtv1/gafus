@@ -33,10 +33,9 @@ vi.mock("@gafus/core/services/contentAccess", () => ({
     state.courses.find(x => x.id === courseId && x.guideContent.length > 0)
       ? { type: "MINI_GUIDE", courseId, targetKey: `mini-guide:${courseId}` }
       : null,
-  resolveMiniGuideAccessTx: async () => state.access,
 }));
 
-import { listGafusMiniGuides, getAuthorizedMiniGuideContent } from "./miniGuideService.js";
+import { listGafusMiniGuides as coreList, getAuthorizedMiniGuideContent as coreContent } from "./miniGuideService.js";
 
 describe("Gafus mini-guide catalog does not leak protected content", () => {
   beforeEach(() => {
@@ -91,3 +90,7 @@ describe("Gafus mini-guide catalog does not leak protected content", () => {
   });
 
 });
+
+const policy = { resolveMiniGuideAccessTx: async () => state.access } as Parameters<typeof coreList>[1];
+function listGafusMiniGuides(userId: string) { return coreList(userId, policy); }
+function getAuthorizedMiniGuideContent(input: Parameters<typeof coreContent>[0]) { return coreContent(input, policy); }

@@ -2,8 +2,8 @@
 import { readOwnPendingDailyTimers } from "./newOnlyV2DailyPending";
 import type { NewOnlyV2Queues } from "./newOnlyV2Queues";
 
-type Queue = Pick<NewOnlyV2Queues, "enqueue" | "getPending" | "getVerifiedBinding">;
-export type DailyOccurrence = { scheduleId: string; stepIndex: number };
+type Queue = Pick<NewOnlyV2Queues, "enqueue" | "getPending" | "getVerifiedBinding"> & Partial<Pick<NewOnlyV2Queues, "wasPracticeAcknowledged">>;
+export type DailyOccurrence = { scheduleId: string; stepIndex: number; expectedBundleStepId?: string; expectedStepId?: string; offlineProgressVersion?: string };
 
 export async function commitVerifiedDailyCompletion(
   queue: Queue,
@@ -35,7 +35,7 @@ export async function commitVerifiedDailyCompletion(
         row.eventId === receipt.eventId &&
         row.stepIndex === occurrence.stepIndex &&
         row.status === "COMPLETED",
-    )
+    ) && !queue.wasPracticeAcknowledged?.(receipt.eventId, binding)
   )
     throw new Error("V2_LOCAL_RECEIPT_UNCONFIRMED");
   return receipt.eventId;

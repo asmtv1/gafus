@@ -7,6 +7,16 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./course": { "types": "./dist/data/course.d.ts" },
+    "./training-status": { "types": "./dist/utils/training-status.d.ts" },
+    "./trainer-read-contracts": { "types": "./dist/data/trainer-read-contracts.d.ts" },
+    "./survey": { "types": "./dist/data/survey.d.ts" },
+    "./pet": { "types": "./dist/data/pet.d.ts" },
+    "./notes": { "types": "./dist/data/notes.d.ts" },
+    "./exam": { "types": "./dist/data/exam.d.ts" },
+    "./training": { "types": "./dist/data/training.d.ts" },
+    "./offline-course": { "types": "./dist/contracts/offlineCourse.d.ts" },
+    "./course-outline": { "types": "./dist/contracts/publicPaidCourseOutline.d.ts" },
     "./training-client": {
       "types": "./dist/training-client.d.ts",
       "default": "./dist/training-client.js"
@@ -14,6 +24,16 @@
     "./logger": { "types": "./dist/logger.d.ts", "default": "./dist/logger.js" }
   },
   "typesVersions": { "*": {
+    "course": ["dist/data/course.d.ts"],
+    "training-status": ["dist/utils/training-status.d.ts"],
+    "trainer-read-contracts": ["dist/data/trainer-read-contracts.d.ts"],
+    "survey": ["dist/data/survey.d.ts"],
+    "pet": ["dist/data/pet.d.ts"],
+    "notes": ["dist/data/notes.d.ts"],
+    "exam": ["dist/data/exam.d.ts"],
+    "training": ["dist/data/training.d.ts"],
+    "offline-course": ["dist/contracts/offlineCourse.d.ts"],
+    "course-outline": ["dist/contracts/publicPaidCourseOutline.d.ts"],
     "training-client": ["dist/training-client.d.ts"],
     "logger": ["dist/logger.d.ts"]
   } },

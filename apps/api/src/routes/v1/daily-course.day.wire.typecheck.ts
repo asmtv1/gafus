@@ -1,14 +1,14 @@
 /** AG1-002: erased-only exact whole GET /daily-course/day JSON producer. */
 import type { JSONParsed } from "hono/utils/types";
 import type { DailyCourseDayResponse, DailyCourseStepDto } from "../../modules/daily-course/composition/dailyCourseApplication.js";
-import type { TrainingStatus } from "../../../../../packages/types/src/utils/training-status";
+import type { TrainingStatus } from "@gafus/types/training-status";
 import type {
   DailyCourseDayWire,
   DailyCourseDayStepWire,
   DailyCourseDayRead,
   DailyCourseBoundDayWire,
   DailyCourseBoundStepWire,
-} from "../../../../../packages/types/src/data/training";
+} from "@gafus/types/training";
 import type { createDayAndStepCommandsApplication } from "../../modules/learner-daily/application/day-and-step-commands";
 
 type Same<A, B> =

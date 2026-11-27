@@ -198,6 +198,10 @@ class ExamCleanupWorker {
     });
   }
 
+  public async close(): Promise<void> {
+    await this.worker.close();
+  }
+
   public start(): void {
     this.logger.success("🚀 Exam cleanup worker запущен", {
       concurrency: config.worker.concurrency,

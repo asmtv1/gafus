@@ -26,8 +26,8 @@ describe("source-review AG4 reminder port is never silently activated",()=>{
  });
  it("keeps owner lock before receipt and receipt after same Tx reminder creation",async()=>{
   const svc=await import("./g1ReminderMutationReceiptAG4.review");
-  const p=await import("./reminderAG4ReviewPort");const db=adapter();p.registerReminderAG4ReviewRowsPort(db);
-  await expect(svc.createReminderAG4("owner-1",draft,key))
+  const p=await import("./reminderAG4ReviewPort");const db=adapter();const fixtureReminderAG4ReviewRowsPort = db;
+  await expect(svc.createReminderAG4("owner-1",draft,key, fixtureReminderAG4ReviewRowsPort))
     .resolves.toMatchObject({kind:"created",reminder:{id:"reminder-1"}});
   expect(db.withAG4ReminderCreateTx).toHaveBeenCalledTimes(1);
   expect(db.lockAG4ReminderOwner.mock.invocationCallOrder[0]).toBeLessThan(
@@ -36,10 +36,5 @@ describe("source-review AG4 reminder port is never silently activated",()=>{
   expect(db.commitAG4ReminderReceipt).toHaveBeenCalledWith(
     expect.anything(),"owner-1",key,"reminder-1",expect.anything());
  });
- it("does not allow hot swapping review-only SQL adapter",async()=>{
-  const p=await import("./reminderAG4ReviewPort");const db=adapter();p.registerReminderAG4ReviewRowsPort(db);
-  p.registerReminderAG4ReviewRowsPort(db);
-  expect(()=>p.registerReminderAG4ReviewRowsPort(adapter()))
-    .toThrow("REMINDER_AG4_REVIEW_PORT_ALREADY_BOUND");
- });
+
 });

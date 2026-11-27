@@ -1,3 +1,4 @@
+import { preventionRows } from "../../modules/pet-prevention/composition/prevention-rows-instance.js";
 import type { PreventionRowsPort } from "@gafus/core/services/petPrevention";
 /**
  * Pet Prevention Routes
@@ -12,15 +13,13 @@ import {
   updateEntrySchema,
   batchRequestSchema,
 } from "@gafus/core/services/petPrevention";
-import { preventionJournalApplication as legacyPreventionJournalApplication, createPreventionJournalApplicationForRows } from "../../modules/pet-prevention/composition/journal.js";
+import { createPreventionJournalApplicationForRows } from "../../modules/pet-prevention/composition/journal.js";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-pet-prevention");
 
-export function createPetPreventionRoutes(rowsPort?: PreventionRowsPort) {
- const preventionJournalApplication = rowsPort
-    ? createPreventionJournalApplicationForRows(rowsPort)
-    : legacyPreventionJournalApplication;
+export function createPetPreventionRoutes(rowsPort: PreventionRowsPort) {
+ const preventionJournalApplication = createPreventionJournalApplicationForRows(rowsPort);
  const petPreventionRoutes = new Hono();
 
 // GET /:petId/prevention — список записей
@@ -140,4 +139,4 @@ petPreventionRoutes.delete("/:petId/prevention/:entryId", async (c) => {
 
  return petPreventionRoutes;
 }
-export const petPreventionRoutes = createPetPreventionRoutes();
+export const petPreventionRoutes = createPetPreventionRoutes(preventionRows);

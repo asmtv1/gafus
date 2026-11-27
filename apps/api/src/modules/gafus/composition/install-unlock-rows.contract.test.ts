@@ -11,19 +11,15 @@ vi.mock("@gafus/gafus-server/unlock-records",()=>({
 }));
 describe("API content-unlock atomic rows composition",()=>{
   it("binds canonical SQL transaction once; same Tx reaches replay and grant",async()=>{
-    const core=await import("@gafus/core/services/gafus");
-    await import("./install-unlock-rows");
+    const { unlockRows } = await import("./unlock-rows-instance");
     // The adapter is reachable through the Core port, but the original
     // domain policy still owns all public validation and target checks.
-    const p=core;
-    const result=await p.requireGafusUnlockRowsPort().withGafusUnlockTransaction("owner",async tx=>{
-      await p.requireGafusUnlockRowsPort().readGafusUnlockReplayTx(tx,"key");
-      return p.requireGafusUnlockRowsPort().insertGafusUnlockGrantTx(tx,{} as never);
+    const result=await unlockRows.withGafusUnlockTransaction("owner",async tx=>{
+      await unlockRows.readGafusUnlockReplayTx(tx,"key");
+      return unlockRows.insertGafusUnlockGrantTx(tx,{} as never);
     });
     expect(result).toEqual({id:"grant"});
     expect(sql.transact).toHaveBeenCalledTimes(1);
     expect(sql.replay.mock.calls[0]?.[0]).toBe(sql.grant.mock.calls[0]?.[0]);
-    expect(()=>core.registerGafusUnlockRowsPort({} as never))
-      .toThrow("GAFUS_UNLOCK_PORT_ALREADY_BOUND");
   });
 });

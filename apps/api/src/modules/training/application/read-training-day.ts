@@ -4,11 +4,11 @@
  * creation; this application only sequences an additional access read on null.
  * Route keeps JWT/validation/platform/status/error response mapping.
  */
-import type { checkCourseAccess } from "@gafus/core/services/course";
-import type { getTrainingDayWithMonetizedSteps } from "@gafus/core/services/training";
+import type { CatalogReadService } from "@gafus/core/services/course";
+import type { TrainingServiceApi } from "@gafus/core/services/training";
 
-export type TrainingDayReader = typeof getTrainingDayWithMonetizedSteps;
-export type CourseAccessReader = typeof checkCourseAccess;
+export type TrainingDayReader = TrainingServiceApi["getTrainingDayWithMonetizedSteps"];
+export type CourseAccessReader = CatalogReadService["checkCourseAccess"];
 
 export type ReadTrainingDayCommand = {
   actorUserId: string;

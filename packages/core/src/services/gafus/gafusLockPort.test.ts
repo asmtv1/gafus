@@ -10,21 +10,19 @@ function adapter() {
 }
 describe("Gafus wallet lock is a single transactional Persistence port", () => {
   it("preserves existing owner-required public error", async () => {
-    const c=await import("./locking");
+    const {createGafusLockService}=await import("./locking");
+    const c=createGafusLockService(adapter());
     await expect(c.lockGafusUser({} as GafusTx,""))
       .rejects.toThrow("GAFUS_WALLET_OWNER_REQUIRED");
     await expect(c.withGafusUserLock("",async()=>0))
       .rejects.toThrow("GAFUS_WALLET_OWNER_REQUIRED");
   });
-  it("fails closed without SQL lock for nonempty owner", async () => {
-    const c=await import("./locking");
-    await expect(c.lockGafusUser({} as GafusTx,"owner-A"))
-      .rejects.toThrow("GAFUS_WALLET_LOCK_PORT_UNBOUND");
-    await expect(c.withGafusUserLock("owner-A",async()=>0))
-      .rejects.toThrow("GAFUS_WALLET_LOCK_PORT_UNBOUND");
+  it("requires an explicit lock adapter", async () => {
+    const {createGafusLockService}=await import("./locking");
+    expect(()=>createGafusLockService(undefined as never)).toThrow("GAFUS_WALLET_LOCK_DEPENDENCIES_REQUIRED");
   });
   it("forwards original DB transaction and owner, never opens another one in Core", async () => {
-    const c=await import("./locking");const p=adapter();c.registerGafusLockPort(p);
+    const {createGafusLockService}=await import("./locking");const p=adapter();const c=createGafusLockService(p);
     await c.lockGafusUser(p.tx,"owner-A");
     expect(p.lockGafusUser).toHaveBeenCalledExactlyOnceWith(p.tx,"owner-A");
     const op=vi.fn(async (tx:GafusTx)=>tx);
@@ -32,9 +30,12 @@ describe("Gafus wallet lock is a single transactional Persistence port", () => {
     expect(p.withGafusUserLock).toHaveBeenCalledWith("owner-A",op);
     expect(op).toHaveBeenCalledExactlyOnceWith(p.tx);
   });
-  it("rejects replacing a process lock adapter", async () => {
-    const c=await import("./locking");const p=adapter();
-    c.registerGafusLockPort(p);c.registerGafusLockPort(p);
-    expect(()=>c.registerGafusLockPort(adapter())).toThrow("GAFUS_WALLET_LOCK_PORT_ALREADY_BOUND");
+  it("keeps transactions isolated across independent instances",async()=>{
+    const {createGafusLockService}=await import("./locking");
+    const a=adapter(),b=adapter();
+    await createGafusLockService(a).lockGafusUser(a.tx,"owner-A");
+    await createGafusLockService(b).lockGafusUser(b.tx,"owner-B");
+    expect(a.lockGafusUser).toHaveBeenCalledExactlyOnceWith(a.tx,"owner-A");
+    expect(b.lockGafusUser).toHaveBeenCalledExactlyOnceWith(b.tx,"owner-B");
   });
 });

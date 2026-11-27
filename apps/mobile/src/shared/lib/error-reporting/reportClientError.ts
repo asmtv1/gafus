@@ -10,6 +10,11 @@ export async function reportClientErrorAndWait(error: unknown, data?: ClientErro
     SplashScreen: "SPLASH_SCREEN",
     FontLoad: "FONT_LOAD",
     MobileTelemetrySelfTest: "MOBILE_TELEMETRY_SELF_TEST",
+    DogWalkGpsNoPoints: "GPS_WALK_NO_POINTS",
+    DogWalkGpsInsufficientFix: "GPS_WALK_INSUFFICIENT_FIX",
+    DogWalkGpsStorageUnavailable: "GPS_WALK_STORAGE_UNAVAILABLE",
+    OtaSignatureRejected: "OTA_SIGNATURE_REJECTED",
+    OtaMandatoryIncomplete: "OTA_MANDATORY_INCOMPLETE",
   };
   const code = data?.issueKey ? codes[data.issueKey] : undefined;
   await enqueueMobileTelemetryError(error, {

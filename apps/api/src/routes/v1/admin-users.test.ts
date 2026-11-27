@@ -5,6 +5,7 @@ const mock = vi.hoisted(() => ({
   verify: vi.fn(),
   reg: vi.fn(),
   users: vi.fn(),
+  page: vi.fn(),
   promos: vi.fn(),
   access: vi.fn(),
   dbRole: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("../../modules/admin-users/composition/service.js", () => ({
   checkAdminUserMutationAccess: mock.access,
   readAdminActorRole: mock.dbRole,
 }));
+vi.mock("@gafus/identity-write-server/admin-user-reads", () => ({ readAdminUserPage: mock.page }));
 vi.mock("@gafus/subscription-write-server", () => ({
   getFreePartnerPromoCodesForAdminPanel: mock.promos,
 }));
@@ -292,5 +294,27 @@ describe("admin user subscription parity", () => {
     const res = await req("POST", { action: "lifetime" });
     expect(res.status).toBe(503);
     expect(await res.text()).not.toContain("secret-postgres-dsn");
+  });
+});
+
+
+describe("bounded admin user list protocol",()=>{
+  it("requests just the validated page and retains legacy wire for old callers",async()=>{
+    const pagination={page:2,pageSize:10,search:"dog",sort:"username",direction:"asc",total:15};
+    mock.page.mockResolvedValueOnce({users:[{id:"u2",username:"dog2"}],pagination});
+    const res=await app().request(url+"?page=2&pageSize=10&search=dog&sort=username&direction=asc",{headers:{authorization:"Bearer token"}});
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({success:true,data:{users:[{id:"u2"}],pagination}});
+    expect(mock.page).toHaveBeenCalledWith({page:2,pageSize:10,search:"dog",sort:"username",direction:"asc"});
+    expect(mock.users).not.toHaveBeenCalled();
+  });
+  it("rejects invalid page size and checks current staff role",async()=>{
+    const bad=await app().request(url+"?page=1&pageSize=1000",{headers:{authorization:"Bearer token"}});
+    expect(bad.status).toBe(400);
+    expect(mock.page).not.toHaveBeenCalled();
+    mock.promos.mockRejectedValueOnce(new Error("FORBIDDEN"));
+    const forbidden=await app().request(url+"?page=1",{headers:{authorization:"Bearer token"}});
+    expect(forbidden.status).toBe(403);
+    expect(mock.page).not.toHaveBeenCalled();
   });
 });

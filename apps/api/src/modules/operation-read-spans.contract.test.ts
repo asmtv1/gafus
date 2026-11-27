@@ -21,12 +21,12 @@ vi.mock("../lib/operation-observability.js", () => ({
     return action();
   },
 }));
-vi.mock("@gafus/core/services/course", () => ({
+vi.mock("./courses/composition/catalog-read-instance.js", () => ({
   checkCourseAccess: m.byType, checkCourseAccessById: m.byId,
 }));
-vi.mock("@gafus/core/services/training", () => ({
-  getTrainingDayWithMonetizedSteps: m.day,
-}));
+vi.mock("./training/composition/sql-training-instance.js", () => ({ sqlTraining: {
+  getTrainingDayWithMonetizedSteps: m.day
+} }));
 vi.mock("@gafus/achievements-server", () => ({
   getAchievementStats: m.stats, getUserTrainingDates: m.dates,
 }));

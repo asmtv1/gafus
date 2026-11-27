@@ -1,3 +1,6 @@
+import { saveProgressJournalTx } from "@gafus/course-server/video-progress";
+import { checkVideoAccess } from "../../modules/video/composition/video-access.js";
+import { readOfflineProgressVersions } from "@gafus/course-progress-server/offline-mutation-rows";
 import { subscriptionAccessPort } from "../../modules/app-subscription/composition/subscription-access-instance.js";
 import type { PreventionRowsPort } from "@gafus/core/services/petPrevention";
 /**
@@ -13,7 +16,10 @@ import {
   checkCourseUpdates,
   downloadFullCourse,
 } from "@gafus/course-read-server/offline-application";
-import { getTrainingDays, requireCourseStepOperationAccess } from "@gafus/core/services/training";
+import { applyDailyCourseStepAndDayTx } from "../../modules/daily-course/composition/dailyCourseApplication.js";
+import { sqlTraining } from "../../modules/training/composition/sql-training-instance.js";
+import { offlineMutationRows } from "../../modules/offline/composition/offline-mutation-rows-instance.js";
+import { preventionRows as defaultPreventionRows } from "../../modules/pet-prevention/composition/prevention-rows-instance.js";
 import { batchEntrySchema } from "@gafus/core/services/petPrevention";
 // Journal exports are loaded ONLY for v2 requests: a mixed-version API
 // process with an older @gafus/core build must still start legacy offline.
@@ -26,11 +32,15 @@ import { createWebLogger } from "@gafus/logger";
 const logger = createWebLogger("api-offline");
 
 import type { TrainingServiceApi } from "@gafus/core/services/training";
-import type { OfflineMutationRowsPort } from "@gafus/core/services/offline";
+import type { OfflineMutationRowsPort, DailyJournalPort, VideoJournalPort } from "@gafus/core/services/offline";
 export type OfflineRouteTrainingPort = Pick<TrainingServiceApi,
   "getTrainingDays" | "requireCourseStepOperationAccess" | "applyStepDayAndCourseTx"> & {
   /** Supplied by app.ts; compatibility-only callers can omit it temporarily. */
   journalRows?: OfflineMutationRowsPort;
+  dailyJournal?: DailyJournalPort;
+  videoJournal?: VideoJournalPort;
+  canAccessVideo?: typeof checkVideoAccess;
+  readProgressVersions?: typeof readOfflineProgressVersions;
   preventionRows?: PreventionRowsPort;
 };
 export function createOfflineRoutes({
@@ -38,6 +48,10 @@ export function createOfflineRoutes({
   requireCourseStepOperationAccess,
   applyStepDayAndCourseTx,
   journalRows,
+  dailyJournal,
+  videoJournal,
+  canAccessVideo,
+  readProgressVersions,
   preventionRows,
 }: OfflineRouteTrainingPort) {
   const offlineRoutes = new Hono();
@@ -144,6 +158,14 @@ offlineRoutes.get("/course/download", zValidator("query", downloadQuerySchema), 
       return c.json({ success: false, error: result.error || "Ошибка", code: "NOT_FOUND" }, 404);
     }
 
+    if (result.data && readProgressVersions && c.req.header("X-Gafus-Sync-Protocol") === "2") {
+      const versions = await readProgressVersions(user.id, result.data.course.id);
+      for (const day of result.data.trainingDays) {
+        for (const step of day.steps) if (step.stepOnDayId) {
+          step.offlineProgressVersion = versions[day.id + ":" + step.stepOnDayId] ?? "none";
+        }
+      }
+    }
     return c.json({ success: true, data: result.data }, 200, {
       "Cache-Control": "private, no-store",
     });
@@ -173,15 +195,28 @@ const v2EventIdSchema = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     "Требуется канонический UUIDv4",
   );
+const v2VersionFields = {
+  expectedVersion: z.string().regex(/^(?:none|[0-9a-f]{64})$/).optional(),
+  previousEventId: v2EventIdSchema.optional(),
+};
+const validVersionBase = (v: { expectedVersion?: string; previousEventId?: string }) =>
+  !(v.expectedVersion && v.previousEventId);
 const v2PracticeMutationSchema = z
   .object({
     eventId: v2EventIdSchema,
-    operation: z.literal("training.complete.practice"),
+    operation: z.enum(["training.complete.practice", "training.complete.theory"]),
     courseId: z.string().cuid(),
     dayOnCourseId: z.string().cuid(),
     stepIndex: z.number().int().min(0),
+    expectedStepOnDayId: z.string().min(1).max(128).optional(),
+    expectedStepId: z.string().min(1).max(128).optional(),
+    ...v2VersionFields,
   })
-  .strict();
+  .strict()
+  .refine(value => Boolean(value.expectedStepOnDayId) === Boolean(value.expectedStepId) &&
+    (value.operation === "training.complete.practice" || Boolean(value.expectedStepOnDayId)) && validVersionBase(value) &&
+    (!(value.expectedVersion || value.previousEventId) || Boolean(value.expectedStepOnDayId)),
+    { message: "Incomplete occurrence binding" });
 const v2PreventionItemSchema = batchEntrySchema
   .extend({ eventId: v2EventIdSchema, clientId: v2EventIdSchema })
   .strict();
@@ -215,7 +250,36 @@ const v2PreventionMutationSchema = z
       events.add(item.eventId);
     });
   });
-const v2MutationSchema = z.union([v2PracticeMutationSchema, v2PreventionMutationSchema]);
+const v2DailyMutationSchema = z.object({
+  eventId: v2EventIdSchema,
+  operation: z.literal("daily.complete"),
+  scheduleId: z.string().cuid(),
+  stepIndex: z.number().int().min(0),
+  expectedBundleStepId: z.string().min(1).max(128),
+  expectedStepId: z.string().min(1).max(128),
+  ...v2VersionFields,
+}).strict().refine(validVersionBase);
+const v2TimerBase = z.object({
+  eventId: v2EventIdSchema, stepIndex: z.number().int().min(0),
+  expectedStepId: z.string().min(1).max(128),
+  action: z.enum(["start", "pause", "resume", "reset"]),
+  remainingSec: z.number().int().min(0).max(86400).optional(),
+  recordedAt: z.number().int().positive().safe(),
+  ...v2VersionFields,
+});
+const v2TimerMutationSchema = z.discriminatedUnion("operation", [
+  v2TimerBase.extend({ operation: z.literal("training.timer"), courseId: z.string().cuid(),
+    dayOnCourseId: z.string().cuid(), expectedStepOnDayId: z.string().min(1).max(128) }).strict(),
+  v2TimerBase.extend({ operation: z.literal("daily.timer"), scheduleId: z.string().cuid(),
+    expectedBundleStepId: z.string().min(1).max(128) }).strict(),
+]).refine(v => Boolean(v.expectedVersion) !== Boolean(v.previousEventId) &&
+    ((v.action === "start" || v.action === "pause") === (v.remainingSec !== undefined)));
+const v2VideoMutationSchema = z.object({
+  eventId: v2EventIdSchema, operation: z.literal("video.progress"),
+  videoId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+  positionSec: z.number().int().min(0).max(2073600), ...v2VersionFields,
+}).strict().refine(v => Boolean(v.expectedVersion) !== Boolean(v.previousEventId));
+const v2MutationSchema = z.union([v2PracticeMutationSchema, v2PreventionMutationSchema, v2DailyMutationSchema, v2TimerMutationSchema, v2VideoMutationSchema]);
 const v2NoStoreHeaders = { "Cache-Control": "private, no-store" };
 
 function v2ErrorResponse(error: unknown): {
@@ -241,10 +305,12 @@ function v2ErrorResponse(error: unknown): {
     if (error.message === "COURSE_ACCESS_DENIED" || error.message === "COURSE_DAY_MISMATCH") {
       return { status: 403, code: "FORBIDDEN", message: "Нет доступа к курсу" };
     }
-    if (error.message === "DayOnCourse or day not found" || error.message === "Step not found") {
+    if (error.message === "DayOnCourse or day not found" || error.message === "Step not found" || error.message === "STEP_NOT_FOUND" || error.message === "SCHEDULE_NOT_FOUND" || error.message === "VIDEO_NOT_FOUND") {
       return { status: 404, code: "NOT_FOUND", message: "Шаг не найден" };
     }
-    if (error.message.startsWith("INVALID_STATE"))
+    if (error.message === "STALE_PROGRESS_VERSION")
+      return { status: 409, code: "STALE_PROGRESS_VERSION", message: "Прогресс изменён на другом устройстве" };
+    if (error.message.startsWith("INVALID_STATE") || error.message === "STALE_STEP_BINDING" || error.message === "STALE_DAILY_STEP_BINDING")
       return { status: 409, code: "INVALID_STATE", message: "Неверное состояние шага" };
     if (error.name === "SubscriptionOrCreditsRequiredError") {
       return {
@@ -290,21 +356,59 @@ offlineRoutes.post("/mutations", zValidator("json", v2MutationSchema), async (c)
       }, journalRows, preventionRows);
       return c.json(result, 200, v2NoStoreHeaders);
     }
+    if (input.operation === "video.progress") {
+      const journal = await import("@gafus/core/services/offline");
+      if (!videoJournal || !canAccessVideo || typeof journal.submitNewOfflineVideoProgress !== "function")
+        return c.json({success:false,code:"JOURNAL_UNAVAILABLE"},503,v2NoStoreHeaders);
+      // Identical fresh permission policy to the existing video progress route;
+      // never grants access from the cached media metadata or from a device timestamp.
+      if (!await canAccessVideo({userId:ownerId,videoId:input.videoId}))
+        return c.json({success:false,code:"FORBIDDEN"},403,v2NoStoreHeaders);
+      const result = await journal.submitNewOfflineVideoProgress({ownerId,...input},videoJournal,journalRows);
+      return c.json(result,200,v2NoStoreHeaders);
+    }
+    if (input.operation === "daily.complete") {
+      const journal = await import("@gafus/core/services/offline");
+      if (!dailyJournal || typeof journal.submitNewOfflineDailyCompletion !== "function")
+        return c.json({ success: false, code: "JOURNAL_UNAVAILABLE" }, 503, v2NoStoreHeaders);
+      const result = await journal.submitNewOfflineDailyCompletion({ ownerId, ...input }, dailyJournal, journalRows);
+      return c.json(result, 200, v2NoStoreHeaders);
+    }
+    if (input.operation === "daily.timer") {
+      const journal = await import("@gafus/core/services/offline");
+      if (!dailyJournal || typeof journal.submitNewOfflineTimerMutation !== "function")
+        return c.json({ success: false, code: "JOURNAL_UNAVAILABLE" }, 503, v2NoStoreHeaders);
+      const result = await journal.submitNewOfflineTimerMutation({ ownerId, ...input }, { applyStepDayAndCourseTx }, dailyJournal, journalRows);
+      return c.json(result, 200, v2NoStoreHeaders);
+    }
     const rawPlatform = c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
     const platform = rawPlatform === "IOS" ? "IOS" : "ANDROID";
-    await requireCourseStepOperationAccess({
+    const authorized = await requireCourseStepOperationAccess({
       userId: ownerId,
       platform,
       expectedCourseId: input.courseId,
       dayOnCourseId: input.dayOnCourseId,
       stepIndex: input.stepIndex,
+      expectedStepOnDayId: input.expectedStepOnDayId,
+      expectedStepId: input.expectedStepId,
     });
     const journal = await import("@gafus/core/services/offline");
     if (typeof journal.submitNewOfflinePracticeMutation !== "function") {
       return c.json({ success: false, code: "JOURNAL_UNAVAILABLE" }, 503, v2NoStoreHeaders);
     }
+    if (!authorized?.binding?.expectedStepOnDayId ||
+        !authorized.binding.expectedStepId ||
+        authorized.binding.expectedCourseId !== input.courseId) {
+      return c.json({ success: false, code: "JOURNAL_UNAVAILABLE" }, 503, v2NoStoreHeaders);
+    }
+    if (input.operation === "training.timer") {
+      if (typeof journal.submitNewOfflineTimerMutation !== "function")
+        return c.json({ success: false, code: "JOURNAL_UNAVAILABLE" }, 503, v2NoStoreHeaders);
+      const result = await journal.submitNewOfflineTimerMutation({ ownerId, ...input }, { applyStepDayAndCourseTx }, dailyJournal, journalRows, authorized.binding);
+      return c.json(result, 200, v2NoStoreHeaders);
+    }
     const result = await journal.submitNewOfflinePracticeMutation(
-      { ownerId, ...input }, { applyStepDayAndCourseTx }, journalRows,
+      { ownerId, ...input }, { applyStepDayAndCourseTx }, journalRows, authorized.binding,
     );
     return c.json(result, 200, v2NoStoreHeaders);
   } catch (error) {
@@ -350,12 +454,15 @@ offlineRoutes.get("/mutations/:eventId", async (c) => {
   return offlineRoutes;
 }
 
-// Compatibility routes for the historic Core registrar until all consumers move.
+// Standalone route composition with the same concrete adapters as app.ts.
 export const offlineRoutes = createOfflineRoutes({
-  getTrainingDays: (...args) => getTrainingDays(...args),
-  requireCourseStepOperationAccess: (...args) => requireCourseStepOperationAccess(...args),
-  applyStepDayAndCourseTx: async (...args) => {
-    const legacy = await import("@gafus/core/services/training");
-    return legacy.applyStepDayAndCourseTx(...args);
-  },
+  getTrainingDays: sqlTraining.getTrainingDays,
+  requireCourseStepOperationAccess: sqlTraining.requireCourseStepOperationAccess,
+  applyStepDayAndCourseTx: sqlTraining.applyStepDayAndCourseTx as unknown as TrainingServiceApi["applyStepDayAndCourseTx"],
+  journalRows: offlineMutationRows,
+  dailyJournal: applyDailyCourseStepAndDayTx as unknown as DailyJournalPort,
+  videoJournal: saveProgressJournalTx as unknown as VideoJournalPort,
+  canAccessVideo: checkVideoAccess,
+  readProgressVersions: readOfflineProgressVersions,
+  preventionRows: defaultPreventionRows,
 });

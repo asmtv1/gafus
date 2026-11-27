@@ -34,6 +34,15 @@ export function validatedPetsForActor(value: unknown, actor: { ownerId: string }
       !nullableNumber(pet.bellyGirthCm)
     )
       throw new Error("PETS_LIST_INVALID");
+    if (pet._count !== undefined) {
+      const counts = pet._count as Record<string, unknown> | null;
+      if (!counts || typeof counts !== "object" ||
+          !["preventionEntries", "documents"].every(key => {
+            const count = counts[key];
+            return typeof count === "number" && Number.isSafeInteger(count) && count >= 0;
+          }))
+        throw new Error("PETS_LIST_INVALID");
+    }
     seen.add(pet.id);
   }
   return value as Pet[];

@@ -46,19 +46,14 @@ vi.mock("../appFeatureFlags", () => ({
   getMobileFeatureFlagEnabled: getMobileFeatureFlagEnabledMock,
 }));
 
-import {
-  getRewardedAdSettings,
-  resolveRewardedPlatformSettings,
-  updateRewardedAdSettings,
-  registerRewardedSettingsPort,
-} from "./settingsService";
+import { createRewardedSettingsService } from "./settingsService";
 import {
   readRewardedAdSettingsRow,
   writeRewardedAdSettingsRow,
 } from "@gafus/gafus-server/rewarded-settings";
 
 // Existing tests validate real Persistence SQL rows behind the pure Core port.
-registerRewardedSettingsPort({ readRewardedAdSettingsRow, writeRewardedAdSettingsRow });
+const { getRewardedAdSettings, resolveRewardedPlatformSettings, updateRewardedAdSettings } = createRewardedSettingsService({ readRewardedAdSettingsRow, writeRewardedAdSettingsRow }, getMobileFeatureFlagEnabledMock);
 
 
 describe("rewarded ad settings", () => {

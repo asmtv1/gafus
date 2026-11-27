@@ -3,16 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   create: vi.fn(),
-  update: vi.fn(),
+  upsert: vi.fn(),
+  claim: vi.fn(),
   enqueue: vi.fn(),
 }));
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
-    pushSubscription: { findMany: (...a: unknown[]) => mocks.list(...a) },
+    pushSubscription: { findFirst: (...a: unknown[]) => mocks.list(...a) },
     stepNotification: {
       create: (...a: unknown[]) => mocks.create(...a),
-      update: (...a: unknown[]) => mocks.update(...a),
+      upsert: mocks.upsert,
+      updateMany: mocks.claim,
     },
   },
 }));
@@ -33,16 +35,14 @@ import { sendImmediatePushNotification } from "@gafus/notifications-server/immed
 describe("immediate push delivery business lifecycle in core", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mocks.list.mockResolvedValue([
-      { endpoint: "https://push.example.test/endpoint", keys: { p256dh: "key", auth: "auth" } },
-    ]);
-    mocks.create.mockResolvedValue({ id: "notice-1" });
-    mocks.enqueue.mockResolvedValue({ id: "job-1" });
-    mocks.update.mockResolvedValue({});
+    mocks.list.mockResolvedValue({ id: "device-1" });
+    mocks.create.mockImplementation(async ({ data }) => data);
+    mocks.claim.mockResolvedValue({ count: 1 });
+    mocks.enqueue.mockResolvedValue({});
   });
 
   it("returns a helpful failure before storing anything without push subscribers", async () => {
-    mocks.list.mockResolvedValue([]);
+    mocks.list.mockResolvedValue(null);
     expect(
       await sendImmediatePushNotification({
         userId: "user-1",
@@ -62,7 +62,7 @@ describe("immediate push delivery business lifecycle in core", () => {
         body: "Описание",
         url: "/gafus",
       }),
-    ).toEqual({ success: true, notificationId: "notice-1" });
+    ).toEqual({ success: true, notificationId: expect.any(String) });
     expect(mocks.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         userId: "user-1",
@@ -72,15 +72,15 @@ describe("immediate push delivery business lifecycle in core", () => {
         url: "/gafus",
       }),
     });
+    const { id, jobId, subscription } = mocks.create.mock.calls[0]![0].data;
+    expect(subscription).toEqual({});
+    expect(jobId).toBe(`immediate-${id}`);
     expect(mocks.enqueue).toHaveBeenCalledWith(
       "push",
-      { notificationId: "notice-1" },
-      expect.objectContaining({ attempts: 3, backoff: { type: "exponential", delay: 1000 } }),
+      { notificationId: id },
+      expect.objectContaining({ jobId, attempts: 3, backoff: { type: "exponential", delay: 1000 } }),
     );
-    expect(mocks.update).toHaveBeenCalledWith({
-      where: { id: "notice-1" },
-      data: { jobId: "job-1" },
-    });
+
   });
 
   it("does not report a failed queue delivery as successful", async () => {
@@ -92,6 +92,28 @@ describe("immediate push delivery business lifecycle in core", () => {
         body: "Body",
       }),
     ).toEqual({ success: false, error: "redis not ready" });
-    expect(mocks.update).not.toHaveBeenCalled();
+
+  });
+  it("recovers a failed Redis publication with the original receipt and queue ID", async () => {
+    const request = { userId: "user-1", title: "Meeting", body: "Now",
+      consultationReminder: { bookingId: "booking-1", key: "start-client" as const } };
+    const receipt = { id: "receipt-1", jobId: "immediate-receipt-1" };
+    mocks.upsert.mockResolvedValue(receipt);
+    mocks.enqueue.mockRejectedValueOnce(new Error("offline"));
+    expect((await sendImmediatePushNotification(request)).success).toBe(false);
+    expect(await sendImmediatePushNotification(request)).toEqual({ success: true, notificationId: receipt.id });
+    for (const [args] of mocks.upsert.mock.calls) {
+      expect(args.where).toEqual({ consultationBookingId_consultationReminderKey: {
+        consultationBookingId: "booking-1", consultationReminderKey: "start-client",
+      } });
+    }
+    for (const [, payload, options] of mocks.enqueue.mock.calls) {
+      expect(payload).toEqual({ notificationId: receipt.id });
+      expect(options).toMatchObject({ jobId: receipt.jobId, removeOnFail: true });
+    }
+    expect(mocks.enqueue).toHaveBeenCalledTimes(2);
+    mocks.claim.mockResolvedValue({ count: 0 });
+    await sendImmediatePushNotification(request);
+    expect(mocks.enqueue).toHaveBeenCalledTimes(2);
   });
 });

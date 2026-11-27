@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fail closed on the actual native OTA metadata, not JS string occurrences."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import plistlib
@@ -170,7 +171,31 @@ def check_native(url, mode, enabled, certificate, signing, headers, environment)
             re.fullmatch(r"[a-fA-F0-9]{64}", headers.get("x-gafus-native-fingerprint", "")), "native OTA channel/fingerprint missing")
 
 
-def check_android(root, config, environment):
+def check_descriptor(d, platform, environment):
+    require(isinstance(d, dict) and d.get("appId") == "gafus" and d.get("platform") == platform and
+            d.get("bundleId") == "ru.gafus.app" and d.get("environment") == environment and
+            d.get("channel") == environment, "registered descriptor scope mismatch")
+    require(re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", d.get("appVersion", "")) and
+            d.get("runtimeVersion") == d.get("appVersion") and
+            re.fullmatch(r"[1-9][0-9]{0,9}", d.get("buildNumber", "")), "registered descriptor version invalid")
+    require(re.fullmatch(r"[a-fA-F0-9]{64}", d.get("nativeFingerprint", "")) and d.get("id") and
+            d.get("signingKeyId") and isinstance(d.get("certificatePem"), str), "registered descriptor trust invalid")
+    require(hashlib.sha256(d["certificatePem"].encode()).hexdigest() == d.get("certificateSha256"),
+            "registered descriptor certificate digest mismatch")
+    check_endpoint(d.get("updateUrl"), environment)
+
+
+def check_registered_trust(url, certificate, signing, headers, d):
+    require(url == d["updateUrl"] and signing.get("keyid") == d["signingKeyId"] and
+            headers.get("expo-channel-name") == d["channel"] and
+            headers.get("x-gafus-native-fingerprint") == d["nativeFingerprint"],
+            "native registered descriptor trust mismatch")
+    # XML/plist encoders may normalize final newlines; PEM contents must match.
+    require(certificate.replace("\r\n", "\n").strip() == d["certificatePem"].replace("\r\n", "\n").strip(),
+            "native registered descriptor certificate mismatch")
+
+
+def check_android(root, config, environment, descriptor=None):
     m = metadata(root)
     url = m.get("EXPO_UPDATE_URL")
     # Expo omits EXPO_UPDATES_ENABLED for its enabled-by-default case.
@@ -184,17 +209,42 @@ def check_android(root, config, environment):
             extra.get("otaChannel") == environment and extra.get("otaNativeReleaseId"), "embedded Android OTA identity missing")
     headers = json.loads(m["UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY"])
     require(extra.get("otaNativeFingerprint") == headers["x-gafus-native-fingerprint"], "embedded Android OTA fingerprint mismatch")
+    if descriptor is not None:
+        d = descriptor
+        check_descriptor(d, "android", environment)
+        check_registered_trust(url, m["CODE_SIGNING_CERTIFICATE"], json.loads(m["CODE_SIGNING_METADATA"]), headers, d)
+        require(root.get("package") == d["bundleId"] and
+                root.get("{" + ANDROID + "}versionName") == d["appVersion"] and
+                root.get("{" + ANDROID + "}versionCode") == d["buildNumber"],
+                "Android native package/version/build does not match registered descriptor")
+        require(config.get("version") == d["appVersion"] and
+                str(config.get("android", {}).get("versionCode")) == d["buildNumber"] and
+                extra.get("otaNativeReleaseId") == d["id"],
+                "Android embedded build identity does not match registered descriptor")
+        runtime = config.get("runtimeVersion")
+        require(runtime == d["runtimeVersion"] or runtime == {"policy": "appVersion"},
+                "Android embedded runtime does not match registered descriptor")
     return url
 
 
-def check_ios(p, environment):
+def check_ios(p, environment, descriptor=None, info=None):
     check_native(p.get("EXUpdatesURL"), p.get("EXUpdatesCheckOnLaunch"), p.get("EXUpdatesEnabled", True),
                  p.get("EXUpdatesCodeSigningCertificate"), p.get("EXUpdatesCodeSigningMetadata"),
                  p.get("EXUpdatesRequestHeaders"), environment)
+    if descriptor is not None:
+        d = descriptor
+        check_descriptor(d, "ios", environment)
+        check_registered_trust(p["EXUpdatesURL"], p["EXUpdatesCodeSigningCertificate"],
+                               p["EXUpdatesCodeSigningMetadata"], p["EXUpdatesRequestHeaders"], d)
+        require(p.get("EXUpdatesRuntimeVersion") == d["runtimeVersion"], "iOS native runtime mismatch")
+        if info is not None:
+            require(info.get("CFBundleIdentifier") == d["bundleId"] and
+                    info.get("CFBundleShortVersionString") == d["appVersion"] and
+                    str(info.get("CFBundleVersion")) == d["buildNumber"], "iOS native build identity mismatch")
     return p["EXUpdatesURL"]
 
 
-def verify(path, environment="production"):
+def verify(path, environment="production", descriptor=None):
     with zipfile.ZipFile(path) as z:
         names = z.namelist()
         if path.suffix.lower() in (".aab", ".apk"):
@@ -210,11 +260,16 @@ def verify(path, environment="production"):
                 root = apk_manifest(z.read("AndroidManifest.xml"))
             # Check native URL first, before reading embedded metadata.
             check_endpoint(metadata(root).get("EXPO_UPDATE_URL"), environment)
-            return check_android(root, json.loads(z.read(entry)), environment)
+            return check_android(root, json.loads(z.read(entry)), environment, descriptor)
         if path.suffix.lower() == ".ipa":
             entries = [n for n in names if re.fullmatch(r"Payload/[^/]+\.app/Expo\.plist", n)]
             require(len(entries) == 1, "missing/duplicate main IPA Expo.plist")
-            return check_ios(plistlib.loads(z.read(entries[0])), environment)
+            info = None
+            if descriptor is not None:
+                info_path = entries[0].replace("Expo.plist", "Info.plist")
+                require(names.count(info_path) == 1, "missing/duplicate main IPA Info.plist")
+                info = plistlib.loads(z.read(info_path))
+            return check_ios(plistlib.loads(z.read(entries[0])), environment, descriptor, info)
         raise ValueError("expected .apk, .aab or .ipa")
 
 
@@ -222,10 +277,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("artifact", type=Path)
     parser.add_argument("--environment", choices=["production", "preview"], default="production")
+    parser.add_argument("--descriptor", type=Path, help="verify exact registered native release identity")
     parser.add_argument("--ios-plist", action="store_true", help="verify built main app Expo.plist before packaging")
     args = parser.parse_args()
     try:
-        result = check_ios(plistlib.loads(args.artifact.read_bytes()), args.environment) if args.ios_plist else verify(args.artifact, args.environment)
+        descriptor = json.loads(args.descriptor.read_text()) if args.descriptor else None
+        result = check_ios(plistlib.loads(args.artifact.read_bytes()), args.environment, descriptor) if args.ios_plist else verify(args.artifact, args.environment, descriptor)
         print("GAFUS_NATIVE_OTA_ARTIFACT_PASS", result)
     except Exception as error:
         parser.exit(1, "GAFUS_NATIVE_OTA_ARTIFACT_BLOCKED: " + str(error) + "\n")

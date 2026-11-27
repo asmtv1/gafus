@@ -30,15 +30,15 @@ describe("atomic training reminder delivery claim", () => {
   });
 
   it("does not issue writes for an empty invalid endpoint list", async () => {
-    expect(await removeInvalidTrainingReminderEndpoints([])).toBe(0);
+    expect(await removeInvalidTrainingReminderEndpoints("actor", [])).toBe(0);
     expect(subscriptionsDeleteMany).not.toHaveBeenCalled();
   });
 
   it("deletes only invalid web push endpoints", async () => {
     subscriptionsDeleteMany.mockResolvedValue({ count: 2 });
-    expect(await removeInvalidTrainingReminderEndpoints(["invalid-1", "invalid-2"])).toBe(2);
+    expect(await removeInvalidTrainingReminderEndpoints("actor", ["invalid-1", "invalid-2"])).toBe(2);
     expect(subscriptionsDeleteMany).toHaveBeenCalledWith({
-      where: { endpoint: { in: ["invalid-1", "invalid-2"] } },
+      where: { userId: "actor", endpoint: { in: ["invalid-1", "invalid-2"] } },
     });
   });
 

@@ -5,7 +5,7 @@ type TemplatesReader = typeof getStepTemplates;
 
 type Row = Record<string, unknown>;
 import type { TrainerPublicStepTemplateItem } from
-  "../../../../../../packages/types/src/data/trainer-read-contracts";
+  "@gafus/types/trainer-read-contracts";
 
 function badCore(): never {
   // Fixed internal signal, not a stored Prisma record, actor, or provider error.

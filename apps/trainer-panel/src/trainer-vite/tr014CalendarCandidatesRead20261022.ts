@@ -2,7 +2,7 @@ import { z } from "zod/v3";
 import type {
   TrainerDailyCandidateItem,
   TrainerDailyCandidatesRead,
-} from "../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 import type { ScheduleTransport } from "./tr014ScheduleRangeRead20261022";
 const schema = z
   .object({

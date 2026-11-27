@@ -8,9 +8,9 @@ vi.mock("./chatDisplayRole", () => ({ getChatDisplayRole: async () => null }));
 import { updateUserProfile } from "./profileService";
 // Bind unchanged identity-write SQL projections against the existing synthetic
 // Prisma test rows; production composition runs before Hono routes.
-import { registerProfileRowsPort } from "./profileRowsPort";
+
 import * as profileSql from "@gafus/identity-write-server/profile-rows";
-registerProfileRowsPort(profileSql);
+const fixtureProfileRowsPort = profileSql;
 
 
 beforeEach(() => {
@@ -29,7 +29,7 @@ describe("USER020 direct Core profile birthday write boundary", () => {
       `${future}T00:00:00.000Z`,
       "not-a-date",
     ]) {
-      await expect(updateUserProfile("owner-synthetic", { birthDate })).rejects.toThrow(
+      await expect(updateUserProfile("owner-synthetic", { birthDate }, fixtureProfileRowsPort)).rejects.toThrow(
         "Неверная дата",
       );
     }
@@ -37,14 +37,14 @@ describe("USER020 direct Core profile birthday write boundary", () => {
   });
   it("retains date-only, legacy ISO, empty clear and omission semantics", async () => {
     for (const birthDate of ["2020-02-29", "2020-02-29T00:00:00.000Z"]) {
-      await updateUserProfile("owner-synthetic", { birthDate });
+      await updateUserProfile("owner-synthetic", { birthDate }, fixtureProfileRowsPort);
       const arg = db.upsert.mock.lastCall?.[0];
       expect(arg.update.birthDate).toEqual(new Date("2020-02-29T00:00:00.000Z"));
       expect(arg.create.birthDate).toEqual(new Date("2020-02-29T00:00:00.000Z"));
     }
-    await updateUserProfile("owner-synthetic", { birthDate: "" });
+    await updateUserProfile("owner-synthetic", { birthDate: "" }, fixtureProfileRowsPort);
     expect(db.upsert.mock.lastCall?.[0].update.birthDate).toBeNull();
-    await updateUserProfile("owner-synthetic", { city: "Самара" });
+    await updateUserProfile("owner-synthetic", { city: "Самара" }, fixtureProfileRowsPort);
     expect(db.upsert.mock.lastCall?.[0].update).not.toHaveProperty("birthDate");
   });
 });

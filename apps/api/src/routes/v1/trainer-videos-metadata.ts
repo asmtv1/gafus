@@ -2,7 +2,7 @@
 import {Hono} from "hono";
 import { readTrainerVideoMetadataRows } from "@gafus/statistics";
 import type {TrainerVideoMetadataItem,TrainerVideoMetadataRead} from
-  "../../../../../packages/types/src/data/trainer-read-contracts";
+  "@gafus/types/trainer-read-contracts";
 export const trainerVideosMetadataRoutes=new Hono();
 trainerVideosMetadataRoutes.get("/metadata",async c=>{
  const actor=c.get("user");

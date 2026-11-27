@@ -1,13 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  registerTrainerCourseRowsPort, createTrainerCourseRow, readCourseRowAuthor,
-  updateTrainerCourseRows, isCourseVersionNoMatch,
+  requireTrainerCourseRowsPort,
   type TrainerCourseRowsPort,
 } from "./trainerCourseRowsPort";
 
 describe("Trainer course SQL CAS port", () => {
   it("fails closed before API composition", () => {
-    expect(() => readCourseRowAuthor("course-A")).toThrow("TRAINER_COURSE_ROWS_PORT_UNBOUND");
+    expect(() => requireTrainerCourseRowsPort(undefined)).toThrow("TRAINER_COURSE_ROWS_PORT_UNBOUND");
   });
   it("does not fabricate successful writes or swallow CAS/ACL failures", async () => {
     const casError = new Error("COURSE_VERSION_STALE");
@@ -21,16 +20,12 @@ describe("Trainer course SQL CAS port", () => {
       deleteDependencies: vi.fn().mockResolvedValue(undefined),
       isVersionMismatch: (error) => error === casError,
     };
-    registerTrainerCourseRowsPort(port);
-    registerTrainerCourseRowsPort(port);
-    expect(() => registerTrainerCourseRowsPort({ ...port }))
-      .toThrow("TRAINER_COURSE_ROWS_PORT_ALREADY_BOUND");
-    expect(await readCourseRowAuthor("course-A")).toEqual({ authorId: "trainer-A" });
-    expect(isCourseVersionNoMatch(casError)).toBe(true);
-    await expect(updateTrainerCourseRows({} as never, { id: "trainer-A", role: "TRAINER" }, true))
+    expect(await requireTrainerCourseRowsPort(port).readAuthor("course-A")).toEqual({ authorId: "trainer-A" });
+    expect(requireTrainerCourseRowsPort(port).isVersionMismatch(casError)).toBe(true);
+    await expect(requireTrainerCourseRowsPort(port).updateRows({} as never, { id: "trainer-A", role: "TRAINER" }, true))
       .rejects.toBe(casError);
     expect(update).toHaveBeenCalledExactlyOnceWith({}, { id: "trainer-A", role: "TRAINER" }, true);
-    await createTrainerCourseRow({} as never, "trainer-A", "type", true, []);
+    await requireTrainerCourseRowsPort(port).createRow({} as never, "trainer-A", "type", true, []);
     expect(create).toHaveBeenCalledExactlyOnceWith({}, "trainer-A", "type", true, []);
   });
 });

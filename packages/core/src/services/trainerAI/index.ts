@@ -76,8 +76,12 @@ export function createTrainerAIService<Stream, Settings, Message extends Trainer
   }
   async function getTrainerAIHistory(userId: string, page = 0, pageSize = 20) {
     await assertTrainerAIAccess(userId);
-    const safePage = Math.max(0, Math.floor(page));
-    const safeSize = Math.max(1, Math.min(100, Math.floor(pageSize)));
+    const safeSize = Number.isFinite(pageSize) ? Math.max(1, Math.min(100, Math.floor(pageSize))) : 20;
+    // Avoid non-finite/unsafe offsets without hiding any real history. The SQL
+    // adapter skips a page beyond the actual owner-scoped total.
+    const safePage = Number.isFinite(page)
+      ? Math.max(0, Math.min(Math.floor(Number.MAX_SAFE_INTEGER / safeSize), Math.floor(page)))
+      : 0;
     const { total, messages } = await persistence.readTrainerAIHistoryRows(
       userId,
       safePage * safeSize,
@@ -93,7 +97,7 @@ export function createTrainerAIService<Stream, Settings, Message extends Trainer
         ...message,
         role: message.role as "user" | "assistant",
       })),
-      hasMore: total > (safePage + 1) * safeSize,
+      hasMore: total > safePage * safeSize + safeSize,
       total,
     };
   }

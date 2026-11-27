@@ -3,7 +3,7 @@ import { z } from "zod/v3";
 import type {
   TrainerVisibleStepItem,
   TrainerVisibleStepsRead,
-} from "../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 export const TR013_VISIBLE_STEPS_PROPOSED_PATH = "/api/v1/trainer/steps" as const;
 const nonempty = z.string().min(1);
 const course = z

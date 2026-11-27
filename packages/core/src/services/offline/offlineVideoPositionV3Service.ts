@@ -3,7 +3,7 @@
  * Never import this module into the live offline v2 router under SOURCE_ONLY grant.
  */
 import {
-  requireOfflineVideoSqlPort,
+  requireOfflineVideoSqlPort, type OfflineVideoSqlPort,
 } from "./offlineVideoSqlPort";
 import { z } from "zod/v3";
 import {
@@ -68,7 +68,7 @@ function normalize(ownerId: string, validated: VideoPositionInput) {
 export async function submitVideoPositionV2Proposal(input: {
   authenticatedOwnerId: string;
   request: unknown;
-}): Promise<VideoPositionReceipt> {
+}, resolveAccess: Parameters<typeof authorizeVideoOccurrenceV3>[3], port?: OfflineVideoSqlPort): Promise<VideoPositionReceipt> {
   const derived = canonicalOccurrenceV3(input.authenticatedOwnerId, input.request);
   const parsed = derived.value;
   if (!input.authenticatedOwnerId) forbidden("VIDEO_ACCESS_DENIED");
@@ -77,16 +77,16 @@ export async function submitVideoPositionV2Proposal(input: {
   const now = new Date();
   if (Date.parse(recordedAt) > now.getTime() + MAX_FUTURE_SKEW_MS)
     forbidden("FUTURE_VIDEO_TIMESTAMP");
-  const response = await requireOfflineVideoSqlPort().withOfflineVideoSqlTransaction(async (tx) => {
+  const response = await requireOfflineVideoSqlPort(port).withOfflineVideoSqlTransaction(async (tx) => {
     // Access checked even on a duplicate receipt, so revoked video entitlement
     // cannot leak the prior ACK/result. Require video-course-step correspondence.
-    const access = await authorizeVideoOccurrenceV3(tx, ownerId, parsed, now);
+    const access = await authorizeVideoOccurrenceV3(tx, ownerId, parsed, resolveAccess, now);
     if (access === "NOT_FOUND") forbidden("VIDEO_NOT_FOUND");
     if (access !== "ALLOWED") forbidden("VIDEO_ACCESS_DENIED");
 
     // Event claim uses UNIQUE(ownerId,eventId) with conflict waiting for
     // in-flight commit. PostgreSQL READ COMMITTED gives fresh snapshot on retry.
-    const claim = await requireOfflineVideoSqlPort().claimOfflineVideoReceipt(
+    const claim = await requireOfflineVideoSqlPort(port).claimOfflineVideoReceipt(
       tx,
       ownerId,
       parsed.eventId,
@@ -94,7 +94,7 @@ export async function submitVideoPositionV2Proposal(input: {
       payloadHash,
     );
     if (claim.length === 0) {
-      const stored = await requireOfflineVideoSqlPort().findOfflineVideoStoredReceipt(
+      const stored = await requireOfflineVideoSqlPort(port).findOfflineVideoStoredReceipt(
         tx,
         ownerId,
         parsed.eventId,
@@ -119,8 +119,8 @@ export async function submitVideoPositionV2Proposal(input: {
     }
     // An insert-if-absent revision row permits exact FOR UPDATE serialization
     // of competing DIFFERENT eventIds on this same owner+resource.
-    await requireOfflineVideoSqlPort().reserveOfflineVideoRevision(tx, ownerId, resourceKey);
-    const revisions = await requireOfflineVideoSqlPort().readOfflineVideoRevision(tx, ownerId, resourceKey);
+    await requireOfflineVideoSqlPort(port).reserveOfflineVideoRevision(tx, ownerId, resourceKey);
+    const revisions = await requireOfflineVideoSqlPort(port).readOfflineVideoRevision(tx, ownerId, resourceKey);
     const before = revisions[0];
     if (!before) forbidden("VIDEO_POSITION_JOURNAL_UNAVAILABLE");
     // Record time never determines position monotonicity; backwards seek with a
@@ -132,7 +132,7 @@ export async function submitVideoPositionV2Proposal(input: {
     )
       forbidden("STALE_VIDEO_REVISION");
     const next = before.revision + 1n;
-    const updated = await requireOfflineVideoSqlPort().advanceOfflineVideoRevision(
+    const updated = await requireOfflineVideoSqlPort(port).advanceOfflineVideoRevision(
       tx,
       ownerId,
       resourceKey,
@@ -154,7 +154,7 @@ export async function submitVideoPositionV2Proposal(input: {
         result: { videoId: parsed.videoId, positionSec: parsed.positionSec, recordedAt },
       },
     };
-    const committed = await requireOfflineVideoSqlPort().commitOfflineVideoReceipt(tx, ownerId, claim[0]!.id, next, ack);
+    const committed = await requireOfflineVideoSqlPort(port).commitOfflineVideoReceipt(tx, ownerId, claim[0]!.id, next, ack);
     if (committed !== 1) forbidden("VIDEO_POSITION_JOURNAL_UNAVAILABLE");
     return ack;
   });

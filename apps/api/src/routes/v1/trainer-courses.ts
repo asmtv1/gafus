@@ -1,3 +1,5 @@
+import { courseVersionRowsPort } from "../../modules/trainer-courses/composition/course-version-rows-instance.js";
+import { trainerCourseRows } from "../../modules/trainer-courses/composition/trainer-course-rows-instance.js";
 import type { TrainerCourseRowsPort } from "@gafus/core/services/trainerCourse";
 /**
  * TR012 registered editor READ and name-only CAS remain unchanged.
@@ -21,21 +23,19 @@ import type {
   TrainerCourseFormUpdateWireRequest,
   TrainerCourseFormCreateWireSuccess,
   TrainerCourseFormUpdateWireSuccess,
-} from "../../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 import {
   readCourseNameVersion,
   updateCourseNameVersioned,
   type CourseVersionRowsPort,
 } from "@gafus/core/services/trainerCourse";
-import { readCourseEditorApplication, createReadCourseEditorApplicationForRows } from "../../modules/trainer-courses/composition/read-course-editor.js";
+import { createReadCourseEditorApplicationForRows } from "../../modules/trainer-courses/composition/read-course-editor.js";
 
 /** Inject a distinct owner-scoped Course.version adapter for each app instance.
  * Missing rowsPort is retained solely for older mocked route entrypoints. */
 const courseIdPattern = /^[A-Za-z0-9_-]{1,128}$/;
-export function createTrainerCoursesRoutes(rowsPort?: CourseVersionRowsPort, courseRows?: TrainerCourseRowsPort) {
-const boundCourseEditorApplication = courseRows
-  ? createReadCourseEditorApplicationForRows(courseRows)
-  : readCourseEditorApplication;
+export function createTrainerCoursesRoutes(rowsPort: CourseVersionRowsPort, courseRows: TrainerCourseRowsPort) {
+const boundCourseEditorApplication = createReadCourseEditorApplicationForRows(courseRows);
 const trainerCoursesRoutes = new Hono();
 // Explicit malformed empty parameter; Hono does not match //draft to :courseId.
 trainerCoursesRoutes.get("//draft", (c) =>
@@ -199,9 +199,7 @@ trainerCoursesRoutes.get("/:courseId/version", async (c) => {
   if (user.role !== "TRAINER" && user.role !== "ADMIN")
     return c.json({ success: false, code: "FORBIDDEN", error: "Недостаточно прав" }, 403);
   const versionActor = { id: user.id, role: user.role };
-  const result = rowsPort
-    ? await readCourseNameVersion(courseId, versionActor, rowsPort)
-    : await readCourseNameVersion(courseId, versionActor);
+  const result = await readCourseNameVersion(courseId, versionActor, rowsPort);
   if (result.status === "found")
     return c.json({ success: true, data: result.data } satisfies TrainerCourseVersionRead);
   if (result.status === "not_found")
@@ -241,9 +239,7 @@ trainerCoursesRoutes.patch("/:courseId/name", async (c) => {
     return c.json(invalidVersionQuery, 400);
   const versionInput = { courseId, name: input.name, expectedVersion: input.expectedVersion };
   const versionActor = { id: user.id, role: user.role };
-  const result = rowsPort
-    ? await updateCourseNameVersioned(versionInput, versionActor, rowsPort)
-    : await updateCourseNameVersioned(versionInput, versionActor);
+  const result = await updateCourseNameVersioned(versionInput, versionActor, rowsPort);
   if (result.status === "updated")
     return c.json({ success: true, data: result.data } satisfies TrainerCourseVersionRead);
   if (result.status === "stale")
@@ -458,4 +454,4 @@ export function createTrainerCourseFormSourceMockRoutes(optIn?: MockWriteOptIn) 
 }
 
 /** Legacy source/test compatibility, never used by production app.ts. */
-export const trainerCoursesRoutes = createTrainerCoursesRoutes();
+export const trainerCoursesRoutes = createTrainerCoursesRoutes(courseVersionRowsPort, trainerCourseRows);

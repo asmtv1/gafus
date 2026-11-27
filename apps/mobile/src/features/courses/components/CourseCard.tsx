@@ -126,7 +126,7 @@ function areCourseVisualFieldsEqual(
     prev.authorUsername === next.authorUsername &&
     prev.authorAvatarUrl === next.authorAvatarUrl &&
     prev.avgRating === next.avgRating &&
-    (prev.reviews?.length ?? 0) === (next.reviews?.length ?? 0) &&
+    (prev.reviewsCount ?? prev.reviews?.length ?? 0) === (next.reviewsCount ?? next.reviews?.length ?? 0) &&
     toTimestamp(prev.startedAt) === toTimestamp(next.startedAt) &&
     toTimestamp(prev.completedAt) === toTimestamp(next.completedAt) &&
     toTimestamp(prev.updatedAt) === toTimestamp(next.updatedAt)
@@ -203,7 +203,7 @@ function CourseCardComponent({
 }: CourseCardProps) {
   const router = useRouter();
   const courseType = course.type;
-  const reviewsCount = course.reviews?.length ?? 0;
+  const reviewsCount = course.reviewsCount ?? course.reviews?.length ?? 0;
   const formattedStartedAt = formatDate(course.startedAt);
   const formattedCompletedAt = formatDate(course.completedAt);
   const subscriptionStatusQuery = useAppSubscriptionStatus();

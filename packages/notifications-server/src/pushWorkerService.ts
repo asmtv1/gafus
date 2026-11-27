@@ -1,3 +1,4 @@
+import { isConsultationReminderDue } from "@gafus/consultation-shared/reminder-window";
 import { prisma } from "@gafus/prisma";
 
 /** Core-owned notification and subscription reads for push transport workers. */
@@ -7,7 +8,19 @@ async function boundNotificationIsStillCurrent(notification: {
   stepOnDayId: string | null;
   originalStepId: string | null;
   type: string;
+  consultationBookingId: string | null;
+  consultationReminderKey: string | null;
 }): Promise<boolean> {
+  if (notification.consultationBookingId) {
+    const key = notification.consultationReminderKey;
+    if (key !== "30m-client" && key !== "30m-trainer" && key !== "start-client" && key !== "start-trainer") return false;
+    const booking = await prisma.consultationBooking.findFirst({
+      where: { id: notification.consultationBookingId, status: "CONFIRMED",
+        ...(key.endsWith("-client") ? { clientId: notification.userId } : { cynologist: { userId: notification.userId } }) },
+      select: { slot: { select: { startAt: true, endAt: true } } },
+    });
+    return !!booking && isConsultationReminderDue(booking.slot, key.startsWith("30m-") ? "30m" : "start", new Date());
+  }
   if (notification.type !== "step" || (!notification.dayOnCourseId && !notification.stepOnDayId))
     return true; // Legacy/native and non-step notifications remain unchanged.
   if (!notification.dayOnCourseId || !notification.stepOnDayId || !notification.originalStepId)
@@ -53,14 +66,14 @@ export async function getUserPushSubscriptionsForDelivery(userId: string) {
   return prisma.pushSubscription.findMany({ where: { userId } });
 }
 
-export async function deleteInvalidPushEndpoint(endpoint: string): Promise<number> {
-  const result = await prisma.pushSubscription.deleteMany({ where: { endpoint } });
+export async function deleteInvalidPushEndpoint(userId: string, endpoint: string): Promise<number> {
+  const result = await prisma.pushSubscription.deleteMany({ where: { userId, endpoint } });
   return result.count;
 }
 
 export async function recordPushNotificationDelivery(notificationId: string, sent: boolean) {
-  await prisma.stepNotification.update({
-    where: { id: notificationId },
+  await prisma.stepNotification.updateMany({
+    where: { id: notificationId, sent: false },
     data: { sent },
   });
 }
@@ -76,6 +89,8 @@ export async function getEligiblePushNotificationJob(notificationId: string, job
       paused: true,
       userId: true,
       type: true,
+      consultationBookingId: true,
+      consultationReminderKey: true,
       dayOnCourseId: true,
       stepOnDayId: true,
       originalStepId: true,

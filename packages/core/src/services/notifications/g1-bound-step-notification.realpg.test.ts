@@ -2,7 +2,8 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { updateStepAndDay } from "../training/trainingService.ts";
+import { sqlTraining } from "../../../../../apps/api/src/modules/training/composition/sql-training-instance";
+const { updateStepAndDay } = sqlTraining;
 import {
   createBoundStepNotificationForStart,
   pauseBoundStepNotification,

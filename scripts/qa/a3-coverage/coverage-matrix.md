@@ -1,11 +1,11 @@
 # Независимая матрица пост-интеграционной проверки 67 workspace-пакетов
 
-Сформировано: 2026-11-20T11:16:42.428Z. Источник: read-only инспекция /Users/asmtv1/Desktop/gafus-refactor. Этот снимок фиксирует **план**, не выполненные тесты. Сборка/тесты в ходе создания матрицы **не запускались**.
+Сформировано: 2026-11-27T10:15:34.999Z. Источник: read-only инспекция /Users/asmtv1/Desktop/gafus-refactor. Этот снимок фиксирует **план**, не выполненные тесты. Сборка/тесты в ходе создания матрицы **не запускались**.
 
 ## Покрытие
 
 - 67 workspace: **55** с тестовым скриптом (26 в основном регрессионном runner, **29** в отдельной обязательной серии); **12** без test-скрипта.
-- Среди 12 пакетов без test-скрипта **11 содержат 38 тестовых файлов**. Они не исключаются: для них требуется адресный direct Vitest запуск. **1** не содержит обнаруженных тестовых файлов; build и typecheck/contract-consumer не равнозначны собственным unit тестам.
+- Среди 12 пакетов без test-скрипта **11 содержат 40 тестовых файлов**. Они не исключаются: для них требуется адресный direct Vitest запуск. **1** не содержит обнаруженных тестовых файлов; build и typecheck/contract-consumer не равнозначны собственным unit тестам.
 - Матрица считается корректной только при точном соответствии текущим package.json, текущему architecture runner и списку тестовых файлов. Изменения пакетов после объединения => обновить и проверить матрицу, а не засчитывать старый список.
 - Статус теста **не** определяется историческими квитанциями: для будущей приёмки обязательна новая уникальная сессия, запуск стадий через локальный recorder и verification с frozen source state.
 
@@ -75,18 +75,18 @@
 |---|---:|---|---|---|
 | `@gafus/admin-rewarded-ads-server` | 1 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 1 файлов | Legacy admin rewarded-ads and API contracts; no own tests |
 | `@gafus/bull-board` | 1 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 1 файлов | Worker/Bull Board runtime and API health; no own unit test; release build/typecheck gate |
-| `@gafus/cdn-upload` | 11 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, lint, direct Vitest 11 файлов | CDN/MinIO/media isolated QA; direct Vitest sources exist but package test script is absent |
+| `@gafus/cdn-upload` | 12 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, lint, direct Vitest 12 файлов | CDN/MinIO/media isolated QA; direct Vitest sources exist but package test script is absent |
 | `@gafus/chat-media-quality` | 2 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 2 файлов | Chat2 and Mobile media player QA; direct Vitest sources exist but no package test script |
 | `@gafus/error-handling` | 1 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 1 файлов | Core/HTTP error contracts and boundary suite; no own tests |
 | `@gafus/feature-flags-server` | 1 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 1 файлов | Core appFeatureFlagsService.test.ts, API admin-feature-flags/public-mobile; no own tests |
 | `@gafus/feed-cloud` | 8 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 8 файлов | Cloud.ru/media offline suite and Worker; direct Vitest sources exist but no package test script |
 | `@gafus/feed-storage` | 6 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 6 файлов | CDN/MinIO media acceptance; one opt-in functional MinIO suite; no package test script |
 | `@gafus/logger` | 0 | Нет `scripts.test` и исходных test/spec файлов; самостоятельное unit-покрытие отсутствует | build | A2 OTLP/local telemetry contract and API/Worker trace; no own test script or own tests |
-| `@gafus/mobile-ota-server` | 4 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 4 файлов | null |
+| `@gafus/mobile-ota-server` | 5 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 5 файлов | null |
 | `@gafus/queues` | 2 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 2 файлов | Worker/BullMQ tests; direct Vitest queue suites exist but no package test script |
 | `@gafus/ui-components` | 1 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 1 файлов | Web/Mobile/Trainer/Admin mounted UI suites; no own tests |
 
-## Точные 38 найденных файлов без package test-скрипта
+## Точные 40 найденных файлов без package test-скрипта
 
 Все перечисленные файлы должны учитываться адресным запуском, а не выпадать из матрицы.
 
@@ -98,7 +98,7 @@
 
 - `apps/bull-board/src/telemetry-page.test.ts`
 
-**@gafus/cdn-upload (11)**
+**@gafus/cdn-upload (12)**
 
 - `packages/cdn-upload/src/begetCdnPurge.test.ts`
 - `packages/cdn-upload/src/clientPhotoRenditions.1440.test.ts`
@@ -111,6 +111,7 @@
 - `packages/cdn-upload/src/isolatedWeb4NonprodS3.test.ts`
 - `packages/cdn-upload/src/questionsV2Cleanup.test.ts`
 - `packages/cdn-upload/src/questionsV2Media.test.ts`
+- `packages/cdn-upload/src/sharedCdnPurge.test.ts`
 
 **@gafus/chat-media-quality (2)**
 
@@ -145,12 +146,13 @@
 - `packages/feed-storage/src/v2-keys.test.ts`
 - `packages/feed-storage/src/web4-functional-minio.acceptance.test.ts`
 
-**@gafus/mobile-ota-server (4)**
+**@gafus/mobile-ota-server (5)**
 
 - `packages/mobile-ota-server/src/mandatory-control.test.ts`
 - `packages/mobile-ota-server/src/mandatory-policy.test.ts`
 - `packages/mobile-ota-server/src/repository.selection.test.ts`
 - `packages/mobile-ota-server/src/tester-access.test.ts`
+- `packages/mobile-ota-server/src/version-publication.mandatory.test.ts`
 
 **@gafus/queues (2)**
 
@@ -191,7 +193,7 @@ python3 "$CATALOG/coverage-gate.py" verify --id="$RUN_ID"
 ## Инварианты / защита от ложного PASS
 
 1. **55/55** тестируемых пакетов приписаны ровно одному конкретному gate; главный архитектурный runner должен иметь 26 пакетов, остальные 29 только extras.
-2. **12/12** пакетов без test-скрипта должны иметь собственные build/typecheck-квитанции, 11 из них дополнительно покрывают 38 исходных тестов.
+2. **12/12** пакетов без test-скрипта должны иметь собственные build/typecheck-квитанции, 11 из них дополнительно покрывают 40 исходных тестов.
 3. Не принимать package-level `test PASS`, если запуск был не подтверждён в **текущей новой сессии** по неизменному snapshot.
 4. Не принимать всего 33 архитектурных gate без driver exit-code и полного `results.tsv`; Web требует отдельный `completion.json` с учётом каждого найденного файла.
 5. Тестовые пропуски — `SKIP_REVIEW_REQUIRED` до обоснованного решения; они не замещают недостающие unit-тесты у одного пакета.

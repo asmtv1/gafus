@@ -1,22 +1,33 @@
 import { prisma } from "@gafus/prisma";
 import { MobileReleaseControlConflictError, RetiredRewardedAdsReadOnlyError } from "@gafus/types";
 
+import {
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
+  APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
+  APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
+  APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
+  APP_FEATURE_APP_SUBSCRIPTION_GATING,
+} from "@gafus/types";
+export {
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
+  APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
+  APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
+  APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
+  APP_FEATURE_APP_SUBSCRIPTION_GATING,
+} from "@gafus/types";
+
 /** Historical iOS external-checkout controls: permanently disabled. */
-export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT = "mobile_ios_ru_card_payment_hint";
-export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT = "mobile_ios_ru_card_payment";
-export const APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES = "mobile_ios_subscription_promo_codes";
 const RETIRED_IOS_PAYMENT_KEYS = new Set([
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
   APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
 ]);
-export const APP_FEATURE_MOBILE_REWARDED_ADS_IOS = "mobile_rewarded_ads_ios";
-export const APP_FEATURE_APP_SUBSCRIPTION_PAYWALL = "app_subscription_paywall_enabled";
-export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enabled";
 
 const RELEASE_POLICY_KEY = "default";
 const REWARDED_SETTINGS_KEY = "default";
-const CURRENT_MOBILE_VERSION = "1.7.2";
+const DEFAULT_MINIMUM_MOBILE_VERSION = "1.7.5";
 const DEFAULT_IOS_STORE_URL = "https://apps.apple.com/ru/app/gafus/id6760964612";
 const DEFAULT_ANDROID_STORE_URL = "https://www.rustore.ru/catalog/app/ru.gafus.app";
 const SEMANTIC_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
@@ -49,7 +60,7 @@ export { MobileReleaseControlConflictError, RetiredRewardedAdsReadOnlyError } fr
 
 function getConfiguredVersion(value: string | undefined): string {
   const version = value?.trim();
-  return version && SEMANTIC_VERSION_PATTERN.test(version) ? version : CURRENT_MOBILE_VERSION;
+  return version && SEMANTIC_VERSION_PATTERN.test(version) ? version : DEFAULT_MINIMUM_MOBILE_VERSION;
 }
 
 function getConfiguredStoreUrl(value: string | undefined, fallback: string): string {

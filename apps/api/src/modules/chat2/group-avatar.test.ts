@@ -27,7 +27,7 @@ vi.mock("@gafus/prisma", () => ({
   Prisma: { PrismaClientKnownRequestError: class extends Error {} },
 }));
 vi.mock("@gafus/core/services/appSubscription", () => ({ getCynologistEntitlements: vi.fn() }));
-vi.mock("@gafus/core/services/course", () => ({ checkCourseAccessById: vi.fn() }));
+vi.mock("../content-access/composition/content-policy-instance.js", () => ({ allowedCourseIds: vi.fn() }));
 vi.mock("@gafus/cdn-upload", () => ({
   chat2ReservePrivateObjectKey: mock.reserve,
   chat2UploadPrivateImageOrPdf: mock.upload,

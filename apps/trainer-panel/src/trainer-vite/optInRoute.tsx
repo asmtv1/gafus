@@ -45,8 +45,6 @@ import { TrainerVisibleStepsOptInRoute } from "./TrainerVisibleStepsOptInRoute";
 import type { VisibleStepTransport } from "./TrainerVisibleStepsOptInRoute";
 import { TrainerCourseDraftReadOptInRoute } from "./TrainerCourseDraftReadOptInRoute";
 import type { PanelActor } from "./consultationContract";
-import { TrainerCourseFullFormSourceMock20261023 } from "./TrainerCourseFullFormSourceMock20261023";
-import type { CourseFormSourceMockTransport } from "./trainerCourseFullFormSourceMockTransport20261023";
 /** Test-injected identity: never read token from URL, localStorage or Next cookies. */
 type TrainerOptInProps = {
   pathname: string;
@@ -86,8 +84,6 @@ type TrainerOptInProps = {
   enableProposedCourseDraft?: boolean;
   enableCourseVersionEditor?: boolean;
   courseVersionOperations?: VersionedCourseOperations;
-  enableCourseFullFormSourceMock?: boolean;
-  courseFullFormSourceMockTransport?: CourseFormSourceMockTransport;
   enableVisibleSteps?: boolean;
   visibleStepsTransport?: VisibleStepTransport;
   enablePublicTemplates?: boolean;
@@ -216,34 +212,6 @@ export function TrainerOptInRoute(p: TrainerOptInProps): ReactElement {
       ...p, contentWriteTransport: p.contentWriteTransport,
       key: JSON.stringify([p.actor.id, p.actor.role, p.token, p.authEpoch, p.pathname, p.search]),
     });
-  const fullFormPath =
-    p.pathname === "/main-panel/courses/new" ||
-    /^\/main-panel\/courses\/[^/]+\/edit\/?$/.test(p.pathname);
-  const current = p.getCurrentSession
-    ? p.getCurrentSession()
-    : {
-        actor: p.actor,
-        token: p.token,
-        authEpoch: p.authEpoch,
-      };
-  const mockAllowed =
-    p.enableCourseFullFormSourceMock === true &&
-    !!p.courseFullFormSourceMockTransport &&
-    !!p.token &&
-    !!p.authEpoch &&
-    !!current &&
-    current.actor.id === p.actor.id &&
-    current.actor.role === p.actor.role &&
-    current.token === p.token &&
-    current.authEpoch === p.authEpoch &&
-    (p.actor.role === "TRAINER" || p.actor.role === "ADMIN");
-  if (fullFormPath && mockAllowed)
-    return createElement(TrainerCourseFullFormSourceMock20261023, {
-      ...p,
-      enabled: true,
-      transport: p.courseFullFormSourceMockTransport,
-      key: JSON.stringify([p.actor.id, p.actor.role, p.token, p.authEpoch, p.pathname]),
-    });
   if (/^\/main-panel\/courses\/[A-Za-z0-9_-]{1,128}\/edit\/?$/.test(p.pathname) &&
       p.enableFullCourseEdit === true)
     return createElement(TrainerFullCourseEditorRoute, {
@@ -276,6 +244,9 @@ export function TrainerOptInRoute(p: TrainerOptInProps): ReactElement {
       createElement("p", { role: "alert" }, "Недоступный маршрут"),
     );
 
+  const current = p.getCurrentSession
+    ? p.getCurrentSession()
+    : { actor: p.actor, token: p.token, authEpoch: p.authEpoch };
   const navAllowed =
     !!p.token &&
     p.actor.role === "TRAINER" &&

@@ -7,15 +7,15 @@ import {
   getVisibleDays,
 } from "./trainingDayService";
 // Bind original atomic SQL rows against this test's mocked Prisma client.
-import { registerTrainingDayRowsPort } from "./trainingDayRowsPort";
+
 import {
   readTrainingDayForEdit, insertTrainingDay, replaceTrainingDay,
   deleteTrainingDayRows, listVisibleTrainingDays,
 } from "@gafus/course-progress-server/training-day-rows";
-registerTrainingDayRowsPort({
+const fixtureTrainingDayRowsPort = {
   readTrainingDayForEdit, insertTrainingDay, replaceTrainingDay,
   deleteTrainingDayRows, listVisibleTrainingDays,
-});
+};
 
 
 const invalidateDays = vi.hoisted(() => vi.fn());
@@ -67,7 +67,7 @@ describe("createTrainingDay", () => {
 
   it("creates one link for each occurrence, including repeated step IDs", async () => {
     await createTrainingDay({ title: "День с повторами", description: "Описание",
-      type: "regular", authorId: "author-1", stepIds: ["step-a", "step-b", "step-a"] });
+      type: "regular", authorId: "author-1", stepIds: ["step-a", "step-b", "step-a"] }, undefined, fixtureTrainingDayRowsPort);
     expect(mockTrainingDayCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ stepLinks: {
         create: [
@@ -85,7 +85,7 @@ describe("createTrainingDay", () => {
       type: "regular",
       stepIds: [],
       authorId: "author-1",
-    });
+    }, undefined, fixtureTrainingDayRowsPort);
 
     expect(result.success).toBe(true);
     expect(result.dayId).toBe("day-1");
@@ -103,7 +103,7 @@ describe("updateTrainingDay", () => {
       id: "day-1",
       title: "Обновлённый",
       stepIds: [],
-    });
+    }, undefined, fixtureTrainingDayRowsPort);
 
     expect(result.success).toBe(true);
     expect(invalidateDays).toHaveBeenCalledExactlyOnceWith(["day-1"]);
@@ -120,7 +120,7 @@ describe("updateTrainingDay", () => {
       id: "day-1",
       title: "Обновлённый",
       stepIds: [],
-    });
+    }, undefined, fixtureTrainingDayRowsPort);
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
@@ -137,7 +137,7 @@ describe("deleteDays", () => {
   });
 
   it("returns success with courseIds and deletedDayIds", async () => {
-    const result = await deleteDays({ dayIds: ["d1", "d2"] });
+    const result = await deleteDays({ dayIds: ["d1", "d2"] }, undefined, fixtureTrainingDayRowsPort);
 
     expect(result.success).toBe(true);
     expect(result.courseIds).toEqual(["c1"]);
@@ -149,7 +149,7 @@ describe("deleteDays", () => {
     mockDayOnCourseFindMany.mockResolvedValue([]);
     mockTransaction.mockRejectedValue(new Error("TX failed"));
 
-    const result = await deleteDays({ dayIds: ["d1"] });
+    const result = await deleteDays({ dayIds: ["d1"] }, undefined, fixtureTrainingDayRowsPort);
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
@@ -164,7 +164,7 @@ describe("getVisibleDays", () => {
   });
 
   it("queries by authorId when not admin", async () => {
-    await getVisibleDays("author-1", false);
+    await getVisibleDays("author-1", false, fixtureTrainingDayRowsPort);
 
     expect(mockTrainingDayFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -174,7 +174,7 @@ describe("getVisibleDays", () => {
   });
 
   it("queries all when isAdminOrModerator", async () => {
-    await getVisibleDays(null, true);
+    await getVisibleDays(null, true, fixtureTrainingDayRowsPort);
 
     expect(mockTrainingDayFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -202,7 +202,7 @@ describe("createTrainingDay error path", () => {
       type: "regular",
       stepIds: [],
       authorId: "author-1",
-    });
+    }, undefined, fixtureTrainingDayRowsPort);
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();

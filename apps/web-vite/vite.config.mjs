@@ -1,5 +1,4 @@
 import { defineConfig } from "vite";
-import { fileURLToPath } from "node:url";
 import { assertSafeDevApiBaseUrl } from "../../scripts/refactor/dev-api-config.mjs";
 
 /**
@@ -52,16 +51,6 @@ export default defineConfig(({ command, isPreview }) => {
     oxc: { jsx: { runtime: "automatic" } },
     // Pure shared CDN helpers compile to CommonJS in dist. Serve source as ESM
     // for the lazy Admin shell without modifying shared package output.
-    resolve: {
-      alias: [
-        {
-          find: /^@gafus\/cdn-upload\/utils$/,
-          replacement: fileURLToPath(
-            new URL("../../packages/cdn-upload/src/utils.ts", import.meta.url),
-          ),
-        },
-      ],
-    },
     // Isolated client: no SW, no Workbox, no PWA manifest, no plugins.
     root: import.meta.dirname,
     build: { outDir: "dist", emptyOutDir: true,

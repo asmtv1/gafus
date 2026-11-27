@@ -87,3 +87,68 @@ export type AppSubscriptionStatusDto = {
   /** @deprecated Kept for older app clients; new trials are disabled. */
   yookassaTrialUnavailableReason: YookassaTrialUnavailableReason | null;
 };
+
+export type AppSubscriptionPlanOfferDto = {
+  code: AppSubscriptionPlanCode;
+  planTier?: AppSubscriptionTier;
+  label: string;
+  title: string;
+  intervalDays: number;
+  currency: "RUB";
+  yookassaPriceRub: number;
+  enabled: boolean;
+  appleProductId: string | null;
+  offlineCourseDownloadIncluded: boolean;
+  consultationBookingIncluded: boolean;
+  cynologistChatIncluded: boolean;
+  promoCodeEligible: boolean;
+  badge: "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
+  savingsRub: number | null;
+};
+
+export type AppSubscriptionOfferDto = {
+  /** @deprecated Compatibility fallback for clients released before multi-period YooKassa. */
+  plans: AppSubscriptionPlanOfferDto[];
+  yookassaPlans: AppSubscriptionPlanOfferDto[];
+  applePlan: AppSubscriptionPlanOfferDto | null;
+  appleAppAccountToken: string | null;
+  iosRuCardPaymentEnabled: boolean;
+  promoCode: {
+    entryEnabled: boolean;
+    eligible: boolean;
+  };
+  /**
+   * Registration selection retained for the first eligible checkout.  Keep the
+   * lifecycle state too: hiding an expired selection as `null` would make a
+   * buyer unknowingly continue at the full price.
+   */
+  savedRegistrationPromoCode: {
+    code: string;
+    status: "ACTIVE" | "INACTIVE" | "ARCHIVED";
+  } | null;
+};
+
+/** Earlier mobile versions may receive omitted entitlement fields. */
+export type LegacyMobileSubscriptionPlanOffer = Omit<AppSubscriptionPlanOfferDto, "code" | "offlineCourseDownloadIncluded" | "cynologistChatIncluded"> & {
+  code: Exclude<AppSubscriptionPlanCode, "WEEKLY">;
+  offlineCourseDownloadIncluded?: boolean;
+  cynologistChatIncluded?: boolean;
+};
+export type LegacyMobileSubscriptionOffer = Omit<AppSubscriptionOfferDto, "plans" | "yookassaPlans" | "applePlan"> & {
+  plans: LegacyMobileSubscriptionPlanOffer[];
+  yookassaPlans: LegacyMobileSubscriptionPlanOffer[];
+  applePlan: LegacyMobileSubscriptionPlanOffer | null;
+  androidQaCardPaymentEnabled?: boolean;
+};
+
+export type AppSubscriptionPromoCodePreviewDto = {
+  code: string;
+  revision: number;
+  planCode: Extract<AppSubscriptionPlanCode, "MONTHLY" | "THREE_MONTHS">;
+  discountPercent: number;
+  originalPriceRub: number;
+  discountedPriceRub: number;
+  renewalPriceRub: number;
+  intervalDays: number;
+  currency: "RUB";
+};

@@ -1,4 +1,5 @@
-import { resolveAppSubscriptionTier, type AppSubscriptionTier } from "@gafus/types";
+import type { AppSubscriptionTier } from "@gafus/types";
+import { selectDefaultSubscriptionPlan } from "@gafus/core-client/utils/subscription-selection";
 export type AppSubscriptionPlanPresentation = {
   code: "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS";
   planTier?: AppSubscriptionTier;
@@ -29,8 +30,7 @@ export function getYookassaLegalSuffix(): string {
 export function selectDefaultAppSubscriptionPlan<T extends AppSubscriptionPlanPresentation>(
   plans: readonly T[] | null | undefined,
 ): T | null {
-  const enabledPlans = (plans ?? []).filter((plan) => plan.enabled !== false);
-  return enabledPlans.find((plan) => resolveAppSubscriptionTier(plan.planTier ?? plan.code) === "STANDARD") ?? enabledPlans[0] ?? null;
+  return selectDefaultSubscriptionPlan(plans);
 }
 
 export function formatAppSubscriptionPlanPrice(

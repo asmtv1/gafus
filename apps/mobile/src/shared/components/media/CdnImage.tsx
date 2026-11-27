@@ -101,7 +101,7 @@ export function CdnImage({
   let cacheKey: string | undefined;
   // A Cloud.ru fallback is an expiring S3 capability URL. Keep it in memory
   // even when the CDN version is safe to retain on disk for 24 hours.
-  if (url && viewer && !url.startsWith("https://s3.cloud.ru/")) {
+  if (url && viewer) {
     try {
       // cacheSlot triggers the next disk-window render; use the actual time
       // for signed-token expiry checks rather than the beginning of the slot.

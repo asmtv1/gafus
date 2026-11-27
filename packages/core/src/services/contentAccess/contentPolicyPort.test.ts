@@ -17,18 +17,14 @@ function adapter() {
 }
 
 describe("Content access owner-scoped policy port", () => {
-  it("rejects protected access without a SQL reader instead of allowing it", async () => {
-    const policy = await import("./policy");
-    await expect(policy.resolveCourseEntitlement(privateCourse,"owner-A"))
-      .rejects.toThrow("CONTENT_POLICY_READ_PORT_UNBOUND");
-    await expect(policy.resolveCourseEntitlement(paid,"owner-A"))
-      .rejects.toThrow("CONTENT_POLICY_READ_PORT_UNBOUND");
-    await expect(policy.resolveArticleEntitlement("article-A","owner-A","IOS"))
-      .rejects.toThrow("CONTENT_POLICY_READ_PORT_UNBOUND");
+  it("requires dependencies at construction", async () => {
+    const { createContentPolicy } = await import("./policy");
+    expect(() => createContentPolicy(undefined as never, flags.enabled))
+      .toThrow("CONTENT_POLICY_DEPENDENCIES_REQUIRED");
   });
   it("keeps private assignment binding even if actor is ADMIN", async () => {
-    const policy = await import("./policy");
-    const p=adapter();policy.registerContentPolicyReadPort(p);
+    const {createContentPolicy}=await import("./policy");
+    const p=adapter();const policy=createContentPolicy(p,flags.enabled);
     await expect(policy.resolveCourseEntitlement(privateCourse,"admin-A"))
       .resolves.toEqual({allowed:false,source:"DENIED"});
     expect(p.hasAssignedPrivateCourse).toHaveBeenCalledExactlyOnceWith("admin-A","private-course");
@@ -38,9 +34,9 @@ describe("Content access owner-scoped policy port", () => {
       .resolves.toEqual({allowed:true,source:"PRIVATE_ASSIGNMENT"});
   });
   it("passes the current period clock, doesn't trust only active status", async () => {
-    const policy=await import("./policy");const p=adapter();
+    const {createContentPolicy}=await import("./policy");const p=adapter();
     p.readAccessActorRole.mockResolvedValueOnce("USER");
-    policy.registerContentPolicyReadPort(p);
+    const policy=createContentPolicy(p,flags.enabled);
     const now=new Date("2026-11-12T07:00:00Z");
     await expect(policy.resolveCourseEntitlement(paid,"owner-A",now))
       .resolves.toEqual({allowed:false,source:"DENIED"});
@@ -48,19 +44,24 @@ describe("Content access owner-scoped policy port", () => {
     expect(p.readAccessActorRole).toHaveBeenCalledExactlyOnceWith("owner-A");
   });
   it("requires an unexpired grant scoped to exact article when subscription absent", async () => {
-    const policy=await import("./policy");const p=adapter();
+    const {createContentPolicy}=await import("./policy");const p=adapter();
     p.readAccessActorRole.mockResolvedValue("USER");
     p.hasActiveGafusArticleAccess.mockResolvedValueOnce(true);
-    policy.registerContentPolicyReadPort(p);
+    const policy=createContentPolicy(p,flags.enabled);
     const now=new Date("2026-11-12T06:00:00Z");
     await expect(policy.resolveArticleEntitlement("article-A","owner-A","WEB_TOUCH",now))
       .resolves.toEqual({allowed:true,source:"GAFUS"});
     expect(p.hasActiveGafusArticleAccess).toHaveBeenCalledExactlyOnceWith("owner-A","article-A",now);
   });
-  it("does not replace the authoritative SQL reader for the active process", async () => {
-    const policy=await import("./policy");const p=adapter();
-    policy.registerContentPolicyReadPort(p);policy.registerContentPolicyReadPort(p);
-    expect(() => policy.registerContentPolicyReadPort(adapter()))
-      .toThrow("CONTENT_POLICY_READ_PORT_ALREADY_BOUND");
+  it("isolates independently composed policies and gating", async () => {
+    const {createContentPolicy}=await import("./policy");
+    const first=adapter(), second=adapter();
+    first.readAccessActorRole.mockResolvedValue("USER");
+    const a=createContentPolicy(first,async()=>true);
+    const b=createContentPolicy(second,async()=>false);
+    expect(await a.resolveCourseEntitlement(paid,"owner-A")).toEqual({allowed:false,source:"DENIED"});
+    expect(await b.resolveCourseEntitlement(paid,"owner-B")).toEqual({allowed:true,source:"GATING_DISABLED"});
+    expect(await a.resolveCourseEntitlement(paid,"owner-A")).toEqual({allowed:false,source:"DENIED"});
+    expect(second.readAccessActorRole).not.toHaveBeenCalled();
   });
 });

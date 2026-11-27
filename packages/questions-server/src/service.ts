@@ -1,4 +1,4 @@
-import { awardActivityTx, awardBonusTx } from "@gafus/core/services/gafus";
+import { gafusReward } from "./gafus-reward-instance.js";
 import { createQuestionService, type QuestionRewardPorts } from "@gafus/questions-write-server/service";
 
 export { QuestionError } from "@gafus/questions-shared/errors";
@@ -22,6 +22,6 @@ export const {
 } = createQuestionService({
   // The SQL-owned transaction is still passed unchanged. This cast only
   // bridges the database-neutral Core policy contract at the server boundary.
-  awardActivityTx: awardActivityTx as unknown as QuestionRewardPorts["awardActivityTx"],
-  awardBonusTx: awardBonusTx as unknown as QuestionRewardPorts["awardBonusTx"],
+  awardActivityTx: gafusReward.awardActivityTx as unknown as QuestionRewardPorts["awardActivityTx"],
+  awardBonusTx: gafusReward.awardBonusTx as unknown as QuestionRewardPorts["awardBonusTx"],
 });

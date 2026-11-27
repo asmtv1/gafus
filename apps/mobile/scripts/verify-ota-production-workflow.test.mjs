@@ -115,7 +115,7 @@ test('future production deploys preserve iOS 1.7.5 YooKassa gates from GitHub En
     'iOS minimum version must survive production .env regeneration');
   assert.ok(deploy.includes('echo "MOBILE_ANDROID_MIN_VERSION=${{ vars.MOBILE_ANDROID_MIN_VERSION || \'1.7.5\' }}"'),
     'Android minimum version must survive production .env regeneration');
-  assert.ok(compose.includes('MOBILE_IOS_MIN_VERSION=${MOBILE_IOS_MIN_VERSION:-1.7.2}'));
+  assert.ok(compose.includes('MOBILE_IOS_MIN_VERSION=${MOBILE_IOS_MIN_VERSION:-1.7.5}'));
   const fragments=deployStep.env;
   const shellUnits=[
     ['DEPLOY_SCRIPT_1',fragments.DEPLOY_SCRIPT_1],

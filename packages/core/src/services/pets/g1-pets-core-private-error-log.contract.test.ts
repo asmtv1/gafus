@@ -61,7 +61,7 @@ describe("AG1 pet Core privacy with synthetic CDN and Prisma (no I/O)", () => {
   });
   it("failed private CDN delete keeps database locator and throws, logging no owner or provider secret", async () => {
     m.cdnDelete.mockRejectedValueOnce(new Error(SECRET));
-    await expect(deletePetDocument(DOC, OWNER, PET)).rejects.toThrow(SECRET);
+    await expect(deletePetDocument(petRows, DOC, OWNER, PET)).rejects.toThrow(SECRET);
     expect(m.documentFind).toHaveBeenCalledWith({
       where: { id: DOC, ownerId: OWNER, petId: PET },
     });
@@ -71,7 +71,7 @@ describe("AG1 pet Core privacy with synthetic CDN and Prisma (no I/O)", () => {
   it("failed legacy CDN deletion remains best-effort: delete database locator", async () => {
     m.documentFind.mockResolvedValueOnce({ id: DOC, url: "https://legacy.invalid/document.pdf" });
     m.cdnDelete.mockRejectedValueOnce(new Error(SECRET));
-    const result = await deletePetDocument(DOC, OWNER, PET);
+    const result = await deletePetDocument(petRows, DOC, OWNER, PET);
     expect(result).toBe(true);
     expect(m.documentDelete).toHaveBeenCalledWith({ where: { id: DOC } });
     assertPrivate();
@@ -83,5 +83,5 @@ const getUserPets = (userId: string, options: { throwOnError?: boolean } = {}) =
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
-registerPetRowsPort(originalPetRowsPort as PetRowsPort);
+import type { PetRowsPort } from "./petRowsPort";
+const petRows = originalPetRowsPort as PetRowsPort;

@@ -1,3 +1,5 @@
+import { useBoundedAdminPage } from "./support/useBoundedAdminPage";
+import { AdminPageControls } from "./support/AdminPageControls";
 import { useEffect, useRef, useState } from "react";
 import { AdminHttpError, requestAdmin } from "./api";
 
@@ -16,7 +18,8 @@ type PartnerSummary = {
 };
 type PartnerDetail = Omit<PartnerSummary, "referrals"> & {
   referrals: { id: string; buyerId: string; createdAt: string }[];
-  commissions: { id: string; amountKopecks: number; createdAt: string; status?: string }[];
+  history?: {referralsPage:number;payoutsPage:number;pageSize:number;referralsTotal:number;payoutsTotal:number};
+  commissions?: { id: string; amountKopecks: number; createdAt: string; status?: string }[];
   payouts: { id: string; requestedAt: string; amountKopecks: number; status: string }[];
 };
 const fmtRub = (n: number) => `${n.toLocaleString("ru-RU", { minimumFractionDigits: 2 })} ₽`;
@@ -51,31 +54,40 @@ export function PartnersPanel({
   const writeLock = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const pagedSource=!isList(source);
+  const [referralsPage,setReferralsPage]=useState(1);
+  const [payoutsPage,setPayoutsPage]=useState(1);
+  const [detailLoading,setDetailLoading]=useState(false);
+  const detailUrl=(id:string)=>`/api/v1/admin/partners/${id}`+(pagedSource?
+    "?"+new URLSearchParams({referralsPage:String(referralsPage),payoutsPage:String(payoutsPage),pageSize:"25"}):"");
   useEffect(() => {
     if (!initialPartnerId || !safeId(initialPartnerId)) return;
     const controller = new AbortController();
-    requestAdmin<PartnerDetail>(`/api/v1/admin/partners/${initialPartnerId}`, {
-      signal: controller.signal,
-    })
-      .then((result) => {
-        if (!controller.signal.aborted) setDetail(result);
+    setDetailLoading(true);
+    requestAdmin<PartnerDetail>(detailUrl(initialPartnerId), {signal:controller.signal})
+      .then(result => {
+        if(controller.signal.aborted)return;
+        if(!result || result.id!==initialPartnerId || !Number.isSafeInteger(result.availableKopecks) || !Array.isArray(result.referrals) || !Array.isArray(result.payouts) ||
+            (pagedSource && (!result.history || result.referrals.length>25 || result.payouts.length>25)))
+          throw Error("Некорректный ответ партнёрского отчёта");
+        setDetail(result);
       })
-      .catch((cause) => {
-        if (!controller.signal.aborted)
-          setError(cause instanceof Error ? cause.message : "Не удалось загрузить партнёра");
-      });
+      .catch(cause => {
+        if (!controller.signal.aborted) { setDetail(null); setError(cause instanceof Error ? cause.message : "Не удалось загрузить партнёра"); }
+      })
+      .finally(()=>{if(!controller.signal.aborted)setDetailLoading(false);});
     return () => controller.abort();
-  }, [initialPartnerId]);
-  if (!isList(source)) return <p role="alert">Некорректный ответ партнёрского отчёта</p>;
-  const partners = source.filter((item) =>
+  }, [initialPartnerId,pagedSource,referralsPage,payoutsPage]);
+  const paging=useBoundedAdminPage(source,"/api/v1/admin/partners",isList,query);
+  const legacy=isList(source)?source:null;
+  if (!paging.paged && !legacy) return <p role="alert">Некорректный ответ партнёрского отчёта</p>;
+  const partners = paging.paged ? paging.data?.items??[] : legacy!.filter((item) =>
     `${item.username} ${item.fullName ?? ""} ${item.email ?? ""} ${item.referralCode}`
-      .toLocaleLowerCase("ru-RU")
-      .includes(query.toLocaleLowerCase("ru-RU")),
-  );
+      .toLocaleLowerCase("ru-RU").includes(query.toLocaleLowerCase("ru-RU")));
   async function pay() {
     // A payment-ledger write cannot be retried after a lost response: a new
     // commission might appear between retries. Require fresh server readback.
-    if (!detail || !safeId(detail.id) || pending || needsReadback ||
+    if (!detail || !safeId(detail.id) || pending || detailLoading || needsReadback ||
         writeLock.current || detail.availableKopecks <= 0) return;
     if (
       !window.confirm(`Отметить весь доступный баланс ${fmtRub(detail.availableRub)} выплаченным?`)
@@ -111,8 +123,10 @@ export function PartnersPanel({
     setPending(true);
     setError(null);
     try {
-      const latest = await requestAdmin<PartnerDetail>(`/api/v1/admin/partners/${detail.id}`);
-      if (!latest || latest.id !== detail.id || !Number.isSafeInteger(latest.availableKopecks))
+      const latest = await requestAdmin<PartnerDetail>(detailUrl(detail.id));
+      if (!latest || latest.id !== detail.id || !Number.isSafeInteger(latest.availableKopecks) ||
+          !Array.isArray(latest.referrals) || !Array.isArray(latest.payouts) ||
+          (pagedSource && (!latest.history || latest.referrals.length>25 || latest.payouts.length>25)))
         throw new Error("Некорректный ответ баланса партнёра");
       setDetail(latest);
       setNeedsReadback(false);
@@ -139,14 +153,14 @@ export function PartnersPanel({
           {message}
         </p>
       )}
-      {detail ? (
+      {initialPartnerId && !detail ? <p role="status">{detailLoading?"Загрузка партнёра…":"Данные партнёра не подтверждены"}</p> : detail ? (
         <>
           <div className="action-row">
             <button className="secondary" onClick={() => onNavigate("/main-panel/partners")}>
               К списку
             </button>
             <strong>{detail.fullName || detail.username}</strong>
-            <span className="status-pill">{detail.referrals.length} рефералов</span>
+            <span className="status-pill">{detail.history?.referralsTotal??detail.referrals.length} рефералов</span>
           </div>
           <div className="metric-grid">
             {[
@@ -164,13 +178,13 @@ export function PartnersPanel({
             Код приглашения: {detail.referralCode} · {detail.email || "Email не указан"}
           </p>
           <button
-            disabled={pending || needsReadback || detail.availableKopecks <= 0}
+            disabled={pending || detailLoading || needsReadback || detail.availableKopecks <= 0}
             onClick={() => void pay()}
           >
             {pending ? "Сохраняем…" : "Отметить весь баланс выплаченным"}
           </button>
           {needsReadback && (
-            <button className="secondary" disabled={pending} onClick={() => void verifyPayout()}>
+            <button className="secondary" disabled={pending || detailLoading} onClick={() => void verifyPayout()}>
               Перечитать баланс перед выплатой
             </button>
           )}
@@ -202,6 +216,13 @@ export function PartnersPanel({
                 </tbody>
               </table>
             </div>
+            {detail.history && <div className="pagination">
+              <button disabled={pending||detailLoading||needsReadback||detail.history.payoutsPage<=1}
+                onClick={()=>setPayoutsPage(detail.history!.payoutsPage-1)}>Назад</button>
+              <span>{detail.history.payoutsTotal?((detail.history.payoutsPage-1)*detail.history.pageSize+1):0}–{Math.min(detail.history.payoutsPage*detail.history.pageSize,detail.history.payoutsTotal)} из {detail.history.payoutsTotal}</span>
+              <button disabled={pending||detailLoading||needsReadback||detail.history.payoutsPage*detail.history.pageSize>=detail.history.payoutsTotal}
+                onClick={()=>setPayoutsPage(detail.history!.payoutsPage+1)}>Дальше</button>
+            </div>}
           </section>
           <section className="nested-section">
             <h3>Привлечённые пользователи</h3>
@@ -223,6 +244,13 @@ export function PartnersPanel({
                 </tbody>
               </table>
             </div>
+            {detail.history && <div className="pagination">
+              <button disabled={pending||detailLoading||needsReadback||detail.history.referralsPage<=1}
+                onClick={()=>setReferralsPage(detail.history!.referralsPage-1)}>Назад</button>
+              <span>{detail.history.referralsTotal?((detail.history.referralsPage-1)*detail.history.pageSize+1):0}–{Math.min(detail.history.referralsPage*detail.history.pageSize,detail.history.referralsTotal)} из {detail.history.referralsTotal}</span>
+              <button disabled={pending||detailLoading||needsReadback||detail.history.referralsPage*detail.history.pageSize>=detail.history.referralsTotal}
+                onClick={()=>setReferralsPage(detail.history!.referralsPage+1)}>Дальше</button>
+            </div>}
           </section>
         </>
       ) : (
@@ -231,11 +259,11 @@ export function PartnersPanel({
             Найти партнёра
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              maxLength={128} onChange={(e) => {setQuery(e.target.value);paging.resetPage();}}
               placeholder="Логин, имя, email, код"
             />
           </label>
-          {!partners.length && <p className="empty">Партнёров пока нет</p>}
+          {!partners.length && (!paging.paged || paging.data) && <p className="empty">Партнёров пока нет</p>}
           <div className="table-scroll">
             <table>
               <thead>
@@ -282,6 +310,8 @@ export function PartnersPanel({
               </tbody>
             </table>
           </div>
+          {paging.paged && <AdminPageControls page={paging.data?.pagination??null} loading={paging.loading}
+            error={paging.error} onPage={paging.setPage} onSize={paging.setPageSize} onRetry={paging.retry}/>}
         </>
       )}
     </section>

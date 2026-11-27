@@ -26,10 +26,11 @@ vi.mock("@gafus/core/services/offline", () => ({
   submitNewOfflinePreventionBatch: m.prevention,
   findNewOfflineMutationReceipt: m.lookup,
 }));
-vi.mock("@gafus/core/services/training", () => ({
+vi.mock("../../modules/training/composition/sql-training-instance.js", () => ({ sqlTraining: {
   getTrainingDays: vi.fn(),
   requireCourseStepOperationAccess: m.access,
-}));
+  applyStepDayAndCourseTx: vi.fn()
+} }));
 // Route uses actual shared batchEntrySchema but does not load reminder worker side effects.
 vi.mock("@gafus/core/services/petPrevention", async () => {
   const schemas = await import("../../../../../packages/core/src/services/petPrevention/schemas");
@@ -181,7 +182,7 @@ let A = "",
       });
       tokenA = await generateAccessToken({ id: A, username: "g1jwt-" + A, role: "USER" });
       tokenB = await generateAccessToken({ id: B, username: "g1jwt-" + B, role: "USER" });
-      m.access.mockResolvedValue({ courseId: BODY.courseId, courseType: "synthetic" });
+      m.access.mockResolvedValue({ courseId: BODY.courseId, courseType: "synthetic", binding: { expectedCourseId: BODY.courseId, expectedStepOnDayId: "authorized-link", expectedStepId: "authorized-step" } });
       m.prevention.mockImplementation(async (input: { ownerId: string; eventId: string }) => ({
         success: true,
         ack: {
@@ -273,16 +274,14 @@ let A = "",
       expect(x.status).toBe(200);
       expect(x.cache).toBe("private, no-store");
       expect(m.submit).toHaveBeenCalledWith(
-        expect.objectContaining({ ownerId: A, eventId: EVENT }),
-      );
+        expect.objectContaining({ ownerId: A, eventId: EVENT }), expect.objectContaining({ applyStepDayAndCourseTx: expect.any(Function) }), expect.anything(), expect.objectContaining({ expectedStepOnDayId: "authorized-link", expectedStepId: "authorized-step" }));
       expect(m.access).toHaveBeenCalledWith(expect.objectContaining({ userId: A }));
     });
     it("JWT02 distinct signed Bearer B remains B not A", async () => {
       const x = await call("POST", "bearer", tokenB);
       expect(x.status).toBe(200);
       expect(m.submit).toHaveBeenCalledWith(
-        expect.objectContaining({ ownerId: B, eventId: EVENT }),
-      );
+        expect.objectContaining({ ownerId: B, eventId: EVENT }), expect.objectContaining({ applyStepDayAndCourseTx: expect.any(Function) }), expect.anything(), expect.objectContaining({ expectedStepOnDayId: "authorized-link", expectedStepId: "authorized-step" }));
     });
     it("JWT03 guest POST is 401 and calls neither journal nor access", async () => {
       const x = await call("POST", "guest");
@@ -305,7 +304,7 @@ let A = "",
     it("JWT06 exact trusted HTTPS Origin permits signed cookie POST", async () => {
       const x = await call("POST", "cookie", tokenA, "https://gafus.ru");
       expect(x.status).toBe(200);
-      expect(m.submit).toHaveBeenCalledWith(expect.objectContaining({ ownerId: A }));
+      expect(m.submit).toHaveBeenCalledWith(expect.objectContaining({ ownerId: A }), expect.objectContaining({ applyStepDayAndCourseTx: expect.any(Function) }), expect.anything(), expect.objectContaining({ expectedStepOnDayId: "authorized-link", expectedStepId: "authorized-step" }));
     });
     it("JWT07 real sessionsRevokedAt in PostgreSQL revokes earlier signed JWT", async () => {
       await prisma.user.update({
@@ -330,7 +329,7 @@ let A = "",
         body: JSON.stringify(BODY),
       });
       expect(res.status).toBe(200);
-      expect(m.submit).toHaveBeenCalledWith(expect.objectContaining({ ownerId: A }));
+      expect(m.submit).toHaveBeenCalledWith(expect.objectContaining({ ownerId: A }), expect.objectContaining({ applyStepDayAndCourseTx: expect.any(Function) }), expect.anything(), expect.objectContaining({ expectedStepOnDayId: "authorized-link", expectedStepId: "authorized-step" }));
       observations.push({
         method: "POST",
         mode: "A_BEARER_B_COOKIE",
@@ -408,8 +407,8 @@ let A = "",
       const xb = await call("GET", "bearer", tokenB);
       expect(xa.status).toBe(200);
       expect(xb.status).toBe(404);
-      expect(m.lookup).toHaveBeenCalledWith(A, EVENT);
-      expect(m.lookup).toHaveBeenCalledWith(B, EVENT);
+      expect(m.lookup).toHaveBeenCalledWith(A, EVENT, expect.anything());
+      expect(m.lookup).toHaveBeenCalledWith(B, EVENT, expect.anything());
     });
   },
 );

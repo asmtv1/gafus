@@ -24,6 +24,7 @@ export const {
   getTodayDailyCourse,
   getDailyCourseDayWithUserSteps,
   updateDailyCourseStepAndDay,
+  applyDailyCourseStepAndDayTx,
   getDailyCourseScheduleStatistics,
   getDailyCourseScheduleRange,
   getDailyCourseCandidates,

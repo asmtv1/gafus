@@ -169,7 +169,7 @@ function sectionFixture(url: string): unknown {
     };
   if (url === "/api/v1/admin/media/stats") return storage;
   if (url === "/api/v1/admin/settings/subscriptions") return plans;
-  if (url === "/api/v1/admin/partners") return [];
+  if (url.startsWith("/api/v1/admin/partners?")) return {items:[],pagination:{page:1,pageSize:25,search:"",total:0}};
   if (url.startsWith("/api/v1/admin/profit")) return profit;
   if (url === "/api/v1/admin/feature-flags")
     return {
@@ -222,7 +222,7 @@ function sectionFixture(url: string): unknown {
       promoCodes: null,
       npd: null,
     };
-  if (url === "/api/v1/consultations/admin/bookings") return [];
+  if (url.startsWith("/api/v1/consultations/admin/bookings?")) return {items:[],pagination:{page:1,pageSize:25,search:"",status:"ALL",total:0}};
   return {};
 }
 
@@ -259,7 +259,7 @@ beforeEach(() => {
       if (url === "/api/v1/consultations/admin/cynologists") return reply(trainers);
       if (url.startsWith("/api/v1/admin/users/") && url.endsWith("/app-subscription"))
         return reply({ subscription: null, user: { username: "client" } });
-      if (url === "/api/v1/admin/users")
+      if (url.startsWith("/api/v1/admin/users?"))
         return expireUsers ? reply(null, 401) : reply({ users: [], freePartnerPromoCodes: [] });
       return reply(sectionFixture(url));
     }),
@@ -318,7 +318,7 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
     await mount("/users/user1/app-subscription");
     expect(window.location.pathname).toBe("/users/user1/app-subscription");
     expect(calls).toContain("/api/v1/admin/users/user1/app-subscription");
-    expect(calls).not.toContain("/api/v1/admin/users");
+    expect(calls.some(url => /^\/api\/v1\/admin\/users(?:\?|$)/.test(url))).toBe(false);
   });
 
   it("shares a single auth check across StrictMode effect replay", async () => {
@@ -471,7 +471,7 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
   it("loads only the selected user for a deep subscription link, not the entire user list", async () => {
     await mount("/main-panel/users/user1/app-subscription");
     expect(calls).toContain("/api/v1/admin/users/user1/app-subscription");
-    expect(calls).not.toContain("/api/v1/admin/users");
+    expect(calls.some(url => /^\/api\/v1\/admin\/users(?:\?|$)/.test(url))).toBe(false);
     expect(host.textContent).toContain("Подписка отдельного пользователя");
   });
 

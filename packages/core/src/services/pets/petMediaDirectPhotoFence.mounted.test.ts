@@ -43,7 +43,7 @@ describe("WEB2 generic Pet photo URL writes vs gated media outbox",()=>{
   ])("typed Core denial rejects malformed/foreign/unsupported direct URL without raw data: %s",async photoUrl=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
     const input={name:"Bim",type:"DOG",breed:"Pug",birthDate:"2023-01-01",photoUrl};
-    const capture=await createPet("owner_A",input).catch(error=>error as unknown);
+    const capture=await createPet(petRows, "owner_A",input).catch(error=>error as unknown);
     expect(capture).toBeInstanceOf(PetMediaDirectPhotoUrlDeniedError);
     expect((capture as PetMediaDirectPhotoUrlDeniedError).code)
       .toBe("PET_MEDIA_DIRECT_PHOTO_URL_DENIED");
@@ -54,7 +54,7 @@ describe("WEB2 generic Pet photo URL writes vs gated media outbox",()=>{
   it("typed Core denial is preserved when another photo wins under owner lock",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
     m.read.mockResolvedValueOnce({photoUrl:foreign});
-    const capture=await updatePet("pet_A","owner_A",{photoUrl:old})
+    const capture=await updatePet(petRows, "pet_A","owner_A",{photoUrl:old})
       .catch(error=>error as unknown);
     expect(capture).toBeInstanceOf(PetMediaDirectPhotoUrlDeniedError);
     expect((capture as PetMediaDirectPhotoUrlDeniedError).code)
@@ -64,17 +64,17 @@ describe("WEB2 generic Pet photo URL writes vs gated media outbox",()=>{
   it("a foreign Pet returns null before photo mutation denial, retaining owner boundary",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
     m.find.mockResolvedValueOnce(null);
-    expect(await updatePet("pet_A","owner_B",{photoUrl:foreign})).toBeNull();
+    expect(await updatePet(petRows, "pet_A","owner_B",{photoUrl:foreign})).toBeNull();
     expect(m.transaction).not.toHaveBeenCalled();
     expect(m.update).not.toHaveBeenCalled();
   });
   it("disabled outbox retains legacy generic Pet create/update photoUrl behavior",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","false");
     const input={name:"Bim",type:"DOG",breed:"Pug",birthDate:"2023-01-01",photoUrl:foreign};
-    expect(await createPet("owner_A",input)).toMatchObject({id:"pet_NEW"});
+    expect(await createPet(petRows, "owner_A",input)).toMatchObject({id:"pet_NEW"});
     expect(m.create).toHaveBeenCalledOnce();
     expect(m.create.mock.calls[0]![0]).toMatchObject({data:{photoUrl:foreign}});
-    await updatePet("pet_A","owner_A",{photoUrl:foreign});
+    await updatePet(petRows, "pet_A","owner_A",{photoUrl:foreign});
     expect(m.owner).not.toHaveBeenCalled();
     expect(m.intent).not.toHaveBeenCalled();
     expect(m.update).toHaveBeenCalledWith(expect.objectContaining({
@@ -83,7 +83,7 @@ describe("WEB2 generic Pet photo URL writes vs gated media outbox",()=>{
   });
   it("new Pet cannot attach another owner's media by arbitrary photoUrl",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
-    await expect(createPet("owner_A",{
+    await expect(createPet(petRows, "owner_A",{
       name:"Bim",type:"DOG",breed:"Pug",birthDate:"2023-01-01",photoUrl:foreign,
     })).rejects.toThrow("PET_MEDIA_DIRECT_PHOTO_URL_DENIED");
     expect(m.create).not.toHaveBeenCalled();
@@ -91,14 +91,14 @@ describe("WEB2 generic Pet photo URL writes vs gated media outbox",()=>{
   });
   it("generic update cannot attach foreign photo or race the fenced upload method",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
-    await expect(updatePet("pet_A","owner_A",{photoUrl:foreign}))
+    await expect(updatePet(petRows, "pet_A","owner_A",{photoUrl:foreign}))
       .rejects.toThrow("PET_MEDIA_DIRECT_PHOTO_URL_DENIED");
     expect(m.update).not.toHaveBeenCalled();
     expect(m.transaction).not.toHaveBeenCalled();
   });
   it("clearing a photo commits a durable former-media intent before null update",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
-    await updatePet("pet_A","owner_A",{photoUrl:""});
+    await updatePet(petRows, "pet_A","owner_A",{photoUrl:""});
     expect(m.owner).toHaveBeenCalledOnce();
     expect(m.read).toHaveBeenCalledWith({
       where:{id:"pet_A",ownerId:"owner_A"},select:{photoUrl:true},
@@ -108,7 +108,7 @@ describe("WEB2 generic Pet photo URL writes vs gated media outbox",()=>{
   });
   it("already unchanged photo may be echoed in full form, no duplicate media intent",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
-    await updatePet("pet_A","owner_A",{photoUrl:old,name:"Bim"});
+    await updatePet(petRows, "pet_A","owner_A",{photoUrl:old,name:"Bim"});
     expect(m.intent).not.toHaveBeenCalled();
     expect(m.update).toHaveBeenCalledWith(expect.objectContaining({
       data:{photoUrl:old,name:"Bim"},
@@ -117,7 +117,7 @@ describe("WEB2 generic Pet photo URL writes vs gated media outbox",()=>{
   it("concurrent newer photo beats stale form: recheck under User FOR UPDATE rejects stale URL",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
     m.read.mockResolvedValueOnce({photoUrl:foreign});
-    await expect(updatePet("pet_A","owner_A",{photoUrl:old}))
+    await expect(updatePet(petRows, "pet_A","owner_A",{photoUrl:old}))
       .rejects.toMatchObject({ code: "PET_MEDIA_DIRECT_PHOTO_URL_DENIED" });
     expect(m.intent).not.toHaveBeenCalled();
     expect(m.update).not.toHaveBeenCalled();
@@ -126,7 +126,7 @@ describe("WEB2 generic Pet photo URL writes vs gated media outbox",()=>{
   it("concurrent owner/Pet deletion prevents any photo update or cleanup",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
     m.read.mockResolvedValueOnce(null);
-    expect(await updatePet("pet_A","owner_A",{photoUrl:""})).toBeNull();
+    expect(await updatePet(petRows, "pet_A","owner_A",{photoUrl:""})).toBeNull();
     expect(m.intent).not.toHaveBeenCalled();
     expect(m.update).not.toHaveBeenCalled();
   });
@@ -134,6 +134,6 @@ describe("WEB2 generic Pet photo URL writes vs gated media outbox",()=>{
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
+import type { PetRowsPort } from "./petRowsPort";
 import * as originalMediaOutboxAdapter from "@gafus/pets-server/pet-media-deletion-sql";
-registerPetRowsPort({ ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort);
+const petRows = { ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort;

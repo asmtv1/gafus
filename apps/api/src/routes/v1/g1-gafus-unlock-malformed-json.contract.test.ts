@@ -151,3 +151,7 @@ describe("G1 Web/Mobile Gafus unlock malformed JSON/auth/RBAC contract", () => {
     expect(r.headers.get("cache-control")).toBe("no-store");
   });
 });
+
+vi.mock("../../modules/gafus/composition/wallet-instance.js", () => ({ gafusWallet: { listGafusTransactions: vi.fn(), changeGafusBalanceTx: vi.fn(), ensureGafusWalletTx: vi.fn() } }));
+vi.mock("../../modules/gafus/composition/wallet-lock-instance.js", () => ({ gafusLock: { lockGafusUser: vi.fn() } }));
+vi.mock("../../modules/content-access/composition/transactional-policy-instance.js", () => ({ transactionalContentPolicy: {} }));

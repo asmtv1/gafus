@@ -1,16 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveArticleEntitlement, resolveCourseEntitlement } from "./policy";
-import { registerContentPolicyReadPort } from "./policy";
+import { createContentPolicy } from "./policy";
 import {
   readAccessActorRole, hasCurrentPaidSubscription,
   hasAssignedPrivateCourse, hasActiveGafusArticleAccess,
 } from "@gafus/entitlements-server/policy-reads";
-registerContentPolicyReadPort({
+const { resolveArticleEntitlement, resolveCourseEntitlement } = createContentPolicy({
   readAccessActorRole,
   hasCurrentPaidSubscription,
   hasAssignedPrivateCourse,
   hasActiveGafusArticleAccess,
-});
+}, () => flag("app_subscription_gating_enabled", true));
 
 const role = vi.fn();
 const subscription = vi.fn();

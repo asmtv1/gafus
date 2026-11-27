@@ -11,4 +11,5 @@ fi
 "$TOOL" check rules ci-cd/docker/prometheus/gafus-alerts.yml
 "$TOOL" test rules ci-cd/docker/prometheus/gafus-alerts.promtool.test.yml
 "$TOOL" test rules ci-cd/docker/prometheus/gafus-alerts-agent2.promtool.test.yml
-echo A2_OBS_PROMTOOL_RULES_AND_BOTH_FIXTURE_SUITES_PASS
+"$TOOL" test rules ci-cd/docker/prometheus/gafus-alerts-operational.promtool.test.yml
+echo A2_OBS_PROMTOOL_RULES_AND_ALL_FIXTURE_SUITES_PASS

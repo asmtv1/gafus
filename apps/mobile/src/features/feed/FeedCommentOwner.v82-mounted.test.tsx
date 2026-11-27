@@ -185,7 +185,7 @@ vi.mock("./FeedPostActions", async () => {
   };
 });
 import { useAuthStore } from "@/shared/stores";
-import { CommentRow } from "./screens";
+import { CommentRow } from "./FeedCommentRow";
 import type { FeedCommentDto } from "@gafus/types";
 const userFixture = (id: string) => ({
   id,

@@ -2,8 +2,8 @@
 import { readOwnPendingPractice } from "./newOnlyV2PracticePending";
 import type { NewOnlyV2Queues } from "./newOnlyV2Queues";
 
-type PracticeQueue = Pick<NewOnlyV2Queues, "enqueue" | "getPending" | "getVerifiedBinding">;
-type PracticeInput = { courseId: string; dayOnCourseId: string; stepIndex: number };
+type PracticeQueue = Pick<NewOnlyV2Queues, "enqueue" | "getPending" | "getVerifiedBinding"> & Partial<Pick<NewOnlyV2Queues, "wasPracticeAcknowledged">>;
+type PracticeInput = { courseId: string; dayOnCourseId: string; stepIndex: number; expectedStepOnDayId?: string; expectedStepId?: string; offlineProgressVersion?: string };
 
 export async function commitVerifiedPractice(
   queue: PracticeQueue,
@@ -39,7 +39,8 @@ export async function commitVerifiedPractice(
     input.dayOnCourseId,
   );
   if (!isCurrent()) throw new Error("V2_SESSION_CHANGED");
-  if (!rows.some((row) => row.eventId === receipt.eventId && row.stepIndex === input.stepIndex))
+  if (!rows.some((row) => row.eventId === receipt.eventId && row.stepIndex === input.stepIndex) &&
+      !queue.wasPracticeAcknowledged?.(receipt.eventId, before))
     throw new Error("V2_LOCAL_RECEIPT_UNCONFIRMED");
   return receipt.eventId;
 }

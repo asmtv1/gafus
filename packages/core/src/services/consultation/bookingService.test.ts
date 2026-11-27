@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type * as GafusPrisma from "@gafus/prisma";
 import type * as AppSubscriptionModule from "../appSubscription";
 
@@ -13,6 +13,7 @@ import { ConsultationBookingNotIncludedError, ConsultationSlotTakenError } from 
 import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 const enqueueConsultationEmail = vi.fn();
+const stageConsultationEmailIntents = vi.fn().mockResolvedValue(undefined);
 const queueAdd = vi.fn();
 const removeConsultationSlaJob = vi.fn();
 const removeConsultationReminderJob = vi.fn();
@@ -60,6 +61,7 @@ vi.mock("../appSubscription", async (importOriginal) => ({
 
 vi.mock("@gafus/notifications-server/consultation-email-outbox", () => ({
   enqueueConsultationEmail: (...a: unknown[]) => enqueueConsultationEmail(...a),
+  stageConsultationEmailIntents: (...a: unknown[]) => stageConsultationEmailIntents(...a),
 }));
 
 vi.mock("@gafus/notifications-server/immediatePushService", () => ({
@@ -146,6 +148,9 @@ beforeEach(() => {
     return found ? { id: found.id, status: found.status } : null;
   });
   prismaUpdateManyBooking.mockResolvedValue({ count: 1 });
+  prismaTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
+    callback({ consultationBooking: { updateMany: prismaUpdateManyBooking } }));
+
   sendImmediatePushNotification.mockResolvedValue({ success: true });
   getAppSubscriptionAccess.mockResolvedValue({ hasActiveSubscription: false });
 });
@@ -223,23 +228,25 @@ describe("processConsultationReminder", () => {
       id: "b-start",
       clientId: "client-1",
       status: ConsultationBookingStatus.CONFIRMED,
-      slot: { startAt: new Date("2026-05-18T10:00:00.000Z") },
+      slot: { startAt: new Date("2026-05-18T10:00:00.000Z"), endAt: new Date("2026-05-18T10:30:00.000Z") },
       cynologist: { user: { id: "trainer-1" } },
       client: { id: "client-1" },
     });
 
     const { processConsultationReminder } = await import("@gafus/consultation-server/booking-application");
-    await processConsultationReminder("b-start", "start");
+    await processConsultationReminder("b-start", "start", new Date("2026-05-18T10:00:00.000Z"));
 
     expect(enqueueConsultationEmail).toHaveBeenCalledWith("b-start", "CLIENT_CONSULTATION_START");
     expect(enqueueConsultationEmail).toHaveBeenCalledTimes(1);
     expect(sendImmediatePushNotification).toHaveBeenCalledWith({
+      consultationReminder: { bookingId: "b-start", key: "start-client" },
       userId: "client-1",
       title: "Консультация начинается",
       body: "Ваша консультация начинается прямо сейчас. Присоединяйтесь по ссылке из приложения. Кинолог вас ждёт.",
       url: "/consultations/my",
     });
     expect(sendImmediatePushNotification).toHaveBeenCalledWith({
+      consultationReminder: { bookingId: "b-start", key: "start-trainer" },
       userId: "trainer-1",
       title: "Консультация начинается",
       body: "Запланированная видеоконсультация начинается. Откройте встречу из панели кинолога.",
@@ -248,22 +255,40 @@ describe("processConsultationReminder", () => {
     expect(sendImmediatePushNotification).toHaveBeenCalledTimes(2);
   });
 
-  it("не дублирует push, если стартовое письмо уже было создано другим процессом", async () => {
+  it("восстанавливает обе push-доставки, даже если письмо уже поставлено в очередь", async () => {
     enqueueConsultationEmail.mockResolvedValueOnce("duplicate");
     prismaFindUniqueBooking.mockResolvedValue({
       id: "b-start-duplicate",
       clientId: "client-1",
       status: ConsultationBookingStatus.CONFIRMED,
-      slot: { startAt: new Date("2026-05-18T10:00:00.000Z") },
+      slot: { startAt: new Date("2026-05-18T10:00:00.000Z"), endAt: new Date("2026-05-18T10:30:00.000Z") },
       cynologist: { user: { id: "trainer-1" } },
       client: { id: "client-1" },
     });
 
     const { processConsultationReminder } = await import("@gafus/consultation-server/booking-application");
-    await processConsultationReminder("b-start-duplicate", "start");
+    await processConsultationReminder("b-start-duplicate", "start", new Date("2026-05-18T10:00:00.000Z"));
 
-    expect(sendImmediatePushNotification).not.toHaveBeenCalled();
+    expect(sendImmediatePushNotification.mock.calls.map(([p]) => p.consultationReminder)).toEqual([
+      { bookingId: "b-start-duplicate", key: "start-client" },
+      { bookingId: "b-start-duplicate", key: "start-trainer" },
+    ]);
   });
+  it("recovers the trainer reminder after the client log was already committed", async () => {
+    enqueueConsultationEmail.mockResolvedValueOnce("duplicate").mockResolvedValueOnce("created");
+    prismaFindUniqueBooking.mockResolvedValue({
+      id: "b-partial-reminder", clientId: "client-1",
+      status: ConsultationBookingStatus.CONFIRMED,
+      slot: { startAt: new Date("2026-05-18T10:00:00.000Z"), endAt: new Date("2026-05-18T10:30:00.000Z") },
+      cynologist: { user: { id: "trainer-1" } }, client: { id: "client-1" },
+    });
+    const { processConsultationReminder } = await import("@gafus/consultation-server/booking-application");
+    await processConsultationReminder("b-partial-reminder", "30m", new Date("2026-05-18T09:30:00.000Z"));
+    expect(enqueueConsultationEmail).toHaveBeenCalledWith("b-partial-reminder", "TRAINER_CONSULTATION_REMINDER_30M");
+    expect(sendImmediatePushNotification).toHaveBeenCalledTimes(2);
+    expect(sendImmediatePushNotification).toHaveBeenCalledWith(expect.objectContaining({userId:"trainer-1"}));
+  });
+
 });
 
 describe("reconcileMissedConsultationReminders", () => {
@@ -283,7 +308,7 @@ describe("reconcileMissedConsultationReminders", () => {
         id: "b-missed-start",
         clientId: "client-1",
         status: ConsultationBookingStatus.CONFIRMED,
-        slot: { startAt: new Date("2026-05-18T10:00:00.000Z") },
+        slot: { startAt: new Date("2026-05-18T10:00:00.000Z"), endAt: new Date("2026-05-18T10:30:00.000Z") },
         cynologist: { user: { id: "trainer-1" } },
         client: { id: "client-1" },
         emailLogs: [],
@@ -293,7 +318,7 @@ describe("reconcileMissedConsultationReminders", () => {
       id: "b-missed-start",
       clientId: "client-1",
       status: ConsultationBookingStatus.CONFIRMED,
-      slot: { startAt: new Date("2026-05-18T10:00:00.000Z") },
+      slot: { startAt: new Date("2026-05-18T10:00:00.000Z"), endAt: new Date("2026-05-18T10:30:00.000Z") },
       cynologist: { user: { id: "trainer-1" } },
       client: { id: "client-1" },
     });

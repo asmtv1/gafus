@@ -1,70 +1,7 @@
 import { apiClient, type ApiResponse } from "./client";
 
-/**
- * Ответ API download — совпадает с FullCourseData из core
- */
-export interface FullCourseData {
-  course: {
-    id: string;
-    type: string;
-    name: string;
-    description: string;
-    shortDesc: string;
-    duration: string;
-    logoImg: string;
-    isPrivate: boolean;
-    isPaid: boolean;
-    avgRating: number | null;
-    trainingLevel: string;
-    createdAt: string;
-    updatedAt: string;
-    authorUsername: string;
-    videoUrl: string | null;
-    equipment: string | null;
-  };
-  trainingDays: {
-    id: string;
-    order: number;
-    title: string;
-    description: string;
-    equipment: string;
-    type: string;
-    showCoursePathExport?: boolean;
-    steps: {
-      id: string;
-      order: number;
-      title: string;
-      description: string;
-      type: string;
-      durationSec: number | null;
-      estimatedDurationSec: number | null;
-      videoUrl: string | null;
-      imageUrls: string[];
-      pdfUrls: string[];
-      checklist: unknown;
-      requiresVideoReport: boolean;
-      requiresWrittenFeedback: boolean;
-      hasTestQuestions: boolean;
-      surveySlug: string | null;
-    }[];
-  }[];
-  mediaFiles: {
-    videos: string[];
-    images: string[];
-    pdfs: string[];
-  };
-  isGuide?: boolean;
-  guideContent?: string;
-}
-
-export interface VersionResponse {
-  version: string;
-}
-
-export interface UpdatesResponse {
-  hasUpdates: boolean;
-  serverVersion: string;
-}
+import type { FullCourseData, VersionResponse, UpdatesResponse } from "@gafus/types/offline-course";
+export type { FullCourseData, VersionResponse, UpdatesResponse } from "@gafus/types/offline-course";
 
 export const offlineApi = {
   getVersion: (courseType: string): Promise<ApiResponse<VersionResponse>> =>
@@ -84,5 +21,6 @@ export const offlineApi = {
   downloadCourse: (courseType: string): Promise<ApiResponse<FullCourseData>> =>
     apiClient<FullCourseData>(
       `/api/v1/offline/course/download?courseType=${encodeURIComponent(courseType)}`,
+      { headers: { "X-Gafus-Sync-Protocol": "2" } },
     ),
 };

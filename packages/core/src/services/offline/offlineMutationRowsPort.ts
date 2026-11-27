@@ -33,28 +33,7 @@ export interface OfflineMutationRowsPort {
     }[]>;
     commitPreventionReceipt: (tx: OfflineMutationTx, revision: bigint, ack: unknown, receiptId: string, ownerId: string) => Promise<number>;
 }
-let installed: Readonly<OfflineMutationRowsPort> | null = null;
-export function registerOfflineMutationRowsPort(port: OfflineMutationRowsPort): void {
-    if (installed && installed !== port)
-        throw new Error("OFFLINE_MUTATION_ROWS_PORT_ALREADY_BOUND");
-    installed = port;
+export function requireOfflineMutationRowsPort(port: OfflineMutationRowsPort | undefined): Readonly<OfflineMutationRowsPort> {
+  if (!port) throw new Error("OFFLINE_MUTATION_ROWS_PORT_UNBOUND");
+  return port;
 }
-function requireRows(): Readonly<OfflineMutationRowsPort> {
-    if (!installed)
-        throw new Error("OFFLINE_MUTATION_ROWS_PORT_UNBOUND");
-    return installed;
-}
-export const withOfflineMutationTx: OfflineMutationRowsPort["withOfflineMutationTx"] = (...args) => requireRows().withOfflineMutationTx(...args);
-export const claimPracticeReceipt: OfflineMutationRowsPort["claimPracticeReceipt"] = (...args) => requireRows().claimPracticeReceipt(...args);
-export const findPracticeReceipt: OfflineMutationRowsPort["findPracticeReceipt"] = (...args) => requireRows().findPracticeReceipt(...args);
-export const incrementPracticeRevision: OfflineMutationRowsPort["incrementPracticeRevision"] = (...args) => requireRows().incrementPracticeRevision(...args);
-export const commitPracticeReceipt: OfflineMutationRowsPort["commitPracticeReceipt"] = (...args) => requireRows().commitPracticeReceipt(...args);
-export const lookupOfflineMutationReceipt: OfflineMutationRowsPort["lookupOfflineMutationReceipt"] = (...args) => requireRows().lookupOfflineMutationReceipt(...args);
-export const lockOwnedPreventionPet: OfflineMutationRowsPort["lockOwnedPreventionPet"] = (...args) => requireRows().lockOwnedPreventionPet(...args);
-export const claimPreventionReceipt: OfflineMutationRowsPort["claimPreventionReceipt"] = (...args) => requireRows().claimPreventionReceipt(...args);
-export const findPreventionReceipt: OfflineMutationRowsPort["findPreventionReceipt"] = (...args) => requireRows().findPreventionReceipt(...args);
-export const findPreventionBoundClient: OfflineMutationRowsPort["findPreventionBoundClient"] = (...args) => requireRows().findPreventionBoundClient(...args);
-export const readPreventionClientRow: OfflineMutationRowsPort["readPreventionClientRow"] = (...args) => requireRows().readPreventionClientRow(...args);
-export const persistPreventionClientBinding: OfflineMutationRowsPort["persistPreventionClientBinding"] = (...args) => requireRows().persistPreventionClientBinding(...args);
-export const incrementPreventionRevision: OfflineMutationRowsPort["incrementPreventionRevision"] = (...args) => requireRows().incrementPreventionRevision(...args);
-export const commitPreventionReceipt: OfflineMutationRowsPort["commitPreventionReceipt"] = (...args) => requireRows().commitPreventionReceipt(...args);

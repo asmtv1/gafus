@@ -21,7 +21,6 @@ export type {
 
 // AG1 Course.version: database-trigger-owned global revision, name-only CAS.
 export { readCourseNameVersion, updateCourseNameVersioned } from "./courseVersionService";
-export { registerCourseVersionRowsPort } from "./courseVersionService";
 export type { CourseVersionRowsPort } from "./courseVersionService";
 export type { VersionedName, CourseVersionActor, CourseVersionResult } from "./courseVersionService";
 
@@ -31,5 +30,4 @@ export { createCourseVersionedDeleter } from "./courseDeleteVersionedService";
 export type { CourseEditorSnapshot, EditorSnapshotResult } from "./courseEditorSnapshotService";
 export { createTrainerCourseNameOnlyService } from "./trainerCourseNameOnlyService";
 
-export { registerTrainerCourseRowsPort } from "./trainerCourseRowsPort";
 export type { TrainerCourseRowsPort } from "./trainerCourseRowsPort";

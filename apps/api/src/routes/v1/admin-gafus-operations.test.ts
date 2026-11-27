@@ -96,7 +96,7 @@ describe("Gafus admin fraud and operator legacy import", () => {
     expect(response.status).toBe(200);
     expect(f.review).toHaveBeenCalledWith({
       actorId: "admin-1", signalId: "signal1", ...validReview,
-    });
+    }, expect.any(Object), expect.any(Object));
   });
 
   it("dismisses a fraud signal with reversal zero", async () => {
@@ -107,7 +107,7 @@ describe("Gafus admin fraud and operator legacy import", () => {
     expect(f.review).toHaveBeenCalledWith({
       actorId: "admin-1", signalId: "signal1", action: "DISMISS",
       requestedReversal: 0, reason: "Нарушение не подтвердилось",
-    });
+    }, expect.any(Object), expect.any(Object));
   });
 
   it("rejects unconfirmed reversal, reason too short or extra actor before Core", async () => {
@@ -172,3 +172,7 @@ describe("Gafus admin fraud and operator legacy import", () => {
     expect(await response.text()).not.toContain("database-private-secret");
   });
 });
+
+vi.mock("../../modules/gafus/composition/wallet-instance.js", () => ({ gafusWallet: { listGafusTransactions: vi.fn(), changeGafusBalanceTx: vi.fn(), ensureGafusWalletTx: vi.fn() } }));
+vi.mock("../../modules/gafus/composition/wallet-lock-instance.js", () => ({ gafusLock: { lockGafusUser: vi.fn() } }));
+vi.mock("../../modules/content-access/composition/transactional-policy-instance.js", () => ({ transactionalContentPolicy: {} }));

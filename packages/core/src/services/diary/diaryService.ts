@@ -8,7 +8,6 @@ import type { DiaryEntryWithDay, DiaryPersistencePort } from "./diaryPersistence
 export type { DiaryEntryWithDay, DiaryPersistencePort } from "./diaryPersistencePort";
 import { createWebLogger } from "@gafus/logger";
 
-import { checkCourseAccessById } from "../course/courseService";
 
 const logger = createWebLogger("diary-service");
 
@@ -20,6 +19,7 @@ const MAX_CONTENT_LENGTH = 10000;
  */
 export async function saveDiaryEntry(
   repo: DiaryPersistencePort,
+  checkCourseAccessById: (courseId: string, userId: string) => Promise<{ hasAccess: boolean }>,
   userId: string,
   dayOnCourseId: string,
   content: string,
@@ -63,6 +63,7 @@ export async function saveDiaryEntry(
  */
 export async function getDiaryEntries(
   repo: DiaryPersistencePort,
+  checkCourseAccessById: (courseId: string, userId: string) => Promise<{ hasAccess: boolean }>,
   userId: string,
   courseIdOrType: string,
   upToDayOnCourseId?: string,

@@ -1,3 +1,6 @@
+import { hasPendingStepWrite } from "@/shared/lib/offline/pendingStepWrite";
+import { useOfflineCourseScopeVersion } from "./useOfflineCourseScopeVersion";
+import { getOfflineCourseScopeVersion, captureOfflineCourseScope } from "@/shared/lib/offline/offlineCourseSession";
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +19,14 @@ import type { TrainingDayResponse, UserStep } from "@/shared/lib/api/training";
  * Хук для загрузки дня тренировки с шагами.
  * При ошибке сети отдаёт офлайн-данные из getCourseMeta, если курс скачан.
  */
+function durableStepBinding(input: { expectedStepOnDayId?: string; expectedStepId?: string; offlineProgressVersion?: string }) {
+  return input.expectedStepOnDayId && input.expectedStepId ? {
+    expectedStepOnDayId: input.expectedStepOnDayId, expectedStepId: input.expectedStepId,
+    ...(input.offlineProgressVersion ? { offlineProgressVersion: input.offlineProgressVersion } : {}),
+  } : {};
+}
 export function useTrainingDay(courseType: string, dayOnCourseId: string) {
+  const scopeVersion = useOfflineCourseScopeVersion();
   const syncFromServer = useStepStore((s) => s.syncFromServer);
   const getStepState = useStepStore((s) => s.getStepState);
   const isNetworkErrorResponse = (response: ApiResponse<TrainingDayResponse>): boolean => {
@@ -24,10 +34,16 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
   };
 
   return useQuery<ApiResponse<TrainingDayResponse>>({
-    queryKey: ["trainingDay", courseType, dayOnCourseId],
+    queryKey: ["trainingDay", courseType, dayOnCourseId, scopeVersion],
     queryFn: async () => {
+      const assertScope = () => {
+        if (getOfflineCourseScopeVersion() !== scopeVersion) throw new Error("TRAINING_SESSION_CHANGED");
+      };
+      assertScope();
+      const scope = captureOfflineCourseScope();
       try {
         const response = await trainingApi.getDay(courseType, dayOnCourseId);
+        assertScope();
 
         if (response.success && response.data) {
           // Синхронизируем состояния шагов с сервера
@@ -42,7 +58,8 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
         }
 
         if (isNetworkErrorResponse(response)) {
-          const meta = await getCourseMeta(courseType);
+          const meta = await getCourseMeta(courseType, scope);
+          assertScope();
           const dayData = meta
             ? mapMetaToTrainingDayResponse(meta, dayOnCourseId, getStepState)
             : null;
@@ -53,7 +70,9 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
 
         return response;
       } catch (error) {
-        const meta = await getCourseMeta(courseType);
+        assertScope();
+        const meta = await getCourseMeta(courseType, scope);
+          assertScope();
         const dayData = meta
           ? mapMetaToTrainingDayResponse(meta, dayOnCourseId, getStepState)
           : null;
@@ -76,7 +95,7 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
  */
 export function useStartStep() {
   const mutationFn = useCallback(async (variables: Parameters<typeof trainingApi.startStep>[0]) => {
-    if (getIsOffline()) {
+    if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
       if (
         !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
         !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
@@ -91,6 +110,7 @@ export function useStartStep() {
         courseId: variables.courseId,
         dayOnCourseId: variables.dayOnCourseId,
         stepIndex: variables.stepIndex,
+        ...durableStepBinding(variables),
         status: variables.status,
         durationSec: variables.durationSec,
       });
@@ -107,7 +127,7 @@ export function useStartStep() {
 export function usePauseStep() {
   const pauseStepLocal = useStepStore((s) => s.pauseStep);
   const mutationFn = useCallback(async (variables: Parameters<typeof trainingApi.pauseStep>[0]) => {
-    if (getIsOffline()) {
+    if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
       if (
         !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
         !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
@@ -121,6 +141,7 @@ export function usePauseStep() {
         courseId: variables.courseId,
         dayOnCourseId: variables.dayOnCourseId,
         stepIndex: variables.stepIndex,
+        ...durableStepBinding(variables),
         timeLeftSec: variables.timeLeftSec,
       });
       return { success: true, code: "OFFLINE_QUEUED" as const };
@@ -148,7 +169,7 @@ export function useResumeStep() {
   const resumeStepLocal = useStepStore((s) => s.resumeStep);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof trainingApi.resumeStep>[0]) => {
-      if (getIsOffline()) {
+      if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
         if (
           !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
           !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
@@ -160,6 +181,7 @@ export function useResumeStep() {
           courseId: variables.courseId,
           dayOnCourseId: variables.dayOnCourseId,
           stepIndex: variables.stepIndex,
+        ...durableStepBinding(variables),
         });
         return { success: true, code: "OFFLINE_QUEUED" as const };
       }
@@ -183,7 +205,7 @@ export function useResumeStep() {
 export function useResetStep() {
   const resetStepLocal = useStepStore((s) => s.resetStep);
   const mutationFn = useCallback(async (variables: Parameters<typeof trainingApi.resetStep>[0]) => {
-    if (getIsOffline()) {
+    if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
       if (
         !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
         !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
@@ -197,6 +219,7 @@ export function useResetStep() {
         courseId: variables.courseId,
         dayOnCourseId: variables.dayOnCourseId,
         stepIndex: variables.stepIndex,
+        ...durableStepBinding(variables),
         ...(variables.durationSec === undefined ? {} : { durationSec: variables.durationSec }),
       });
       return { success: true, code: "OFFLINE_QUEUED" as const };
@@ -225,7 +248,7 @@ export function useCompleteTheoryStep() {
   const completeStep = useStepStore((s) => s.completeStep);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof trainingApi.completeTheoryStep>[0]) => {
-      if (getIsOffline()) {
+      if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
         if (
           !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
           !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
@@ -237,6 +260,7 @@ export function useCompleteTheoryStep() {
           courseId: variables.courseId,
           dayOnCourseId: variables.dayOnCourseId,
           stepIndex: variables.stepIndex,
+          ...durableStepBinding(variables),
         });
         return { success: true, code: "OFFLINE_QUEUED" as const };
       }
@@ -262,7 +286,7 @@ export function useCompletePracticeStep() {
   const completeStep = useStepStore((s) => s.completeStep);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof trainingApi.completePracticeStep>[0]) => {
-      if (getIsOffline()) {
+      if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
         // Only the new owner-scoped v2 queue can accept fresh offline writes.
         // Match the exact practice-only journal DTO; no legacy queueId or UI fields.
         if (
@@ -280,6 +304,7 @@ export function useCompletePracticeStep() {
             courseId: variables.courseId,
             dayOnCourseId: variables.dayOnCourseId,
             stepIndex: variables.stepIndex,
+            ...durableStepBinding(variables),
           },
           () => useAuthStore.getState().user?.id ?? null,
         );
@@ -292,14 +317,8 @@ export function useCompletePracticeStep() {
 
   return useMutation({
     mutationFn,
-    onMutate: async (variables) => {
-      // Offline UI succeeds only after the awaited new-only v2 durable write.
-      if (!getIsOffline()) {
-        completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
-      }
-    },
     onSuccess: (response, variables) => {
-      if (response.success && response.code === "OFFLINE_QUEUED") {
+      if (response.success) {
         completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
       }
       queryClient.invalidateQueries({ queryKey: ["trainingDays"] });

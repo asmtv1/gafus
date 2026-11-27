@@ -9,25 +9,17 @@ export interface GafusLockPort {
   lockGafusUser(tx: GafusTx, userId: string): Promise<void>;
   withGafusUserLock<T>(userId: string, operation: (tx: GafusTx) => Promise<T>): Promise<T>;
 }
-let installedGafusLockPort: Readonly<GafusLockPort> | null = null;
-export function registerGafusLockPort(port: GafusLockPort): void {
-  if (installedGafusLockPort !== null && installedGafusLockPort !== port) {
-    throw new Error("GAFUS_WALLET_LOCK_PORT_ALREADY_BOUND");
-  }
-  installedGafusLockPort = port;
-}
-function requireGafusLockPort(): Readonly<GafusLockPort> {
-  if (!installedGafusLockPort) throw new Error("GAFUS_WALLET_LOCK_PORT_UNBOUND");
-  return installedGafusLockPort;
-}
-/** Preserve the historical owner-required error even without composition. */
-export async function lockGafusUser(tx: GafusTx, userId: string): Promise<void> {
-  if (!userId) throw new Error("GAFUS_WALLET_OWNER_REQUIRED");
-  return requireGafusLockPort().lockGafusUser(tx, userId);
-}
-export async function withGafusUserLock<T>(
-  userId: string, operation: (tx: GafusTx) => Promise<T>,
-): Promise<T> {
-  if (!userId) throw new Error("GAFUS_WALLET_OWNER_REQUIRED");
-  return requireGafusLockPort().withGafusUserLock(userId, operation);
+/** No process-global registration or substitute JavaScript lock. */
+export function createGafusLockService(port: GafusLockPort) {
+  if (!port) throw new Error("GAFUS_WALLET_LOCK_DEPENDENCIES_REQUIRED");
+  return {
+    async lockGafusUser(tx: GafusTx, userId: string): Promise<void> {
+      if (!userId) throw new Error("GAFUS_WALLET_OWNER_REQUIRED");
+      return port.lockGafusUser(tx, userId);
+    },
+    async withGafusUserLock<T>(userId: string, operation: (tx: GafusTx) => Promise<T>): Promise<T> {
+      if (!userId) throw new Error("GAFUS_WALLET_OWNER_REQUIRED");
+      return port.withGafusUserLock(userId, operation);
+    },
+  };
 }

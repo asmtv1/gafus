@@ -1,3 +1,4 @@
+import { resolveArticleEntitlement } from "../../content-access/composition/content-policy-instance.js";
 /**
  * Explicit SQL composition for article reads, paid-access DTO policy,
  * author editor projections and unique-view transactions.
@@ -37,17 +38,17 @@ const rows: ArticleReadPort = {
 };
 
 export function getArticles(userId?: string, take = 50, skip = 0, authorId?: string) {
-  return coreCatalog(rows, userId, take, skip, authorId);
+  return coreCatalog(rows, resolveArticleEntitlement, userId, take, skip, authorId);
 }
 export function getArticleBySlug(slug: string, userId?: string) {
-  return coreBySlug(rows, slug, userId);
+  return coreBySlug(rows, resolveArticleEntitlement, slug, userId);
 }
 export function getArticleBySlugForMonetizedAccess(input: {
   slug: string;
   userId?: string;
   platform: MonetizedAccessPlatform;
 }) {
-  return coreDetail(rows, input);
+  return coreDetail(rows, resolveArticleEntitlement, input);
 }
 export function getArticleForEdit(id: string, userId: string) {
   return coreEdit(rows, id, userId);

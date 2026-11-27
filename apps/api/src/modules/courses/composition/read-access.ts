@@ -1,6 +1,6 @@
 import { withCorrelatedUseCase } from "../../../lib/operation-observability.js";
 /** Lazy binding of existing course entitlement Core reads only. */
-import { checkCourseAccess, checkCourseAccessById } from "@gafus/core/services/course";
+import { checkCourseAccess, checkCourseAccessById } from "./catalog-read-instance.js";
 import { createReadCourseAccessApplication } from "../application/read-access.js";
 
 export const readCourseAccessApplication = createReadCourseAccessApplication({

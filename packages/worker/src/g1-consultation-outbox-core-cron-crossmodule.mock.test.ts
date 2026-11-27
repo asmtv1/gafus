@@ -57,6 +57,7 @@ vi.mock("@gafus/mailer", () => ({
   processDueTransactionalMailOutbox: (...args: unknown[]) => m.actualOutbox(...args),
 }));
 vi.mock("@gafus/consultation-server/booking-application", () => ({
+  reconcileOverdueConsultationBookings: vi.fn().mockResolvedValue({ checked: 0, failed: 0 }),
   reconcileMissedConsultationReminders: vi.fn().mockResolvedValue({
     checked: 0, triggered30m: 0, triggeredStart: 0,
   }),
@@ -298,3 +299,7 @@ describe("actual outbox -> actual Core -> actual cron manual review", () => {
     noExternalWork();
   });
 });
+
+vi.mock("@gafus/notifications-server/consultation-email-outbox", () => ({
+  recoverUnstartedConsultationEmails: vi.fn().mockResolvedValue({ checked: 0, queued: 0, failed: 0 }),
+}));

@@ -7,6 +7,8 @@ const mockCreate = vi.fn();
 const mockPaymentFindFirst = vi.fn();
 const mockUpdate = vi.fn();
 const mockUpdateMany = vi.fn();
+const mockPaymentUpdateMany = vi.fn();
+const mockPaymentFindUniqueOrThrow = vi.fn();
 const mockSettingsFindUnique = vi.fn();
 const mockQueryRawUnsafe = vi.fn();
 const mockTransaction = vi.fn();
@@ -33,6 +35,8 @@ vi.mock("@gafus/prisma", () => ({
     appSubscriptionPayment: {
       create: (...args: unknown[]) => mockCreate(...args),
       findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
+      findUniqueOrThrow: (...args: unknown[]) => mockPaymentFindUniqueOrThrow(...args),
+      updateMany: (...args: unknown[]) => mockPaymentUpdateMany(...args),
       update: (...args: unknown[]) => mockUpdate(...args),
     },
     user: { findUnique: (...args: unknown[]) => mockUserFindUnique(...args) },
@@ -48,12 +52,18 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
     vi.stubEnv("YOOKASSA_SECRET_KEY", "secret-key");
     mockQueryRawUnsafe.mockResolvedValue([{ locked: true }]);
     mockUpdateMany.mockResolvedValue({ count: 0 });
+    mockPaymentUpdateMany.mockResolvedValue({ count: 1 });
+    mockPaymentFindUniqueOrThrow.mockImplementation(async () => {
+      const data = mockCreate.mock.calls.at(-1)?.[0]?.data;
+      if (!data) throw new Error("Missing created payment snapshot");
+      return { ...data, id: "pay-succeeded", yookassaPaymentId: null };
+    });
     mockSubscriptionFindFirst.mockResolvedValue({ id: "sub-1" });
     mockUpdate.mockResolvedValue({});
     mockTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
-        appSubscription: { update: mockUpdate },
-        appSubscriptionPayment: { update: mockUpdate, updateMany: mockUpdateMany },
+        appSubscription: { update: mockUpdate, updateMany: mockUpdateMany },
+        appSubscriptionPayment: { update: mockUpdate, updateMany: mockPaymentUpdateMany },
       }),
     );
     mockSettingsFindUnique.mockResolvedValue({
@@ -329,7 +339,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
 
     await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
 
-    const succeededUpdate = mockUpdateMany.mock.calls.find(
+    const succeededUpdate = mockPaymentUpdateMany.mock.calls.find(
       ([call]) => call?.where?.id === "pay-succeeded" && call?.data?.status === "SUCCEEDED",
     )?.[0];
     expect(succeededUpdate?.data).not.toHaveProperty("amount");
@@ -379,8 +389,8 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
     const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
 
     expect(result.skipped).toBe(1);
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "pay-mismatch" },
+    expect(mockPaymentUpdateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: "pay-mismatch" }),
       data: expect.objectContaining({
         status: "FAILED",
         failureCode: "PROVIDER_AMOUNT_MISMATCH",
@@ -388,7 +398,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
     });
     // Failure recording is now itself atomic inside core; success finalization must not run.
     expect(mockTransaction).toHaveBeenCalledTimes(1);
-    expect(mockUpdate).not.toHaveBeenCalledWith(
+    expect(mockPaymentUpdateMany).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "SUCCEEDED" }) }),
     );
   });
@@ -424,9 +434,9 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
 
     expect(result.processed).toBe(1);
     expect(mockCreate).not.toHaveBeenCalled();
-    expect(mockUpdate).toHaveBeenCalledWith(
+    expect(mockPaymentUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "existing-pay-1" },
+        where: expect.objectContaining({ id: "existing-pay-1" }),
         data: expect.objectContaining({
           attemptCount: { increment: 1 },
         }),
@@ -463,8 +473,8 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
 
     expect(result.skipped).toBe(1);
     expect(fetch).not.toHaveBeenCalled();
-    expect(mockUpdate).not.toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "existing-pay-1" } }),
+    expect(mockPaymentUpdateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: "existing-pay-1" }) }),
     );
   });
 
@@ -583,8 +593,8 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
     const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
 
     expect(result.skipped).toBe(1);
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "pay-1" },
+    expect(mockPaymentUpdateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: "pay-1" }),
       data: { status: "CANCELED", yookassaPaymentId: "yk-canceled" },
     });
   });
@@ -618,8 +628,8 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
 
     expect(result.skipped).toBe(1);
     expect(fetch).not.toHaveBeenCalled();
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "sub-1" },
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: "sub-1" }),
       data: { status: "PAST_DUE" },
     });
   });
@@ -653,8 +663,8 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
     const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
 
     expect(result.skipped).toBe(1);
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "pay-1" },
+    expect(mockPaymentUpdateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: "pay-1" }),
       data: expect.objectContaining({
         status: "FAILED",
         failureCode: "NETWORK",

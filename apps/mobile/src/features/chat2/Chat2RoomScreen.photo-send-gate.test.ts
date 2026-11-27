@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync(new URL("./Chat2RoomScreen.tsx", import.meta.url), "utf8");
+const source = ["Chat2RoomScreen.tsx", "Chat2RoomComposer.tsx", "chat2RoomStyles.ts", "Chat2RoomMedia.tsx"].map(file => readFileSync(new URL("./" + file, import.meta.url), "utf8")).join("\n");
 const prepare = source.slice(source.indexOf("async function prepareOnePhoto("),
   source.indexOf("async function prepareOneVideo("));
 const send = source.slice(source.indexOf("async function send()"),
@@ -16,7 +16,7 @@ describe("Chat 2.0 photo upload consent gate", () => {
   it("keeps attachment previews directly above the composer without growing into the chat", () => {
     expect(source).toMatch(/mediaPending:\s*\{[^}]*flexGrow:\s*0[^}]*flexShrink:\s*0/);
     expect(source.indexOf("style={styles.mediaPending}")).toBeLessThan(
-      source.indexOf("<View style={styles.composer}>"));
+      source.indexOf("<Chat2RoomComposer"));
   });
   it("encodes both WebP sizes before sending, without network side effects", () => {
     expect(prepare).toContain("prepareUploadPhoto(source)");

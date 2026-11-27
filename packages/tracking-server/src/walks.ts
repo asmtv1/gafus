@@ -3,8 +3,12 @@
 export {
   listCompletedDogWalks,
   syncCompletedDogWalks,
+  writeCompletedDogWalks,
+  readDogWalkChanges,
   syncDogWalkTrackPoints,
   listDogWalkTrackPoints,
   listDeletedDogWalkIds,
   deleteDogWalk,
+  readWalkGpsOperationalMetrics,
+  type WalkGpsSnapshot,
 } from "./walksService.js";

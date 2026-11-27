@@ -39,6 +39,8 @@ export interface Pet {
   showInProfile: boolean;
   notes: string | null;
   createdAt: string;
+  /** Optional only for rollback to a server predating the aggregate projection. */
+  _count?: { preventionEntries: number; documents: number };
 }
 
 export interface PetWeightEntry {
@@ -301,13 +303,14 @@ export const petsApi = {
   /**
    * Удалить питомца
    */
-  delete: async (petId: string): Promise<ApiResponse<void>> => {
+  delete: async (petId: string, requestGuard?: () => boolean): Promise<ApiResponse<void>> => {
     if (__DEV__) {
       console.log(`${LOG_PREFIX} Удаление питомца`, { petId });
     }
     try {
       const response = await apiClient<void>(`/api/v1/pets/${petId}`, {
         method: "DELETE",
+        ...(requestGuard ? { requestGuard } : {}),
       });
       if (__DEV__) {
         console.log(`${LOG_PREFIX} Ответ удаления питомца`, {
@@ -341,29 +344,29 @@ export const petsApi = {
     uri: string,
     mimeType: string,
     fileName: string,
+    requestGuard?: () => boolean,
   ): Promise<ApiResponse<{ photoUrl: string }>> => {
     const token = await SecureStore.getItemAsync("auth_token");
+    if (requestGuard && !requestGuard()) return { success: false, code: "G05_SESSION_CHANGED" };
     if (!token) {
       return { success: false, error: "Не авторизован", code: "UNAUTHORIZED" };
     }
 
-    return apiClientMultipart<{ photoUrl: string }>(
-      `/api/v1/pets/${encodeURIComponent(petId)}/photo`,
-      () => {
-        const formData = new FormData();
-        formData.append("file", {
-          uri,
-          type: mimeType,
-          name: fileName,
-        } as unknown as Blob);
-        return formData;
-      },
-    );
+    const path = `/api/v1/pets/${encodeURIComponent(petId)}/photo`;
+    const makeForm = () => {
+      const formData = new FormData();
+      formData.append("file", { uri, type: mimeType, name: fileName } as unknown as Blob);
+      return formData;
+    };
+    return requestGuard
+      ? apiClientMultipart<{ photoUrl: string }>(path, makeForm, requestGuard)
+      : apiClientMultipart<{ photoUrl: string }>(path, makeForm);
   },
 
-  getDocuments: async (petId: string): Promise<ApiResponse<PetDocument[]>> => {
+  getDocuments: async (petId: string, requestGuard?: () => boolean): Promise<ApiResponse<PetDocument[]>> => {
     try {
-      return await apiClient<PetDocument[]>(`/api/v1/pets/${encodeURIComponent(petId)}/documents`);
+      const path = `/api/v1/pets/${encodeURIComponent(petId)}/documents`;
+      return requestGuard ? await apiClient<PetDocument[]>(path, { requestGuard }) : await apiClient<PetDocument[]>(path);
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "PetsApi",
@@ -378,8 +381,10 @@ export const petsApi = {
     uri: string,
     mimeType: string,
     fileName: string,
+    requestGuard?: () => boolean,
   ): Promise<ApiResponse<PetDocument>> => {
     const token = await SecureStore.getItemAsync("auth_token");
+    if (requestGuard && !requestGuard()) return { success: false, code: "G05_SESSION_CHANGED" };
     if (!token) {
       return { success: false, error: "Не авторизован", code: "UNAUTHORIZED" };
     }
@@ -395,26 +400,24 @@ export const petsApi = {
       };
     }
 
-    return apiClientMultipart<PetDocument>(
-      `/api/v1/pets/${encodeURIComponent(petId)}/documents`,
-      () => {
-        const formData = new FormData();
-        formData.append("file", {
-          uri,
-          type: mimeType,
-          name: fileName,
-        } as unknown as Blob);
-        return formData;
-      },
-    );
+    const path = `/api/v1/pets/${encodeURIComponent(petId)}/documents`;
+    const makeForm = () => {
+      const formData = new FormData();
+      formData.append("file", { uri, type: mimeType, name: fileName } as unknown as Blob);
+      return formData;
+    };
+    return requestGuard
+      ? apiClientMultipart<PetDocument>(path, makeForm, requestGuard)
+      : apiClientMultipart<PetDocument>(path, makeForm);
   },
 
-  deleteDocument: async (petId: string, documentId: string): Promise<ApiResponse<void>> => {
+  deleteDocument: async (petId: string, documentId: string, requestGuard?: () => boolean): Promise<ApiResponse<void>> => {
     try {
       return await apiClient<void>(
         `/api/v1/pets/${encodeURIComponent(petId)}/documents/${encodeURIComponent(documentId)}`,
         {
           method: "DELETE",
+          ...(requestGuard ? { requestGuard } : {}),
         },
       );
     } catch (error) {
@@ -430,12 +433,14 @@ export const petsApi = {
     petId: string,
     documentId: string,
     name: string,
+    requestGuard?: () => boolean,
   ): Promise<ApiResponse<PetDocument>> => {
     try {
       return await apiClient<PetDocument>(
         `/api/v1/pets/${encodeURIComponent(petId)}/documents/${encodeURIComponent(documentId)}`,
         {
           method: "PUT",
+          ...(requestGuard ? { requestGuard } : {}),
           body: { name },
         },
       );
@@ -450,9 +455,10 @@ export const petsApi = {
 
   // ==================== Prevention Journal ====================
 
-  getPreventionEntries: async (petId: string): Promise<ApiResponse<PetPreventionEntry[]>> => {
+  getPreventionEntries: async (petId: string, requestGuard?: () => boolean): Promise<ApiResponse<PetPreventionEntry[]>> => {
     try {
-      return await apiClient<PetPreventionEntry[]>(`/api/v1/pets/${petId}/prevention`);
+      const path = `/api/v1/pets/${petId}/prevention`;
+      return requestGuard ? await apiClient<PetPreventionEntry[]>(path, { requestGuard }) : await apiClient<PetPreventionEntry[]>(path);
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "PetsApi",
@@ -471,10 +477,12 @@ export const petsApi = {
   addPreventionEntry: async (
     petId: string,
     data: CreatePreventionEntryData,
+    requestGuard?: () => boolean,
   ): Promise<ApiResponse<PetPreventionEntry>> => {
     try {
       return await apiClient<PetPreventionEntry>(`/api/v1/pets/${petId}/prevention`, {
         method: "POST",
+        ...(requestGuard ? { requestGuard } : {}),
         body: data,
       });
     } catch (error) {
@@ -496,10 +504,12 @@ export const petsApi = {
     petId: string,
     entryId: string,
     data: Partial<CreatePreventionEntryData>,
+    requestGuard?: () => boolean,
   ): Promise<ApiResponse<PetPreventionEntry>> => {
     try {
       return await apiClient<PetPreventionEntry>(`/api/v1/pets/${petId}/prevention/${entryId}`, {
         method: "PUT",
+        ...(requestGuard ? { requestGuard } : {}),
         body: data,
       });
     } catch (error) {
@@ -518,10 +528,11 @@ export const petsApi = {
     }
   },
 
-  deletePreventionEntry: async (petId: string, entryId: string): Promise<ApiResponse<void>> => {
+  deletePreventionEntry: async (petId: string, entryId: string, requestGuard?: () => boolean): Promise<ApiResponse<void>> => {
     try {
       return await apiClient<void>(`/api/v1/pets/${petId}/prevention/${entryId}`, {
         method: "DELETE",
+        ...(requestGuard ? { requestGuard } : {}),
       });
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {

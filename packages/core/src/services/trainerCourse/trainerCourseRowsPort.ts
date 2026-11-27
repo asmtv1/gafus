@@ -16,26 +16,7 @@ export interface TrainerCourseRowsPort {
   deleteDependencies(courseId: string): Promise<void>;
   isVersionMismatch(error: unknown): boolean;
 }
-let bound: Readonly<TrainerCourseRowsPort> | null = null;
-export function registerTrainerCourseRowsPort(port: TrainerCourseRowsPort): void {
-  if (bound && bound !== port) throw new Error("TRAINER_COURSE_ROWS_PORT_ALREADY_BOUND");
-  bound = port;
+export function requireTrainerCourseRowsPort(port: TrainerCourseRowsPort | undefined): Readonly<TrainerCourseRowsPort> {
+  if (!port) throw new Error("TRAINER_COURSE_ROWS_PORT_UNBOUND");
+  return port;
 }
-function requireRows(): Readonly<TrainerCourseRowsPort> {
-  if (!bound) throw new Error("TRAINER_COURSE_ROWS_PORT_UNBOUND");
-  return bound;
-}
-export function createTrainerCourseRow(...args: Parameters<TrainerCourseRowsPort["createRow"]>) {
-  return requireRows().createRow(...args);
-}
-export function updateTrainerCourseRows(...args: Parameters<TrainerCourseRowsPort["updateRows"]>) {
-  return requireRows().updateRows(...args);
-}
-export function readCourseRowLogo(courseId: string) { return requireRows().readLogo(courseId); }
-export function readCourseRowAuthor(courseId: string) { return requireRows().readAuthor(courseId); }
-export function readCourseDraftRow(courseId: string) { return requireRows().readDraft(courseId); }
-export function readCourseRowVisibleAfterStale(...args: Parameters<TrainerCourseRowsPort["readVisibleAfterStale"]>) {
-  return requireRows().readVisibleAfterStale(...args);
-}
-export function deleteTrainerCourseRowDependencies(courseId: string) { return requireRows().deleteDependencies(courseId); }
-export function isCourseVersionNoMatch(error: unknown): boolean { return requireRows().isVersionMismatch(error); }

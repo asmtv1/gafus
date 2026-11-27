@@ -13,13 +13,13 @@ vi.mock("@gafus/course-progress-server/course-version-rows", () => ({
 describe("API Course.version application composition", () => {
   it("keeps owner-scoped reads and CAS version result unchanged", async () => {
     const c = await import("@gafus/core/services/trainerCourse");
-    await import("./install-core-version-rows");
+    const { courseVersionRowsPort } = await import("./course-version-rows-instance");
     const actor = { id: "ownerA", role: "TRAINER" };
-    await expect(c.readCourseNameVersion("courseA", actor)).resolves.toEqual({
+    await expect(c.readCourseNameVersion("courseA", actor, courseVersionRowsPort)).resolves.toEqual({
       status: "found", data: { id: "courseA", name: "old", version: 2 },
     });
     expect(mock.read).toHaveBeenCalledWith("courseA", actor);
-    await expect(c.updateCourseNameVersioned({ courseId: "courseA", name: "new", expectedVersion: 2 }, actor))
+    await expect(c.updateCourseNameVersioned({ courseId: "courseA", name: "new", expectedVersion: 2 }, actor, courseVersionRowsPort))
       .resolves.toEqual({ status: "updated", data: { id: "courseA", name: "new", version: 3 } });
     expect(mock.write).toHaveBeenCalledWith({ courseId: "courseA", name: "new", expectedVersion: 2 }, actor);
     // The separate source-alias for @gafus/core/services/course in API Vitest

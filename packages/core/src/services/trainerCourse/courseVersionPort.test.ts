@@ -70,19 +70,19 @@ describe("Course.version Persistence port preserves CAS and results", () => {
   it("forwards owner/version exactly and publishes only a verified successful commit", async () => {
     const c = await import("./courseVersionService");
     const p = adapter();
-    c.registerCourseVersionRowsPort(p);
-    await expect(c.readCourseNameVersion("course-A", actor)).resolves.toEqual({
+    const fixtureCourseVersionRowsPort = p;
+    await expect(c.readCourseNameVersion("course-A", actor, fixtureCourseVersionRowsPort)).resolves.toEqual({
       status: "found", data: { id: "course-A", name: "old", version: 1 },
     });
     expect(p.readCourseVersionRows).toHaveBeenCalledWith("course-A", actor);
-    await expect(c.updateCourseNameVersioned({ courseId: "course-A", name: "new", expectedVersion: 1 }, actor))
+    await expect(c.updateCourseNameVersioned({ courseId: "course-A", name: "new", expectedVersion: 1 }, actor, fixtureCourseVersionRowsPort))
       .resolves.toEqual({ status: "updated", data: { id: "course-A", name: "new", version: 2 } });
     expect(p.writeCourseNameVersionRows).toHaveBeenCalledWith(
       { courseId: "course-A", name: "new", expectedVersion: 1 }, actor,
     );
     expect(sideEffects.invalidate).toHaveBeenCalledExactlyOnceWith("course-A");
     expect(sideEffects.publish).toHaveBeenCalledTimes(1);
-    await expect(c.setCourseLogoVersioned({ courseId: "course-A", logoUrl: "new", expectedVersion: 1 }, actor))
+    await expect(c.setCourseLogoVersioned({ courseId: "course-A", logoUrl: "new", expectedVersion: 1 }, actor, fixtureCourseVersionRowsPort))
       .resolves.toEqual({ status: "updated", data: { version: 2, previousLogoUrl: "https://old.invalid/logo" } });
     expect(p.setCourseLogoVersionRows).toHaveBeenCalledWith(
       { courseId: "course-A", logoUrl: "new", expectedVersion: 1 }, actor,
@@ -93,10 +93,10 @@ describe("Course.version Persistence port preserves CAS and results", () => {
     const p = adapter();
     p.writeCourseNameVersionRows.mockResolvedValueOnce([]);
     p.readCourseVersionRows.mockResolvedValueOnce([]);
-    c.registerCourseVersionRowsPort(p);
-    c.registerCourseVersionRowsPort(p);
-    expect(() => c.registerCourseVersionRowsPort(adapter())).toThrow("COURSE_VERSION_PORT_ALREADY_BOUND");
-    await expect(c.updateCourseNameVersioned({ courseId: "course-A", name: "new", expectedVersion: 1 }, actor))
+    const fixtureCourseVersionRowsPort = p;
+
+
+    await expect(c.updateCourseNameVersioned({ courseId: "course-A", name: "new", expectedVersion: 1 }, actor, fixtureCourseVersionRowsPort))
       .resolves.toEqual({ status: "not_found" });
     expect(p.writeCourseNameVersionRows).toHaveBeenCalledTimes(1);
     expect(sideEffects.publish).not.toHaveBeenCalled();

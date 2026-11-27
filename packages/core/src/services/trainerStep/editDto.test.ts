@@ -35,12 +35,12 @@ describe("TrainerStepEdit DTO", () => {
 
   it("returns null for an unknown step", async () => {
     mockFindStep.mockResolvedValue(null);
-    expect(await getStepForEdit("missing")).toBeNull();
+    expect(await getStepForEdit("missing", undefined, fixtureTrainerStepRowsPort)).toBeNull();
   });
 
   it("returns only form fields and discards invalid legacy checklist JSON", async () => {
     mockFindStep.mockResolvedValue({ ...step, checklist: { invalid: true }, privateColumn: "secret" });
-    const result = await getStepForEdit("step-1");
+    const result = await getStepForEdit("step-1", undefined, fixtureTrainerStepRowsPort);
     expect(result).toMatchObject({
       id: "step-1", type: "THEORY", durationSec: undefined, checklist: [], estimatedDurationSec: 120,
     });
@@ -56,7 +56,7 @@ describe("TrainerStepEdit DTO", () => {
       id: "q1", question: "Какой правильный ответ?",
       options: ["Да", "Нет"], correctAnswer: 0,
     }] });
-    const result = await getStepForEdit("step-1");
+    const result = await getStepForEdit("step-1", undefined, fixtureTrainerStepRowsPort);
     expect(result?.checklist).toHaveLength(1);
     expect(result?.checklist[0]?.correctAnswer).toBe(0);
   });
@@ -64,5 +64,5 @@ describe("TrainerStepEdit DTO", () => {
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalTrainerStepRowsPort from "@gafus/course-progress-server/trainer-step-rows";
-import { registerTrainerStepRowsPort, type TrainerStepRowsPort } from "./trainerStepRowsPort";
-registerTrainerStepRowsPort(originalTrainerStepRowsPort as TrainerStepRowsPort);
+import { type TrainerStepRowsPort } from "./trainerStepRowsPort";
+const fixtureTrainerStepRowsPort = originalTrainerStepRowsPort as TrainerStepRowsPort;

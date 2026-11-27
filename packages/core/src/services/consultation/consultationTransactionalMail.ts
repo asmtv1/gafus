@@ -2,6 +2,7 @@
  * Письма по консультациям: тот же HTML-шаблон, что «Подтвердите email» (логотип, CTA, подпись).
  */
 import type { ConsultationEmailType, ConsultationPetGender } from "@gafus/consultation-shared";
+import { consultationEmailReminderKind, isConsultationReminderDue } from "@gafus/consultation-shared/reminder-window";
 import { createWebLogger } from "@gafus/logger";
 import type { TransactionalMailDisposition } from "@gafus/mailer";
 
@@ -97,6 +98,7 @@ function slotMskLine(booking: { slot: { startAt: Date; endAt: Date } }): string 
 
 export type BookingForMail = {
   id: string;
+  status: string;
   clientOwnerName: string | null;
   clientPhone: string | null;
   petName: string | null;
@@ -682,8 +684,13 @@ export async function sendConsultationEmailFromLog(
   emailLogId: string,
   type: ConsultationEmailType,
   readBooking: ConsultationMailReadPort,
-): Promise<TransactionalMailDisposition> {
+): Promise<TransactionalMailDisposition | { kind: "STALE_REMINDER" }> {
   const b = await loadBookingForLog(emailLogId, readBooking);
+  const reminder = consultationEmailReminderKind(type);
+  const now = new Date();
+  if (reminder && (b.status !== "CONFIRMED" || !isConsultationReminderDue(b.slot, reminder, now))) {
+    return { kind: "STALE_REMINDER" };
+  }
   const to = recipientForType(b, type);
   if (!to) {
     throw new Error("Получатель без email");
@@ -697,10 +704,7 @@ export async function sendConsultationEmailFromLog(
   const { text, blocksHtml } = buildPayload(type, b);
 
   try {
-    const isTimeCritical =
-      type === "CLIENT_CONSULTATION_REMINDER_30M" ||
-      type === "TRAINER_CONSULTATION_REMINDER_30M" ||
-      type === "CLIENT_CONSULTATION_START";
+    const deadline = reminder === "30m" ? b.slot.startAt : b.slot.endAt;
     return await sendTransactionalEmailWithLayoutDisposition({
       to,
       subject,
@@ -708,7 +712,7 @@ export async function sendConsultationEmailFromLog(
       blocksHtml,
       deliveryKey: `consultation-${emailLogId}`,
       category: "consultation",
-      maxQueueAgeMs: isTimeCritical ? 10 * 60_000 : 4 * 60 * 60_000,
+      maxQueueAgeMs: reminder ? Math.min(10 * 60_000, deadline.getTime() - now.getTime()) : 4 * 60 * 60_000,
     });
   } catch (e) {
     // Provider errors can embed recipient email, tokens and request payloads.

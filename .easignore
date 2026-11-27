@@ -227,6 +227,9 @@ ci-cd/nginx/conf.d/.release-maintenance
 # Keep any existing local diagnostics, but never stage them with source files.
 /tests/e2e/web/.qa/
 
+# Gallery storage temporary declaration build workspace
+.types-build-*/
+
 
 # From apps/admin-panel/src/admin-live/.gitignore (scoped to its directory)
 apps/admin-panel/src/admin-live/dist/
@@ -327,3 +330,7 @@ apps/mobile/.ota-certs/*
 !apps/mobile/.ota-certs/native.pem
 !apps/mobile/.ota-certs/ios-store-native.json
 !apps/mobile/.ota-certs/android-store-native.json
+
+# Python verifier bytecode is generated locally, not release source.
+__pycache__/
+*.pyc

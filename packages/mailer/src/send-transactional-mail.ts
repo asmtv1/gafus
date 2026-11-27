@@ -21,7 +21,7 @@ export interface SendTransactionalMailInput {
   /** Deferred delivery stops completely after this many milliseconds. */
   maxQueueAgeMs?: number;
   /** Safe category name for aggregated admin monitoring (no user metadata). */
-  category?: "auth" | "welcome" | "consultation" | "receipt" | "subscription" | "notice" | "general";
+  category?: "auth" | "password_reset" | "welcome" | "consultation" | "receipt" | "subscription" | "notice" | "general";
   to: string | string[];
   subject: string;
   text: string;

@@ -69,7 +69,7 @@ export async function sendResendMail(input: SendTransactionalMailInput, env: Mai
   const attemptId = input.deliveryKey || randomUUID();
   const attempt = await prisma.transactionalMailAttempt.upsert({
     where: { id: attemptId },
-    create: { id: attemptId, recipientCount: recipients.length },
+    create: { id: attemptId, recipientCount: recipients.length, category: input.category ?? "general" },
     update: {},
   });
   if (attempt.status === "ACCEPTED") return;

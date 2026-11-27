@@ -5,6 +5,41 @@ const log = createWorkerLogger("mail-delivery-monitor");
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 
+type AttemptHealth = {
+  stalledPending: number;
+  unresolvedUnknown: number;
+  expiredUnknown: number;
+  recentFailed: number;
+  resetAttemptEligible: number;
+  resetAttemptStalled: number;
+};
+
+/** One snapshot for provider-attempt gauges. Conditional aggregation
+ * avoids repeated historical scans and keeps the reset numerator/denominator
+ * in the same MVCC snapshot. Existing category/time indexes are retained. */
+async function readAttemptHealth(now: Date, stalledCutoff: Date, idempotencyCutoff: Date, recentCutoff: Date): Promise<AttemptHealth> {
+  const resetStart = new Date(now.getTime() - HOUR_MS);
+  const [row] = await prisma.$queryRaw<AttemptHealth[]>`
+    SELECT
+      count(*) FILTER (WHERE status = 'PENDING' AND "createdAt" < ${stalledCutoff})::int AS "stalledPending",
+      count(*) FILTER (WHERE status = 'UNKNOWN' AND "createdAt" < ${stalledCutoff})::int AS "unresolvedUnknown",
+      count(*) FILTER (WHERE status = 'UNKNOWN' AND "createdAt" < ${idempotencyCutoff})::int AS "expiredUnknown",
+      count(*) FILTER (WHERE status = 'FAILED' AND "createdAt" >= ${recentCutoff})::int AS "recentFailed",
+      count(*) FILTER (WHERE category = 'password_reset'
+        AND "createdAt" >= ${resetStart} AND "createdAt" < ${stalledCutoff})::int AS "resetAttemptEligible",
+      count(*) FILTER (WHERE category = 'password_reset'
+        AND "createdAt" >= ${resetStart} AND "createdAt" < ${stalledCutoff}
+        AND status IN ('PENDING', 'UNKNOWN'))::int AS "resetAttemptStalled"
+    FROM "TransactionalMailAttempt"
+    WHERE (status IN ('PENDING', 'UNKNOWN') AND "createdAt" < ${stalledCutoff})
+       OR (status = 'FAILED' AND "createdAt" >= ${recentCutoff})
+       OR (category = 'password_reset' AND "createdAt" >= ${resetStart} AND "createdAt" < ${stalledCutoff})
+  `;
+  // Aggregate without GROUP BY returns one row, including zero traffic.
+  if (!row) throw new Error("MAIL_ATTEMPT_METRICS_MISSING");
+  return row;
+}
+
 /**
  * Read-only accounting of unconfirmed mail attempts and provider failures.
  * No recipients, message content, provider IDs or auth/reset tokens in metrics/logs.
@@ -15,21 +50,10 @@ export async function getMailDeliveryHealth(now = new Date()) {
   const idempotencyCutoff = new Date(now.getTime() - 23 * HOUR_MS);
   const recentCutoff = new Date(now.getTime() - 24 * HOUR_MS);
   const [
-    stalledPending, unresolvedUnknown, expiredUnknown, recentFailed, deliveryFailures24h,
-    queueFailed, queueExpired, queueStalled,
+    attemptHealth, deliveryFailures24h,
+    queueFailed, queueExpired, queueStalled, resetQueueStalled,
   ] = await Promise.all([
-      prisma.transactionalMailAttempt.count({
-        where: { status: "PENDING", createdAt: { lt: stalledCutoff } },
-      }),
-      prisma.transactionalMailAttempt.count({
-        where: { status: "UNKNOWN", createdAt: { lt: stalledCutoff } },
-      }),
-      prisma.transactionalMailAttempt.count({
-        where: { status: "UNKNOWN", createdAt: { lt: idempotencyCutoff } },
-      }),
-      prisma.transactionalMailAttempt.count({
-        where: { status: "FAILED", createdAt: { gte: recentCutoff } },
-      }),
+      readAttemptHealth(now, stalledCutoff, idempotencyCutoff, recentCutoff),
       prisma.transactionalMailEvent.count({
         where: {
           type: { in: ["email.failed", "email.bounced", "email.complained", "email.suppressed"] },
@@ -44,16 +68,23 @@ export async function getMailDeliveryHealth(now = new Date()) {
           { status: "PROCESSING", leaseExpiresAt: { lt: now } },
         ],
       } }),
+      prisma.transactionalMailOutbox.count({ where: {
+        category: "password_reset", expiresAt: { gt: now },
+        OR: [
+          { status: "PENDING", createdAt: { lt: stalledCutoff }, nextAttemptAt: { lte: now } },
+          { status: "PROCESSING", leaseExpiresAt: { lt: now } },
+        ],
+      } }),
     ]);
   return {
-    stalledPending, unresolvedUnknown, expiredUnknown, recentFailed, deliveryFailures24h,
-    queueFailed, queueExpired, queueStalled,
+    ...attemptHealth, deliveryFailures24h,
+    queueFailed, queueExpired, queueStalled, resetQueueStalled,
   };
 }
 
 export async function monitorMailDelivery(): Promise<void> {
   const snapshot = await getMailDeliveryHealth();
-  if (Object.values(snapshot).some((value) => value > 0)) {
+  if (Object.entries(snapshot).some(([key, value]) => key !== "resetAttemptEligible" && value > 0)) {
     // Repeated warning is intentional: it stays visible until an operator reconciles failures.
     log.warn("Transactional mail requires attention", snapshot);
   }
@@ -62,6 +93,14 @@ export async function monitorMailDelivery(): Promise<void> {
 export async function renderMailDeliveryMetricsPrometheus(): Promise<string> {
   const h = await getMailDeliveryHealth();
   return [
+    "# TYPE gafus_mail_metrics_available gauge",
+    "gafus_mail_metrics_available 1",
+    "# TYPE gafus_mail_reset_attempt_eligible_1h gauge",
+    "gafus_mail_reset_attempt_eligible_1h " + h.resetAttemptEligible,
+    "# TYPE gafus_mail_reset_attempt_stalled_1h gauge",
+    "gafus_mail_reset_attempt_stalled_1h " + h.resetAttemptStalled,
+    "# TYPE gafus_mail_reset_queue_stalled gauge",
+    "gafus_mail_reset_queue_stalled " + h.resetQueueStalled,
     "# HELP gafus_mail_stalled_pending Pending provider attempts older than 5 minutes",
     "# TYPE gafus_mail_stalled_pending gauge",
     `gafus_mail_stalled_pending ${h.stalledPending}`,

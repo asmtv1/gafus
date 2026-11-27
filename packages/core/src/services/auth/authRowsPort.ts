@@ -179,35 +179,3 @@ export interface AuthRowsPort {
     } | null>;
     changeAuthPasswordCAS: (userId: string, oldHash: string, newHash: string) => Promise<boolean>;
 }
-let installed: Readonly<AuthRowsPort> | null = null;
-export function registerAuthRowsPort(port: AuthRowsPort): void {
-    if (installed && installed !== port)
-        throw new Error("AUTH_ROWS_PORT_ALREADY_BOUND");
-    installed = port;
-}
-function requireRows(): Readonly<AuthRowsPort> {
-    if (!installed)
-        throw new Error("AUTH_ROWS_PORT_UNBOUND");
-    return installed;
-}
-export const readAuthUsernameChangeActor: AuthRowsPort["readAuthUsernameChangeActor"] = (...args) => requireRows().readAuthUsernameChangeActor(...args);
-export const readAuthUsernameCandidate: AuthRowsPort["readAuthUsernameCandidate"] = (...args) => requireRows().readAuthUsernameCandidate(...args);
-export const updateAuthUsername: AuthRowsPort["updateAuthUsername"] = (...args) => requireRows().updateAuthUsername(...args);
-export const readAuthCurrentUsername: AuthRowsPort["readAuthCurrentUsername"] = (...args) => requireRows().readAuthCurrentUsername(...args);
-export const readAuthUsernameOwner: AuthRowsPort["readAuthUsernameOwner"] = (...args) => requireRows().readAuthUsernameOwner(...args);
-export const readAuthUserSummary: AuthRowsPort["readAuthUserSummary"] = (...args) => requireRows().readAuthUserSummary(...args);
-export const readLoginCredentials: AuthRowsPort["readLoginCredentials"] = (...args) => requireRows().readLoginCredentials(...args);
-export const readAuthRegistrationPending: AuthRowsPort["readAuthRegistrationPending"] = (...args) => requireRows().readAuthRegistrationPending(...args);
-export const createAuthRefreshToken: AuthRowsPort["createAuthRefreshToken"] = (...args) => requireRows().createAuthRefreshToken(...args);
-export const readAuthRefreshToken: AuthRowsPort["readAuthRefreshToken"] = (...args) => requireRows().readAuthRefreshToken(...args);
-export const rotateAuthRefreshToken: AuthRowsPort["rotateAuthRefreshToken"] = (...args) => requireRows().rotateAuthRefreshToken(...args);
-export const revokeAuthRefreshToken: AuthRowsPort["revokeAuthRefreshToken"] = (...args) => requireRows().revokeAuthRefreshToken(...args);
-export const revokeAllAuthSessions: AuthRowsPort["revokeAllAuthSessions"] = (...args) => requireRows().revokeAllAuthSessions(...args);
-export const readAuthVkPhone: AuthRowsPort["readAuthVkPhone"] = (...args) => requireRows().readAuthVkPhone(...args);
-export const readAuthPhoneOwnerExcluding: AuthRowsPort["readAuthPhoneOwnerExcluding"] = (...args) => requireRows().readAuthPhoneOwnerExcluding(...args);
-export const updateAuthVkPhone: AuthRowsPort["updateAuthVkPhone"] = (...args) => requireRows().updateAuthVkPhone(...args);
-export const readAuthPasswordSetAt: AuthRowsPort["readAuthPasswordSetAt"] = (...args) => requireRows().readAuthPasswordSetAt(...args);
-export const setAuthPasswordOnce: AuthRowsPort["setAuthPasswordOnce"] = (...args) => requireRows().setAuthPasswordOnce(...args);
-export const readAuthNotificationEmail: AuthRowsPort["readAuthNotificationEmail"] = (...args) => requireRows().readAuthNotificationEmail(...args);
-export const readAuthPasswordForChange: AuthRowsPort["readAuthPasswordForChange"] = (...args) => requireRows().readAuthPasswordForChange(...args);
-export const changeAuthPasswordCAS: AuthRowsPort["changeAuthPasswordCAS"] = (...args) => requireRows().changeAuthPasswordCAS(...args);

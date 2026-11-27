@@ -1,3 +1,4 @@
+import { useOfflineCourseScopeVersion } from "@/shared/hooks/useOfflineCourseScopeVersion";
 import {
   View,
   StyleSheet,
@@ -1293,4 +1294,7 @@ function AccordionStepComponent({
   );
 }
 
-export const AccordionStep = memo(AccordionStepComponent);
+export const AccordionStep = memo(function OwnerScopedAccordionStep(props: AccordionStepProps) {
+  const scopeVersion = useOfflineCourseScopeVersion();
+  return <AccordionStepComponent key={scopeVersion} {...props} />;
+});

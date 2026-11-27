@@ -1,3 +1,6 @@
+import { adminRows } from "../../modules/gafus/composition/admin-rows-instance.js";
+import { gafusWallet } from "../../modules/gafus/composition/wallet-instance.js";
+import { gafusLock } from "../../modules/gafus/composition/wallet-lock-instance.js";
 import type { GafusAdminRowsPort } from "@gafus/core/services/adminGafus";
 import { Hono, type Context } from "hono";
 import { z } from "zod/v3";
@@ -7,7 +10,7 @@ import {
   getGafusAdminDashboard,
 } from "@gafus/core/services/adminGafus";
 
-export function createGafusAdminRoutes(rowsPort?: GafusAdminRowsPort) {
+export function createGafusAdminRoutes(rowsPort: GafusAdminRowsPort) {
 const gafusAdminRoutes = new Hono();
 
 /** Only malformed request JSON is 400; Core SyntaxErrors remain internal 500. */
@@ -67,7 +70,7 @@ const settingsPatch = z.object({
 
 gafusAdminRoutes.get("/dashboard", async c => {
   try {
-    return c.json({ success: true, data: await (rowsPort ? getGafusAdminDashboard(c.get("user").id, rowsPort) : getGafusAdminDashboard(c.get("user").id)) });
+    return c.json({ success: true, data: await getGafusAdminDashboard(c.get("user").id, rowsPort) });
   } catch (error) {
     const mapped = adminError(error);
     return c.json({ success: false, code: mapped.code }, mapped.status as 500);
@@ -81,7 +84,7 @@ gafusAdminRoutes.patch("/settings", async c => {
       reason: z.string().trim().min(5).max(1000),
       patch: settingsPatch,
     }).strict().parse(await readAdminJson(c));
-    const data = await (rowsPort ? updateGafusSettingsAdmin({ actorId: c.get("user").id, ...body }, rowsPort) : updateGafusSettingsAdmin({ actorId: c.get("user").id, ...body }));
+    const data = await updateGafusSettingsAdmin({ actorId: c.get("user").id, ...body }, rowsPort);
     return c.json({ success: true, data });
   } catch (error) {
     const mapped = adminError(error);
@@ -97,7 +100,7 @@ gafusAdminRoutes.post("/adjust", async c => {
       requestId: z.string().regex(/^[a-zA-Z0-9_-]{8,128}$/),
       reason: z.string().trim().min(5).max(1000),
     }).strict().parse(await readAdminJson(c));
-    const data = await (rowsPort ? adjustGafusBalanceAdmin({ actorId: c.get("user").id, ...body }, rowsPort) : adjustGafusBalanceAdmin({ actorId: c.get("user").id, ...body }));
+    const data = await adjustGafusBalanceAdmin({ actorId: c.get("user").id, ...body }, gafusWallet, gafusLock, rowsPort);
     return c.json({ success: true, data });
   } catch (error) {
     const mapped = adminError(error);
@@ -109,4 +112,4 @@ gafusAdminRoutes.post("/adjust", async c => {
 }
 
 /** Source-level compatibility for existing route tests. Production uses the factory. */
-export const gafusAdminRoutes = createGafusAdminRoutes();
+export const gafusAdminRoutes = createGafusAdminRoutes(adminRows);

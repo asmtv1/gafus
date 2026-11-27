@@ -4,7 +4,8 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { getTrainingDayWithUserSteps, updateStepAndDay } from "./trainingService.ts";
+import { sqlTraining } from "../../../../../apps/api/src/modules/training/composition/sql-training-instance";
+const { getTrainingDayWithUserSteps, updateStepAndDay } = sqlTraining;
 
 const run = process.env.AG_WEB3_TIMER_ISOLATED_PG === "1" ? describe : describe.skip;
 const prefix = "web3timer_" + randomBytes(5).toString("hex");

@@ -1,6 +1,7 @@
 import type { FeedTx } from "@gafus/media-shared/media-db-ports";
 import { assertRevisionCanPublish } from "@gafus/core/services/feed";
-import { registerGafusPostPublicationTx, type GafusTx } from "@gafus/core/services/gafus";
+import type { GafusTx } from "@gafus/core/services/gafus";
+import { registerGafusPostPublicationTx } from "./gafus-reward-instance.js";
 import { enqueueFeedAuthorPush } from "./preferenceRows.js";
 
 /**

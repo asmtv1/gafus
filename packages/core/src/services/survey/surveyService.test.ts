@@ -21,8 +21,8 @@ const getSurveyComparison = (userId: string, courseId: string, familySlug: strin
 const getSurveyResponse = (userId: string, stepId: string) =>
   readCoreSurveyResponse(surveyPersistence, userId, stepId);
 const submitSurveyResponse = (
-  userId: string, input: Parameters<typeof writeCoreSurveyResponse>[2],
-) => writeCoreSurveyResponse(surveyPersistence, userId, input);
+  userId: string, input: Parameters<typeof writeCoreSurveyResponse>[3],
+) => writeCoreSurveyResponse(surveyPersistence, checkCourseAccessById, userId, input);
 
 
 const mocks = vi.hoisted(() => ({
@@ -71,9 +71,7 @@ vi.mock("@gafus/prisma", () => ({
   },
 }));
 
-vi.mock("../course", () => ({
-  checkCourseAccessById: vi.fn().mockResolvedValue({ hasAccess: true }),
-}));
+const checkCourseAccessById = vi.fn().mockResolvedValue({ hasAccess: true });
 
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({

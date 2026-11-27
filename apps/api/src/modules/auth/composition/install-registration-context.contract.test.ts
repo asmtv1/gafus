@@ -10,8 +10,8 @@ vi.mock("@gafus/identity-write-server/registration-context-reads", () => ({
 describe("API registration-context composition", () => {
   it("always checks registration completion in authoritative DB", async () => {
     const core = await import("@gafus/core/services/auth");
-    await import("./install-registration-context");
-    await expect(core.isRegistrationCompleted("owner-A")).resolves.toBe(false);
+    const { registrationContextPort } = await import("./registration-context-instance");
+    await expect(core.isRegistrationCompleted("owner-A", registrationContextPort)).resolves.toBe(false);
     expect(mock.completed).toHaveBeenCalledExactlyOnceWith("owner-A");
   });
 });

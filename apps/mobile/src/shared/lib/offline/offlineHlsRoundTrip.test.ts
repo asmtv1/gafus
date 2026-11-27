@@ -1,3 +1,4 @@
+import { setOfflineCoursePrincipal } from "./offlineCourseSession";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const native = vi.hoisted(() => ({
@@ -19,6 +20,13 @@ vi.mock("expo-file-system/legacy", () => ({
   writeAsStringAsync: vi.fn(async (path: string, contents: string) => {
     native.files.set(path, contents);
   }),
+  moveAsync: vi.fn(async ({ from, to }: { from: string; to: string }) => {
+    const bytes = native.files.get(from);
+    if (bytes === undefined) throw new Error("not found");
+    native.files.set(to, bytes);
+    native.files.delete(from);
+  }),
+  readAsStringAsync: vi.fn(async (path: string) => native.files.get(path)),
   downloadAsync: native.downloadAsync,
   deleteAsync: vi.fn(async (path: string) => {
     for (const key of native.files.keys()) if (key.startsWith(path)) native.files.delete(key);
@@ -37,6 +45,8 @@ const signedVariant = "https://api.fixture/training/video/v123/segment?path=720p
 const signedSegment = "https://assets.fixture/720p-segment-001.ts?signature=test";
 
 beforeEach(() => {
+    setOfflineCoursePrincipal(null);
+    setOfflineCoursePrincipal("owner-A", true);
   vi.clearAllMocks();
   native.files.clear();
   native.directories.clear();
@@ -70,17 +80,17 @@ describe("local course HLS download → persisted manifest → playback URI", ()
     await expect(downloadCourseForOffline("base", progress)).resolves.toMatchObject({ success: true });
 
     const uri = await getOfflineVideoUri("base", libraryUrl);
-    expect(uri).toBe("file:///offline-test-device/offline/base/videos/v123/manifest.m3u8");
+    expect(uri).toBe("file:///offline-test-device/offline-v2/owner-A/base/videos/v123/manifest.m3u8");
     // The DB ID is intentionally not a valid offline folder key.
     await expect(getOfflineVideoUri("course-db-id", libraryUrl)).resolves.toBeNull();
 
     const content = native.files.get(uri!);
     expect(content).toContain("720p-segment-001.ts");
     expect(content).not.toContain("https://");
-    expect(native.files.get("file:///offline-test-device/offline/base/videos/v123/720p-segment-001.ts"))
+    expect(native.files.get("file:///offline-test-device/offline-v2/owner-A/base/videos/v123/720p-segment-001.ts"))
       .toBe("SYNTHETIC_VIDEO_BYTES");
     expect(native.downloadAsync).toHaveBeenCalledWith(signedSegment,
-      "file:///offline-test-device/offline/base/videos/v123/720p-segment-001.ts");
+      "file:///offline-test-device/offline-v2/owner-A/base/videos/v123/720p-segment-001.ts");
     expect(progress).toHaveBeenCalledWith(expect.objectContaining({ phase: "done" }));
   });
 });

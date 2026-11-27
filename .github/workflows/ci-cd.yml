@@ -41,7 +41,7 @@ jobs:
       - name: Generate cache keys
         id: cache-key
         run: |
-          echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('packages/**/src/**', 'apps/**/src/**') }}" >> "$GITHUB_OUTPUT"
+          echo "key=${{ runner.os }}-${{ runner.arch }}-node24-pnpm10-${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
       - name: Generate pnpm cache key
         id: pnpm-cache-key
@@ -87,61 +87,31 @@ jobs:
       - name: Enforce Core package and browser/server boundaries before dependency builds (blocking)
         run: pnpm check:core-boundaries
 
-      - name: Generate Prisma Client
-        run: |
-          cd packages/prisma
-          # Temporarily disable prisma-erd-generator in CI to avoid Chromium sandbox issues
-          cp schema.prisma schema.prisma.bak
-          awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp && mv schema.tmp schema.prisma
-          pnpm db:generate
-          mv schema.prisma.bak schema.prisma
-
       - name: Build packages
         shell: bash
         run: |
           set -euo pipefail
-          # logger первым (зависимости: types, queues, cdn-upload, prisma)
-          (cd packages/logger && pnpm build)
-          # Types: build before the required real NodeNext/declaration and contract tests.
-          # Fail-closed: Types test is synchronous, not a backgrounded subshell.
-          (cd packages/types && pnpm build)
+          # One dependency graph, including Prisma generation. Negative
+          # filters did not exclude transitive dependencies: the old manual
+          # builds repeated eight tasks already present in this graph.
+          # Turbo's ^build edges enforce logger/types/core-client, Prisma/
+          # mailer, domain/Core and Core/Auth order; failed tasks block CI.
+          # No ERD generator is present in the current Prisma schema.
+          pnpm exec turbo run build --filter='./packages/*' --filter=@gafus/bull-board --filter=@gafus/feed-cloud-runtime --filter=@gafus/gallery-cloud
+          # Required real NodeNext/declaration and shared contract tests.
           pnpm --filter @gafus/types test
-          # Core media-delivery reexports resolve core-client/dist at runtime.
-          # Build that dependency first; otherwise cache restores can run old
-          # CDN failover code in otherwise green Core tests and builds.
-          (cd packages/core-client && pnpm build)
-          # Keep parallelism without Bash's fail-open bare `wait` (which can
-          # return success even when one of the children failed).
-          (cd packages/queues && pnpm build) & queues_pid=$!
-          (cd packages/cdn-upload && pnpm build) & cdn_pid=$!
-          (cd packages/video-access && pnpm build) & video_pid=$!
-          parallel_failed=0
-          wait "$queues_pid" || parallel_failed=1
-          wait "$cdn_pid" || parallel_failed=1
-          wait "$video_pid" || parallel_failed=1
-          if [ "$parallel_failed" -ne 0 ]; then
-            echo 'REQUIRED_PARALLEL_PACKAGE_BUILD_FAILED' >&2
-            exit 1
-          fi
-          # Prisma depends on Logger.
-          (cd packages/prisma && pnpm build)
-          # mailer до core (TypeScript резолвит dist/index.d.ts у @gafus/mailer)
-          (cd packages/mailer && pnpm build)
-          # Core needs declarations from domain packages. Turbo builds those
-          # before Core, and Core before Auth's password reset wrappers.
-          pnpm exec turbo run build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/video-access --filter=!@gafus/mailer --filter=!@gafus/core-client
+
+      - name: Verify built workspace public exports
+        run: pnpm check:workspace-built-exports
 
       - name: Cache build artifacts
-        uses: actions/cache@v5
+        uses: actions/cache/save@v5
         with:
           path: |
             node_modules
             packages/*/dist
             packages/*/.prisma
-            ~/.pnpm-store
           key: ${{ steps.cache-key.outputs.key }}-deps
-          restore-keys: |
-            ${{ hashFiles('**/pnpm-lock.yaml') }}-deps
 
   # Mandatory, secret-free Uptrace source gate on every PR/push. Without it
   # production deploy cannot proceed; it never sends data to Uptrace.
@@ -175,7 +145,6 @@ jobs:
             node_modules
             packages/*/dist
             packages/*/.prisma
-            ~/.pnpm-store
           key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
 
       - name: Ensure frozen dependencies and telemetry SDK build
@@ -199,6 +168,9 @@ jobs:
           node --test apps/mobile/scripts/prepare-sdk57-private-symbols.test.mjs
           node --test packages/cdn-upload/scripts/upload-mobile-private-symbols.test.mjs
           node scripts/observability/check-workflow-release-gates.mjs
+
+      - name: Verify encrypted external backup, OTA trust and isolated restore contracts (no secrets)
+        run: node --test ci-cd/scripts/external-backup/*.test.mjs
 
       - name: Verify API/Worker preview ingress, budgets and safe export
         shell: bash
@@ -232,13 +204,12 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Restore dependencies cache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: |
             node_modules
             packages/*/dist
             packages/*/.prisma
-            ~/.pnpm-store
           key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
 
       - name: Setup Node.js
@@ -352,7 +323,7 @@ jobs:
           bash ci-cd/scripts/production-schema-cutover.test.sh
 
       - name: Guard Mobile against core server imports
-        run: node scripts/check-mobile-core-boundary.mjs
+        run: node scripts/check-mobile-core-boundary.mjs && node --test scripts/check-mobile-core-boundary.test.mjs
       # Source-only: native SDK/runtime compatibility is part of every future
       # iOS/Android binary release, and MUST NOT silently revert to sdkVersion.
       - name: Verify new Mobile native runtime, gesture and OTA release contract (blocking)
@@ -427,13 +398,12 @@ jobs:
           fetch-depth: 0  # нужен для --filter='...[origin/main]'
 
       - name: Restore dependencies cache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: |
             node_modules
             packages/*/dist
             packages/*/.prisma
-            ~/.pnpm-store
           key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
 
       - name: Setup Node.js
@@ -475,6 +445,8 @@ jobs:
         env:
           # The three public SPA trees and their private maps MUST be compiled
           # exactly once with the same SHA. Docker only packages these bytes.
+          # Sealed maps are private runner files outside the cacheable public dist.
+          TURBO_FORCE: 'true'
           GAFUS_PRIVATE_MAPS_ENABLED: 'true'
           GAFUS_PRIVATE_MAPS_DIR: ${{ runner.temp }}/gafus-private-vite-maps
           GAFUS_RELEASE_SHA: ${{ github.sha }}
@@ -576,18 +548,6 @@ jobs:
         run: |
           pnpm --filter @gafus/mobile exec expo export --platform android --output-dir "$RUNNER_TEMP/gafus-metro-android"
           pnpm --filter @gafus/mobile exec expo export --platform ios --output-dir "$RUNNER_TEMP/gafus-metro-ios"
-
-      - name: Cache app build
-        uses: actions/cache@v5
-        with:
-          path: |
-            apps/web-vite/dist
-            apps/trainer-panel/src/trainer-vite/live/dist
-            apps/admin-panel/dist
-            apps/api/dist
-          key: ${{ needs.prepare-deps.outputs.cache-key }}-all-apps-build
-          restore-keys: |
-            ${{ needs.prepare-deps.outputs.cache-key }}-all-apps-build
 
   # Build worker packages for Docker - REMOVED (using multi-stage build)
   # Mobile: typecheck и unit-тесты проходят в build-apps; native Expo-сборки выполняются отдельно.
@@ -889,7 +849,6 @@ jobs:
             node_modules
             packages/*/dist
             packages/*/.prisma
-            ~/.pnpm-store
           key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
       - run: pnpm install --frozen-lockfile
       - name: Build media runtime and its workspace dependencies after cache miss

@@ -4,30 +4,29 @@
 import { describe, expect, it, vi } from "vitest";
 
 const cases = [
-  { label: "AUTH_ROWS", load: () => import("../auth/authRowsPort"), register: "registerAuthRowsPort", call: "readAuthUsernameChangeActor" },
-  { label: "OFFLINE_MUTATION_ROWS", load: () => import("../offline/offlineMutationRowsPort"), register: "registerOfflineMutationRowsPort", call: "withOfflineMutationTx" },
-  { label: "PREVENTION_ROWS", load: () => import("../petPrevention/preventionRowsPort"), register: "registerPreventionRowsPort", call: "readOwnedPreventionPet" },
-  { label: "PET_ROWS", load: () => import("../pets/petRowsPort"), register: "registerPetRowsPort", call: "withPetSqlTx" },
-  { label: "VET_VISIT_ROWS", load: () => import("../pets/vetVisitRowsPort"), register: "registerVetVisitRowsPort", call: "ownPetForVet" },
-  { label: "REWARDED_AD_ROWS", load: () => import("../rewardedCredits/rewardedAdRowsPort"), register: "registerRewardedAdRowsPort", call: "countRewardedDayRows" },
-  { label: "TRAINER_STEP_ROWS", load: () => import("../trainerStep/trainerStepRowsPort"), register: "registerTrainerStepRowsPort", call: "readTrainerVideoRows" },
+  { label: "OFFLINE_MUTATION_ROWS", load: () => import("../offline/offlineMutationRowsPort"), require: "requireOfflineMutationRowsPort", call: "withOfflineMutationTx" },
+  { label: "PREVENTION_ROWS", load: () => import("../petPrevention/preventionRowsPort"), require: "requirePreventionRowsPort", call: "readOwnedPreventionPet" },
+  { label: "VET_VISIT_ROWS", load: () => import("../pets/vetVisitRowsPort"), require: "requireVetVisitRowsPort", call: "ownPetForVet" },
+  { label: "TRAINER_STEP_ROWS", load: () => import("../trainerStep/trainerStepRowsPort"), require: "requireTrainerStepRowsPort", call: "readTrainerVideoRows" },
 ] as const;
 
 describe("Final Core SQL ports: strict no-default composition", () => {
   for (const entry of cases) {
-    it(`${entry.label} fails closed, preserves arguments, and rejects a hot-rebind`, async () => {
+    it(`${entry.label} fails closed and keeps explicit adapter identity`, async () => {
       vi.resetModules();
       const adapter = await entry.load() as unknown as Record<string, (...args: unknown[]) => unknown>;
-      expect(() => adapter[entry.call]("original-actor")).toThrow(`${entry.label}_PORT_UNBOUND`);
+      expect(() => adapter[entry.require](undefined)).toThrow(`${entry.label}_PORT_UNBOUND`);
 
       const result = Object.freeze({ committed: true, operation: entry.label });
       const delegate = vi.fn(async () => result);
       const port = { [entry.call]: delegate };
-      adapter[entry.register](port);
-      expect(await adapter[entry.call]("original-actor", "original-resource")).toBe(result);
+      const first = adapter[entry.require](port) as typeof port;
+      const second = adapter[entry.require]({ [entry.call]: vi.fn(async () => null) }) as typeof port;
+      expect(first).toBe(port);
+      expect(await first[entry.call]("original-actor", "original-resource")).toBe(result);
       expect(delegate).toHaveBeenCalledExactlyOnceWith("original-actor", "original-resource");
-      expect(() => adapter[entry.register](port)).not.toThrow();
-      expect(() => adapter[entry.register]({ ...port })).toThrow(`${entry.label}_PORT_ALREADY_BOUND`);
+      expect(await second[entry.call]("other-actor")).toBeNull();
+      expect(delegate).toHaveBeenCalledTimes(1);
     });
   }
 });

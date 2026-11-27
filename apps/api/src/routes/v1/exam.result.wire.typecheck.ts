@@ -1,7 +1,7 @@
 /** AG1-002/LEARN032: erased-only strict producer JSON wire conformance. */
 import type { JSONParsed } from "hono/utils/types";
 import type { ExamResultData } from "@gafus/exam-server/exam-service";
-import type { ExamResultRead, ExamResultWire } from "../../../../../packages/types/src/data/exam";
+import type { ExamResultRead, ExamResultWire } from "@gafus/types/exam";
 
 type Same<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2

@@ -1,4 +1,8 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
+import { startCorrelatedSpan } from "@gafus/logger/server-telemetry";
+import { getRequestCorrelation } from "../../lib/operation-observability.js";
+import { firstFrameMetrics, parseFrameEvent } from "../../lib/video-first-frame-metrics.js";
 import { z } from "zod/v3";
 import { recordVideoPlaybackQuality } from "@gafus/statistics";
 import type { VideoPlaybackQualityEvent } from "@gafus/types";
@@ -45,5 +49,36 @@ videoPlaybackQualityRoutes.post("/start", async c => {
   } catch {
     // Playback remains unaffected by analytics failure; clients can retry UUID safely.
     return c.json({ success:false, code:"VIDEO_QUALITY_ANALYTICS_UNAVAILABLE" }, 503);
+  }
+});
+
+/** Additive endpoint: old servers may reject it, without impacting playback. */
+videoPlaybackQualityRoutes.post("/first-frame", bodyLimit({ maxSize: 512,
+  onError: c => c.json({ success: false, code: "INVALID_FRAME_EVENT" }, 400) }), async c => {
+  if (Number(c.req.header("content-length") ?? 0) > 512)
+    return c.json({ success: false, code: "INVALID_FRAME_EVENT" }, 400);
+  try {
+    const raw = await c.req.text();
+    if (raw.length > 512) return c.json({ success: false, code: "INVALID_FRAME_EVENT" }, 400);
+    const event = parseFrameEvent(JSON.parse(raw));
+    if (!event) return c.json({ success: false, code: "INVALID_FRAME_EVENT" }, 400);
+    firstFrameMetrics.record(event);
+    // Parent is the active API request; no signed URL/media ID is attached.
+    // Diagnostic exporter failures must not change acceptance of the sample.
+    try {
+      const span = startCorrelatedSpan({
+        service: "gafus-api", name: "video.first_frame", kind: "internal",
+        operationId: getRequestCorrelation().operationId,
+        attributes: {
+          "gafus.video_surface": event.surface, "gafus.video_platform": event.platform,
+          "gafus.video_frame_outcome": event.outcome,
+          ...(event.elapsedMs === undefined ? {} : { "gafus.video_first_frame_ms": event.elapsedMs }),
+        },
+      });
+      span.end();
+    } catch { /* telemetry cannot block playback */ }
+    return c.json({ success: true }, 202);
+  } catch {
+    return c.json({ success: false, code: "INVALID_FRAME_EVENT" }, 400);
   }
 });

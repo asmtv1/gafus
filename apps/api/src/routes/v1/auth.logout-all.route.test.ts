@@ -1,3 +1,4 @@
+import { authRows } from "../../modules/auth/composition/auth-rows-instance.js";
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -70,3 +71,5 @@ describe("WEB1 POST auth/logout-all — registered Hono and Core revocation", ()
     expect(result.headers.get("set-cookie")).toBeNull();
   });
 });
+
+vi.mock("../../modules/auth/composition/auth-rows-instance.js", () => ({ authRows: {} }));

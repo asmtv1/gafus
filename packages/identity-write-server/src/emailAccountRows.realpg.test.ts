@@ -41,8 +41,8 @@ suite('real PostgreSQL email-account token ownership, replay and conflict',()=>{
   });
 
   it('atomically claims the 120s reset limit, preserves old links until provider ACK and retires only older tokens',async()=>{
-    await prisma.passwordResetToken.create({data:{userId:ids.owner,token:'old-hash',expiresAt:future()}});
-    const first={userId:ids.owner,tokenHash:'new-hash',requestedAt:now,expiresAt:future(),throttleMs:120000};
+    await prisma.passwordResetToken.create({data:{userId:ids.owner,token:'old-hash',expiresAt:future(),createdAt:new Date(now.getTime()-1000)}});
+    const first={userId:ids.owner,expectedEmail:email.owner,tokenHash:'new-hash',requestedAt:now,expiresAt:future(),throttleMs:120000};
     expect(await claimPasswordResetEmailToken(first)).toBe(true);
     expect(await claimPasswordResetEmailToken({...first,tokenHash:'racing-hash'})).toBe(false);
     expect((await prisma.passwordResetToken.findMany({where:{userId:ids.owner}})).map(x=>x.token).sort()).toEqual(['new-hash','old-hash']);
@@ -50,9 +50,21 @@ suite('real PostgreSQL email-account token ownership, replay and conflict',()=>{
     expect((await prisma.passwordResetToken.findMany({where:{userId:ids.owner}})).map(x=>x.token)).toEqual(['new-hash']);
   });
 
+  it('late ACK only retires older reset links; a changed email cannot claim a stale request',async()=>{
+    const first={userId:ids.owner,expectedEmail:email.owner,tokenHash:'older',requestedAt:now,expiresAt:future(),throttleMs:120000};
+    expect(await claimPasswordResetEmailToken(first)).toBe(true);
+    expect(await claimPasswordResetEmailToken({...first,tokenHash:'newer',requestedAt:new Date(now.getTime()+121000)})).toBe(true);
+    await retireOlderPasswordResetEmailTokens(ids.owner,'older');
+    expect((await prisma.passwordResetToken.findMany({where:{userId:ids.owner}})).map(x=>x.token).sort()).toEqual(['newer','older']);
+    await retireOlderPasswordResetEmailTokens(ids.owner,'newer');
+    expect((await prisma.passwordResetToken.findMany({where:{userId:ids.owner}})).map(x=>x.token)).toEqual(['newer']);
+    await prisma.user.update({where:{id:ids.owner},data:{email:'changed@example.test',passwordResetRequestedAt:null}});
+    expect(await claimPasswordResetEmailToken({...first,tokenHash:'stale-address'})).toBe(false);
+  });
+
   it('undelivered reset removes only the staged token, releases throttle and permits a real retry',async()=>{
     await prisma.passwordResetToken.create({data:{userId:ids.owner,token:'older-delivered',expiresAt:future()}});
-    const first={userId:ids.owner,tokenHash:'failed-mail',requestedAt:now,expiresAt:future(),throttleMs:120000};
+    const first={userId:ids.owner,expectedEmail:email.owner,tokenHash:'failed-mail',requestedAt:now,expiresAt:future(),throttleMs:120000};
     expect(await claimPasswordResetEmailToken(first)).toBe(true);
     await rollbackFailedPasswordResetEmailToken({
       userId:ids.owner,tokenHash:first.tokenHash,requestedAt:first.requestedAt,previousRequestedAt:null,
@@ -91,6 +103,7 @@ suite('real PostgreSQL email-account token ownership, replay and conflict',()=>{
     const old=await readEmailChangeAccount(ids.owner);
     await stageEmailChange({userId:ids.owner,newEmail:'accepted@example.test',token:'single-use',expiresAt:future(),
       expectedPassword:old!.password,expectedPasswordSetAt:old!.passwordSetAt});
+    await prisma.passwordResetToken.create({data:{userId:ids.owner,token:'former-address',expiresAt:future()}});
     const outcomes=await Promise.allSettled([
       consumeEmailChangeConfirmation('single-use'), consumeEmailChangeConfirmation('single-use'),
     ]);
@@ -99,6 +112,7 @@ suite('real PostgreSQL email-account token ownership, replay and conflict',()=>{
     expect((await prisma.user.findUnique({where:{id:ids.owner}}))?.email).toBe('accepted@example.test');
     expect((await prisma.user.findUnique({where:{id:ids.other}}))?.email).toBe(email.other);
     expect(await prisma.emailChangeToken.count({where:{userId:ids.owner}})).toBe(0);
+    expect(await prisma.passwordResetToken.count({where:{userId:ids.owner}})).toBe(0);
   });
 
   it('expired or already occupied confirmation refuses mutation and preserves old email',async()=>{

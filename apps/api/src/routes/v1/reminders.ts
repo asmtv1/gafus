@@ -1,6 +1,4 @@
-// The existing keyed reminder endpoint uses a transaction-scoped AG4 port.
-// Bind its SQL adapter before route handlers run; no new route is mounted.
-import "../../modules/reminders/composition/install-ag4-review-rows.review.js";
+import { reminderRows } from "../../modules/reminders/composition/reminder-rows.js";
 import { Hono } from "hono";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
@@ -87,7 +85,7 @@ remindersRoutes.post("/", zValidator("json", createSchema), async (c) => {
       : (await createReminderAG4(user.id, {
         name: body.name, reminderTime: body.reminderTime,
         reminderDays: body.reminderDays, timezone: body.timezone,
-      }, idempotencyKey)).reminder;
+      }, idempotencyKey, reminderRows)).reminder;
     return c.json({ success: true, data });
   } catch (error) {
     if (error instanceof ReminderConflictError) {

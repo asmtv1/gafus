@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({ jwt: vi.fn(), list: vi.fn(), logger: vi.fn() }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: m.jwt }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: async () => true }));
-vi.mock("@gafus/core/services/course", () => ({
+vi.mock("../../modules/courses/composition/catalog-read-instance.js", () => ({
   getCoursesWithProgress: m.list,
   checkCourseAccess: vi.fn(),
   checkCourseAccessById: vi.fn(),

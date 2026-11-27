@@ -43,7 +43,7 @@ class ConsentLogCleanupWorker {
         new Error(result.error),
         { jobId: job.id, durationMs },
       );
-      return;
+      throw new Error("CONSENT_CLEANUP_DB_FAILED");
     }
 
     this.logger.success("Очистка ConsentLog завершена", {
@@ -73,6 +73,10 @@ class ConsentLogCleanupWorker {
     this.worker.on("stalled", (jobId) => {
       this.logger.warn("Задача ConsentLog зависла", { jobId });
     });
+  }
+
+  public async close(): Promise<void> {
+    await this.worker.close();
   }
 
   public start(): void {

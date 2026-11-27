@@ -3,7 +3,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { prisma } from '@gafus/prisma';
-import { lockGafusUser, changeGafusBalanceTx, getGafusSettings } from '@gafus/core/services/gafus';
+import { getGafusSettings } from '@gafus/core/services/gafus';
+import { gafusWallet } from "../../apps/api/src/modules/gafus/composition/wallet-instance.js";
+import { gafusLock } from "../../apps/api/src/modules/gafus/composition/wallet-lock-instance.js";
+const {changeGafusBalanceTx}=gafusWallet;
+const {lockGafusUser}=gafusLock;
 import { chromium } from '../../.local-browser-mcp/node_modules/playwright/index.mjs';
 const R='/Users/asmtv1/Desktop/gafus-refactor',lease=R+'/.local-pg-scratch/web3-unified-private.json';
 const bearer=process.env.GAFUS_WEB3_AUTH_TRANSPORT==='bearer';

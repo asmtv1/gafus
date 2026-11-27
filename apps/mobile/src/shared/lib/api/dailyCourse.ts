@@ -4,7 +4,7 @@ import type {
   DailyCourseDayWire,
   DailyCourseDayStepWire,
   TodayDailyCourseWire,
-} from "../../../../../../packages/types/src/data/training";
+} from "@gafus/types/training";
 
 /** Existing Mobile export for the canonical read-only `/today` JSON response. */
 export type TodayDailyCourseResponse = TodayDailyCourseWire;
@@ -21,12 +21,15 @@ export interface DailyCourseDayResponse extends Pick<DailyCourseDayWire,
   >;
   steps: (UserStep & Pick<DailyCourseDayStepWire,
     "id" | "stepId" | "stepIndex" | "remainingSec" | "completedAt"
-  >)[];
+  > & { bundleStepId?: string })[];
 }
 
 export interface DailyCourseStepActionParams {
   scheduleId: string;
   stepIndex: number;
+  expectedBundleStepId?: string;
+  expectedStepId?: string;
+  offlineProgressVersion?: string;
 }
 
 export interface DailyCourseStartStepParams extends DailyCourseStepActionParams {
@@ -36,6 +39,11 @@ export interface DailyCourseStartStepParams extends DailyCourseStepActionParams 
 
 export interface DailyCoursePauseStepParams extends DailyCourseStepActionParams {
   timeLeftSec: number;
+}
+
+function withoutOfflineProgressVersion<T extends { offlineProgressVersion?: string }>(params: T) {
+  const { offlineProgressVersion: _version, ...body } = params;
+  return body;
 }
 
 export const dailyCourseApi = {
@@ -51,41 +59,41 @@ export const dailyCourseApi = {
       scheduleId,
       createIfMissing: String(createIfMissing),
     });
-    return apiClient<DailyCourseDayResponse>(`/api/v1/daily-course/day?${params}`);
+    return apiClient<DailyCourseDayResponse>(`/api/v1/daily-course/day?${params}`, { headers: { "X-Gafus-Sync-Protocol": "2" } });
   },
 
   startStep: async (params: DailyCourseStartStepParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/daily-course/step/start", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
     });
   },
 
   pauseStep: async (params: DailyCoursePauseStepParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/daily-course/step/pause", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
     });
   },
 
   resumeStep: async (params: DailyCourseStepActionParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/daily-course/step/resume", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
     });
   },
 
   resetStep: async (params: DailyCourseStepActionParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/daily-course/step/reset", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
     });
   },
 
   completeStep: async (params: DailyCourseStepActionParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/daily-course/step/complete", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
     });
   },
 };

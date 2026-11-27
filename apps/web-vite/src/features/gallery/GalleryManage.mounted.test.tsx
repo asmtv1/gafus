@@ -4,7 +4,7 @@ import {createRoot,type Root} from "react-dom/client";
 import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
 import {beforeEach,afterEach,describe,it,expect,vi} from "vitest";
 import {ApiError} from "../../shared/api/client";
-import {GalleryAlbums} from "./GalleryAlbums";
+import { GalleryAlbums } from "./GalleryAlbums";
 import {AlbumDelete,AlbumEditor,PhotoManagement} from "./GalleryManage";
 import type {AlbumSummary,AlbumPhoto,GalleryAlbumCommands,GalleryPage} from "./galleryApi";
 

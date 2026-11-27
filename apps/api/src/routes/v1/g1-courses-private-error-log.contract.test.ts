@@ -24,7 +24,7 @@ vi.mock("@gafus/course-server/reviews",()=>({
 vi.mock("@gafus/course-server/personalization",()=>({
   saveCoursePersonalization:m.personal,
 }));
-vi.mock("@gafus/core/services/course", () => ({
+vi.mock("../../modules/courses/composition/catalog-read-instance.js", () => ({
   getCoursesWithProgress: m.list,
   checkCourseAccess: m.access,
   checkCourseAccessById: m.accessById,

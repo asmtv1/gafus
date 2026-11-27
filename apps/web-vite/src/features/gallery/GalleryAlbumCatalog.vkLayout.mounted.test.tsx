@@ -3,7 +3,7 @@ import {act} from "react";
 import {createRoot,type Root} from "react-dom/client";
 import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
 import {afterEach,beforeEach,describe,expect,it} from "vitest";
-import {GalleryAlbums} from "./GalleryAlbums";
+import { GalleryAlbums } from "./GalleryAlbums";
 import type {AlbumSummary,GalleryPage} from "./galleryApi";
 
 const ownerId="owner-catalog", username="owner";

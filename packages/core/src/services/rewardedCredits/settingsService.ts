@@ -1,7 +1,7 @@
 
 import {
   APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
-  getMobileFeatureFlagEnabled,
+  type AppFeatureFlagsPorts,
   type ClientAppContext,
 } from "../appFeatureFlags";
 import { REWARDED_DAILY_LIMIT_MAX, REWARDED_DAILY_LIMIT_MIN } from "./constants";
@@ -24,20 +24,6 @@ export interface RewardedSettingsPorts {
     actorId?: string | null,
   ): Promise<RewardedAdSettingsDto>;
 }
-let installedRewardedSettingsPort: Readonly<RewardedSettingsPorts> | null = null;
-
-export function registerRewardedSettingsPort(port: RewardedSettingsPorts): void {
-  if (installedRewardedSettingsPort !== null && installedRewardedSettingsPort !== port) {
-    throw new Error("REWARDED_SETTINGS_PORT_ALREADY_BOUND");
-  }
-  installedRewardedSettingsPort = port;
-}
-
-function requireRewardedSettingsPort(): Readonly<RewardedSettingsPorts> {
-  if (!installedRewardedSettingsPort) throw new Error("REWARDED_SETTINGS_PORT_UNBOUND");
-  return installedRewardedSettingsPort;
-}
-
 const MAX_PLACEMENT_ID_LENGTH = 256;
 
 type SettingsUpdateInput = Partial<RewardedAdSettingsDto>;
@@ -102,73 +88,81 @@ function validateEnabledPlatforms(settings: RewardedAdSettingsDto): void {
   }
 }
 
-export async function getRewardedAdSettings(): Promise<RewardedAdSettingsDto> {
-  const row = await requireRewardedSettingsPort().readRewardedAdSettingsRow();
-  return mapSettingsRow(row);
+export function createRewardedSettingsService(
+  rows: RewardedSettingsPorts,
+  readMobileFlag: AppFeatureFlagsPorts["getMobileFeatureFlagEnabled"],
+) {
+  if (!rows || typeof readMobileFlag !== "function") throw new Error("REWARDED_SETTINGS_DEPENDENCIES_REQUIRED");
+  async function getRewardedAdSettings(): Promise<RewardedAdSettingsDto> {
+    const row = await rows.readRewardedAdSettingsRow();
+    return mapSettingsRow(row);
+  }
+
+  async function updateRewardedAdSettings(
+    input: SettingsUpdateInput,
+    actorId?: string | null,
+  ): Promise<RewardedAdSettingsDto> {
+    const current = await getRewardedAdSettings();
+    const next = mapSettingsRow({
+      ...current,
+      ...input,
+      dailyAdLimit: normalizeDailyLimit(input.dailyAdLimit) ?? current.dailyAdLimit,
+      yandexAndroidPlacementId:
+        input.yandexAndroidPlacementId === undefined
+          ? current.yandexAndroidPlacementId
+          : normalizePlacementId(input.yandexAndroidPlacementId),
+      yandexIosPlacementId:
+        input.yandexIosPlacementId === undefined
+          ? current.yandexIosPlacementId
+          : normalizePlacementId(input.yandexIosPlacementId),
+    });
+
+    validateEnabledPlatforms(next);
+
+    const saved = await rows.writeRewardedAdSettingsRow(next, actorId);
+
+    return mapSettingsRow(saved);
+  }
+
+  async function resolveRewardedPlatformSettings(
+    platform: RewardedPlatform,
+    clientContext?: ClientAppContext,
+  ): Promise<RewardedPlatformSettingsDto> {
+    const settings = await getRewardedAdSettings();
+    const iosEnabled =
+      platform === "IOS" && clientContext
+        ? await readMobileFlag(
+            APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
+            clientContext,
+            settings.iosEnabled,
+          )
+        : settings.iosEnabled;
+    const byPlatform: Record<RewardedPlatform, { enabled: boolean; placementId: string | null }> = {
+      ANDROID: {
+        enabled: settings.androidEnabled,
+        placementId:
+          settings.yandexAndroidPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
+      },
+      IOS: {
+        enabled: iosEnabled,
+        placementId:
+          settings.yandexIosPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
+      },
+    };
+    const selected = byPlatform[platform];
+
+    return {
+      platform,
+      platformEnabled: selected.enabled,
+      placementId: selected.placementId ?? "",
+      dailyAdLimit: settings.dailyAdLimit,
+      testMode: settings.testMode,
+    };
+  }
+
+  async function getPlacementIdForPlatform(platform: RewardedPlatform): Promise<string> {
+    return (await resolveRewardedPlatformSettings(platform)).placementId;
+  }
+  return { getRewardedAdSettings, updateRewardedAdSettings, resolveRewardedPlatformSettings, getPlacementIdForPlatform };
 }
-
-export async function updateRewardedAdSettings(
-  input: SettingsUpdateInput,
-  actorId?: string | null,
-): Promise<RewardedAdSettingsDto> {
-  const current = await getRewardedAdSettings();
-  const next = mapSettingsRow({
-    ...current,
-    ...input,
-    dailyAdLimit: normalizeDailyLimit(input.dailyAdLimit) ?? current.dailyAdLimit,
-    yandexAndroidPlacementId:
-      input.yandexAndroidPlacementId === undefined
-        ? current.yandexAndroidPlacementId
-        : normalizePlacementId(input.yandexAndroidPlacementId),
-    yandexIosPlacementId:
-      input.yandexIosPlacementId === undefined
-        ? current.yandexIosPlacementId
-        : normalizePlacementId(input.yandexIosPlacementId),
-  });
-
-  validateEnabledPlatforms(next);
-
-  const saved = await requireRewardedSettingsPort().writeRewardedAdSettingsRow(next, actorId);
-
-  return mapSettingsRow(saved);
-}
-
-export async function resolveRewardedPlatformSettings(
-  platform: RewardedPlatform,
-  clientContext?: ClientAppContext,
-): Promise<RewardedPlatformSettingsDto> {
-  const settings = await getRewardedAdSettings();
-  const iosEnabled =
-    platform === "IOS" && clientContext
-      ? await getMobileFeatureFlagEnabled(
-          APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
-          clientContext,
-          settings.iosEnabled,
-        )
-      : settings.iosEnabled;
-  const byPlatform: Record<RewardedPlatform, { enabled: boolean; placementId: string | null }> = {
-    ANDROID: {
-      enabled: settings.androidEnabled,
-      placementId:
-        settings.yandexAndroidPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
-    },
-    IOS: {
-      enabled: iosEnabled,
-      placementId:
-        settings.yandexIosPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
-    },
-  };
-  const selected = byPlatform[platform];
-
-  return {
-    platform,
-    platformEnabled: selected.enabled,
-    placementId: selected.placementId ?? "",
-    dailyAdLimit: settings.dailyAdLimit,
-    testMode: settings.testMode,
-  };
-}
-
-export async function getPlacementIdForPlatform(platform: RewardedPlatform): Promise<string> {
-  return (await resolveRewardedPlatformSettings(platform)).placementId;
-}
+export type RewardedSettingsService = ReturnType<typeof createRewardedSettingsService>;

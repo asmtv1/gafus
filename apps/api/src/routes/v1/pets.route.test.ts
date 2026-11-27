@@ -1,3 +1,4 @@
+import { petRows } from "../../modules/pets/composition/pet-rows-instance.js";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -111,7 +112,7 @@ describe("gated direct-photo URL route error mapping (no DB/provider)", () => {
     expect(response.status).toBe(400);
     const body = await response.text();
     expect(JSON.parse(body)).toEqual(safe);
-    expect(vi.mocked(createPet)).toHaveBeenCalledWith("user-1", { ...valid, photoUrl });
+    expect(vi.mocked(createPet)).toHaveBeenCalledWith(petRows, "user-1", { ...valid, photoUrl });
     expect(body).not.toContain(photoUrl);
     expect(body).not.toContain("SYNTHETIC_SECRET_CANARY");
   });
@@ -123,7 +124,7 @@ describe("gated direct-photo URL route error mapping (no DB/provider)", () => {
     expect(response.status).toBe(400);
     const body = await response.text();
     expect(JSON.parse(body)).toEqual(safe);
-    expect(vi.mocked(updatePet)).toHaveBeenCalledWith("pet-1", "user-1", { photoUrl });
+    expect(vi.mocked(updatePet)).toHaveBeenCalledWith(petRows, "pet-1", "user-1", { photoUrl });
     expect(body).not.toContain(photoUrl);
   });
   it("does not let a provided URL bypass authorization (POST and PUT)", async () => {
@@ -144,7 +145,7 @@ describe("gated direct-photo URL route error mapping (no DB/provider)", () => {
     );
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({ success: false, code: "PET_NOT_FOUND" });
-    expect(vi.mocked(updatePet)).toHaveBeenCalledWith("pet-foreign", "user-1", { photoUrl: samples[1] });
+    expect(vi.mocked(updatePet)).toHaveBeenCalledWith(petRows, "pet-foreign", "user-1", { photoUrl: samples[1] });
   });
   it("JSON type validation rejects non-string marker before calling Core", async () => {
     const response = await createAuthenticatedTestApp().request(
@@ -175,3 +176,5 @@ describe("gated direct-photo URL route error mapping (no DB/provider)", () => {
     expect(await response.text()).not.toContain(secret);
   });
 });
+
+vi.mock("../../modules/pets/composition/pet-rows-instance.js", () => ({ petRows: {} }));

@@ -1,3 +1,4 @@
+import { readJournalVersionFields, type JournalVersionFields } from "./journalVersionFields";
 /**
  * OFF021 practice-only journal COMPATIBILITY PROBE — Phase1, PURE, NO NETWORK.
  * This is NOT an executable replay adapter or authority to dequeue an event.
@@ -8,6 +9,8 @@ import type { V2PendingEvent, V2SessionBinding } from "./newOnlyV2Queues";
 
 const MUTATIONS_PATH = "/api/v1/offline/mutations" as const;
 const PRACTICE_OPERATION = "training.complete.practice" as const;
+const THEORY_OPERATION = "training.complete.theory" as const;
+type CompletionOperation = typeof PRACTICE_OPERATION | typeof THEORY_OPERATION;
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const CUID = /^c[a-z0-9]{8,}$/;
 const OWNER = /^[A-Za-z0-9_-]{1,128}$/;
@@ -16,12 +19,14 @@ export type PracticeEventSnapshot = {
   binding: V2SessionBinding;
   event: V2PendingEvent;
 };
-type PracticeRequestBody = Readonly<{
+type PracticeRequestBody = Readonly<JournalVersionFields & {
   eventId: string;
-  operation: typeof PRACTICE_OPERATION;
+  operation: CompletionOperation;
   courseId: string;
   dayOnCourseId: string;
   stepIndex: number;
+  expectedStepOnDayId?: string;
+  expectedStepId?: string;
 }>;
 export type PracticeJournalPreview = Readonly<{
   post: Readonly<{
@@ -70,14 +75,23 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 /** Only the exact AG1 POST training.complete.practice DTO is currently supported. */
 function extractPracticeBody(event: V2PendingEvent): PracticeRequestBody {
   if (
-    event.kind !== "completePracticeStep" ||
+    !["completePracticeStep", "completeTheoryStep"].includes(event.kind) ||
     !UUID_V4.test(event.eventId) ||
     !isRecord(event.payload) ||
-    Object.keys(event.payload).length !== 3
+    Object.keys(event.payload).some(key => !["courseId","dayOnCourseId","stepIndex","expectedStepOnDayId","expectedStepId","expectedVersion","previousEventId"].includes(key))
   ) {
     throw new Error("V2_PRACTICE_CONTRACT_UNSUPPORTED");
   }
-  const { courseId, dayOnCourseId, stepIndex } = event.payload;
+  const { courseId, dayOnCourseId, stepIndex, expectedStepOnDayId, expectedStepId } = event.payload;
+  const base = readJournalVersionFields(event.payload);
+  const bound = expectedStepOnDayId !== undefined || expectedStepId !== undefined;
+  if (Object.keys(base).length && !bound) throw new Error("V2_INVALID_PROGRESS_VERSION");
+  if (event.kind === "completeTheoryStep" && !bound)
+    throw new Error("V2_PRACTICE_CONTRACT_UNSUPPORTED");
+  if (bound && (typeof expectedStepOnDayId !== "string" || !CUID.test(expectedStepOnDayId) ||
+                typeof expectedStepId !== "string" || !CUID.test(expectedStepId))) {
+    throw new Error("V2_PRACTICE_CONTRACT_INVALID");
+  }
   if (
     typeof courseId !== "string" ||
     !CUID.test(courseId) ||
@@ -90,20 +104,24 @@ function extractPracticeBody(event: V2PendingEvent): PracticeRequestBody {
   }
   return Object.freeze({
     eventId: event.eventId,
-    operation: PRACTICE_OPERATION,
+    operation: event.kind === "completeTheoryStep" ? THEORY_OPERATION : PRACTICE_OPERATION,
     courseId,
     dayOnCourseId,
     stepIndex: stepIndex as number,
+    ...(bound ? { expectedStepOnDayId: expectedStepOnDayId as string, expectedStepId: expectedStepId as string } : {}),
+    ...base,
   });
 }
 /** Exactly AG1's canonical JSON.stringify scalar order. The SHA256 is SERVER-authoritative. */
 function canonicalFingerprint(body: PracticeRequestBody): string {
   return JSON.stringify({
     method: "POST",
-    operation: PRACTICE_OPERATION,
+    operation: body.operation,
     courseId: body.courseId,
     dayOnCourseId: body.dayOnCourseId,
     stepIndex: body.stepIndex,
+    ...(body.expectedStepOnDayId && body.expectedStepId ? { expectedStepOnDayId: body.expectedStepOnDayId, expectedStepId: body.expectedStepId } : {}),
+    ...readJournalVersionFields(body),
   });
 }
 
@@ -201,7 +219,7 @@ export function evaluatePracticeJournalResponse(
     ack.protocol !== 2 ||
     ack.state !== "COMMITTED" ||
     ack.eventId !== captured.eventId ||
-    ack.operation !== PRACTICE_OPERATION ||
+    ack.operation !== currentBody.operation ||
     typeof ack.replayed !== "boolean" ||
     (responseKind === "lookup" && ack.replayed !== true) ||
     typeof ack.serverRevision !== "string" ||

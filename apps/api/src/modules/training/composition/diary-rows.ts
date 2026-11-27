@@ -1,3 +1,4 @@
+import { checkCourseAccessById } from "../../courses/composition/catalog-read-instance.js";
 /** Server-only SQL composition for the existing Core diary domain policies. */
 import {
   getDiaryEntries as readCoreDiary,
@@ -18,6 +19,6 @@ export const diaryPersistence: DiaryPersistencePort = {
   readDiaryCourseEntries,
 };
 export const getDiaryEntries = (userId: string, courseId: string, upToDayOnCourseId?: string) =>
-  readCoreDiary(diaryPersistence, userId, courseId, upToDayOnCourseId);
+  readCoreDiary(diaryPersistence, checkCourseAccessById, userId, courseId, upToDayOnCourseId);
 export const saveDiaryEntry = (userId: string, dayOnCourseId: string, content: string) =>
-  writeCoreDiary(diaryPersistence, userId, dayOnCourseId, content);
+  writeCoreDiary(diaryPersistence, checkCourseAccessById, userId, dayOnCourseId, content);

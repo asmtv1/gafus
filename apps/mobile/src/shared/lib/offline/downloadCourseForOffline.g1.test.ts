@@ -1,9 +1,13 @@
+import { setOfflineCoursePrincipal } from "./offlineCourseSession";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fsMock = vi.hoisted(() => ({
   makeDirectoryAsync: vi.fn().mockResolvedValue(undefined),
   writeAsStringAsync: vi.fn().mockResolvedValue(undefined),
   deleteAsync: vi.fn().mockResolvedValue(undefined),
+  moveAsync: vi.fn().mockResolvedValue(undefined),
+  readDirectoryAsync: vi.fn().mockResolvedValue(["unknown.bin"]),
+  readAsStringAsync: vi.fn(),
   getInfoAsync: vi.fn().mockResolvedValue({ exists: false, isDirectory: false }),
 }));
 const downloadCourseMock = vi.hoisted(() => vi.fn());
@@ -31,8 +35,11 @@ const stubData = {
 
 describe("AG3 G1 native image/PDF offline writer path confinement", () => {
   beforeEach(() => {
+    setOfflineCoursePrincipal(null);
+    setOfflineCoursePrincipal("owner-A", true);
     vi.clearAllMocks();
     fsMock.getInfoAsync.mockReset().mockResolvedValue({ exists: false, isDirectory: false });
+    fsMock.readDirectoryAsync.mockReset().mockResolvedValue(["unknown.bin"]);
     downloadCourseMock.mockResolvedValue({ success: true, data: structuredClone(stubData) });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
@@ -47,7 +54,7 @@ describe("AG3 G1 native image/PDF offline writer path confinement", () => {
       success: false,
       code: "EXISTING_OFFLINE_DATA",
     });
-    expect(fsMock.getInfoAsync).toHaveBeenCalledWith("file:///ag3-native-fixture/offline/base/");
+    expect(fsMock.getInfoAsync).toHaveBeenCalledWith("file:///ag3-native-fixture/offline-v2/owner-A/base/");
     expect(downloadCourseMock).not.toHaveBeenCalled();
     expect(fsMock.makeDirectoryAsync).not.toHaveBeenCalled();
     expect(fsMock.writeAsStringAsync).not.toHaveBeenCalled();
@@ -63,6 +70,45 @@ describe("AG3 G1 native image/PDF offline writer path confinement", () => {
     });
     expect(fsMock.deleteAsync).not.toHaveBeenCalled();
     expect(fsMock.writeAsStringAsync).not.toHaveBeenCalled();
+  });
+
+  it("restarts an interrupted download only with a matching owner-scoped journal", async () => {
+    fsMock.getInfoAsync.mockResolvedValueOnce({ exists: true, isDirectory: true })
+      .mockResolvedValueOnce({ exists: false, isDirectory: false })
+      .mockResolvedValueOnce({ exists: true, isDirectory: false });
+    fsMock.readDirectoryAsync.mockResolvedValueOnce([".download-intent-v1.json", "videos"]);
+    fsMock.readAsStringAsync.mockResolvedValueOnce(JSON.stringify({
+      schemaVersion: 1, ownerId: "owner-A", courseType: "base",
+    }));
+    await expect(downloadCourseForOffline("base", vi.fn())).resolves.toMatchObject({success:true});
+    expect(fsMock.deleteAsync).toHaveBeenCalledExactlyOnceWith(
+      "file:///ag3-native-fixture/offline-v2/owner-A/base/", {idempotent:true});
+    expect(fsMock.moveAsync).toHaveBeenCalledWith({
+      from:"file:///ag3-native-fixture/offline-v2/owner-A/base/meta.json.pending",
+      to:"file:///ag3-native-fixture/offline-v2/owner-A/base/meta.json",
+    });
+  });
+
+  it("does not erase an interrupted download with a foreign owner marker", async () => {
+    fsMock.getInfoAsync.mockResolvedValueOnce({ exists: true, isDirectory: true })
+      .mockResolvedValueOnce({ exists: false, isDirectory: false })
+      .mockResolvedValueOnce({ exists: true, isDirectory: false });
+    fsMock.readDirectoryAsync.mockResolvedValueOnce([".download-intent-v1.json", "videos"]);
+    fsMock.readAsStringAsync.mockResolvedValueOnce(JSON.stringify({
+      schemaVersion: 1, ownerId: "owner-B", courseType: "base",
+    }));
+    await expect(downloadCourseForOffline("base", vi.fn())).resolves.toMatchObject({success:false});
+    expect(fsMock.deleteAsync).not.toHaveBeenCalled();
+  });
+
+  it("preserves completed or unknown data even with an old journal", async () => {
+    fsMock.getInfoAsync.mockResolvedValueOnce({ exists: true, isDirectory: true })
+      .mockResolvedValueOnce({ exists: true, isDirectory: false });
+    await expect(downloadCourseForOffline("base", vi.fn())).resolves.toMatchObject({
+      success:false, code:"EXISTING_OFFLINE_DATA",
+    });
+    expect(fsMock.deleteAsync).not.toHaveBeenCalled();
+    expect(downloadCourseMock).not.toHaveBeenCalled();
   });
 
   it("fails closed when native FileSystem cannot determine if legacy data exists", async () => {
@@ -166,7 +212,7 @@ describe("AG3 G1 native image/PDF offline writer path confinement", () => {
     const result = await downloadCourseForOffline("base", vi.fn());
     expect(result).toMatchObject({ success: true });
     expect(fsMock.writeAsStringAsync).toHaveBeenCalledWith(
-      "file:///ag3-native-fixture/offline/base/images/photo.jpg",
+      "file:///ag3-native-fixture/offline-v2/owner-A/base/images/photo.jpg",
       expect.any(String),
       expect.objectContaining({ encoding: "base64" }),
     );
@@ -194,8 +240,44 @@ describe("AG3 G1 native image/PDF offline writer path confinement", () => {
 
     await expect(downloadCourseForOffline("base", vi.fn())).resolves.toMatchObject({ success: true });
     expect(downloadHLSForOffline).toHaveBeenCalledWith(
-      data.mediaFiles.videos[0], "base", "video-1", undefined, undefined,
+      data.mediaFiles.videos[0], "base", "video-1", undefined, undefined, expect.objectContaining({ principalId: "owner-A" }),
     );
+  });
+
+  it("does not publish metadata while mandatory media is still pending", async () => {
+    const data = structuredClone(stubData);
+    data.mediaFiles.videos = [
+      "https://gafus-media.storage.yandexcloud.net/uploads/trainers/trainer-1/videocourses/video-1/original.mp4",
+    ];
+    downloadCourseMock.mockResolvedValueOnce({ success: true, data });
+    let finish!: () => void;
+    vi.mocked(downloadHLSForOffline).mockImplementationOnce(() =>
+      new Promise<void>(resolve => { finish = resolve; }),
+    );
+    const pending = downloadCourseForOffline("base", vi.fn());
+    await vi.waitFor(() => expect(downloadHLSForOffline).toHaveBeenCalledOnce());
+    expect(fsMock.moveAsync).not.toHaveBeenCalled();
+    expect(fsMock.writeAsStringAsync.mock.calls.some(([p]) => String(p).endsWith("/meta.json.pending"))).toBe(false);
+    finish();
+    await expect(pending).resolves.toMatchObject({ success: true });
+    expect(fsMock.writeAsStringAsync).toHaveBeenCalledWith(
+      "file:///ag3-native-fixture/offline-v2/owner-A/base/meta.json.pending", expect.any(String),
+    );
+  });
+
+  it("cleans a failed attempt before an access-denied retry", async () => {
+    const data = structuredClone(stubData);
+    data.mediaFiles.videos = [
+      "https://gafus-media.storage.yandexcloud.net/uploads/trainers/trainer-1/videocourses/video-1/original.mp4",
+    ];
+    downloadCourseMock.mockResolvedValueOnce({ success: true, data })
+      .mockResolvedValueOnce({ success: false, code: "COURSE_ACCESS_DENIED" });
+    vi.mocked(downloadHLSForOffline).mockRejectedValueOnce(new TypeError("network"));
+    await expect(downloadCourseForOffline("base", vi.fn())).resolves.toMatchObject({
+      success: false, code: "COURSE_ACCESS_DENIED",
+    });
+    expect(fsMock.deleteAsync).toHaveBeenCalledOnce();
+    expect(fsMock.moveAsync).not.toHaveBeenCalled();
   });
 
   it("does not silently declare a course with external videos fully downloaded", async () => {
@@ -223,4 +305,19 @@ describe("AG3 G1 native image/PDF offline writer path confinement", () => {
     expect(downloadHLSForOffline).not.toHaveBeenCalled();
   });
 
+});
+
+ it("does not publish a download whose API result arrives after account switch", async () => {
+  vi.clearAllMocks();
+  fsMock.getInfoAsync.mockResolvedValue({ exists: false, isDirectory: false });
+  setOfflineCoursePrincipal("owner-A", true);
+  let complete!: (value: unknown) => void;
+  downloadCourseMock.mockImplementationOnce(() => new Promise(resolve => { complete = resolve; }));
+  const pending = downloadCourseForOffline("base", vi.fn());
+  await vi.waitFor(() => expect(complete).toBeTypeOf("function"));
+  setOfflineCoursePrincipal("owner-B", true);
+  complete({ success: true, data: structuredClone(stubData) });
+  await expect(pending).resolves.toMatchObject({ success: false, code: "ABORTED" });
+  expect(fsMock.writeAsStringAsync).not.toHaveBeenCalled();
+  expect(fsMock.deleteAsync).toHaveBeenCalledWith("file:///ag3-native-fixture/offline-v2/owner-A/base/", { idempotent: true });
 });

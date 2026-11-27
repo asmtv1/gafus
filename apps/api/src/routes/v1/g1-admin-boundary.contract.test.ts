@@ -118,7 +118,7 @@ describe("G1 Hono Gafus admin route contract (Core mocked)", () => {
     expect(fakes.adjust).toHaveBeenCalledWith({
       actorId: "actor-from-jwt", userId: "target-user", delta: 10,
       requestId: "request-123456", reason: "Manual review",
-    });
+    }, expect.any(Object), expect.any(Object));
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
@@ -130,3 +130,7 @@ describe("G1 Hono Gafus admin route contract (Core mocked)", () => {
     expect(fakes.adjust).not.toHaveBeenCalled();
   });
 });
+
+vi.mock("../../modules/gafus/composition/wallet-instance.js", () => ({ gafusWallet: { listGafusTransactions: vi.fn(), changeGafusBalanceTx: vi.fn(), ensureGafusWalletTx: vi.fn() } }));
+vi.mock("../../modules/gafus/composition/wallet-lock-instance.js", () => ({ gafusLock: { lockGafusUser: vi.fn() } }));
+vi.mock("../../modules/content-access/composition/transactional-policy-instance.js", () => ({ transactionalContentPolicy: {} }));

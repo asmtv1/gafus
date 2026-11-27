@@ -188,14 +188,9 @@ vi.mock("../contentAccess", () => ({
 }));
 
 
-import {
-  getPremiumOrRewardedAccess,
-  requirePremiumOrRewardedAccessForStepNotification,
-  createGafusRewardedAccessService,
-} from "./accessService";
+import { createRewardedAccessPolicy } from "./accessService";
 // Existing synthetic Prisma owner/period fixtures retain the original SQL
 // SELECTs, now injected through the Application read boundary.
-import { registerRewardedAccessReadPort } from "./rewardedAccessReadPort";
 import {
   readOwnedCourseDayRewardedSteps, readOwnedRewardedUserStep,
   readRewardedPrivateCourseAssignment, readOwnedDailyRewardedUserStep,
@@ -203,14 +198,14 @@ import {
   readActiveLegacyRewardedGrant, readRewardedViewerRole,
   readRewardedCourseVideoOccurrences, readPendingRewardedStepNotificationUrl,
 } from "@gafus/entitlements-server/rewarded-access-reads";
-registerRewardedAccessReadPort({
+const { getPremiumOrRewardedAccess, requirePremiumOrRewardedAccessForStepNotification, createGafusRewardedAccessService } = createRewardedAccessPolicy({
   getAppSubscriptionAccess: async () => ({ hasActiveSubscription: state.hasPremium }),
   readOwnedCourseDayRewardedSteps, readOwnedRewardedUserStep,
   readRewardedPrivateCourseAssignment, readOwnedDailyRewardedUserStep,
   readPublishedDailyRewardedVideo, readOwnedRewardedVideoStep,
   readActiveLegacyRewardedGrant, readRewardedViewerRole,
   readRewardedCourseVideoOccurrences, readPendingRewardedStepNotificationUrl,
-});
+}, async () => true, async () => state.gafusUnlocked);
 
 const {
   requirePremiumOrRewardedAccessForUserStep,

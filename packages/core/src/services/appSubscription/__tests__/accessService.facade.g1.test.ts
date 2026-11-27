@@ -11,7 +11,8 @@ describe("Core appSubscription injected read port", () => {
     const source = readFileSync(new URL("../accessService.ts", import.meta.url), "utf8");
     expect(source).not.toContain('from "@gafus/subscription-read-server"');
     expect(source).toContain("SUBSCRIPTION_ACCESS_PORT_UNBOUND");
-    expect(source).toContain("registerSubscriptionAccessPort");
+    expect(source).not.toContain("registerSubscriptionAccessPort");
+    expect(source).toContain("ports: SubscriptionAccessPorts");
   });
   it("preserves the established public barrel and two Core export paths", () => {
     const index = readFileSync(new URL("../index.ts", import.meta.url), "utf8");

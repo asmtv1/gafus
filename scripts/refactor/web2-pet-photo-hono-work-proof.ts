@@ -1,3 +1,4 @@
+import { petRows } from "../../apps/api/src/modules/pets/composition/pet-rows-instance.js";
 /** Guarded WORK PostgreSQL 18 + physical project-local MinIO pet-photo proof.
  * Owner and foreign synthetic identities are unique per run. No existing
  * rows or objects are read by this test; cleanup is explicit and scoped.
@@ -62,7 +63,7 @@ export async function runWeb2HonoProof(){
       {id:owner,username:`web2_photo_${suffix}_a`,password:"isolated-only"},
       {id:foreign,username:`web2_photo_${suffix}_b`,password:"isolated-only"},
     ]});
-    const pet=await createPet(owner,{
+    const pet=await createPet(petRows, owner,{
       name:petName,type:"DOG",breed:"Метис",birthDate:"2021-05-17",
     });
     petId=pet.id;

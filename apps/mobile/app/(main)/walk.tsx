@@ -49,6 +49,7 @@ import {
 } from "@/features/walk/androidBackgroundSteps";
 import { canUseDogWalkHistory } from "@/features/walk/walkAccess";
 import { beginWalkQaCapture, gpsWalkMeters, walkQaEnabled } from "@/features/walk/walkGpsStorage";
+import { reportCompletedWalkGps } from "@/features/walk/walkGpsCompletionDiagnostics";
 import { WalkQaControls } from "@/features/walk/WalkQaControls";
 import { startWalkGps, stopWalkGps } from "@/features/walk/walkGpsTask";
 import { WalkLocationDisclosure } from "@/features/walk/location-permissions/WalkLocationDisclosure";
@@ -160,7 +161,7 @@ export default function DogWalkScreen() {
   }, [owner, sessionEpoch]);
 
   const updateJournal = useCallback(
-    (transform: (current: WalkJournal) => WalkJournal) => {
+    (transform: (current: WalkJournal) => WalkJournal, afterSave?: () => void) => {
       if (!ownerRef.current || !ready) return;
       const actor = ownerRef.current;
       const previous = journalRef.current;
@@ -194,6 +195,7 @@ export default function DogWalkScreen() {
             reportClientError(error, { issueKey: "DogWalkSave" });
             return;
           }
+          if (ownerRef.current === actor) afterSave?.();
           if (ownerRef.current === actor && !stepsOnly) {
             try {
               await publishWalkWidgetSnapshot(
@@ -645,6 +647,11 @@ export default function DogWalkScreen() {
                     completed: [completed, ...state.completed].slice(0, 2000),
                   }
                 : state,
+              () => { void reportCompletedWalkGps(owner, completed, () => {
+                const auth = useAuthStore.getState();
+                return ownerRef.current === owner && auth.user?.id === owner &&
+                  auth.verifiedSessionEpoch === sessionEpoch;
+              }).catch(() => undefined); },
             );
           }
           await notify(owner, null, false);

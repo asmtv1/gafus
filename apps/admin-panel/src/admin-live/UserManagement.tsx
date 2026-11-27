@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AdminHttpError, requestAdmin } from "./api";
 import "./UsersParity.css";
 import {
@@ -24,7 +24,12 @@ type User = {
   } | null;
 };
 type Promo = { id: string; code: string; discountPercent: number };
-type UserPage = { users: User[]; freePartnerPromoCodes: Promo[] };
+type Pagination = {page:number;pageSize:number;total:number;search:string;sort:Exclude<UserSortField,null>;direction:SortDirection};
+type UserPage = { users: User[]; freePartnerPromoCodes: Promo[]; pagination?: Pagination };
+function matchesUserPage(value: UserPage | null, query: Omit<Pagination, "total">): boolean {
+  return !!value?.pagination &&
+    (Object.keys(query) as (keyof typeof query)[]).every(key => query[key] === value.pagination![key]);
+}
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 function parseUsers(value: unknown): UserPage | null {
@@ -44,6 +49,15 @@ function parseUsers(value: unknown): UserPage | null {
     )
   )
     return null;
+  if (value.pagination !== undefined) {
+    const pg=value.pagination;
+    if (!isRecord(pg) || !Number.isSafeInteger(pg.page) || Number(pg.page)<1 ||
+        ![10,25,50].includes(Number(pg.pageSize)) || !Number.isSafeInteger(pg.total) ||
+        Number(pg.total)<0 || typeof pg.search!=="string" ||
+        !["createdAt","username","role","email","registrationChannel","promoCode","notifications"].includes(String(pg.sort)) ||
+        !["asc","desc"].includes(String(pg.direction)) ||
+        value.users.length>Number(pg.pageSize)) return null;
+  }
   return value as UserPage;
 }
 const roles = ["USER", "TRAINER", "PARTNER", "MODERATOR", "ADMIN"] as const;
@@ -236,7 +250,7 @@ export function UsersPanel({
   onSaved: () => void;
   onNavigate?: (path: string) => void;
 }) {
-  const data = parseUsers(source);
+  const initial = useMemo(() => parseUsers(source), [source]);
   // Next UsersClient restores ?search= on direct links. The deep detail user
   // route is separate and must not inherit arbitrary search state.
   const [search, setSearch] = useState(() =>
@@ -253,24 +267,52 @@ export function UsersPanel({
   const deletingLock = useRef(false);
   const [deleteUnknown, setDeleteUnknown] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const rows = useMemo(
-    () =>
-      filterAndSortUsers(
-        (data?.users ?? []).map((user) => ({
-          ...user,
-          createdAt: new Date(user.createdAt),
-          savedRegistrationPromoCode: user.savedRegistrationPromoCode ?? null,
-          _count: user._count ?? { pushSubscriptions: 0 },
-        })),
-        search,
-        sortField,
-        direction,
-      ),
-    [data, search, sortField, direction],
-  );
-  if (!data) return <p role="alert">Некорректный ответ списка пользователей</p>;
-  const totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
-  const currentPage = Math.min(page, totalPages);
+  const [remote, setRemote] = useState<UserPage | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [pageLoading, setPageLoading] = useState(false);
+  const normalizedSearch = search.trim();
+  const query = useMemo(() => ({
+    page, pageSize:rowsPerPage, search:normalizedSearch, sort:sortField ?? "createdAt", direction,
+  }), [page,rowsPerPage,normalizedSearch,sortField,direction]);
+  // Page replies are scoped to this mounted staff actor, with debounce and
+  // abort on every query change. Old page rows are never shown as new results.
+  useEffect(() => {
+    if (!initial?.pagination || matchesUserPage(initial,query)) {
+      setRemote(null); setPageError(null); setPageLoading(false); return;
+    }
+    const controller = new AbortController();
+    setPageLoading(true); setPageError(null); setRemote(null);
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams(Object.entries(query).map(([key,val]) => [key,String(val)]));
+      void requestAdmin<UserPage>("/api/v1/admin/users?" + params, {signal:controller.signal}).then(value => {
+        if (controller.signal.aborted) return;
+        const next = parseUsers(value);
+        if (!next?.pagination || next.pagination.search !== query.search ||
+            next.pagination.pageSize !== query.pageSize || next.pagination.sort !== query.sort ||
+            next.pagination.direction !== query.direction) throw new Error("Некорректная страница пользователей");
+        setRemote(next);
+        if (next.pagination.page !== query.page) setPage(next.pagination.page);
+      }).catch(cause => {
+        if (!controller.signal.aborted) setPageError(cause instanceof Error ? cause.message : "Не удалось загрузить страницу");
+      }).finally(() => { if (!controller.signal.aborted) setPageLoading(false); });
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [initial,query,actorId,actorRole]);
+  const paged = !!initial?.pagination;
+  const data = paged ? (matchesUserPage(remote,query) ? remote : matchesUserPage(initial,query) ? initial : null) : initial;
+  const rows = useMemo(() => {
+    const users = (data?.users ?? []).map(user => ({
+      ...user, createdAt:new Date(user.createdAt),
+      savedRegistrationPromoCode:user.savedRegistrationPromoCode ?? null,
+      _count:user._count ?? {pushSubscriptions:0},
+    }));
+    return paged ? users : filterAndSortUsers(users,search,sortField,direction);
+  }, [data,paged,search,sortField,direction]);
+  if (!initial) return <p role="alert">Некорректный ответ списка пользователей</p>;
+  const total = paged ? data?.pagination?.total ?? 0 : rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
+  const currentPage = paged ? data?.pagination?.page ?? page : Math.min(page,totalPages);
+  const shown = paged ? rows : rows.slice((currentPage-1)*rowsPerPage,currentPage*rowsPerPage);
   function sort(next: UserSortField) {
     setPage(1);
     if (next === sortField) setDirection((x) => (x === "asc" ? "desc" : "asc"));
@@ -307,7 +349,7 @@ export function UsersPanel({
   }
   return (
     <section className="content-card">
-      <h2>Пользователи платформы · {rows.length}</h2>
+      <h2>Пользователи платформы · {total}</h2>
       <p className="note">
         Все зарегистрированные пользователи. Поиск, фильтры и сортировка по данным API.
       </p>
@@ -356,6 +398,8 @@ export function UsersPanel({
           Перечитать список пользователей
         </button>
       )}
+      {pageLoading && <p role="status">Загрузка пользователей…</p>}
+      {pageError && <p role="alert" className="error">{pageError} <button onClick={onSaved}>Повторить</button></p>}
       <div className="table-scroll">
         <table>
           <thead>
@@ -372,8 +416,7 @@ export function UsersPanel({
             </tr>
           </thead>
           <tbody>
-            {rows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-              .map((user) => (
+            {shown.map((user) => (
               <tr key={user.id}>
                 <td>
                   <div className="admin-user-identity">
@@ -445,7 +488,7 @@ export function UsersPanel({
           </tbody>
         </table>
       </div>
-      {!rows.length && <p className="empty">Пользователи не найдены</p>}
+      {!pageLoading && !pageError && data && !rows.length && <p className="empty">Пользователи не найдены</p>}
       <div className="pagination">
         <label className="admin-user-pagination-size">
           Показывать
@@ -461,12 +504,12 @@ export function UsersPanel({
           </select>
         </label>
         <span>
-          {rows.length ? (currentPage - 1) * rowsPerPage + 1 : 0}–
-          {Math.min(currentPage * rowsPerPage, rows.length)} из {rows.length}
+          {total ? (currentPage - 1) * rowsPerPage + 1 : 0}–
+          {Math.min(currentPage * rowsPerPage, total)} из {total}
         </span>
         <button
           className="secondary"
-          disabled={currentPage <= 1}
+          disabled={pageLoading || !data || currentPage <= 1}
           onClick={() => setPage(currentPage - 1)}
         >
           Назад
@@ -476,7 +519,7 @@ export function UsersPanel({
         </span>
         <button
           className="secondary"
-          disabled={currentPage >= totalPages}
+          disabled={pageLoading || !data || currentPage >= totalPages}
           onClick={() => setPage(currentPage + 1)}
         >
           Дальше
@@ -487,7 +530,7 @@ export function UsersPanel({
           key={edit.id}
           user={edit}
           actorRole={actorRole}
-          promos={data.freePartnerPromoCodes}
+          promos={(data ?? initial).freePartnerPromoCodes}
           onClose={() => setEdit(null)}
           onSaved={onSaved}
         />

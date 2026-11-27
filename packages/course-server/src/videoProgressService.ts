@@ -4,7 +4,8 @@
  * Чистая бизнес-логика без Next.js специфики.
  */
 
-import { prisma } from "@gafus/prisma";
+import { prisma, type Prisma } from "@gafus/prisma";
+import { createHash } from "node:crypto";
 import { createWebLogger } from "@gafus/logger";
 import { validateVideoPosition } from "@gafus/core/services/video-position-policy";
 
@@ -44,6 +45,43 @@ export async function getProgress(
   return { lastPositionSec: progress.lastPositionSec };
 }
 
+type VideoPositionRow = { id: string; lastPositionSec: number; updatedAt: Date };
+function videoProgressVersion(row: VideoPositionRow | null): string {
+  return row ? createHash("sha256").update(JSON.stringify([row.id,row.lastPositionSec,row.updatedAt.toISOString()])).digest("hex") : "none";
+}
+const snapshotSelect = { id: true, lastPositionSec: true, updatedAt: true } as const;
+
+export async function getProgressSnapshot(userId: string, videoId: string) {
+  const row = await prisma.userVideoProgress.findUnique({
+    where: { userId_videoId: { userId, videoId } }, select: snapshotSelect,
+  });
+  return { lastPositionSec: row?.lastPositionSec ?? 0, progressVersion: videoProgressVersion(row) };
+}
+
+/** Atomic compare-and-set of the SAME bookmark used by online players.
+ * Concurrent normal upsert wins or is observed as a conflict, never overwritten
+ * by an older offline snapshot. Caller owns the enclosing journal transaction. */
+export async function saveProgressJournalTx(
+  tx: Prisma.TransactionClient, userId: string, videoId: string, positionSec: number, expectedVersion: string,
+): Promise<{ videoId: string; lastPositionSec: number; progressVersion: string }> {
+  if (validateVideoPosition(positionSec)) throw new Error("INVALID_STATE: invalid video position");
+  const video = await tx.trainerVideo.findUnique({where:{id:videoId},select:{id:true}});
+  if (!video) throw new Error("VIDEO_NOT_FOUND");
+  const where = { userId_videoId: {userId,videoId} };
+  const prior = await tx.userVideoProgress.findUnique({where,select:snapshotSelect});
+  if (videoProgressVersion(prior) !== expectedVersion) throw new Error("STALE_PROGRESS_VERSION");
+  const changed = prior
+    ? await tx.userVideoProgress.updateMany({
+        where: { id: prior.id, userId, videoId, updatedAt: prior.updatedAt, lastPositionSec: prior.lastPositionSec },
+        data: { lastPositionSec: positionSec, updatedAt: new Date() },
+      })
+    : await tx.userVideoProgress.createMany({data:[{userId,videoId,lastPositionSec:positionSec}],skipDuplicates:true});
+  if (changed.count !== 1) throw new Error("STALE_PROGRESS_VERSION");
+  const row = await tx.userVideoProgress.findUnique({where,select:snapshotSelect});
+  if (!row) throw new Error("STALE_PROGRESS_VERSION");
+  return { videoId, lastPositionSec: row.lastPositionSec, progressVersion: videoProgressVersion(row) };
+}
+
 /**
  * Сохраняет позицию просмотра видео (upsert по userId + videoId)
  *
@@ -56,7 +94,8 @@ export async function saveProgress(
   userId: string,
   videoId: string,
   lastPositionSec: number,
-): Promise<{ success: boolean; error?: string }> {
+  includeVersion = false,
+): Promise<{ success: boolean; error?: string; progressVersion?: string }> {
   const error = validateVideoPosition(lastPositionSec);
   if (error) return { success: false, error };
 
@@ -72,7 +111,7 @@ export async function saveProgress(
   }
 
   // Upsert прогресса
-  await prisma.userVideoProgress.upsert({
+  const saved = await prisma.userVideoProgress.upsert({
     where: {
       userId_videoId: { userId, videoId },
     },
@@ -88,5 +127,5 @@ export async function saveProgress(
   });
 
   logger.info("Video progress saved");
-  return { success: true };
+  return { success: true, ...(includeVersion ? { progressVersion: videoProgressVersion(saved) } : {}) };
 }

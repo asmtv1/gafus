@@ -1,3 +1,4 @@
+import { pendingMatchesOccurrence } from "@/shared/lib/offline/pendingOccurrence";
 import { useCallback, useMemo, useEffect, useRef } from "react";
 import { View, StyleSheet, ScrollView, RefreshControl, Pressable, Linking } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
@@ -83,6 +84,16 @@ export default function TrainingDayScreen() {
   const completeTheoryMutation = useCompleteTheoryStep();
   const completePracticeMutation = useCompletePracticeStep();
   const dayData = data?.data;
+  const actionSteps = useRef(dayData?.steps);
+  actionSteps.current = dayData?.steps;
+  const bindStepAction = useCallback((index: number) => {
+    const selected = actionSteps.current?.[index];
+    if (!selected?.stepOnDayId) return {};
+    const originalStepId = getStepContent(selected).id;
+    if (!originalStepId) return {};
+    return { expectedStepOnDayId: selected.stepOnDayId, expectedStepId: originalStepId,
+      ...(selected.offlineProgressVersion ? { offlineProgressVersion: selected.offlineProgressVersion } : {}) };
+  }, []);
   const courseId = dayData?.courseId ?? courseType;
   const verifiedProfile = useAuthStore((state) => state.user);
   const ownerId = verifiedProfile?.id ?? null;
@@ -141,6 +152,10 @@ export default function TrainingDayScreen() {
       };
     }, [activate, deactivate, refreshPendingPractice, refreshPendingTimers, verifiedProfile]),
   );
+  useEffect(() => newOnlyV2NativeQueues.subscribePracticeAcknowledgements?.(() => {
+    void refreshPendingPractice();
+    void refreshPendingTimers();
+  }), [refreshPendingPractice, refreshPendingTimers]);
   const verifiedTimerBinding = newOnlyV2NativeQueues.getVerifiedBinding();
   const visiblePendingTimers =
     timerBinding.current?.owner === ownerId &&
@@ -249,6 +264,7 @@ export default function TrainingDayScreen() {
         // New offline event must be durable before optimistic timer mutation.
         const startingOffline = isOffline;
         const result = await startStepMutation.mutateAsync({
+          ...bindStepAction(stepIndex),
           courseId,
           dayOnCourseId: dayId,
           stepIndex,
@@ -287,6 +303,7 @@ export default function TrainingDayScreen() {
       const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
         const result = await pauseStepMutation.mutateAsync({
+          ...bindStepAction(stepIndex),
           courseId,
           dayOnCourseId: dayId,
           stepIndex,
@@ -328,6 +345,7 @@ export default function TrainingDayScreen() {
       const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
         const result = await resumeStepMutation.mutateAsync({
+          ...bindStepAction(stepIndex),
           courseId,
           dayOnCourseId: dayId,
           stepIndex,
@@ -368,6 +386,7 @@ export default function TrainingDayScreen() {
       const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
         const result = await resetStepMutation.mutateAsync({
+          ...bindStepAction(stepIndex),
           courseId,
           dayOnCourseId: dayId,
           stepIndex,
@@ -412,6 +431,7 @@ export default function TrainingDayScreen() {
       const initialEpoch = initialBinding?.authEpoch ?? null;
       try {
         const params = {
+          ...bindStepAction(stepIndex),
           courseId,
           dayOnCourseId: dayId,
           stepIndex,
@@ -713,7 +733,7 @@ export default function TrainingDayScreen() {
             <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
               <Text>Локальные изменения шагов · только на устройстве · не отправлено</Text>
               {visiblePendingTimers.map((item) => (
-                <Text key={item.stepIndex}>
+                <Text key={item.eventId}>
                   Шаг {item.stepIndex + 1}:{" "}
                   {item.status === "IN_PROGRESS"
                     ? "В процессе"
@@ -876,7 +896,7 @@ export default function TrainingDayScreen() {
                       verifiedLocalCompleted={
                         onlineReceipt.isConfirmed(index) ||
                         visiblePendingTimers.some(
-                          (row) => row.stepIndex === index && row.status === "COMPLETED",
+                          (row) => row.status === "COMPLETED" && pendingMatchesOccurrence(row, step.stepOnDayId, getStepContent(step).id),
                         )
                       }
                       courseId={courseId}

@@ -55,6 +55,42 @@ suite("local PostgreSQL client-reported OTA telemetry",()=>{
     await expect(ingestOtaTelemetry({...base,eventId:randomUUID(),updateId:randomUUID()},"preview",secret))
       .rejects.toMatchObject({code:"UNVERIFIED_NATIVE_TELEMETRY"});
   });
+  it("serializes simultaneous exact replays and conflicting payloads",async()=>{
+    const event = {...base,eventId:randomUUID()};
+    const results=await Promise.all([ingestOtaTelemetry(event,"preview",secret),
+      ingestOtaTelemetry(event,"preview",secret)]);
+    expect(results.map(x=>x.replayed).sort()).toEqual([false,true]);
+    const sharedId=randomUUID();
+    const conflicting=await Promise.allSettled([
+      ingestOtaTelemetry({...base,eventId:sharedId,event:"LAUNCHED"},"preview",secret),
+      ingestOtaTelemetry({...base,eventId:sharedId,event:"CHECKED"},"preview",secret),
+    ]);
+    expect(conflicting.filter(x=>x.status==="fulfilled")).toHaveLength(1);
+    expect(conflicting.find(x=>x.status==="rejected")).toMatchObject({
+      reason:{code:"TELEMETRY_EVENT_CONFLICT"},
+    });
+  });
+  it("does not exceed the per-installation quota during concurrent writes",async()=>{
+    const quotaInstallation=randomUUID();
+    const hash=hashInstallationForTelemetry(quotaInstallation,secret);
+    try {
+      await prisma.$executeRaw`
+        INSERT INTO "MobileOtaTelemetryEvent"
+          (id,"eventId","installationHash",platform,environment,channel,"runtimeVersion","nativeFingerprint",event)
+        SELECT gen_random_uuid(),gen_random_uuid(),${hash},'ios','preview','preview','1.7.5',
+          ${nativeFingerprint},'CHECKED' FROM generate_series(1,149)
+      `;
+      const results=await Promise.allSettled(Array.from({length:4},()=>ingestOtaTelemetry({
+        ...base,installationId:quotaInstallation,eventId:randomUUID(),
+      },"preview",secret)));
+      expect(results.filter(x=>x.status==="fulfilled")).toHaveLength(1);
+      expect(results.filter(x=>x.status==="rejected")).toHaveLength(3);
+      for(const result of results)if(result.status==="rejected")
+        expect(result.reason).toMatchObject({code:"TELEMETRY_QUOTA_EXCEEDED"});
+    } finally {
+      await prisma.$executeRaw`DELETE FROM "MobileOtaTelemetryEvent" WHERE "installationHash"=${hash}`;
+    }
+  });
   it("provides a bounded client-reported summary, no raw UUID or user data",async()=>{
     const summaries=await listOtaTelemetrySummaries() as Array<{
       platform:string;runtimeVersion:string;event:string;events:number;installations:number;

@@ -45,6 +45,9 @@
       ],
       "chat-outbox-diagnostics": [
         "dist/chat-outbox-diagnostics.d.ts"
+      ],
+      "chat2-outbox-rows": [
+        "dist/chat2-outbox-rows.d.ts"
       ]
     }
   },
@@ -104,6 +107,10 @@
     "./chat-outbox-diagnostics": {
       "types": "./dist/chat-outbox-diagnostics.d.ts",
       "default": "./dist/chat-outbox-diagnostics.js"
+    },
+    "./chat2-outbox-rows": {
+      "types": "./dist/chat2-outbox-rows.d.ts",
+      "default": "./dist/chat2-outbox-rows.js"
     }
   },
   "scripts": {
@@ -112,6 +119,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@gafus/consultation-shared": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
     "@gafus/logger": "workspace:*",

@@ -57,14 +57,7 @@ export interface SubscriptionPromoPort {
   isUniquePromoCodeError(error: unknown): boolean;
   withPromoCodeRecordsTransaction<T>(operation: (rows: PromoCodeRecordsTransaction) => Promise<T>): Promise<T>;
 }
-let installedPromoPort: Readonly<SubscriptionPromoPort> | null = null;
-export function registerSubscriptionPromoPort(port: SubscriptionPromoPort): void {
-  if (installedPromoPort !== null && installedPromoPort !== port) {
-    throw new Error("SUBSCRIPTION_PROMO_PORT_ALREADY_BOUND");
-  }
-  installedPromoPort = port;
-}
-export function requireSubscriptionPromoPort(): Readonly<SubscriptionPromoPort> {
-  if (!installedPromoPort) throw new Error("SUBSCRIPTION_PROMO_PORT_UNBOUND");
-  return installedPromoPort;
+export function requireSubscriptionPromoPort(port: SubscriptionPromoPort | undefined): Readonly<SubscriptionPromoPort> {
+  if (!port) throw new Error("SUBSCRIPTION_PROMO_PORT_UNBOUND");
+  return port;
 }

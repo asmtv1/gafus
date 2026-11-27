@@ -11,35 +11,34 @@ export type ResetReceiptProof =
   | {kind:"token";tokenHash:string;legacyRawToken?:string}
   | {kind:"shortCode";shortCode:string};
 
-/** Single-use credential mutation. SELECT FOR UPDATE serializes racing redeems;
+/** Single-use credential mutation. Owner SELECT FOR UPDATE serializes racing redeems;
  * the same transaction changes the password, revokes sessions, consumes token.
  */
 export async function consumePasswordResetReceipt(proof:ResetReceiptProof,passwordHash:string):Promise<string|null>{
   if(!passwordHash || (proof.kind==="token"?!proof.tokenHash:!proof.shortCode))
     throw new ResetReceiptUnavailableError();
   return prisma.$transaction(async tx=>{
-    let receiptId:string|undefined;
-    if(proof.kind==="token"){
-      const hashed=await tx.$queryRaw<{id:string}[]>`
-        SELECT "id" FROM "PasswordResetToken" WHERE "token" = ${proof.tokenHash} FOR UPDATE
-      `;
-      receiptId=hashed[0]?.id;
-      // Older links stored a raw 43-character base64url token.
-      if(!receiptId && proof.legacyRawToken){
-        const raw=await tx.$queryRaw<{id:string}[]>`
-          SELECT "id" FROM "PasswordResetToken" WHERE "token" = ${proof.legacyRawToken} FOR UPDATE
-        `;
-        receiptId=raw[0]?.id;
-      }
-    }else{
-      const byCode=await tx.$queryRaw<{id:string}[]>`
-        SELECT "id" FROM "PasswordResetToken" WHERE "shortCode" = ${proof.shortCode} FOR UPDATE
-      `;
-      receiptId=byCode[0]?.id;
-    }
-    if(!receiptId)throw new ResetReceiptUnavailableError();
-    const record=await tx.passwordResetToken.findUnique({where:{id:receiptId}});
-    if(!record || record.expiresAt<new Date())throw new ResetReceiptUnavailableError();
+    // Lookup is not authorization. Lock the owner first, then re-read the
+    // exact receipt so issuer, retirement, email changes and redemption have
+    // one lock order. No token from the old email can race the email change.
+    const lookup = async () => {
+      if (proof.kind === "shortCode") return tx.passwordResetToken.findUnique({
+        where: { shortCode: proof.shortCode },
+      });
+      const hashed = await tx.passwordResetToken.findUnique({ where: { token: proof.tokenHash } });
+      return hashed ?? (proof.legacyRawToken
+        ? await tx.passwordResetToken.findUnique({ where: { token: proof.legacyRawToken } })
+        : null);
+    };
+    const seen = await lookup();
+    if (!seen) throw new ResetReceiptUnavailableError();
+    const locked = await tx.$queryRaw<{id:string}[]>`
+      SELECT "id" FROM "User" WHERE "id" = ${seen.userId} FOR UPDATE
+    `;
+    if (!locked.length) throw new ResetReceiptUnavailableError();
+    const record = await tx.passwordResetToken.findUnique({where:{id:seen.id}});
+    if (!record || record.userId !== seen.userId || record.expiresAt <= new Date())
+      throw new ResetReceiptUnavailableError();
     const at=new Date();
     // Multiple reset mails may be pending or delivered out of order.
     // The conditional UPDATE serializes all receipts for the same owner:

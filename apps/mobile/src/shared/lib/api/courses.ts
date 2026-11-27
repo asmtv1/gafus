@@ -1,5 +1,6 @@
-import type { CourseWithProgressWire } from "@gafus/types";
+import type { CourseWithProgressWire, CourseCatalogCardWire } from "@gafus/types";
 import { apiClient, type ApiResponse } from "./client";
+import { collectCourseCatalog } from "./courseCatalogPages";
 
 // Интерфейс курса соответствует CourseWithProgressData из API
 export interface Course {
@@ -28,6 +29,7 @@ export interface Course {
     status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET";
   }[];
   isFavorite: boolean;
+  reviewsCount?: number;
   reviews?: {
     rating: number | null;
     comment: string;
@@ -51,7 +53,9 @@ export interface Course {
 
 // Authenticated GET /api/v1/courses returns AG1's serialized Date-to-string wire.
 // Keep legacy Course separate for favorites, detail, reviews and stored/native flows.
-export type CourseListItem = CourseWithProgressWire;
+export type CourseListItem = Omit<CourseCatalogCardWire, "reviewsCount" | "startedUsersCount"> &
+  Partial<Pick<CourseWithProgressWire, "reviews" | "dayLinks" | "userCourses" | "startedUsersCount">> &
+  { reviewsCount?: number };
 // API возвращает массив курсов напрямую, а не объект с полем courses.
 export type CoursesResponse = CourseListItem[];
 
@@ -109,10 +113,21 @@ export const coursesApi = {
     _filters?: CourseFilters,
     requestGuard?: () => boolean,
   ): Promise<ApiResponse<CoursesResponse>> => {
-    // API не поддерживает фильтры через query params, фильтрация делается на клиенте
-    const endpoint = "/api/v1/courses";
-
-    return apiClient<CoursesResponse>(endpoint, requestGuard ? { requestGuard } : {});
+    // The entire visible list remains available to local search, tab counts and
+    // sorting, but each database response is a bounded lightweight card page.
+    // Fence all pages to the same credential generation (including refresh).
+    const { getSettledAuthSessionGeneration, useAuthStore } = await import("@/shared/stores/authStore");
+    const generation = getSettledAuthSessionGeneration();
+    const owner = useAuthStore.getState().user?.id;
+    const guard = () => generation !== null && !!owner &&
+      getSettledAuthSessionGeneration() === generation &&
+      useAuthStore.getState().user?.id === owner && (requestGuard?.() ?? true);
+    return collectCourseCatalog(
+      path => apiClient<unknown>(path, {
+        headers: { Accept: "application/vnd.gafus.course-cards+json" }, requestGuard: guard,
+      }),
+      guard,
+    );
   },
 
   /**

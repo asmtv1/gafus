@@ -4,7 +4,6 @@ import Constants from "expo-constants";
 import { useCallback, useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -21,12 +20,10 @@ import { ErrorBoundary, OfflineIndicator, RequiredAppUpdateGate } from "@/shared
 import { QaRuntimeIdentity } from "@/shared/components/QaRuntimeIdentity";
 import { RequiredOtaUpdateGate } from "@/shared/components/RequiredOtaUpdateGate";
 import { useRoleAwareScreenCapture } from "@/shared/hooks/useRoleAwareScreenCapture";
-import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
-import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
+import { useOfflineJournalReplay } from "@/shared/hooks/useOfflineJournalReplay";
 import { useAuthStore } from "@/shared/stores";
 import { COLORS } from "@/shared/config";
 import { useAppFonts } from "@/shared/hooks/useAppFonts";
-import { warmUpYandexMobileAds } from "@/features/rewarded-ads";
 import { WalkWidgetSessionSync } from "@/features/walk/WalkWidgetSessionSync";
 
 import { startMobileTelemetryUploadWorker } from "@/shared/lib/telemetry/mobileTelemetryClient";
@@ -37,8 +34,8 @@ import { startNativeCrashCapture } from "@/shared/lib/telemetry/nativeCrashCaptu
 startNativeCrashCapture();
 installGlobalJsErrorHandler();
 
-function SyncProgressOnReconnect() {
-  useSyncProgressOnReconnect();
+function SyncOfflineJournal() {
+  useOfflineJournalReplay();
   return null;
 }
 
@@ -62,6 +59,32 @@ function AnalyticsBootstrap() {
     })();
   }, [authLoading]);
 
+  return null;
+}
+
+/** Optional SDK work must not compete with initial auth or mandatory OTA.
+ * Mount only after both update gates have opened. */
+function DeferredRewardedAdsWarmup() {
+  const isLoading = useAuthStore(s => s.isLoading);
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const frame = requestAnimationFrame(() => {
+      timer = setTimeout(() => {
+        if (cancelled) return;
+        void import("@/features/rewarded-ads/adapter/yandexRewardedAds").then(
+          ({ warmUpYandexMobileAds }) => cancelled ? undefined : warmUpYandexMobileAds(),
+        ).catch(() => undefined);
+      }, 0);
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      if (timer !== undefined) clearTimeout(timer);
+    };
+  }, [isLoading, isAuthenticated]);
   return null;
 }
 
@@ -123,29 +146,11 @@ export default function RootLayout() {
   }, [checkAuth]);
 
   useEffect(() => {
-    // iOS can initialize automatically when the first ad is loaded, but doing
-    // it during bootstrap keeps the first rewarded-ad request off the UI path.
-    void warmUpYandexMobileAds().catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
     if (!fontError) return;
     reportClientError(fontError instanceof Error ? fontError : new Error(String(fontError)), {
       issueKey: "FontLoad",
     });
   }, [fontError]);
-
-  // DEBUG: лог любых deep link на Android для отладки VK redirect
-  useEffect(() => {
-    if (!__DEV__ || Platform.OS !== "android") return;
-    const sub = Linking.addEventListener("url", (e) => {
-      console.log("[VK_LOGIN] Linking url event received", {
-        url: e.url,
-        urlLength: e.url?.length,
-      });
-    });
-    return () => sub.remove();
-  }, []);
 
   // Keep exactly ONE poster mounted across font/auth initialization and the
   // first route paint. Swapping the whole root from a standalone splash view
@@ -166,9 +171,9 @@ export default function RootLayout() {
                         <AnalyticsNavigationListener />
                         <ChatPushNavigation />
                         <AnalyticsBootstrap />
+                        <DeferredRewardedAdsWarmup />
                         <OfflineIndicator />
-                        <SyncProgressOnReconnect />
-                        <SyncPreventionOnReconnect />
+                        <SyncOfflineJournal />
                         <Stack screenOptions={{ headerShown: false }}>
                           <Stack.Screen name="(auth)" />
                           <Stack.Screen name="(main)" />

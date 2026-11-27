@@ -74,7 +74,7 @@ export function refreshSessionCookie(): Promise<void> {
 export async function apiRequest<T>(
   path: string,
   options: { method?: ApiMethod; json?: unknown; browserAuth?: boolean;
-    credentials?: "include" | "omit"; expectedStatus?: number; signal?: AbortSignal } = {},
+    credentials?: "include" | "omit"; accept?: string; expectedStatus?: number; signal?: AbortSignal } = {},
 ): Promise<T> {
   const basicPath = /^\/api\/v1\/[a-z0-9/_-]+(?:\?[a-z0-9=&%._-]+)?$/i.test(path);
   // The existing article detail contract accepts Cyrillic slugs. Permit ONLY
@@ -102,7 +102,11 @@ export async function apiRequest<T>(
   if (options.browserAuth && options.credentials === "omit") {
     throw new Error("Authenticated cookie requests cannot omit credentials");
   }
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: options.accept ?? "application/json",
+    "X-Client-Platform": "web" };
+  const releaseVersion = import.meta.env.VITE_GAFUS_APP_VERSION;
+  if (typeof releaseVersion === "string" && /^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(releaseVersion))
+    headers["X-Client-Version"] = releaseVersion;
   if (options.json !== undefined) headers["Content-Type"] = "application/json";
   if (options.browserAuth) headers["X-Gafus-Auth-Transport"] = "cookie";
   const method = options.method ?? "GET";

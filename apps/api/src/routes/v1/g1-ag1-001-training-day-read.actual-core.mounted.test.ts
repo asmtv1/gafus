@@ -118,7 +118,7 @@ vi.mock("@gafus/core/services/auth", async (original) => ({
 import { app } from "../../app";
 import { generateAccessToken } from "@gafus/auth/jwt";
 import { getTrainingDayWithMonetizedSteps } from "@gafus/core/services/training";
-import { checkCourseAccess } from "@gafus/core/services/course";
+import { checkCourseAccess } from "../../modules/courses/composition/catalog-read-instance.js";
 
 const DAY = "clwdayoc0000000000000001";
 const COURSE = "sample-course";

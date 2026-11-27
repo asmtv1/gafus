@@ -28,7 +28,9 @@ vi.mock("@gafus/webpush",()=>({
 
 describe("generic push-worker startup and native transport without VAPID",()=>{
   it("imports and registers job listeners without evaluating WebPush credentials",async()=>{
-    const {NotificationProcessor}=await import("./push-worker");
+    const {NotificationProcessor,startPushWorker}=await import("./push-worker");
+    expect(mocks.workerOn).not.toHaveBeenCalled();
+    startPushWorker();
     expect(typeof NotificationProcessor).toBe("function");
     expect(mocks.workerOn).toHaveBeenCalled();
     expect(mocks.fromEnv).not.toHaveBeenCalled();

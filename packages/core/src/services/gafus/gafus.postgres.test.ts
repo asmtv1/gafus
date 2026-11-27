@@ -2,24 +2,25 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@gafus/prisma";
-import { awardActivityTx } from "./rewardService";
-import { changeGafusBalanceTx } from "./walletService";
+import { createGafusRewardService } from "./rewardService";
+import { createGafusWalletService } from "./walletService";
 // Compose the original SQL repository into the Core domain port. Synthetic
 // fixtures still own their Prisma TransactionClient and no new DB is opened.
-import { registerGafusLedgerRowsPort } from "./gafusLedgerPort";
 import {
   ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
   appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
 } from "@gafus/gafus-server/wallet-records";
-registerGafusLedgerRowsPort({
+const gafusWallet = createGafusWalletService({
   ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
   appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
 });
+const { changeGafusBalanceTx } = gafusWallet;
 
-import { lockGafusUser } from "./locking";
-import { registerGafusLockPort } from "./locking";
+import { createGafusLockService } from "./locking";
 import { lockGafusUser as dbLockGafusUser, withGafusUserLock as dbWithGafusUserLock } from "@gafus/gafus-server/wallet-lock";
-registerGafusLockPort({ lockGafusUser: dbLockGafusUser, withGafusUserLock: dbWithGafusUserLock });
+const gafusLock = createGafusLockService({ lockGafusUser: dbLockGafusUser, withGafusUserLock: dbWithGafusUserLock });
+const { awardActivityTx } = createGafusRewardService(gafusWallet, gafusLock);
+const { lockGafusUser } = gafusLock;
 
 
 // Test fixtures run exclusively against a dedicated disposable local database.

@@ -32,10 +32,6 @@ const CONSENT_TYPE_MAP: {
   },
 ];
 
-export async function createConsentLogs(params: CreateConsentLogsParams): Promise<void> {
-  await prisma.$transaction((tx) => createCompletedConsentLogsInTransaction(tx, params, ConsentLogStatus.PENDING));
-}
-
 /**
  * Writes accepted consent records through the caller's transaction. Registration
  * uses COMPLETED so a committed account can never be separated from its consents.
@@ -43,15 +39,16 @@ export async function createConsentLogs(params: CreateConsentLogsParams): Promis
 export async function createCompletedConsentLogsInTransaction(
   tx: Prisma.TransactionClient,
   params: CreateConsentLogsParams,
-  status: ConsentLogStatus = ConsentLogStatus.COMPLETED,
 ): Promise<void> {
+  const userId = params.userId;
+  if (!userId) throw new Error("CONSENT_OWNER_REQUIRED");
   const now = new Date();
   const records = CONSENT_TYPE_MAP.filter(({ accepted }) =>
     accepted(params.consentPayload),
   ).map(({ type, url }) => ({
     tempSessionId: params.tempSessionId,
     consentType: type,
-    userId: params.userId ?? null,
+    userId,
     consentVersion:
       params.consentVersions?.[type] ?? params.defaultVersion,
     consentText: { url } as Prisma.InputJsonValue,
@@ -59,68 +56,27 @@ export async function createCompletedConsentLogsInTransaction(
     ipAddress: params.ipAddress,
     userAgent: params.userAgent?.slice(0, 500),
     formData: params.formData as unknown as Prisma.InputJsonValue,
-    status,
+    status: ConsentLogStatus.COMPLETED,
   }));
 
   try {
-    await Promise.all(
-      records.map((data) =>
-        tx.consentLog.upsert({
-          where: {
-            tempSessionId_consentType: {
-              tempSessionId: params.tempSessionId,
-              consentType: data.consentType,
-            },
-          },
-          create: data,
-          update: {
-            consentVersion: data.consentVersion,
-            consentText: data.consentText,
-            consentDate: data.consentDate,
-            userId: data.userId,
-            ipAddress: data.ipAddress,
-            userAgent: data.userAgent,
-            formData: data.formData,
-            status,
-          },
-        }),
-      ),
-    );
+    // Explicit compare-and-set. If a row is already completed or belongs to
+    // someone else, the unique constraint rejects the insert; never reassign it.
+    for (const data of records) {
+      const updated = await tx.consentLog.updateMany({
+        where: {
+          tempSessionId: data.tempSessionId,
+          consentType: data.consentType,
+          status: { not: ConsentLogStatus.COMPLETED },
+          OR: [{ userId: null }, { userId }],
+        },
+        data,
+      });
+      if (updated.count === 0) await tx.consentLog.create({ data });
+    }
   } catch (error) {
-    logger.error("createConsentLogs failed", error as Error, {
+    logger.error("createCompletedConsentLogsInTransaction failed", error as Error, {
       tempSessionId: params.tempSessionId,
-    });
-    throw error;
-  }
-}
-
-export async function linkConsentLogsToUser(
-  tempSessionId: string,
-  userId: string,
-): Promise<void> {
-  try {
-    await prisma.consentLog.updateMany({
-      where: { tempSessionId },
-      data: { userId, status: ConsentLogStatus.COMPLETED },
-    });
-  } catch (error) {
-    logger.error("linkConsentLogsToUser failed", error as Error, {
-      tempSessionId,
-      userId,
-    });
-    throw error;
-  }
-}
-
-export async function markConsentLogsFailed(tempSessionId: string): Promise<void> {
-  try {
-    await prisma.consentLog.updateMany({
-      where: { tempSessionId },
-      data: { status: ConsentLogStatus.FAILED },
-    });
-  } catch (error) {
-    logger.error("markConsentLogsFailed failed", error as Error, {
-      tempSessionId,
     });
     throw error;
   }

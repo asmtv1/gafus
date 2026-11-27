@@ -20,17 +20,12 @@ describe("subscription promo SQL transaction port",()=>{
   });
   it("preserves one-way successful YooKassa payment eligibility blocker",async()=>{
     const port=await import("./promoCodePort");const svc=await import("./promoCodeService");
-    const p=stub();port.registerSubscriptionPromoPort(p);
-    await expect(svc.isAppSubscriptionPromoCodeEligible("owner-1")).resolves.toBe(true);
+    const p=stub();const fixtureSubscriptionPromoPort = p;
+    await expect(svc.isAppSubscriptionPromoCodeEligible("owner-1", fixtureSubscriptionPromoPort)).resolves.toBe(true);
     p.userHasSuccessfulPromoBlockingPayment.mockResolvedValueOnce(true);
-    await expect(svc.isAppSubscriptionPromoCodeEligible("owner-1")).resolves.toBe(false);
+    await expect(svc.isAppSubscriptionPromoCodeEligible("owner-1", fixtureSubscriptionPromoPort)).resolves.toBe(false);
     expect(p.userHasSuccessfulPromoBlockingPayment).toHaveBeenCalledTimes(2);
     expect(p.userHasSuccessfulPromoBlockingPayment).toHaveBeenNthCalledWith(2,"owner-1");
   });
-  it("prevents hot replacement of SERIALIZABLE DB transaction provider",async()=>{
-    const port=await import("./promoCodePort");const p=stub();port.registerSubscriptionPromoPort(p);
-    port.registerSubscriptionPromoPort(p);
-    expect(()=>port.registerSubscriptionPromoPort(stub()))
-      .toThrow("SUBSCRIPTION_PROMO_PORT_ALREADY_BOUND");
-  });
+
 });

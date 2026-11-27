@@ -12,17 +12,13 @@ function port() {
   };
 }
 describe("Gafus owner wallet SQL row port",()=>{
-  it("fails closed without SQL binding on reading or valid signed balance change",async()=>{
-    const svc=await import("./walletService");
-    await expect(svc.getGafusBalance("owner-A")).rejects.toThrow("GAFUS_LEDGER_PORT_UNBOUND");
-    await expect(svc.listGafusTransactions({userId:"owner-A"})).rejects.toThrow("GAFUS_LEDGER_PORT_UNBOUND");
-    await expect(svc.changeGafusBalanceTx({} as GafusTx,{
-      userId:"owner-A",amount:1,idempotencyKey:"event-1",
-    })).rejects.toThrow("GAFUS_LEDGER_PORT_UNBOUND");
+  it("requires an explicit SQL adapter",async()=>{
+    const {createGafusWalletService}=await import("./walletService");
+    expect(()=>createGafusWalletService(undefined as never)).toThrow("GAFUS_LEDGER_DEPENDENCIES_REQUIRED");
   });
   it("preserves owner-scoped read and a single locked transaction token for CAS",async()=>{
-    const core=await import("./gafusLedgerPort");const svc=await import("./walletService");
-    const p=port();core.registerGafusLedgerRowsPort(p);
+    const {createGafusWalletService}=await import("./walletService");
+    const p=port();const svc=createGafusWalletService(p);
     const tx={walletLock:"same-transaction"} as unknown as GafusTx;
     await expect(svc.getGafusBalance("owner-B")).resolves.toBe(5);
     expect(p.readWalletBalanceRow).toHaveBeenCalledExactlyOnceWith("owner-B");
@@ -35,9 +31,20 @@ describe("Gafus owner wallet SQL row port",()=>{
       userId:"owner-B",balanceBefore:0,balanceAfter:2,idempotencyKey:"idempotency-1",
     }));
   });
-  it("rejects replacing the owner-scoped SQL repository during process lifetime",async()=>{
-    const core=await import("./gafusLedgerPort");const p=port();core.registerGafusLedgerRowsPort(p);
-    core.registerGafusLedgerRowsPort(p);
-    expect(()=>core.registerGafusLedgerRowsPort(port())).toThrow("GAFUS_LEDGER_PORT_ALREADY_BOUND");
+  it("reads history without shadowing the injected SQL port", async () => {
+    const {createGafusWalletService}=await import("./walletService");
+    const p=port();const svc=createGafusWalletService(p);
+    await expect(svc.listGafusTransactions({userId:"owner-A",cursor:"cursor",limit:10}))
+      .resolves.toEqual({items:[],nextCursor:null});
+    expect(p.readWalletLedgerRows).toHaveBeenCalledExactlyOnceWith("owner-A","cursor",10);
+  });
+  it("isolates two independent owner-scoped repositories",async()=>{
+    const {createGafusWalletService}=await import("./walletService");
+    const a=port(),b=port();b.readWalletBalanceRow.mockResolvedValue({balance:9});
+    const first=createGafusWalletService(a),second=createGafusWalletService(b);
+    await expect(first.getGafusBalance("owner-A")).resolves.toBe(5);
+    await expect(second.getGafusBalance("owner-A")).resolves.toBe(9);
+    expect(a.readWalletBalanceRow).toHaveBeenCalledOnce();
+    expect(b.readWalletBalanceRow).toHaveBeenCalledOnce();
   });
 });

@@ -2,15 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearTrainingDayContentCache,
-  getTrainingDayContent,
+  getTrainingDayContent as getTrainingDayContentCore,
   invalidateCourseContentCache,
   invalidateTrainingDayContentCache,
   invalidateTrainingDaysContentCache,
   invalidateStepsContentCache,
 } from "./trainingDayContent";
-import { registerTrainingDayContentReadPort } from "./trainingDayContentReadPort";
 import { readTrainingDayContent } from "@gafus/course-read-server";
-registerTrainingDayContentReadPort({ readTrainingDayContent });
+const contentPorts = {
+  contentRows: { readTrainingDayContent },
+  revisionRows: { readDurableCourseContentRevision: async () => null },
+};
+const getTrainingDayContent = (courseType: string, dayOnCourseId: string) =>
+  getTrainingDayContentCore(courseType, dayOnCourseId, contentPorts);
 import {
   getCourseCacheMetricsSnapshot,
   resetCourseCacheMetricsForTests,

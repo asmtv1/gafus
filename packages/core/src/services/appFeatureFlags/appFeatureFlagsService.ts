@@ -2,12 +2,14 @@
  * Pure Core feature-flag contract. One configuration for all mobile users.
  * Composition root binds the persistence adapter before serving requests.
  */
-export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT = "mobile_ios_ru_card_payment_hint";
-export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT = "mobile_ios_ru_card_payment";
-export const APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES = "mobile_ios_subscription_promo_codes";
-export const APP_FEATURE_MOBILE_REWARDED_ADS_IOS = "mobile_rewarded_ads_ios";
-export const APP_FEATURE_APP_SUBSCRIPTION_PAYWALL = "app_subscription_paywall_enabled";
-export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enabled";
+export {
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
+  APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
+  APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
+  APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
+  APP_FEATURE_APP_SUBSCRIPTION_GATING,
+} from "@gafus/types";
 
 export type ClientAppContext = {
   platform: "ios" | "android" | "unknown";
@@ -69,40 +71,4 @@ export interface AppFeatureFlagsPorts {
   getMobileAppPublicConfig(context?: ClientAppContext): Promise<MobileAppPublicConfig>;
   setAppFeatureFlagEnabled(key: string, enabled: boolean): Promise<void>;
   updateMobileReleaseControl(input: UpdateMobileReleaseControlInput, actorId: string): Promise<MobileReleaseControlDto>;
-}
-
-let installedPort: Readonly<AppFeatureFlagsPorts> | null = null;
-export function registerAppFeatureFlagsPort(port: AppFeatureFlagsPorts): void {
-  if (installedPort !== null && installedPort !== port) {
-    throw new Error("APP_FEATURE_FLAGS_PORT_ALREADY_BOUND");
-  }
-  installedPort = port;
-}
-function requirePort(): Readonly<AppFeatureFlagsPorts> {
-  if (!installedPort) throw new Error("APP_FEATURE_FLAGS_PORT_UNBOUND");
-  return installedPort;
-}
-export async function getAppFeatureFlagEnabled(key: string, defaultEnabled = false): Promise<boolean> {
-  return requirePort().getAppFeatureFlagEnabled(key, defaultEnabled);
-}
-export async function getMobileFeatureFlagEnabled(
-  key: string, context: ClientAppContext, defaultEnabled = false,
-): Promise<boolean> {
-  return requirePort().getMobileFeatureFlagEnabled(key, context, defaultEnabled);
-}
-export async function getMobileReleaseControl(): Promise<MobileReleaseControlDto> {
-  return requirePort().getMobileReleaseControl();
-}
-export async function getMobileAppPublicConfig(
-  context: ClientAppContext = { platform: "unknown", version: null },
-): Promise<MobileAppPublicConfig> {
-  return requirePort().getMobileAppPublicConfig(context);
-}
-export async function setAppFeatureFlagEnabled(key: string, enabled: boolean): Promise<void> {
-  return requirePort().setAppFeatureFlagEnabled(key, enabled);
-}
-export async function updateMobileReleaseControl(
-  input: UpdateMobileReleaseControlInput, actorId: string,
-): Promise<MobileReleaseControlDto> {
-  return requirePort().updateMobileReleaseControl(input, actorId);
 }

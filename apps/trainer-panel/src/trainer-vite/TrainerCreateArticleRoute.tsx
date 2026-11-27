@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 // Import the pure helper, not the Core utils barrel (server logger uses Node process).
-import { transliterate } from "../../../../packages/core/src/utils/transliterate";
+import { transliterate } from "@gafus/core-client/utils/transliterate";
 import { useTrainerAuthoring, type TrainerAuthoringProps } from "./trainerAuthoringClient";
 import {
   TrainerFormPage, TrainerFormSection, TrainerFormActions,

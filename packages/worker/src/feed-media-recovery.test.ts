@@ -1,13 +1,19 @@
+import { createCountDueFeedVideoRecovery } from "@gafus/feed-server/feed-video-recovery";
 import { describe, expect, it, vi } from "vitest";
 import { createFeedMediaRecoveryTick } from "./feed-media-recovery";
 
+// These unit tests supply a DB delegate and a dispatch mock; no runtime DB or telemetry.
+vi.mock("@gafus/prisma", () => ({ prisma: {} }));
+vi.mock("./cloudru-media-dispatcher.js", () => ({
+  createCloudruChatPoolDispatcher: vi.fn(), createCloudruFeedPoolDispatcher: vi.fn(),
+}));
 const clock = () => new Date("2026-10-28T00:00:00.000Z");
 type Group = { kind: "publish_photo" | "publish_video" | "copy_album" | "delete_keys" | "cleanup_source"; _count: { _all: number } };
 function setup(groups: Group[]) {
   const groupBy = vi.fn(async () => groups);
   const video = vi.fn(async () => ({ dispatched: 1 }));
   const run = createFeedMediaRecoveryTick({
-    database: { feedStorageJob: { groupBy } } as never,
+    countDueVideos: createCountDueFeedVideoRecovery({ feedStorageJob: {groupBy} } as never),
     video: video as never, now: clock,
   });
   return { run, groupBy, video };
@@ -53,7 +59,7 @@ describe("Feed recovery only launches a Cloud pool for due durable media tasks",
     const groupBy = vi.fn(async () => new Promise<Group[]>(resolve => { done = resolve; }));
       const video = vi.fn(async () => ({ dispatched: 1 }));
     const run = createFeedMediaRecoveryTick({
-      database: { feedStorageJob: { groupBy } } as never,
+      countDueVideos: createCountDueFeedVideoRecovery({ feedStorageJob: {groupBy} } as never),
       video: video as never, now: clock,
     });
     const first = run();

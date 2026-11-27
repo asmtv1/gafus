@@ -130,6 +130,8 @@ tests:
               instance: synthetic
               severity: warning
             exp_annotations:
+              owner: chat2-worker
+              runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#chat2-outbox"
               summary: 'Oldest Chat2 outbox event is older than five minutes'
 
   - name: chat2_dead_letters_held_for_two_minutes
@@ -150,6 +152,8 @@ tests:
               instance: synthetic
               severity: warning
             exp_annotations:
+              owner: chat2-worker
+              runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#chat2-outbox"
               summary: 'Chat2 outbox dead letters need an admin review'
 
   - name: outbox_missing_metric_is_alarm_after_ten_minutes
@@ -167,6 +171,8 @@ tests:
           - exp_labels:
               severity: warning
             exp_annotations:
+              owner: observability
+              runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
               summary: 'Chat2 outbox metrics are not exported by the worker'
 
   - name: questions_legacy_failed_cleanup_held_for_five_minutes

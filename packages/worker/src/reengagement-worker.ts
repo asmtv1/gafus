@@ -260,7 +260,7 @@ class ReengagementWorker {
         .map((r) => r.endpoint);
 
       if (invalidEndpoints.length > 0) {
-        await deleteInvalidReengagementPushEndpoints(invalidEndpoints);
+        await deleteInvalidReengagementPushEndpoints(userId, invalidEndpoints);
 
         logger.info(`Удалено ${invalidEndpoints.length} недействительных подписок`, { userId });
       }
@@ -333,14 +333,8 @@ class ReengagementWorker {
   }
 }
 
-// Запуск worker
-const startupLogger = createWorkerLogger("startup");
-startupLogger.info("Запуск re-engagement worker...");
-
-try {
+export function startReengagementWorker(): () => Promise<void> {
   const worker = new ReengagementWorker();
   worker.start();
-} catch (error) {
-  startupLogger.error("Ошибка запуска re-engagement worker", error as Error);
-  process.exit(1);
+  return () => worker.stop();
 }

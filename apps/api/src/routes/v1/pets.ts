@@ -1,10 +1,12 @@
+import { petRows } from "../../modules/pets/composition/pet-rows-instance.js";
+import { vetVisitRows } from "../../modules/pets/composition/vet-visit-rows-instance.js";
 /**
  * Pets Routes
  * Endpoints для работы с питомцами: список, создание, обновление, удаление
  */
 import { Hono, type Context } from "hono";
 import type { TypedResponse } from "hono";
-import type { PetListRead, PetDetailRead } from "../../../../../packages/types/src/data/pet";
+import type { PetListRead, PetDetailRead } from "@gafus/types/pet";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 import { petEditValidationError } from "./g1-field-validation";
@@ -175,7 +177,7 @@ async function handleRenamePetDocument(c: RenamePetDocumentContext) {
     const documentId = String(c.req.param("documentId"));
     const { name } = c.req.valid("json");
 
-    const updated = await renamePetDocument(documentId, user.id, name, petId);
+    const updated = await renamePetDocument(petRows, documentId, user.id, name, petId);
     if (!updated) {
       return c.json(
         { success: false, error: "Документ не найден", code: "DOCUMENT_NOT_FOUND" },
@@ -251,7 +253,7 @@ petsRoutes.post(
     try {
       const user = c.get("user");
       const data = c.req.valid("json");
-      const pet = await createPet(user.id, data);
+      const pet = await createPet(petRows, user.id, data);
       // Symbol is non-enumerable and never enters JSON, preserving Pet DTO.
       const replayed =
         (pet as unknown as Record<symbol, unknown>)[Symbol.for("gafus.pet.create.replayed")] ===
@@ -427,7 +429,7 @@ petsRoutes.post("/:petId/photo", async (c) => {
         error:"Некорректное изображение питомца" },400,
         {"Cache-Control":"private, no-store"});
     }
-    const stored = await updatePetPhoto(petId, user.id, normalized);
+    const stored = await updatePetPhoto(petRows, petId, user.id, normalized);
     // Core persists a provider marker; only the authenticated HTTP response
     // may expose the short-lived signed URL, never the storage marker.
     const { photoUrl } = await presentOwnedPetPhoto({ photoUrl: stored });
@@ -461,7 +463,7 @@ petsRoutes.get("/:petId/documents", async (c) => {
   try {
     const user = c.get("user");
     const petId = c.req.param("petId");
-    const documents = await listPetDocuments(petId, user.id);
+    const documents = await listPetDocuments(petRows, petId, user.id);
     return c.json({ success: true, data: documents });
   } catch (error) {
     const mappedError = mapPetDocumentError(error);
@@ -509,7 +511,7 @@ petsRoutes.post("/:petId/documents", async (c) => {
       );
     }
 
-    const document = await uploadPetDocument(petId, user.id, uploadedFile);
+    const document = await uploadPetDocument(petRows, petId, user.id, uploadedFile);
     return c.json({ success: true, data: document }, 201);
   } catch (error) {
     const mappedError = mapPetDocumentError(error);
@@ -530,7 +532,7 @@ petsRoutes.delete("/:petId/documents/:documentId", async (c) => {
     const user = c.get("user");
     const petId = c.req.param("petId");
     const documentId = c.req.param("documentId");
-    const deleted = await deletePetDocument(documentId, user.id, petId);
+    const deleted = await deletePetDocument(petRows, documentId, user.id, petId);
     if (!deleted) {
       return c.json(
         { success: false, error: "Документ не найден", code: "DOCUMENT_NOT_FOUND" },
@@ -562,7 +564,7 @@ petsRoutes.get("/:petId/documents/:documentId/download", async (c) => {
     const user = c.get("user");
     const petId = c.req.param("petId");
     const documentId = c.req.param("documentId");
-    const downloadPayload = await preparePetDocumentDownload(documentId, user.id, petId);
+    const downloadPayload = await preparePetDocumentDownload(petRows, documentId, user.id, petId);
     if (!downloadPayload) {
       return c.json(
         { success: false, error: "Документ не найден", code: "DOCUMENT_NOT_FOUND" },
@@ -594,7 +596,7 @@ petsRoutes.put(
       if (!petId)
         return c.json({ success: false, code: "PET_NOT_FOUND", error: "Питомец не найден" }, 404);
       const data = c.req.valid("json");
-      const pet = await updatePet(petId, user.id, data);
+      const pet = await updatePet(petRows, petId, user.id, data);
 
       if (!pet) {
         return c.json({ success: false, code: "PET_NOT_FOUND", error: "Питомец не найден" }, 404);
@@ -616,7 +618,7 @@ petsRoutes.delete("/:petId", async (c) => {
   try {
     const user = c.get("user");
     const petId = c.req.param("petId");
-    const deleted = await deletePet(petId, user.id);
+    const deleted = await deletePet(petRows, vetVisitRows, petId, user.id);
 
     if (!deleted) {
       return c.json({ success: false, error: "Питомец не найден" }, 404);

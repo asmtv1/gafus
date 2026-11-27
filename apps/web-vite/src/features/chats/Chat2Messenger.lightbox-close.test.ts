@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const component = readFileSync(new URL("./Chat2Messenger.tsx", import.meta.url), "utf8");
+const component = ["Chat2Messenger.tsx", "Chat2Room.tsx", "Chat2StoredMedia.tsx"].map(file => readFileSync(new URL("./" + file, import.meta.url), "utf8")).join("\n");
 const css = readFileSync(new URL("./Chat2Messenger.module.css", import.meta.url), "utf8");
 
 const closeStyleStart = css.indexOf(".mediaLightboxClose {");

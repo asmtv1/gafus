@@ -20,21 +20,40 @@ function exactIsolatedCdnStatusUrl(raw: string): boolean {
       process.env.REDIS_URL !== "redis://127.0.0.1:56340") return false;
   return /^http:\/\/127\.0\.0\.1:58344\/(?:gallery|feed)\/(?:403|404|410|503|504)$/.test(raw);
 }
+// Only join simultaneous HEAD requests for the exact validated URL. Never
+// cache results after completion: an object can be revoked at any time.
+// Authentication and URL validation still run separately for every caller.
+const MAX_PENDING_PROBES = 256;
+const pendingProbes = new Map<string, Promise<number>>();
+
+async function readCdnStatus(url: string): Promise<number> {
+  try {
+    const upstream = await fetch(url, {
+      method: "HEAD", cache: "no-store", credentials: "omit",
+      redirect: "manual", signal: AbortSignal.timeout(6500),
+    });
+    return upstream.status;
+  } catch {
+    return 503;
+  }
+}
+
+function probeStatus(url: string): Promise<number> {
+  const pending = pendingProbes.get(url);
+  if (pending) return pending;
+  // Saturation must not manufacture an outage or retain unbounded signed URLs.
+  if (pendingProbes.size >= MAX_PENDING_PROBES) return Promise.resolve(429);
+  const result = readCdnStatus(url).finally(() => pendingProbes.delete(url));
+  pendingProbes.set(url, result);
+  return result;
+}
+
 mediaCdnProbeRoutes.get("/", async c => {
   if (!c.get("user")?.id) return new Response(null, { status: 401, headers });
   const params = [...new URL(c.req.url).searchParams];
   if (params.length !== 1 || params[0]?.[0] !== "url" ||
       !(isTrustedCdnProbeUrl(params[0][1], hosts) || exactIsolatedCdnStatusUrl(params[0][1])))
     return new Response(null, { status: 400, headers });
-  try {
-    const upstream = await fetch(params[0][1], {
-      method: "HEAD", cache: "no-store", credentials: "omit",
-      redirect: "manual", signal: AbortSignal.timeout(6500),
-    });
-    // Do not turn private/missing CDN objects (403/404) into S3 fallback.
-    return new Response(null, { status: upstream.status, headers });
-  } catch {
-    // Network failures/timeouts have the same recovery semantics as old Next.
-    return new Response(null, { status: 503, headers });
-  }
+  // Do not turn private/missing CDN objects (403/404) into S3 fallback.
+  return new Response(null, { status: await probeStatus(params[0][1]), headers });
 });

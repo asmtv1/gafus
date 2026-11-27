@@ -50,14 +50,3 @@ export interface GafusLedgerRowsPort {
   readWalletBalanceRow(userId: string): Promise<{ balance: number } | null>;
   readWalletLedgerRows(userId: string, cursor: string | undefined, limit: number): Promise<GafusLedgerHistoryRow[]>;
 }
-let installedGafusLedgerPort: Readonly<GafusLedgerRowsPort> | null = null;
-export function registerGafusLedgerRowsPort(port: GafusLedgerRowsPort): void {
-  if (installedGafusLedgerPort !== null && installedGafusLedgerPort !== port) {
-    throw new Error("GAFUS_LEDGER_PORT_ALREADY_BOUND");
-  }
-  installedGafusLedgerPort = port;
-}
-export function requireGafusLedgerRowsPort(): Readonly<GafusLedgerRowsPort> {
-  if (!installedGafusLedgerPort) throw new Error("GAFUS_LEDGER_PORT_UNBOUND");
-  return installedGafusLedgerPort;
-}

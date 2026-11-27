@@ -116,6 +116,7 @@ describe("AG3 daily course new-only durable Phase1", () => {
     });
     it(c.kind + " retains original online transport", async () => {
       m.offline = false;
+      m.getPending.mockResolvedValue([]);
       expect((await useSubject(c.kind).mutationFn(c.args)).success).toBe(true);
       expect(m[c.send]).toHaveBeenCalledWith(c.args);
       expect(m.enqueue).not.toHaveBeenCalled();

@@ -7,7 +7,6 @@ import type {
   RegistrationPromoDbRow,
   RegistrationContractRowsPort,
 } from "./registrationContractRowsPort";
-export { registerRegistrationContractRowsPort } from "./registrationContractRowsPort";
 export type { RegistrationContractRowsPort } from "./registrationContractRowsPort";
 
 import { parseAppSubscriptionPromoCode } from "../appSubscription/promoCode";
@@ -67,7 +66,7 @@ export async function resolveRegistrationPromoCodeInTransaction(
   const identity = parseAppSubscriptionPromoCode(rawCode);
   if (!identity) throw new RegistrationContractError("REGISTRATION_PROMO_INVALID");
 
-  const promoCode = await (rows ?? requireRegistrationContractRowsPort()).readRegistrationPromoRowTx(tx,identity.normalizedCode);
+  const promoCode = await (requireRegistrationContractRowsPort(rows)).readRegistrationPromoRowTx(tx,identity.normalizedCode);
   if (!promoCode) throw new RegistrationContractError("REGISTRATION_PROMO_INVALID");
   if (promoCode.archivedAt) throw new RegistrationContractError("REGISTRATION_PROMO_ARCHIVED");
   if (!promoCode.isActive) throw new RegistrationContractError("REGISTRATION_PROMO_INACTIVE");
@@ -83,7 +82,7 @@ export async function saveRegistrationPromoCodeInTransaction(
 ): Promise<RegistrationPromoResolution | null> {
   const promoCode = await resolveRegistrationPromoCodeInTransaction(tx, params.rawCode, rows);
   if (promoCode) {
-    await (rows ?? requireRegistrationContractRowsPort()).saveRegistrationPromoRowTx(tx,params.userId,promoCode.id);
+    await (requireRegistrationContractRowsPort(rows)).saveRegistrationPromoRowTx(tx,params.userId,promoCode.id);
   }
   return promoCode;
 }
@@ -95,15 +94,15 @@ export async function getOrCreateRegistrationEmailAttemptInTransaction(
 ) {
   // A unique-violation catch cannot query PostgreSQL afterwards: the transaction
   // is already aborted. Serialize every observation/creation of this stable key.
-  await (rows ?? requireRegistrationContractRowsPort()).lockRegistrationEmailAttemptTx(tx,params.tempSessionId);
-  const existing = await (rows ?? requireRegistrationContractRowsPort()).readRegistrationEmailAttemptTx(tx,params.tempSessionId);
+  await (requireRegistrationContractRowsPort(rows)).lockRegistrationEmailAttemptTx(tx,params.tempSessionId);
+  const existing = await (requireRegistrationContractRowsPort(rows)).readRegistrationEmailAttemptTx(tx,params.tempSessionId);
   if (existing) {
     if (existing.dataFingerprint !== params.dataFingerprint) {
       throw new RegistrationContractError("REGISTRATION_ATTEMPT_FINGERPRINT_MISMATCH");
     }
     return existing;
   }
-  return (rows ?? requireRegistrationContractRowsPort()).insertRegistrationEmailAttemptTx(tx,params);
+  return (requireRegistrationContractRowsPort(rows)).insertRegistrationEmailAttemptTx(tx,params);
 }
 
 export async function completeRegistrationEmailAttemptInTransaction(
@@ -118,5 +117,5 @@ export async function completeRegistrationEmailAttemptInTransaction(
 ) {
   const attempt = await getOrCreateRegistrationEmailAttemptInTransaction(tx, params, rows);
   if (attempt.completedAt) return attempt;
-  return (rows ?? requireRegistrationContractRowsPort()).finishRegistrationEmailAttemptTx(tx,attempt.id,params);
+  return (requireRegistrationContractRowsPort(rows)).finishRegistrationEmailAttemptTx(tx,attempt.id,params);
 }

@@ -1,9 +1,9 @@
 /** Existing GET /courses/access chooses the Core lookup; HTTP owns validation. */
-import type { checkCourseAccess, checkCourseAccessById } from "@gafus/core/services/course";
+import type { CatalogReadService } from "@gafus/core/services/course";
 
 export function createReadCourseAccessApplication(dependencies: {
-  byType: typeof checkCourseAccess;
-  byId: typeof checkCourseAccessById;
+  byType: CatalogReadService["checkCourseAccess"];
+  byId: CatalogReadService["checkCourseAccessById"];
 }) {
   return {
     execute({
@@ -14,7 +14,7 @@ export function createReadCourseAccessApplication(dependencies: {
       actorUserId: string;
       courseType?: string;
       courseId?: string;
-    }): ReturnType<typeof checkCourseAccess> {
+    }): ReturnType<CatalogReadService["checkCourseAccess"]> {
       if (courseId) return dependencies.byId(courseId, actorUserId);
       // HTTP route already rejects requests without both identifiers.
       return dependencies.byType(courseType!, actorUserId);

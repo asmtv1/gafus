@@ -5,7 +5,7 @@ import type {
   TrainerDailyBundleStepCandidateItem,
   TrainerDailyScheduleItem,
   TrainerDailyCandidateItem,
-} from "../../../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 
 type BundlesReader = ReturnType<typeof createDailyCourseService>["getDailyCourseBundles"];
 type BundleStepCandidatesReader = ReturnType<typeof createDailyCourseService>["getDailyCourseBundleStepCandidates"];

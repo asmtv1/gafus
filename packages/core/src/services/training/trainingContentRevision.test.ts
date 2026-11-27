@@ -6,9 +6,8 @@ import {
   getVerifiedCourseContentRevision,
   publishCourseContentChange,
 } from "./trainingContentRevision";
-import { registerCourseContentRevisionReadPort } from "./trainingContentRevision";
 import { readDurableCourseContentRevision } from "@gafus/course-read-server/content-revision";
-registerCourseContentRevisionReadPort({ readDurableCourseContentRevision });
+const revisionRows = { readDurableCourseContentRevision };
 
 const bridge = vi.hoisted(() => ({
   read: vi.fn(),
@@ -73,10 +72,10 @@ describe("Redis-backed course content revision coordination", () => {
   });
 
   it("checks committed PostgreSQL revision without reading Redis", async () => {
-    expect(await getVerifiedCourseContentRevision()).toBe("10");
+    expect(await getVerifiedCourseContentRevision(revisionRows)).toBe("10");
     durable.query.mockResolvedValue([{ revision: 11n }]);
     // A committed edit must invalidate even if the Redis INCR was never sent.
-    expect(await getVerifiedCourseContentRevision()).toBe("11");
+    expect(await getVerifiedCourseContentRevision(revisionRows)).toBe("11");
     expect(durable.query).toHaveBeenCalledTimes(2);
     expect(bridge.read).not.toHaveBeenCalled();
   });
@@ -84,24 +83,24 @@ describe("Redis-backed course content revision coordination", () => {
   it("bypasses cache if the durable row is missing or invalid", async () => {
     const log = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     durable.query.mockResolvedValue([]);
-    await expect(getVerifiedCourseContentRevision()).resolves.toBeNull();
+    await expect(getVerifiedCourseContentRevision(revisionRows)).resolves.toBeNull();
     durable.query.mockResolvedValue([{ revision: null }]);
-    await expect(getVerifiedCourseContentRevision()).resolves.toBeNull();
+    await expect(getVerifiedCourseContentRevision(revisionRows)).resolves.toBeNull();
     expect(log).toHaveBeenCalled();
   });
 
   it("bypasses cache on PostgreSQL revision query failures", async () => {
     const log = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     durable.query.mockRejectedValue(new Error("db unavailable"));
-    await expect(getVerifiedCourseContentRevision()).resolves.toBeNull();
+    await expect(getVerifiedCourseContentRevision(revisionRows)).resolves.toBeNull();
     expect(log).toBeDefined();
   });
 
   it("serves verified PostgreSQL revision even if Redis is completely unavailable", async () => {
     bridge.read.mockRejectedValue(new Error("redis unavailable"));
-    await expect(getVerifiedCourseContentRevision()).resolves.toBe("10");
+    await expect(getVerifiedCourseContentRevision(revisionRows)).resolves.toBe("10");
     durable.query.mockResolvedValue([{ revision: 11n }]);
-    await expect(getVerifiedCourseContentRevision()).resolves.toBe("11");
+    await expect(getVerifiedCourseContentRevision(revisionRows)).resolves.toBe("11");
     expect(bridge.read).not.toHaveBeenCalled();
     expect(durable.query).toHaveBeenCalledTimes(2);
   });

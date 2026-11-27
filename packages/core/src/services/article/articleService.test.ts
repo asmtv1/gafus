@@ -34,12 +34,12 @@ const rows: ArticleReadPort = {
   recordArticleViewRow,
 };
 const getArticles = (userId?: string, take = 50, skip = 0, authorId?: string) =>
-  coreGetArticles(rows, userId, take, skip, authorId);
+  coreGetArticles(rows, mockResolveArticleEntitlement, userId, take, skip, authorId);
 const getArticleBySlug = (slug: string, userId?: string) =>
-  coreGetArticleBySlug(rows, slug, userId);
+  coreGetArticleBySlug(rows, mockResolveArticleEntitlement, slug, userId);
 const getArticleBySlugForMonetizedAccess = (
-  input: Parameters<typeof coreGetArticleBySlugForMonetizedAccess>[1],
-) => coreGetArticleBySlugForMonetizedAccess(rows, input);
+  input: Parameters<typeof coreGetArticleBySlugForMonetizedAccess>[2],
+) => coreGetArticleBySlugForMonetizedAccess(rows, mockResolveArticleEntitlement, input);
 const getArticleForEdit = (id: string, userId: string) => coreGetArticleForEdit(rows, id, userId);
 const createArticle = (input: Record<string, unknown>, userId: string) =>
   coreCreateArticle(rows, input, userId);
@@ -77,9 +77,7 @@ const mockResolveArticleEntitlement = vi
   .fn()
   .mockResolvedValue({ allowed: false, source: "DENIED" });
 
-vi.mock("../contentAccess/policy", () => ({
-  resolveArticleEntitlement: (...args: unknown[]) => mockResolveArticleEntitlement(...args),
-}));
+
 
 vi.mock("@gafus/prisma", () => ({
   isPrismaUniqueConstraintError: (error: unknown) =>

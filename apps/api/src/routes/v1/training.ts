@@ -7,14 +7,12 @@ import type {
   DiaryRead,
   TrainingDayRead,
   TrainingDaysRead,
-} from "../../../../../packages/types/src/data/training";
+} from "@gafus/types/training";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
-import {
-  requireCourseStepOperationAccess,
-  validateTheoryStepForCompletion,
-} from "@gafus/core/services/training";
+import type { TrainingServiceApi } from "@gafus/core/services/training";
+import { sqlTraining } from "../../modules/training/composition/sql-training-instance.js";
 import { withOnlineStepBinding } from "@gafus/course-server/online-step-binding";
 import {
   SubscriptionOrCreditsRequiredError,
@@ -24,7 +22,7 @@ import {
   checkVideoAccess,
   getVideoManifestInfo,
 } from "../../modules/video/composition/video-access.js";
-import { getProgress, saveProgress } from "@gafus/course-server/video-progress";
+import { getProgress, getProgressSnapshot, saveProgress } from "@gafus/course-server/video-progress";
 import {
   createStepNotificationForStepStart,
   getDayFromDayOnCourseId,
@@ -210,8 +208,8 @@ if (process.env.NODE_ENV === "production" && !process.env.VIDEO_ACCESS_SECRET) {
 /** Route-owned dependencies. Unlike the legacy global Core registrar, each
  * Hono instance receives its own concrete training service and applications. */
 export type TrainingRoutesPorts = {
-  requireCourseStepOperationAccess: typeof requireCourseStepOperationAccess;
-  validateTheoryStepForCompletion: typeof validateTheoryStepForCompletion;
+  requireCourseStepOperationAccess: TrainingServiceApi["requireCourseStepOperationAccess"];
+  validateTheoryStepForCompletion: TrainingServiceApi["validateTheoryStepForCompletion"];
   readTrainingDayApplication: typeof readTrainingDayApplication;
   readTrainingDaysApplication: typeof readTrainingDaysApplication;
   writeStepProgressApplication: typeof writeStepProgressApplication;
@@ -1256,7 +1254,8 @@ trainingRoutes.get(
         );
       }
 
-      const progress = await getProgress(user.id, videoId);
+      const progress = c.req.header("X-Gafus-Sync-Protocol") === "2"
+        ? await getProgressSnapshot(user.id, videoId) : await getProgress(user.id, videoId);
       return c.json({ success: true, data: progress });
     } catch {
       logger.error(
@@ -1286,14 +1285,16 @@ trainingRoutes.post(
         );
       }
 
-      const result = await saveProgress(user.id, videoId, positionSec);
+      const versioned = c.req.header("X-Gafus-Sync-Protocol") === "2";
+      const result = versioned ? await saveProgress(user.id, videoId, positionSec, true)
+        : await saveProgress(user.id, videoId, positionSec);
       if (!result.success) {
         return c.json(
           { success: false, error: result.error ?? "Не удалось сохранить прогресс" },
           400,
         );
       }
-      return c.json({ success: true });
+      return c.json({ success: true, ...(versioned ? { data: { progressVersion: result.progressVersion } } : {}) });
     } catch {
       logger.error(
         "[training/video/progress] Ошибка сохранения прогресса",
@@ -1564,11 +1565,11 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
   return trainingRoutes;
 }
 
-// Compatibility export for existing isolated Hono/unit tests. Production
-// app.ts invokes createTrainingRoutes with its own explicit dependencies.
+// Standalone composition for consumers mounting this module directly.
+// It uses the same explicit SQL instance, never a process-wide registrar.
 export const trainingRoutes = createTrainingRoutes({
-  requireCourseStepOperationAccess,
-  validateTheoryStepForCompletion,
+  requireCourseStepOperationAccess: sqlTraining.requireCourseStepOperationAccess,
+  validateTheoryStepForCompletion: sqlTraining.validateTheoryStepForCompletion,
   readTrainingDayApplication,
   readTrainingDaysApplication,
   writeStepProgressApplication,

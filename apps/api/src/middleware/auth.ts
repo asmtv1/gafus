@@ -65,7 +65,10 @@ export function createAuthMiddleware(registration: RegistrationContextPorts) {
   }
   // Cookies are ambient credentials: state-changing calls require a trusted Origin.
   // Bearer tokens from Expo are explicit credentials and remain backward compatible.
-  if (cookieTransport && !["GET", "HEAD", "OPTIONS"].includes(c.req.method) && !isTrustedBrowserOrigin(c)) {
+  const queueReplaySameOrigin = c.req.method === "POST" &&
+    path === "/api/v1/admin/queues/operations/replay" &&
+    c.req.header("origin") === "https://api.gafus.ru";
+  if (cookieTransport && !["GET", "HEAD", "OPTIONS"].includes(c.req.method) && !isTrustedBrowserOrigin(c) && !queueReplaySameOrigin) {
     return c.json({ success: false, error: "Недоверенный Origin" }, 403);
   }
 

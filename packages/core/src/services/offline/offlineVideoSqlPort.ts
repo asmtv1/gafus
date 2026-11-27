@@ -53,12 +53,7 @@ export interface OfflineVideoSqlPort {
   ): Promise<number>;
 }
 
-let bound: Readonly<OfflineVideoSqlPort> | null = null;
-export function registerOfflineVideoSqlPort(port: OfflineVideoSqlPort): void {
-  if (bound !== null && bound !== port) throw new Error("OFFLINE_VIDEO_SQL_PORT_ALREADY_BOUND");
-  bound = port;
-}
-export function requireOfflineVideoSqlPort(): Readonly<OfflineVideoSqlPort> {
-  if (!bound) throw new Error("OFFLINE_VIDEO_SQL_PORT_UNBOUND");
-  return bound;
+export function requireOfflineVideoSqlPort(port: OfflineVideoSqlPort | undefined): Readonly<OfflineVideoSqlPort> {
+  if (!port) throw new Error("OFFLINE_VIDEO_SQL_PORT_UNBOUND");
+  return port;
 }

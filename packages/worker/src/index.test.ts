@@ -23,14 +23,15 @@ vi.mock("./health-server", () => ({
   startHealthServer: vi.fn(),
 }));
 
-vi.mock("./push-worker", () => recordBootstrapModule());
-vi.mock("./reengagement-worker", () => recordBootstrapModule());
-vi.mock("./video-transcoding-worker", () => recordBootstrapModule());
+vi.mock("./push-worker", () => ({ ...recordBootstrapModule(), startPushWorker: () => () => {} }));
+vi.mock("./reengagement-worker", () => ({ ...recordBootstrapModule(), startReengagementWorker: () => () => {} }));
+vi.mock("./video-transcoding-worker", () => ({ ...recordBootstrapModule(), startVideoTranscodingWorker: () => () => {} }));
 
 vi.mock("./consent-log-cleanup-worker", () => ({
   startConsentLogCleanupWorker: () => {
     observedMaxListeners.push(process.getMaxListeners());
     startCalls.push("consent-log-cleanup");
+    return { close: async () => {} };
   },
 }));
 
@@ -38,6 +39,7 @@ vi.mock("./exam-cleanup-worker", () => ({
   startExamCleanupWorker: () => {
     observedMaxListeners.push(process.getMaxListeners());
     startCalls.push("exam-cleanup");
+    return { close: async () => {} };
   },
 }));
 
@@ -45,6 +47,7 @@ vi.mock("./pet-prevention-reminder-worker", () => ({
   startPetPreventionReminderWorker: () => {
     observedMaxListeners.push(process.getMaxListeners());
     startCalls.push("pet-prevention-reminder");
+    return { close: async () => {} };
   },
 }));
 
@@ -87,10 +90,14 @@ vi.mock("./feed-processing-trigger-worker", () => ({
   },
 }));
 
+vi.mock("./chat2-outbox-worker", () => ({ startChat2OutboxWorker: () => () => {} }));
+vi.mock("./chat2-media-processing-trigger-worker", () => ({ startChat2MediaProcessingTriggerWorker: vi.fn() }));
+vi.mock("./mobile-telemetry-spool-worker", () => ({ startMobileTelemetryExportWorker: vi.fn(), stopMobileTelemetryExportWorker: vi.fn() }));
 vi.mock("./cron-scheduler", () => ({
   startCronJobs: () => {
     observedMaxListeners.push(process.getMaxListeners());
     startCalls.push("cron");
+    return () => {};
   },
 }));
 
@@ -105,8 +112,11 @@ describe("worker bootstrap", () => {
   it("configures process listener limit before worker modules initialize", async () => {
     process.setMaxListeners(10);
 
-    const { workerBootstrapReady } = await import("./index");
-    await workerBootstrapReady;
+    const { createWorkerRuntime } = await import("./index");
+    expect(startCalls).toEqual([]);
+    const runtime = createWorkerRuntime();
+    await runtime.start();
+    await runtime.start();
 
     expect(observedMaxListeners.length).toBeGreaterThan(0);
     expect(Math.min(...observedMaxListeners)).toBeGreaterThanOrEqual(64);
@@ -120,5 +130,13 @@ describe("worker bootstrap", () => {
       "feed-processing-trigger",
       "cron",
     ]);
+    await runtime.stop();
+    await runtime.stop();
+    await expect(runtime.start()).rejects.toThrow("WORKER_RUNTIME_STOPPED");
+    startCalls.length = 0;
+    const next = createWorkerRuntime();
+    await next.start();
+    expect(startCalls).toHaveLength(8);
+    await next.stop();
   });
 });

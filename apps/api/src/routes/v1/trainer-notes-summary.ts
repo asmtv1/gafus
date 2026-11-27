@@ -7,7 +7,7 @@
 import { Hono } from "hono";
 import { readTrainerNotesSummaryApplication } from "../../modules/trainer-notes/composition/read-notes-summary.js";
 import type {TrainerNotesSummaryRead} from
-  "../../../../../packages/types/src/data/trainer-read-contracts";
+  "@gafus/types/trainer-read-contracts";
 
 export const trainerNotesSummaryRoutes = new Hono();
 

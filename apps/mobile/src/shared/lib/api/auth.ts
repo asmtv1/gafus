@@ -256,67 +256,68 @@ export const authApi = {
    * Запрос сброса пароля — письмо на email со ссылкой
    */
   sendPasswordResetRequest: async (email: string): Promise<ApiResponse<void>> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/password-reset-request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
-        body: JSON.stringify({ email }),
-      });
+    const controller = new AbortController();
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    // Bound the entire operation, including response parsing, even if native
+    // fetch fails to settle after abort. Do not automatically replay a reset.
+    const timeout = new Promise<ApiResponse<void>>((resolve) => {
+      deadline = setTimeout(() => {
+        controller.abort();
+        resolve({
+          success: false,
+          error: "Сервер долго не отвечает. Проверьте подключение и попробуйте снова.",
+          code: "REQUEST_TIMEOUT",
+        });
+      }, 20_000);
+    });
+    const request = async (): Promise<ApiResponse<void>> => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/auth/password-reset-request`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
+          body: JSON.stringify({ email }),
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        let errorData: { error?: string; code?: string } = {};
+        if (response.ok) return { success: true };
+
+        let errorData: { error?: unknown; code?: unknown } = {};
         try {
-          const contentType = response.headers.get("content-type");
-          if (contentType?.includes("application/json")) {
+          if (response.headers.get("content-type")?.includes("application/json")) {
             errorData = await response.json();
           }
         } catch {
-          reportClientError(new Error("password_reset_error_response_parse"), {
-            issueKey: "AuthApi",
-            keys: { operation: "password_reset_error_response_parse" },
-          });
-          // Игнорируем ошибки парсинга
+          if (!controller.signal.aborted) {
+            reportClientError(new Error("password_reset_error_response_parse"), {
+              issueKey: "AuthApi",
+              keys: { operation: "password_reset_error_response_parse" },
+            });
+          }
         }
 
         return {
           success: false,
-          error: errorData.error || "Ошибка отправки запроса",
-          code: errorData.code || `HTTP_${response.status}`,
+          error: typeof errorData?.error === "string" ? errorData.error : "Ошибка отправки запроса",
+          code: typeof errorData?.code === "string" ? errorData.code : `HTTP_${response.status}`,
         };
-      }
-
-      // Для успешного ответа может не быть тела
-      try {
-        await response.json();
-      } catch {
-        reportClientError(new Error("password_reset_success_body_parse"), {
-          issueKey: "AuthApi",
-          keys: { operation: "password_reset_success_body_parse" },
-        });
-        // Игнорируем если нет JSON тела
-      }
-
-      return {
-        success: true,
-      };
-    } catch (error) {
-      reportClientError(error instanceof Error ? error : new Error(String(error)), {
-        issueKey: "AuthApi",
-        keys: { operation: "send_password_reset_request" },
-      });
-      if (error instanceof TypeError && error.message.includes("fetch")) {
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          reportClientError(error instanceof Error ? error : new Error(String(error)), {
+            issueKey: "AuthApi",
+            keys: { operation: "send_password_reset_request" },
+          });
+        }
         return {
           success: false,
           error: "Ошибка подключения к серверу",
           code: "NETWORK_ERROR",
         };
       }
-
-      return {
-        success: false,
-        error: "Ошибка подключения к серверу",
-        code: "NETWORK_ERROR",
-      };
+    };
+    try {
+      return await Promise.race([timeout, request()]);
+    } finally {
+      if (deadline !== undefined) clearTimeout(deadline);
     }
   },
 

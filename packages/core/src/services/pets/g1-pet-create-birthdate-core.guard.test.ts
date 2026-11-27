@@ -42,7 +42,7 @@ describe("PETS021 G05 direct Core create requires a real nonfuture date before a
       "29.02.2020",
       "not-a-date",
     ]) {
-      await expect(createPet(owner, { ...valid, birthDate })).rejects.toThrow();
+      await expect(createPet(petRows, owner, { ...valid, birthDate })).rejects.toThrow();
     }
     expect(db.create).not.toHaveBeenCalled();
     expect(db.tx).not.toHaveBeenCalled();
@@ -50,7 +50,7 @@ describe("PETS021 G05 direct Core create requires a real nonfuture date before a
   it("idempotent keyed create rejects bad birthday before any transaction, receipt or insert", async () => {
     for (const birthDate of ["2021-02-30", "2099-01-01"]) {
       await expect(
-        createPet(owner, { ...valid, birthDate, clientRequestId: requestKey }),
+        createPet(petRows, owner, { ...valid, birthDate, clientRequestId: requestKey }),
       ).rejects.toThrow();
     }
     expect(db.tx).not.toHaveBeenCalled();
@@ -70,9 +70,9 @@ describe("PETS021 G05 direct Core create requires a real nonfuture date before a
       { bellyGirthCm: 0 },
     ];
     for (const payload of bad) {
-      await expect(createPet(owner, { ...valid, ...payload })).rejects.toThrow();
+      await expect(createPet(petRows, owner, { ...valid, ...payload })).rejects.toThrow();
       await expect(
-        createPet(owner, { ...valid, ...payload, clientRequestId: requestKey }),
+        createPet(petRows, owner, { ...valid, ...payload, clientRequestId: requestKey }),
       ).rejects.toThrow();
     }
     expect(db.create).not.toHaveBeenCalled();
@@ -80,7 +80,7 @@ describe("PETS021 G05 direct Core create requires a real nonfuture date before a
     expect(db.claim).not.toHaveBeenCalled();
   });
   it("valid leap-day preserves original legacy write and durable request-key receipt", async () => {
-    await createPet(owner, valid);
+    await createPet(petRows, owner, valid);
     expect(db.create).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -89,7 +89,7 @@ describe("PETS021 G05 direct Core create requires a real nonfuture date before a
         }),
       }),
     );
-    await createPet(owner, { ...valid, clientRequestId: requestKey });
+    await createPet(petRows, owner, { ...valid, clientRequestId: requestKey });
     expect(db.tx).toHaveBeenCalledOnce();
     expect(db.txCreate).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
@@ -108,5 +108,5 @@ describe("PETS021 G05 direct Core create requires a real nonfuture date before a
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
-registerPetRowsPort(originalPetRowsPort as PetRowsPort);
+import type { PetRowsPort } from "./petRowsPort";
+const petRows = originalPetRowsPort as PetRowsPort;

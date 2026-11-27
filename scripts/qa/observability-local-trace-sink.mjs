@@ -22,6 +22,17 @@ const spanName = value => typeof value === "string" &&
    (/^(GET|POST|PUT|PATCH|DELETE|HEAD) \/[a-zA-Z0-9_/.*:-]{0,100}$/.test(value)))
   ? value : "diagnostic.invalid_span";
 const attr = (attrs, name) => attrs?.find(x => x?.key === name)?.value?.stringValue;
+const intAttr = (attrs, name) => {
+  const raw = attrs?.find(x => x?.key === name)?.value?.intValue;
+  if (typeof raw !== "number" && typeof raw !== "string") return undefined;
+  if (!/^(0|[1-9]\d{0,9})$/.test(String(raw))) return undefined;
+  const value = Number(raw);
+  return value <= 1_000_000_000 ? value : undefined;
+};
+const releaseAttr = (attrs, name, pattern) => {
+  const value = attr(attrs, name);
+  return typeof value === "string" && pattern.test(value) ? value : undefined;
+};
 const server = createServer(async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (req.method === "GET" && req.url === "/health") return void res.writeHead(200).end("ok");
@@ -45,8 +56,14 @@ const server = createServer(async (req, res) => {
             safe.push({ operationId, traceId: seenTraceId,
               name: spanName(span.name), spanId: spanId(span.spanId),
               parentSpanId: spanId(span.parentSpanId),
-              attempt: Number.isInteger(Number(attr(span.attributes, "gafus.job_attempt")))
-                ? Number(attr(span.attributes, "gafus.job_attempt")) : undefined });
+              sourceTraceId: traceId(attr(span.attributes, "gafus.source_trace_id")),
+              attempt: intAttr(span.attributes, "gafus.job_attempt"),
+              clientPlatform: releaseAttr(span.attributes, "gafus.client_platform", /^(ios|android|web)$/),
+              clientVersion: releaseAttr(span.attributes, "gafus.client_version", /^\d{1,4}\.\d{1,4}\.\d{1,4}$/),
+              clientBuild: releaseAttr(span.attributes, "gafus.client_build", /^[1-9]\d{0,9}$/),
+              otaRevision: intAttr(span.attributes, "gafus.ota_revision"),
+              queueWaitMs: intAttr(span.attributes, "gafus.queue_wait_ms"),
+              eventAgeMs: intAttr(span.attributes, "gafus.event_age_ms") });
           }
       if (safe.length) await appendFile(logfile, safe.map(x => JSON.stringify(x)).join("\n") + "\n", { mode: 0o600 });
       return void res.writeHead(200, { "Content-Type": "application/json" }).end("{}");

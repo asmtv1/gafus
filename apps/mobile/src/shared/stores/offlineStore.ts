@@ -1,19 +1,41 @@
 /**
  * Store офлайн-курсов: очередь скачивания, список скачанных, прогресс.
- * Персист в AsyncStorage (очередь + список). Метаданные курсов — в FileSystem (meta.json).
+ * Индекс строится из завершённых файлов текущего владельца; очередь хранится отдельно по владельцу.
  */
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import { zustandStorage } from "./storage";
 import { reportClientError } from "@/shared/lib/error-reporting";
-import { deleteCourseData } from "@/shared/lib/offline/offlineStorage";
+import { deleteCourseData, getCourseMeta, getOfflineCourseTypes, assertSafeOfflineSegment } from "@/shared/lib/offline/offlineStorage";
 import {
   downloadCourseForOffline,
   hasEnoughDiskSpace,
   type DownloadCourseProgress,
 } from "@/shared/lib/offline/downloadCourseForOffline";
 
+import { captureOfflineCourseScope, subscribeOfflineCourseSession, type OfflineCourseScope } from "@/shared/lib/offline/offlineCourseSession";
+
 let downloadAbortController: AbortController | null = null;
+let activeScope: OfflineCourseScope | null = null;
+let hydration: Promise<void> = Promise.resolve();
+let queueWrites: Promise<void> = Promise.resolve();
+
+const queueKey = (scope: OfflineCourseScope) => `offline-storage-v2:${scope.principalId}`;
+function persistQueue(scope: OfflineCourseScope, state: OfflineState) {
+  const queue = state.status.status === "downloading"
+    ? [state.status.courseType, ...state.downloadQueue] : state.downloadQueue;
+  const value = JSON.stringify({ ownerId: scope.principalId, queue });
+  queueWrites = queueWrites.catch(() => undefined).then(async () => {
+    await zustandStorage.setItem(queueKey(scope), value);
+  }).catch(error => { reportClientError(error, { issueKey: "OfflineDownloadQueuePersist" }); });
+}
+
+function validQueue(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((item): item is string => {
+    if (typeof item !== "string") return false;
+    try { assertSafeOfflineSegment(item); return true; } catch { return false; }
+  }))].slice(0, 500);
+}
 
 interface DownloadedCourse {
   version: string;
@@ -46,7 +68,9 @@ const initialState: OfflineState = {
 async function processQueue(
   set: (fn: (s: OfflineState) => Partial<OfflineState>) => void,
   get: () => OfflineStore,
+  scope: OfflineCourseScope,
 ): Promise<void> {
+  if (!scope.canWrite()) return;
   const state = get();
   if (state.status.status !== "idle") return;
   const next = state.downloadQueue[0];
@@ -61,6 +85,7 @@ async function processQueue(
     },
   }));
 
+  persistQueue(scope, get());
   const controller = new AbortController();
   downloadAbortController = controller;
   let result: Awaited<ReturnType<typeof downloadCourseForOffline>>;
@@ -68,11 +93,12 @@ async function processQueue(
     result = await downloadCourseForOffline(
       next,
       (progress) => {
-        get().setDownloadProgress(progress);
+        if (scope.isCurrent() && downloadAbortController === controller) get().setDownloadProgress(progress);
       },
       controller.signal,
     );
   } catch (error) {
+    if (!scope.isCurrent()) return;
     reportClientError(error instanceof Error ? error : new Error(String(error)), {
       issueKey: "OfflineDownloadQueue",
       keys: { courseType: next },
@@ -83,6 +109,7 @@ async function processQueue(
       downloadQueue: s.downloadQueue.includes(next) ? s.downloadQueue : [next, ...s.downloadQueue],
       status: { status: "idle" },
     }));
+    persistQueue(scope, get());
     return;
   } finally {
     if (downloadAbortController === controller) {
@@ -90,6 +117,7 @@ async function processQueue(
     }
   }
 
+  if (!scope.isCurrent()) return;
   if (result.success) {
     set((s) => ({
       downloaded: { ...s.downloaded, [next]: { version: result.version } },
@@ -98,12 +126,11 @@ async function processQueue(
   } else {
     set(() => ({ status: { status: "idle" } }));
   }
-  processQueue(set, get);
+  persistQueue(scope, get());
+  void processQueue(set, get, scope);
 }
 
-export const useOfflineStore = create<OfflineStore>()(
-  persist(
-    (set, get) => ({
+export const useOfflineStore = create<OfflineStore>()((set, get) => ({
       ...initialState,
 
       setDownloadProgress: (progress) => {
@@ -114,7 +141,13 @@ export const useOfflineStore = create<OfflineStore>()(
       },
 
       startDownload: async (courseType: string) => {
+        const scope = captureOfflineCourseScope();
+        if (!scope?.canWrite()) return;
+        try { assertSafeOfflineSegment(courseType); } catch { return; }
+        await hydration;
+        if (!scope.canWrite()) return;
         const hasSpace = await hasEnoughDiskSpace();
+        if (!scope.canWrite()) return;
         if (!hasSpace) {
           if (__DEV__) {
             console.warn("[offlineStore] Недостаточно места на диске");
@@ -122,18 +155,20 @@ export const useOfflineStore = create<OfflineStore>()(
           return;
         }
         const state = get();
-        if (state.downloaded[courseType]) return;
+        if (Object.hasOwn(state.downloaded, courseType)) return;
         if (state.status.status === "downloading") {
           if (state.status.courseType === courseType) return;
           if (!state.downloadQueue.includes(courseType)) {
             set((s) => ({ downloadQueue: [...s.downloadQueue, courseType] }));
+            persistQueue(scope, get());
           }
           return;
         }
         set((s) => ({
           downloadQueue: [courseType, ...s.downloadQueue.filter((c) => c !== courseType)],
         }));
-        await processQueue(set, get);
+        persistQueue(scope, get());
+        await processQueue(set, get, scope);
       },
 
       cancelDownload: () => {
@@ -143,33 +178,70 @@ export const useOfflineStore = create<OfflineStore>()(
       },
 
       removeFromQueue: (courseType: string) => {
+        const scope = captureOfflineCourseScope();
+        if (!scope?.isCurrent()) return;
         set((s) => ({
           downloadQueue: s.downloadQueue.filter((c) => c !== courseType),
         }));
+        persistQueue(scope, get());
       },
 
       removeDownload: async (courseType: string) => {
+        const scope = captureOfflineCourseScope();
+        if (!scope?.isCurrent()) return;
+        await hydration;
+        if (!scope.isCurrent()) return;
         const state = get();
         // A directory without an indexed download may be someone's legacy
         // data; deleting it without an approved ownership migration is unsafe.
-        if (!state.downloaded[courseType]) return;
+        if (!Object.hasOwn(state.downloaded, courseType)) return;
         // Do not race an active native media writer or its cancellation cleanup.
         if (state.status.status === "downloading" && state.status.courseType === courseType) return;
-        await deleteCourseData(courseType);
+        await deleteCourseData(courseType, scope);
+        if (!scope.isCurrent()) return;
         set((s) => {
           const next = { ...s.downloaded };
           delete next[courseType];
           return { downloaded: next };
         });
       },
-    }),
-    {
-      name: "offline-storage",
-      storage: createJSONStorage(() => zustandStorage),
-      partialize: (state) => ({
-        downloadQueue: state.downloadQueue,
-        downloaded: state.downloaded,
-      }),
-    },
-  ),
-);
+    }));
+
+/** No global persisted index: it previously exposed the previous account's
+ * downloads and queue. Rebuild from committed metadata under the captured owner.
+ * Ownerless v1 storage and native files are preserved, never reassigned. */
+function refreshOfflineOwner() {
+  const scope = captureOfflineCourseScope();
+  if (activeScope?.isCurrent() && scope?.principalId === activeScope.principalId) return;
+  activeScope = scope;
+  downloadAbortController?.abort();
+  downloadAbortController = null;
+  useOfflineStore.setState(initialState);
+  hydration = (async () => {
+    if (!scope) return;
+    await queueWrites;
+    const raw = await zustandStorage.getItem(queueKey(scope));
+    let queue: string[] = [];
+    if (raw) {
+      try {
+        const saved = JSON.parse(raw) as { ownerId?: string; queue?: unknown };
+        if (saved.ownerId === scope.principalId) queue = validQueue(saved.queue);
+      } catch { /* Invalid local queue stays quarantined. */ }
+    }
+    const courses = await getOfflineCourseTypes(scope);
+    const downloaded: Record<string, DownloadedCourse> = Object.create(null);
+    for (const courseType of courses) {
+      if (!scope.isCurrent()) return;
+      const meta = await getCourseMeta(courseType, scope);
+      if (meta) downloaded[courseType] = { version: meta.version };
+    }
+    if (scope.isCurrent()) useOfflineStore.setState({
+      downloaded, downloadQueue: queue.filter(courseType => !Object.hasOwn(downloaded, courseType)),
+    });
+  })().catch(error => {
+    if (scope?.isCurrent()) reportClientError(error, { issueKey: "OfflineCourseIndexHydration" });
+  });
+}
+
+subscribeOfflineCourseSession(refreshOfflineOwner);
+refreshOfflineOwner();

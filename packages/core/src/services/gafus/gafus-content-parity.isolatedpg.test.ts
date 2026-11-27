@@ -1,55 +1,49 @@
+import { transactionalContentPolicy } from "../../../../../apps/api/src/modules/content-access/composition/transactional-policy-instance";
+const { resolveCourseStepAccessTx } = transactionalContentPolicy;
 /** Opt-in and hard-gated: test ONLY the temporary fresh local parity database. */
 import { randomBytes } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { lockGafusUser } from "./locking";
-import { registerGafusLockPort } from "./locking";
+import { createGafusLockService } from "./locking";
 import { lockGafusUser as dbLockGafusUser, withGafusUserLock as dbWithGafusUserLock } from "@gafus/gafus-server/wallet-lock";
-registerGafusLockPort({ lockGafusUser: dbLockGafusUser, withGafusUserLock: dbWithGafusUserLock });
+const gafusLock = createGafusLockService({ lockGafusUser: dbLockGafusUser, withGafusUserLock: dbWithGafusUserLock });
+const { lockGafusUser } = gafusLock;
 
-import { changeGafusBalanceTx, getGafusBalance } from "./walletService";
+import { createGafusWalletService } from "./walletService";
 // Compose the original SQL repository into the Core domain port. Synthetic
 // fixtures still own their Prisma TransactionClient and no new DB is opened.
-import { registerGafusLedgerRowsPort } from "./gafusLedgerPort";
 import {
   ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
   appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
 } from "@gafus/gafus-server/wallet-records";
-registerGafusLedgerRowsPort({
+const gafusWallet = createGafusWalletService({
   ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
   appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
 });
+const { changeGafusBalanceTx, getGafusBalance } = gafusWallet;
 
-import { unlockContentWithGafus } from "./accessGrantService";
-import { registerGafusUnlockRowsPort } from "./gafusUnlockPort";
+import { unlockContentWithGafus as coreUnlock } from "./accessGrantService";
+const unlockContentWithGafus = (input: Parameters<typeof coreUnlock>[0]) => coreUnlock(input, gafusWallet, transactionalContentPolicy, fixtureGafusUnlockRowsPort);
+
 import {
   withGafusUnlockTransaction,
   readGafusUnlockReplayTx,
   insertGafusUnlockGrantTx,
 } from "@gafus/gafus-server/unlock-records";
-registerGafusUnlockRowsPort({
+const fixtureGafusUnlockRowsPort = {
   withGafusUnlockTransaction, readGafusUnlockReplayTx, insertGafusUnlockGrantTx,
-});
+};
 
 import {
-  hasActiveGafusCourseStepAccess,
-  resolveCourseStepAccessTx,
+  hasActiveGafusCourseStepAccess as coreActiveGrant,
   resolveCourseStepTargetTx,
 } from "../contentAccess";
-import { resolveArticleEntitlement } from "../contentAccess/policy";
-import { requireCourseStepOperationAccess, updateStepAndDay } from "../training/trainingService.ts";
-import { createGafusRewardedAccessService } from "../rewardedCredits/accessService.ts";
-import { createGafusInteropService } from "../rewardedCredits/gafusInterop.ts";
-import {
-  readGafusUserStepOccurrence, readGafusVideoOccurrences,
-} from "@gafus/course-read-server/gafus-entitlement-reads";
-const { requirePremiumOrRewardedAccessForVideoUrl } = createGafusRewardedAccessService(
-  createGafusInteropService({
-    readUserStepOccurrence: readGafusUserStepOccurrence,
-    readVideoOccurrences: readGafusVideoOccurrences,
-    hasActiveCourseStepGrant: hasActiveGafusCourseStepAccess,
-  }),
-);
+import { resolveArticleEntitlement } from "../../../../../apps/api/src/modules/content-access/composition/content-policy-instance";
+import { sqlTraining } from "../../../../../apps/api/src/modules/training/composition/sql-training-instance";
+import { occurrenceReadPort } from "../../../../../apps/api/src/modules/content-access/composition/occurrence-reads-instance";
+const { requireCourseStepOperationAccess, updateStepAndDay } = sqlTraining;
+const hasActiveGafusCourseStepAccess = (input: Parameters<typeof coreActiveGrant>[0]) => coreActiveGrant(input, occurrenceReadPort);
+import { requirePremiumOrRewardedAccessForVideoUrl } from "../../../../../apps/api/src/modules/rewarded-credits/composition/gafus-access";
 
 const run = process.env.GAFUS_PARITY_ISOLATED_DB === "1" ? describe : describe.skip;
 const key = randomBytes(5).toString("hex");

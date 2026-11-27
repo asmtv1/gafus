@@ -8,7 +8,6 @@ export {
 export { getCoursesUsingDay } from "./helpers";
 export type { TrainingDayCourseLookupPort } from "./helpers";
 export type { DeleteDaysResult } from "./trainingDayService";
-export { registerTrainingDayRowsPort } from "./trainingDayRowsPort";
 export type { TrainingDayRowsPort } from "./trainingDayRowsPort";
 export {
   createTrainingDaySchema,

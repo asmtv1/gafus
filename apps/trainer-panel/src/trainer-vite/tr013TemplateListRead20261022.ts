@@ -3,7 +3,7 @@ import { z } from "zod/v3";
 import type {
   TrainerPublicStepTemplateItem,
   TrainerPublicStepTemplatesRead,
-} from "../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 const short = z.string().min(1);
 export const templateListItemSchema = z
   .object({

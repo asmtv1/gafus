@@ -6,7 +6,7 @@
 import { Hono } from "hono";
 import { readTrainerExamMetadataApplication } from "../../modules/trainer-exam/composition/read-trainer-exam-metadata.js";
 import type {TrainerExamSummaryRead,TrainerPendingExamSummaryRead} from
-  "../../../../../packages/types/src/data/trainer-read-contracts";
+  "@gafus/types/trainer-read-contracts";
 
 export const trainerExamSummaryRoutes = new Hono();
 

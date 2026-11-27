@@ -1,3 +1,4 @@
+import { createGafusWalletService } from "./walletService";
 /** AG1 / OFF-021: current step completion != Gafus earn. Real rewardService,
  * controlled in-memory Prisma Tx: NO real database, mail, network or native storage.
  * Path assertions target concrete existing code, not future v2 protocol guarantees.
@@ -6,22 +7,22 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { GafusTx } from "./types";
-import { awardActivityTx, awardBonusTx } from "./rewardService";
+import { createGafusRewardService } from "./rewardService";
 // Compose the original SQL repository into the Core domain port. Synthetic
 // fixtures still own their Prisma TransactionClient and no new DB is opened.
-import { registerGafusLedgerRowsPort } from "./gafusLedgerPort";
 import {
   ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
   appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
 } from "@gafus/gafus-server/wallet-records";
-registerGafusLedgerRowsPort({
+const gafusWallet = createGafusWalletService({
   ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
   appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
 });
 
-import { registerGafusLockPort } from "./locking";
+import { createGafusLockService } from "./locking";
 import { lockGafusUser, withGafusUserLock } from "@gafus/gafus-server/wallet-lock";
-registerGafusLockPort({ lockGafusUser, withGafusUserLock });
+const gafusLock = createGafusLockService({ lockGafusUser, withGafusUserLock });
+const { awardActivityTx, awardBonusTx } = createGafusRewardService(gafusWallet, gafusLock);
 import { DEFAULT_GAFUS_SETTINGS } from "./settingsService";
 
 const core = (relative: string) =>
@@ -111,7 +112,7 @@ describe("AG1 OFF021 existing training vs earning boundary (NO real DB)",()=>{
     // Core must delegate the public APIs to the real compiled server package.
     // Inspect the implementation, not the thin façade, so a future accidental
     // Gafus wallet write during a completion still fails closed.
-    expect(trainingCore).toContain('registerTrainingServicePort');
+    expect(trainingCore).not.toContain('registerTrainingServicePort');
     const trainingApiComposer=core("../../../../../apps/api/src/modules/training/composition/sql-training-instance.ts");
     expect(trainingApiComposer).toContain('@gafus/course-progress-server/training-service');
     expect(dailyComposition).toContain('@gafus/course-progress-server/daily-course-service');

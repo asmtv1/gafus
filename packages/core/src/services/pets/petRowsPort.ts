@@ -259,38 +259,3 @@ export interface PetRowsPort {
     enqueuePetMediaDeletionIntent: (tx: Executor, ownerId: string, petId: string, locator: string, reason: PetMediaReason, availableAt?: Date) => Promise<string>;
     consumePetMediaUploadReservation: (tx: Executor, ownerId: string, locator: string) => Promise<void>;
 }
-let installed: Readonly<PetRowsPort> | null = null;
-export function registerPetRowsPort(port: PetRowsPort): void {
-    if (installed && installed !== port)
-        throw new Error("PET_ROWS_PORT_ALREADY_BOUND");
-    installed = port;
-}
-function requireRows(): Readonly<PetRowsPort> {
-    if (!installed)
-        throw new Error("PET_ROWS_PORT_UNBOUND");
-    return installed;
-}
-export const withPetSqlTx: PetRowsPort["withPetSqlTx"] = (...args) => requireRows().withPetSqlTx(...args);
-export const findCommittedPetReceipt: PetRowsPort["findCommittedPetReceipt"] = (...args) => requireRows().findCommittedPetReceipt(...args);
-export const claimPetCreationReceipt: PetRowsPort["claimPetCreationReceipt"] = (...args) => requireRows().claimPetCreationReceipt(...args);
-export const createPetWithAwards: PetRowsPort["createPetWithAwards"] = (...args) => requireRows().createPetWithAwards(...args);
-export const findOwnedPet: PetRowsPort["findOwnedPet"] = (...args) => requireRows().findOwnedPet(...args);
-export const existsOwnedPet: PetRowsPort["existsOwnedPet"] = (...args) => requireRows().existsOwnedPet(...args);
-export const readOwnedPetPhoto: PetRowsPort["readOwnedPetPhoto"] = (...args) => requireRows().readOwnedPetPhoto(...args);
-export const lockPetOwner: PetRowsPort["lockPetOwner"] = (...args) => requireRows().lockPetOwner(...args);
-export const updateOwnedPetWithAwards: PetRowsPort["updateOwnedPetWithAwards"] = (...args) => requireRows().updateOwnedPetWithAwards(...args);
-export const updateOwnedPetPhoto: PetRowsPort["updateOwnedPetPhoto"] = (...args) => requireRows().updateOwnedPetPhoto(...args);
-export const listOwnedPetDocuments: PetRowsPort["listOwnedPetDocuments"] = (...args) => requireRows().listOwnedPetDocuments(...args);
-export const readAllUserPetDocumentRows: PetRowsPort["readAllUserPetDocumentRows"] = (...args) => requireRows().readAllUserPetDocumentRows(...args);
-export const findOwnedPetDocument: PetRowsPort["findOwnedPetDocument"] = (...args) => requireRows().findOwnedPetDocument(...args);
-export const findOwnedPetDocumentForDownload: PetRowsPort["findOwnedPetDocumentForDownload"] = (...args) => requireRows().findOwnedPetDocumentForDownload(...args);
-export const findPetDocumentByUrl: PetRowsPort["findPetDocumentByUrl"] = (...args) => requireRows().findPetDocumentByUrl(...args);
-export const countOwnedPetDocuments: PetRowsPort["countOwnedPetDocuments"] = (...args) => requireRows().countOwnedPetDocuments(...args);
-export const createOwnedPetDocument: PetRowsPort["createOwnedPetDocument"] = (...args) => requireRows().createOwnedPetDocument(...args);
-export const deletePetDocumentRow: PetRowsPort["deletePetDocumentRow"] = (...args) => requireRows().deletePetDocumentRow(...args);
-export const renamePetDocumentRow: PetRowsPort["renamePetDocumentRow"] = (...args) => requireRows().renamePetDocumentRow(...args);
-export const readOwnedPetDocumentUrls: PetRowsPort["readOwnedPetDocumentUrls"] = (...args) => requireRows().readOwnedPetDocumentUrls(...args);
-export const deleteOwnedPetRow: PetRowsPort["deleteOwnedPetRow"] = (...args) => requireRows().deleteOwnedPetRow(...args);
-export const petMediaOutboxEnabled: PetRowsPort["petMediaOutboxEnabled"] = (...args) => requireRows().petMediaOutboxEnabled(...args);
-export const enqueuePetMediaDeletionIntent: PetRowsPort["enqueuePetMediaDeletionIntent"] = (...args) => requireRows().enqueuePetMediaDeletionIntent(...args);
-export const consumePetMediaUploadReservation: PetRowsPort["consumePetMediaUploadReservation"] = (...args) => requireRows().consumePetMediaUploadReservation(...args);

@@ -1,3 +1,4 @@
+import { MeasuredVideo } from "../../shared/media/MeasuredVideo";
 import { useLayoutEffect, useState } from "react";
 import { SecondaryButton } from "../../shared/ui";
 
@@ -36,7 +37,7 @@ export function MomentLocalMediaPreview({ files, disabled, onRemove, failures, o
         return <li key={`${file.name}-${file.lastModified}-${index}`}>
           <div className="web4-compose-media-frame">
             {url ? isVideo ?
-              <video src={url} controls playsInline preload="auto"
+              <MeasuredVideo frameSurface="preview" src={url} controls playsInline preload="auto"
                 aria-label={`Предпросмотр видео ${file.name}`}/> :
               <img src={url} alt={`Предпросмотр фото ${file.name}`} /> :
               <span role="status">Подготавливаем предпросмотр…</span>}

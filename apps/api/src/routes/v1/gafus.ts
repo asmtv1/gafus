@@ -1,8 +1,9 @@
+import { transactionalContentPolicy } from "../../modules/content-access/composition/transactional-policy-instance.js";
+import { gafusWallet } from "../../modules/gafus/composition/wallet-instance.js";
 import { Hono, type Context } from "hono";
 import { z } from "zod/v3";
 import {
   getGafusStatus,
-  listGafusTransactions,
   unlockContentWithGafus,
   GafusError,
 } from "@gafus/core/services/gafus";
@@ -131,7 +132,7 @@ gafusRoutes.get("/history", async (c) => {
         limit: z.coerce.number().int().min(1).max(100).default(20),
       })
       .parse(c.req.query());
-    const page = await listGafusTransactions({
+    const page = await gafusWallet.listGafusTransactions({
       userId: c.get("user").id,
       cursor: parsed.cursor,
       limit: parsed.limit,
@@ -167,7 +168,7 @@ gafusRoutes.post("/unlock", async (c) => {
       userId: c.get("user").id,
       target: body.target,
       clientRequestId: body.clientRequestId,
-    }, unlockRows);
+    }, gafusWallet, transactionalContentPolicy, unlockRows);
     return c.json({ success: true, data: result });
   } catch (e) {
     const mapped = errorResponse(e);
@@ -190,7 +191,7 @@ gafusRoutes.get("/reaction-progress/:postId", async (c) => {
 
 gafusRoutes.get("/mini-guides", async (c) => {
   try {
-    return c.json({ success: true, data: await listGafusMiniGuides(c.get("user").id) });
+    return c.json({ success: true, data: await listGafusMiniGuides(c.get("user").id, transactionalContentPolicy) });
   } catch (error) {
     const mapped = errorResponse(error);
     return c.json(mapped.body, mapped.status as 500);
@@ -201,7 +202,7 @@ gafusRoutes.get("/mini-guide/:courseId", async (c) => {
   try {
     const courseId = z.string().min(1).max(128).parse(c.req.param("courseId"));
     const userId = c.get("user").id;
-    const content = await getAuthorizedMiniGuideContent({ userId, courseId });
+    const content = await getAuthorizedMiniGuideContent({ userId, courseId }, transactionalContentPolicy);
     if (!content) {
       return c.json(
         {

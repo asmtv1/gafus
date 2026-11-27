@@ -60,11 +60,19 @@ export function accountStorageTargets(
     )
   )
     throw new Error("CLEANUP_UNSAFE_PREFIX");
-  if (scope === "public")
-    return {
-      prefixes: [`uploads/users/${ownerId}/`, `uploads/questions/${ownerId}/`, ...extraPrefixes],
-      keys: [...new Set(values.map(accountPublicKey).filter((key): key is string => key !== null))],
-    };
+  if (scope === "public") {
+    const prefixes = [`uploads/users/${ownerId}/`, `uploads/questions/${ownerId}/`, ...extraPrefixes];
+    const keys = [...new Set(values.map(accountPublicKey).filter((key): key is string => key !== null))];
+    // User files cannot be inherited from another account. Exam IDs are not
+    // owner IDs: only the authoritative, transaction-captured occurrence
+    // prefixes can authorize their deletion. Questions are deliberately
+    // different: deleting an owned question cascades answers by other authors,
+    // and their exact attachment keys are preserved in the durable snapshot.
+    if (keys.some(key => !prefixes.some(prefix => key.startsWith(prefix)) &&
+        !key.startsWith("uploads/questions/")))
+      throw new Error("CLEANUP_INVALID_PUBLIC_MEDIA_KEY");
+    return { prefixes, keys };
+  }
   if (scope === "gallery" || scope === "feed") {
     const prefixes =
       scope === "gallery" ? [`albums/${ownerId}/`, `users/${ownerId}/`] : [`posts/${ownerId}/`];

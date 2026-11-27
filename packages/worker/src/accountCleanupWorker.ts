@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import {
  claimAccountCleanupJob,accountCleanupOwnerExists,
- checkpointAccountStreamJob,resetAccountCdnPurge,checkpointAccountKeysCursor,
+ checkpointAccountStreamJob,beginAccountCleanupSweep,resetAccountCdnPurge,checkpointAccountKeysCursor,
  completeAccountPrivateScope,checkpointAccountCdnOperations,
  scheduleAccountCdnPurge,completeAccountStorageJob,retryAccountStorageJob,
 } from "@gafus/identity-write-server/account-cleanup-worker-rows";
@@ -47,6 +47,10 @@ async function processAccountStorageCleanupInternal(limit: number, selectedOwner
       const job = await claimAccountCleanupJob(token,selectedOwner);
       if (!job) break;
       let storageVerified = false;
+      let sweepChangedStorage = false;
+      const requireLease = (affected: number) => {
+        if (affected !== 1) throw new Error("CLEANUP_LEASE_LOST");
+      };
       try {
         // Never sweep an existing owner, including an accidentally reused account ID.
         if (await accountCleanupOwnerExists(job.ownerId))
@@ -55,7 +59,7 @@ async function processAccountStorageCleanupInternal(limit: number, selectedOwner
           // Bounded pages with persisted progress; failures do not lose unprocessed files.
           await deleteAccountStreamFiles(job.keys.slice(0, 10));
           const remaining = job.keys.slice(10);
-          await checkpointAccountStreamJob(job,token,remaining)
+          requireLease(await checkpointAccountStreamJob(job,token,remaining));
           continue;
         }
         if (
@@ -71,6 +75,10 @@ async function processAccountStorageCleanupInternal(limit: number, selectedOwner
         );
         const cursor = job.keyCursor ?? 0;
         const nextCursor = Math.min(cursor + 20, extraKeys.length);
+        // Only public/CDN scopes need the durable pre-delete intent.
+        // Private scopes are verified directly against the bucket.
+        if (job.scope !== "questions" && job.scope !== "documents")
+          requireLease(await beginAccountCleanupSweep(job, token));
         const removed = await createAccountStorageCleaner(job.scope).sweep(
           {
             prefixes: cursor === 0 ? targets.prefixes : [],
@@ -79,19 +87,20 @@ async function processAccountStorageCleanupInternal(limit: number, selectedOwner
           AbortSignal.timeout(45_000),
         );
         storageVerified = true;
+        sweepChangedStorage = removed > 0;
         if (removed > 0) {
           job.purgeOperations = [];
-          await resetAccountCdnPurge(job,token)
+          requireLease(await resetAccountCdnPurge(job,token));
         }
         if (nextCursor < extraKeys.length) {
-          await checkpointAccountKeysCursor(job,token,nextCursor,removed)
+          requireLease(await checkpointAccountKeysCursor(job,token,nextCursor,removed));
           continue;
         }
         if (job.scope === "questions" || job.scope === "documents") {
           // These objects are served by direct private S3 presigns, never a CDN.
           // After the verified bucket sweep there is no cache task to poll and
           // no reason to retain the deleted user's objects for another 15m.
-          await completeAccountPrivateScope(job,token)
+          requireLease(await completeAccountPrivateScope(job,token));
           continue;
         }
         if (!job.purgeAfter || removed > 0) {
@@ -102,25 +111,25 @@ async function processAccountStorageCleanupInternal(limit: number, selectedOwner
             job.purgeOperations,
             async (operations) => {
               const updated = await checkpointAccountCdnOperations(job,token,operations)
-              if (!updated || Date.now() - started > 60_000)
+              if (updated !== 1 || Date.now() - started > 60_000)
                 throw new Error("CLEANUP_PURGE_CHECKPOINT");
             },
           );
           // Yandex edge purge is asynchronous and may take 15 minutes even after acceptance.
           const after = new Date(Date.now() + 15 * 60_000);
-          await scheduleAccountCdnPurge(job,token,operations,after)
+          requireLease(await scheduleAccountCdnPurge(job,token,operations,after));
         } else {
           const started = Date.now();
           if (
             job.purgeAfter.getTime() > Date.now() ||
             !(await accountCdnPurgeDone(job.purgeOperations, async (operations) => {
               const updated = await checkpointAccountCdnOperations(job,token,operations)
-              if (!updated || Date.now() - started > 60_000)
+              if (updated !== 1 || Date.now() - started > 60_000)
                 throw new Error("CLEANUP_PURGE_POLL_CHECKPOINT");
             }))
           )
             throw new Error("CLEANUP_PURGE_PENDING");
-          await completeAccountStorageJob(job,token)
+          requireLease(await completeAccountStorageJob(job,token));
           logger.info("Account objects and CDN cleanup completed", {
             jobId: job.id,
             scope: job.scope,
@@ -132,6 +141,12 @@ async function processAccountStorageCleanupInternal(limit: number, selectedOwner
           error instanceof Error && /^CLEANUP_[A-Z0-9_]+$/.test(error.message)
             ? error.message
             : "CLEANUP_RETRY";
+        if (code === "CLEANUP_LEASE_LOST") {
+          // Another attempt now owns the checkpoint. Do not mutate its state
+          // or submit another provider operation under the expired token.
+          logger.warn("Account storage cleanup lease lost", { jobId: job.id, scope: job.scope });
+          continue;
+        }
         const next = new Date(
           Date.now() + Math.min(3600, 30 * 2 ** Math.min(job.attempts, 7)) * 1000,
         );
@@ -140,10 +155,11 @@ async function processAccountStorageCleanupInternal(limit: number, selectedOwner
           code,
         );
         const resetOperations =
-          !storageVerified ||
+          !storageVerified || sweepChangedStorage ||
           code === "CLEANUP_CDN_OPERATION_FAILED" ||
           code === "CLEANUP_CDN_HTTP_404";
-        await retryAccountStorageJob(job,token,next,code,resetPurge,resetOperations)
+        const retried = await retryAccountStorageJob(job,token,next,code,resetPurge,resetOperations);
+        if (retried !== 1) continue;
         logger.warn("Account storage cleanup will retry", {
           jobId: job.id,
           scope: job.scope,

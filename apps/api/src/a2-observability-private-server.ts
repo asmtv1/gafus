@@ -28,6 +28,28 @@ const { app } = await import("./app.js");
 const { a2ObservabilityFixture } = await import("../../../packages/prisma/tests/a2ObservabilityFixture.js");
 const protectedFixture = (auth: string | undefined) =>
   authorizedOperationMetrics(auth, process.env.API_METRICS_KEY);
+const workDir = process.env.A2_OBS_WORK_DIR;
+if (!workDir || !/^\/tmp\/gafus-a2-obs-real-multi\.[a-zA-Z0-9]+$/.test(workDir))
+  throw Error("A2_RESTORE_WORKDIR_REQUIRED");
+const { seedRestoreFixture, readRestoreMedia, readRestoreAsset } = await import("./test/a2-restore-fixture.js");
+app.post("/__a2_restore_seed", async c => {
+  if (!protectedFixture(c.req.header("Authorization"))) return c.body(null, 404);
+  return c.json(await seedRestoreFixture(workDir));
+});
+app.get("/__a2_restore_media", async c => {
+  if (!protectedFixture(c.req.header("Authorization"))) return c.body(null, 404);
+  return c.json(await readRestoreMedia(workDir));
+});
+app.get("/__a2_restore_asset/previous.bundle", async c => {
+  if (!protectedFixture(c.req.header("Authorization"))) return c.body(null, 404);
+  return c.body(new Uint8Array(await readRestoreAsset(workDir,"previous.bundle")), 200, {"Content-Type":"application/javascript"});
+});
+
+app.get("/__a2_restore_asset/active.bundle", async c => {
+  if (!protectedFixture(c.req.header("Authorization"))) return c.body(null, 404);
+  return c.body(new Uint8Array(await readRestoreAsset(workDir,"active.bundle")), 200, {"Content-Type":"application/javascript"});
+});
+
 app.post("/__a2_obs_enqueue", async c => {
   if (!protectedFixture(c.req.header("Authorization"))) return c.body(null, 404);
   const correlation = getRequestCorrelation();

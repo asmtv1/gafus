@@ -20,7 +20,7 @@ vi.mock("@gafus/course-server/favorites",()=>({
   removeFavoriteCourse:mocks.removeFavoriteCourse,
   toggleFavoriteCourse:mocks.toggleFavoriteCourse,
 }));
-vi.mock("@gafus/core/services/course", () => ({
+vi.mock("../../modules/courses/composition/catalog-read-instance.js", () => ({
   getCoursesWithProgress: mocks.getCoursesWithProgress,
   addFavoriteCourse: mocks.addFavoriteCourse,
   removeFavoriteCourse: mocks.removeFavoriteCourse,

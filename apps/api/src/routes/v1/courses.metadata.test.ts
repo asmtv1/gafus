@@ -6,7 +6,7 @@ const { getCourseMetadataMock } = vi.hoisted(() => ({
   getCourseMetadataMock: vi.fn(),
 }));
 
-vi.mock("@gafus/core/services/course", () => ({
+vi.mock("../../modules/courses/composition/catalog-read-instance.js", () => ({
   getCourseMetadata: getCourseMetadataMock,
 }));
 vi.mock("@gafus/logger", () => ({

@@ -43,7 +43,9 @@ vi.mock("./trainer-notes/infrastructure/read-notes-summary-snapshot.js", () => (
 vi.mock("@gafus/core/services/trainerStep", () => ({
   getVisibleSteps: m.steps, getStepTemplates: m.templates,
 }));
-vi.mock("@gafus/core/services/training", () => ({ getTrainingDays: m.trainingDays }));
+vi.mock("./training/composition/sql-training-instance.js", () => ({ sqlTraining: {
+  getTrainingDays: m.trainingDays
+} }));
 vi.mock("@gafus/core/services/user", () => ({ getPublicProfile: m.publicProfile }));
 
 import { listCynologistsApplication } from "./consultations/composition/list-cynologists.js";

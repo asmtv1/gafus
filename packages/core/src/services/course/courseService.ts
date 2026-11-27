@@ -5,173 +5,184 @@
  */
 
 import { estimateDayDurations } from "../../utils/training";
-import { setCourseLogoVersioned } from "../trainerCourse/courseVersionService";
+import { setCourseLogoVersioned, type CourseVersionRowsPort } from "../trainerCourse/courseVersionService";
 import type { CourseVersionActor } from "../trainerCourse/courseVersionService";
 import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
 import type { ActionResult, CourseWithProgressData } from "@gafus/types";
-import { resolveCourseEntitlement } from "../contentAccess/policy";
-import { requireCatalogReadPort } from "./catalogReadPort";
+import type { ContentPolicy } from "../contentAccess/policy";
+import type { CatalogReadPort } from "./catalogReadPort";
 
 const _logger = createWebLogger("course-service");
 
-// ========== Get Courses With Progress ==========
+/** Each composition owns its reader and entitlement policy. No mutable module registration. */
+export function createCatalogReadService(
+  rows: CatalogReadPort,
+  resolveEntitlement: ContentPolicy["resolveCourseEntitlement"],
+) {
+  if (!rows || typeof resolveEntitlement !== "function") throw new Error("COURSE_CATALOG_DEPENDENCIES_REQUIRED");
+  // ========== Get Courses With Progress ==========
 
-/**
- * Получает курсы, доступные пользователю для отображения на /courses:
- * - все публичные (бесплатные и платные);
- * - приватные только если у пользователя есть запись в CourseAccess.
- */
-export async function getCoursesWithProgress(userId?: string): Promise<CourseWithProgressData[]> {
-  const allCourses = await requireCatalogReadPort().readCatalogCourseRows(userId);
+  /**
+   * Получает курсы, доступные пользователю для отображения на /courses:
+   * - все публичные (бесплатные и платные);
+   * - приватные только если у пользователя есть запись в CourseAccess.
+   */
+  async function getCoursesWithProgress(userId?: string): Promise<CourseWithProgressData[]> {
+    const allCourses = await rows.readCatalogCourseRows(userId);
 
-  // Фильтруем курсы для отображения на /courses:
-  // 1. Публичные платные курсы показываем всем (чтобы можно было купить)
-  // 2. Публичные бесплатные курсы показываем всем
-  // 3. Приватные курсы только с доступом
-  const accessibleCourses = allCourses.filter((course) => {
-    // Приватные курсы только с доступом в CourseAccess
-    if (course.isPrivate) {
-      if (!userId) return false;
-      // Do not trust an overbroad Persistence projection: a foreign user's
-      // CourseAccess row must never make a private course visible.
-      return course.access.some((access) => access.userId === userId);
+    // Фильтруем курсы для отображения на /courses:
+    // 1. Публичные платные курсы показываем всем (чтобы можно было купить)
+    // 2. Публичные бесплатные курсы показываем всем
+    // 3. Приватные курсы только с доступом
+    const accessibleCourses = allCourses.filter((course) => {
+      // Приватные курсы только с доступом в CourseAccess
+      if (course.isPrivate) {
+        if (!userId) return false;
+        // Do not trust an overbroad Persistence projection: a foreign user's
+        // CourseAccess row must never make a private course visible.
+        return course.access.some((access) => access.userId === userId);
+      }
+      // Публичные курсы (платные и бесплатные) показываем всем
+      return true;
+    });
+
+    const userCourses = await rows.readCatalogProgressRows(userId);
+    // Index progress once; keep the first row for each course as Array.find did.
+    const userCourseByCourseId = new Map<string, (typeof userCourses)[number]>();
+    for (const userCourse of userCourses) {
+      if (!userCourseByCourseId.has(userCourse.courseId)) {
+        userCourseByCourseId.set(userCourse.courseId, userCourse);
+      }
     }
-    // Публичные курсы (платные и бесплатные) показываем всем
-    return true;
-  });
 
-  const userCourses = await requireCatalogReadPort().readCatalogProgressRows(userId);
-  // Index progress once; keep the first row for each course as Array.find did.
-  const userCourseByCourseId = new Map<string, (typeof userCourses)[number]>();
-  for (const userCourse of userCourses) {
-    if (!userCourseByCourseId.has(userCourse.courseId)) {
-      userCourseByCourseId.set(userCourse.courseId, userCourse);
-    }
+    const userFavorites = await rows.readCatalogFavoriteRows(userId);
+    const favoriteCourseIds = new Set(userFavorites.map((f: { courseId: string }) => f.courseId));
+
+    const paidCourseEntitlement = await resolveEntitlement(
+      { id: "", isPrivate: false, isPaid: true },
+      userId,
+    );
+
+    return accessibleCourses.map((course) => {
+      const userCourse = userId ? (userCourseByCourseId.get(course.id) ?? null) : null;
+
+      const userStatus = userCourse?.status
+        ? (userCourse.status as TrainingStatus)
+        : TrainingStatus.NOT_STARTED;
+
+      const hasAccess = course.isPrivate
+        ? course.access.length > 0
+        : !course.isPaid || paidCourseEntitlement.allowed;
+
+      return {
+        id: course.id,
+        name: course.name,
+        type: course.type,
+        description: course.description,
+        shortDesc: course.shortDesc,
+        duration: course.duration,
+        logoImg: course.logoImg,
+        isPrivate: course.isPrivate,
+        isPaid: course.isPaid,
+        hasAccess,
+        avgRating: course.avgRating,
+        trainingLevel: course.trainingLevel,
+        equipment: course.equipment ?? null,
+        createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
+        updatedAt: course.updatedAt ? new Date(course.updatedAt) : new Date(),
+        authorUsername: course.author.username,
+        authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
+        // Defend the wire even if a faulty repository adapter overfetches members.
+        favoritedBy: course.favoritedBy.filter((member) => !!userId && member.userId === userId),
+        reviews: course.reviews.map((review) => ({
+          rating: review.rating ?? 0,
+          comment: review.comment ?? "",
+          createdAt: review.createdAt ? new Date(review.createdAt) : new Date(),
+          user: {
+            username: review.user.username,
+            profile: review.user.profile,
+          },
+        })),
+        userStatus,
+        startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
+        completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,
+        startedUsersCount: course._count.userCourses,
+        isFavorite: !!userId && favoriteCourseIds.has(course.id),
+        // Kept as an empty legacy field for older clients. Per-user progress is
+        // represented by userStatus/startedAt/completedAt above.
+        userCourses: [],
+        dayLinks: course.dayLinks.map((dl) => ({
+          id: dl.id,
+          order: dl.order,
+          day: {
+            id: dl.day.id,
+            title: dl.day.title,
+            stepLinks: dl.day.stepLinks.map((sl) => ({
+              id: sl.id,
+              order: sl.order,
+              step: {
+                title: sl.step.title,
+              },
+            })),
+          },
+        })),
+      };
+    });
   }
 
-  const userFavorites = await requireCatalogReadPort().readCatalogFavoriteRows(userId);
-  const favoriteCourseIds = new Set(userFavorites.map((f: { courseId: string }) => f.courseId));
+  // ========== Check Course Access ==========
 
-  const paidCourseEntitlement = await resolveCourseEntitlement(
-    { id: "", isPrivate: false, isPaid: true },
-    userId,
-  );
+  /**
+   * Проверяет доступ пользователя к курсу по типу
+   */
+  async function checkCourseAccess(
+    courseType: string,
+    userId?: string,
+  ): Promise<{ hasAccess: boolean }> {
+    const course = await rows.readCourseAccessByType(courseType);
+    return { hasAccess: (await resolveEntitlement(course, userId)).allowed };
+  }
 
-  return accessibleCourses.map((course) => {
-    const userCourse = userId ? (userCourseByCourseId.get(course.id) ?? null) : null;
+  /** Course-level access always comes from the same policy for Web and Mobile. */
+  async function checkCourseAccessById(
+    courseId: string,
+    userId?: string,
+  ): Promise<{ hasAccess: boolean }> {
+    const course = await rows.readCourseAccessById(courseId);
+    return { hasAccess: (await resolveEntitlement(course, userId)).allowed };
+  }
 
-    const userStatus = userCourse?.status
-      ? (userCourse.status as TrainingStatus)
-      : TrainingStatus.NOT_STARTED;
+  // ========== Get Course Metadata ==========
 
-    const hasAccess = course.isPrivate
-      ? course.access.length > 0
-      : !course.isPaid || paidCourseEntitlement.allowed;
+  /**
+   * Получает базовые метаданные курса для Open Graph
+   */
+  async function getCourseMetadata(courseType: string) {
+    return rows.readCourseMetadataRow(courseType);
+  }
 
-    return {
-      id: course.id,
-      name: course.name,
-      type: course.type,
-      description: course.description,
-      shortDesc: course.shortDesc,
-      duration: course.duration,
-      logoImg: course.logoImg,
-      isPrivate: course.isPrivate,
-      isPaid: course.isPaid,
-      hasAccess,
-      avgRating: course.avgRating,
-      trainingLevel: course.trainingLevel,
-      equipment: course.equipment ?? null,
-      createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
-      updatedAt: course.updatedAt ? new Date(course.updatedAt) : new Date(),
-      authorUsername: course.author.username,
-      authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
-      // Defend the wire even if a faulty repository adapter overfetches members.
-      favoritedBy: course.favoritedBy.filter((member) => !!userId && member.userId === userId),
-      reviews: course.reviews.map((review) => ({
-        rating: review.rating ?? 0,
-        comment: review.comment ?? "",
-        createdAt: review.createdAt ? new Date(review.createdAt) : new Date(),
-        user: {
-          username: review.user.username,
-          profile: review.user.profile,
-        },
-      })),
-      userStatus,
-      startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
-      completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,
-      startedUsersCount: course._count.userCourses,
-      isFavorite: favoriteCourseIds.has(course.id),
-      // Kept as an empty legacy field for older clients. Per-user progress is
-      // represented by userStatus/startedAt/completedAt above.
-      userCourses: [],
-      dayLinks: course.dayLinks.map((dl) => ({
-        id: dl.id,
-        order: dl.order,
-        day: {
-          id: dl.day.id,
-          title: dl.day.title,
-          stepLinks: dl.day.stepLinks.map((sl) => ({
-            id: sl.id,
-            order: sl.order,
-            step: {
-              title: sl.step.title,
-            },
-          })),
-        },
-      })),
-    };
-  });
+  /**
+   * Оглавление курса (дни по порядку) — публичная структура, без проверки доступа.
+   * Используется на странице платного курса, чтобы показать, что входит в покупку.
+   */
+  async function getCourseOutline(
+    courseType: string,
+  ): Promise<{ id: string; title: string; order: number; type: string; equipment: string; estimatedDuration: number; theoryMinutes: number }[]> {
+    const course = await rows.readCourseOutlineRow(courseType);
+    if (!course) return [];
+    return course.dayLinks.map((link) => {
+      const duration = estimateDayDurations(link.day.stepLinks.map(item => item.step));
+      return { id: link.id, title: link.day.title, order: link.order,
+        type: link.day.type, equipment: link.day.equipment,
+        estimatedDuration: duration.trainingMinutes, theoryMinutes: duration.theoryMinutes };
+    });
+  }
+
+  return { getCoursesWithProgress, checkCourseAccess, checkCourseAccessById, getCourseMetadata, getCourseOutline };
 }
 
-// ========== Check Course Access ==========
-
-/**
- * Проверяет доступ пользователя к курсу по типу
- */
-export async function checkCourseAccess(
-  courseType: string,
-  userId?: string,
-): Promise<{ hasAccess: boolean }> {
-  const course = await requireCatalogReadPort().readCourseAccessByType(courseType);
-  return { hasAccess: (await resolveCourseEntitlement(course, userId)).allowed };
-}
-
-/** Course-level access always comes from the same policy for Web and Mobile. */
-export async function checkCourseAccessById(
-  courseId: string,
-  userId?: string,
-): Promise<{ hasAccess: boolean }> {
-  const course = await requireCatalogReadPort().readCourseAccessById(courseId);
-  return { hasAccess: (await resolveCourseEntitlement(course, userId)).allowed };
-}
-
-// ========== Get Course Metadata ==========
-
-/**
- * Получает базовые метаданные курса для Open Graph
- */
-export async function getCourseMetadata(courseType: string) {
-  return requireCatalogReadPort().readCourseMetadataRow(courseType);
-}
-
-/**
- * Оглавление курса (дни по порядку) — публичная структура, без проверки доступа.
- * Используется на странице платного курса, чтобы показать, что входит в покупку.
- */
-export async function getCourseOutline(
-  courseType: string,
-): Promise<{ id: string; title: string; order: number; type: string; equipment: string; estimatedDuration: number; theoryMinutes: number }[]> {
-  const course = await requireCatalogReadPort().readCourseOutlineRow(courseType);
-  if (!course) return [];
-  return course.dayLinks.map((link) => {
-    const duration = estimateDayDurations(link.day.stepLinks.map(item => item.step));
-    return { id: link.id, title: link.day.title, order: link.order,
-      type: link.day.type, equipment: link.day.equipment,
-      estimatedDuration: duration.trainingMinutes, theoryMinutes: duration.theoryMinutes };
-  });
-}
+export type CatalogReadService = ReturnType<typeof createCatalogReadService>;
 
 // ========== Логотип курса (DB-only, CDN в app) ==========
 
@@ -183,6 +194,7 @@ export async function updateCourseLogoUrl(
   logoUrl: string,
   expectedVersion: number,
   actor: CourseVersionActor,
+  rowsPort?: CourseVersionRowsPort,
 ): Promise<
   ActionResult & {
     previousLogoUrl?: string | null;
@@ -190,7 +202,7 @@ export async function updateCourseLogoUrl(
     code?: "STALE_VERSION" | "NOT_FOUND" | "BAD_QUERY" | "INTERNAL_SERVER_ERROR";
   }
 > {
-  const result = await setCourseLogoVersioned({ courseId, logoUrl, expectedVersion }, actor);
+  const result = await setCourseLogoVersioned({ courseId, logoUrl, expectedVersion }, actor, rowsPort);
   if (result.status === "updated")
     return {
       success: true,
@@ -223,6 +235,7 @@ export async function deleteCourseLogoFromRecord(
   courseId: string,
   expectedVersion: number,
   actor: CourseVersionActor,
+  rowsPort?: CourseVersionRowsPort,
 ): ReturnType<typeof updateCourseLogoUrl> {
-  return updateCourseLogoUrl(courseId, "", expectedVersion, actor);
+  return updateCourseLogoUrl(courseId, "", expectedVersion, actor, rowsPort);
 }

@@ -1,3 +1,4 @@
+import { stepProgressVersion, assertStepProgressVersion, remainingAfterOfflineDelay } from "./stepProgressVersion";
 /** Owner-scoped training course progression and examination SQL. Business rules
  * remain paired with database transactions; Core injects access/read ports. */
 import type { TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
@@ -69,6 +70,9 @@ export type StepOccurrenceBinding = {
   expectedStepOnDayId: string;
   expectedStepId: string;
   expectedCourseId: string;
+  /** Internal journal policy, never supplied by an untrusted HTTP body. */
+  allowedStepTypes?: readonly string[];
+  journal?: { expectedVersion?: string; recordedAt?: number };
 };
 
 export function createTrainingService({
@@ -672,8 +676,10 @@ export function createTrainingService({
 
     if (!userTrainingId) {
       type StepLinkItem = (typeof stepLinks)[number];
-      const steps = stepLinks.map(({ step, order }: StepLinkItem) => ({
+      const steps = stepLinks.map(({ id: stepOnDayId, step, order }: StepLinkItem) => ({
         id: step.id,
+        stepOnDayId,
+        offlineProgressVersion: "none",
         title: applyPlaceholders(step.title),
         description: applyPlaceholders(step.description),
         durationSec: step.durationSec ?? 0,
@@ -725,13 +731,14 @@ export function createTrainingService({
       status: string;
       paused?: boolean;
       remainingSec?: number | null;
+      updatedAt?: Date;
     };
     let userSteps: UserStepWithPause[] = [];
 
     try {
       userSteps = (await prisma.userStep.findMany({
         where: { userTrainingId },
-        select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
+        select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true, updatedAt: true },
       })) as UserStepWithPause[];
     } catch {
       userSteps = (await prisma.userStep.findMany({
@@ -769,6 +776,7 @@ export function createTrainingService({
                   status: true,
                   paused: true,
                   remainingSec: true,
+                  updatedAt: true,
                 },
               }),
             );
@@ -782,7 +790,7 @@ export function createTrainingService({
         if (isPrismaUniqueConstraintError(creationError)) {
           const refreshedSteps = (await prisma.userStep.findMany({
             where: { userTrainingId },
-            select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
+            select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true, updatedAt: true },
           })) as UserStepWithPause[];
           userSteps = refreshedSteps;
         } else {
@@ -811,8 +819,11 @@ export function createTrainingService({
     );
 
     type StepLinkItem = (typeof stepLinks)[number];
+    const progressVersionsByStepId = new Map(userSteps.map(record => [record.stepOnDayId, stepProgressVersion(record)]));
     const steps = stepLinks.map(({ id: stepOnDayId, step, order }: StepLinkItem) => ({
       id: step.id,
+      stepOnDayId,
+      offlineProgressVersion: progressVersionsByStepId.has(stepOnDayId) ? progressVersionsByStepId.get(stepOnDayId) : "none",
       title: applyPlaceholders(step.title),
       description: applyPlaceholders(step.description),
       durationSec: step.durationSec ?? 0,
@@ -1026,7 +1037,7 @@ export function createTrainingService({
     expectedCourseId?: string;
     expectedStepOnDayId?: string;
     expectedStepId?: string;
-  }): Promise<{ courseId: string; courseType: string }> {
+  }): Promise<{ courseId: string; courseType: string; binding: StepOccurrenceBinding }> {
     const dayOnCourse = await prisma.dayOnCourse.findUnique({
       where: { id: input.dayOnCourseId },
       select: {
@@ -1054,6 +1065,15 @@ export function createTrainingService({
       throw new Error("STALE_STEP_BINDING");
     }
     if (!stepLink) throw new Error("Step not found");
+    const authorized = {
+      courseId: dayOnCourse.course.id,
+      courseType: dayOnCourse.course.type,
+      binding: {
+        expectedCourseId: dayOnCourse.course.id,
+        expectedStepOnDayId: stepLink.id,
+        expectedStepId: stepLink.stepId,
+      },
+    };
 
     const access = await checkCourseAccessById(dayOnCourse.course.id, input.userId);
     if (dayOnCourse.course.isPrivate) {
@@ -1063,7 +1083,7 @@ export function createTrainingService({
       // includes mutations that record their completion, not only page reads.
       if (!dayOnCourse.course.isPaid) throw new Error("COURSE_ACCESS_DENIED");
       if (stepLink.step.type === "BREAK" || stepLink.step.type === "DIARY") {
-        return { courseId: dayOnCourse.course.id, courseType: dayOnCourse.course.type };
+        return authorized;
       }
       if (!isRewardedMonetizedStepType(stepLink.step.type)) throw new Error("COURSE_ACCESS_DENIED");
       const target = { targetType: "COURSE_STEP" as const, targetId: stepLink.id };
@@ -1079,7 +1099,7 @@ export function createTrainingService({
           target,
         });
     }
-    return { courseId: dayOnCourse.course.id, courseType: dayOnCourse.course.type };
+    return authorized;
   }
 
   /** Операция над шагом тренировки (дискриминант по type). */
@@ -1300,6 +1320,7 @@ export function createTrainingService({
     stepJustStarted: boolean;
     stepOnDayId: string;
     stepId: string;
+    progressVersion?: string;
   }> {
     return prisma.$transaction(
       (tx: Tx) => applyStepDayAndCourseTx(tx, userId, dayOnCourseId, stepIndex, operation, binding),
@@ -1322,6 +1343,7 @@ export function createTrainingService({
     stepJustStarted: boolean;
     stepOnDayId: string;
     stepId: string;
+    progressVersion?: string;
   }> {
     // Serialize concurrent opted-in mutations by the SAME authenticated actor
     // BEFORE reading shared day/occurrence or upserting UserTraining/UserStep.
@@ -1354,6 +1376,15 @@ export function createTrainingService({
         occurrenceRows[0].stepId !== binding.expectedStepId
       ) {
         throw new Error("STALE_STEP_BINDING");
+      }
+      if (binding.allowedStepTypes) {
+        const stepRows = await tx.$queryRaw<{ type: string }[]>`
+          SELECT "type"::text AS "type" FROM "Step"
+          WHERE "id" = ${binding.expectedStepId} FOR SHARE
+        `;
+        if (stepRows.length !== 1 || !binding.allowedStepTypes.includes(stepRows[0].type)) {
+          throw new Error("INVALID_STATE: offline operation does not match step type");
+        }
       }
     }
     const dayOnCourse = await tx.dayOnCourse.findUnique({
@@ -1401,8 +1432,10 @@ export function createTrainingService({
 
     const existingStep = await tx.userStep.findFirst({
       where: { userTrainingId: userTraining.id, stepOnDayId },
-      select: { id: true, status: true, paused: true },
+      select: { id: true, status: true, paused: true, remainingSec: true, updatedAt: true },
     });
+
+    assertStepProgressVersion(existingStep, binding?.journal?.expectedVersion);
 
     if (operation.type === "pause" || operation.type === "resume" || operation.type === "reset") {
       if (!existingStep) {
@@ -1423,7 +1456,9 @@ export function createTrainingService({
 
     switch (operation.type) {
       case "start": {
-        const remainingSec = operation.remainingSec ?? 0;
+        const rawRemaining = operation.remainingSec ?? 0;
+        const remainingSec = binding?.journal?.recordedAt !== undefined
+          ? remainingAfterOfflineDelay(rawRemaining, binding.journal.recordedAt) : rawRemaining;
         if (binding && existingStep?.status === TrainingStatus.IN_PROGRESS) {
           // A retried bound start must not reset the original running countdown.
           if (existingStep.paused) throw new Error("INVALID_STATE: use resume for paused step");
@@ -1506,7 +1541,11 @@ export function createTrainingService({
       case "resume": {
         const result = await tx.userStep.updateMany({
           where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: true },
-          data: { paused: false, updatedAt: new Date() },
+          data: { paused: false, updatedAt: new Date(),
+            ...(binding?.journal?.recordedAt !== undefined ? {
+              remainingSec: remainingAfterOfflineDelay(existingStep!.remainingSec ?? 0, binding.journal.recordedAt),
+            } : {}),
+          },
         });
         if (result.count === 0) throw new Error("INVALID_STATE: cannot resume step");
         break;
@@ -1617,12 +1656,28 @@ export function createTrainingService({
       },
     });
 
+    const journalStep = binding?.journal ? await tx.userStep.findUnique({
+      where: { userTrainingId_stepOnDayId: { userTrainingId: userTraining.id, stepOnDayId } },
+      select: { id: true, status: true, paused: true, remainingSec: true, updatedAt: true },
+    }) : null;
+    const journalChanged = binding?.journal &&
+      (operation.type !== "start" || stepJustStarted);
+    if (journalChanged) {
+      // Old delayed jobs cannot send after their exact occurrence row is removed.
+      await tx.stepNotification.deleteMany({
+        where: { userId, dayOnCourseId, stepOnDayId, type: "step", sent: false },
+      });
+    }
+
     // Bound NORMAL step notification = durable transactional enqueue intent.
     // The SQL row commits atomically with the first UserStep transition, BEFORE
     // the Hono handler attempts BullMQ (and survives a process crash there).
     // Do not create any notification for Daily / legacy Native / duplicate start
     // / users without an actual persisted push subscription.
-    if (binding && operation.type === "start" && stepJustStarted) {
+    if (binding && (binding.journal
+      ? journalChanged && (operation.type === "start" || operation.type === "resume") &&
+        journalStep?.status === TrainingStatus.IN_PROGRESS && !journalStep.paused && (journalStep.remainingSec ?? 0) > 0
+      : operation.type === "start" && stepJustStarted)) {
       const subscriptions = await tx.pushSubscription.findMany({
         where: { userId },
         select: { endpoint: true, keys: true },
@@ -1633,7 +1688,7 @@ export function createTrainingService({
           select: { id: true },
         });
         if (!existing) {
-          const seconds = Math.max(0, Math.floor(operation.remainingSec ?? 0));
+          const seconds = Math.max(0, Math.floor(binding.journal ? journalStep?.remainingSec ?? 0 : operation.type === "start" ? operation.remainingSec ?? 0 : 0));
           const notificationCourse = await tx.course.findUnique({
             where: { id: dayOnCourse.courseId },
             select: { type: true },
@@ -1672,6 +1727,7 @@ export function createTrainingService({
       stepJustStarted,
       stepOnDayId,
       stepId: stepLink.stepId,
+      ...(binding?.journal ? { progressVersion: stepProgressVersion(journalStep) } : {}),
     };
   }
 

@@ -3,18 +3,18 @@ import type { GafusTx } from "./types";
 
 vi.mock("@gafus/prisma", () => ({ prisma: {} }));
 
-import { changeGafusBalanceTx } from "./walletService";
+import { createGafusWalletService } from "./walletService";
 // Compose the original SQL repository into the Core domain port. Synthetic
 // fixtures still own their Prisma TransactionClient and no new DB is opened.
-import { registerGafusLedgerRowsPort } from "./gafusLedgerPort";
 import {
   ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
   appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
 } from "@gafus/gafus-server/wallet-records";
-registerGafusLedgerRowsPort({
+const gafusWallet = createGafusWalletService({
   ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
   appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
 });
+const { changeGafusBalanceTx } = gafusWallet;
 
 
 const state = {

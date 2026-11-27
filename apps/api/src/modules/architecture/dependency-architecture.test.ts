@@ -49,27 +49,27 @@ const WIRINGS: readonly Wiring[] = [
     factory:"createReadTrainingDayApplication",
     application:"modules/training/application/read-training-day.ts",
     ports:{readDay:"getTrainingDayWithMonetizedSteps",
-      checkAccess:"checkCourseAccess"} },
+      checkAccess:"checkCourseAccess"}, runtimeServiceByPort:{checkAccess:"../../courses/composition/catalog-read-instance.js"} },
   { module:"modules/courses/composition/read-courses.ts",
     route:"routes/v1/courses.ts", exportName:"courseReadApplication",
     factory:"createCourseReadApplication",
     application:"modules/courses/application/read-courses.ts",
     ports:{catalog:"getCoursesWithProgress", favorites:"getFavoritesCourses",
       metadata:"getCourseMetadata", reviews:"getCourseReviews"},
-    runtimeServiceByPort:{reviews:"@gafus/course-server/reviews", favorites:"@gafus/course-server/favorites"} },
+    runtimeServiceByPort:{catalog:"./catalog-read-instance.js", metadata:"./catalog-read-instance.js", reviews:"@gafus/course-server/reviews", favorites:"@gafus/course-server/favorites"} },
   { module:"modules/courses/composition/read-public-outline.ts",
     route:"routes/v1/public-paid-course-outline.ts", exportName:"publicPaidCourseOutlineApplication",
     factory:"createPublicPaidCourseOutlineApplication",
     application:"modules/courses/application/read-public-outline.ts",
     ports:{metadata:"getCourseMetadata", outline:"getCourseOutline",
       isPublicPaidCourse:"isPublicPaidCourse", projectPublicPaidCourseOutline:"projectPublicPaidCourseOutline"},
-    runtimeServiceByPort:{isPublicPaidCourse:"@gafus/core/services/course/publicOutlinePolicy",
+    runtimeServiceByPort:{metadata:"./catalog-read-instance.js", outline:"./catalog-read-instance.js", isPublicPaidCourse:"@gafus/core/services/course/publicOutlinePolicy",
       projectPublicPaidCourseOutline:"@gafus/core/services/course/publicOutlinePolicy"} },
   { module:"modules/courses/composition/read-access.ts",
     route:"routes/v1/courses.ts", exportName:"readCourseAccessApplication",
     factory:"createReadCourseAccessApplication",
     application:"modules/courses/application/read-access.ts",
-    ports:{byType:"checkCourseAccess", byId:"checkCourseAccessById"} },
+    ports:{byType:"checkCourseAccess", byId:"checkCourseAccessById"}, runtimeServiceModule:"./catalog-read-instance.js" },
   { module:"modules/courses/composition/write-personalization.ts",
     route:"routes/v1/courses.ts", exportName:"writeCoursePersonalizationApplication",
     factory:"createWriteCoursePersonalizationApplication",
@@ -703,8 +703,8 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
        !["readCoreDiary","writeCoreDiary"].every(x=>core.names.includes(x)) ||
        !repo || requiredRepo.some(x=>!repo.names.includes(x)) ||
        /from ["']@gafus\/prisma["']/.test(diarySource) ||
-       !/readCoreDiary\(diaryPersistence,\s*userId,\s*courseId,\s*upToDayOnCourseId\)/.test(diarySource) ||
-       !/writeCoreDiary\(diaryPersistence,\s*userId,\s*dayOnCourseId,\s*content\)/.test(diarySource)) {
+       !/readCoreDiary\(diaryPersistence,\s*checkCourseAccessById,\s*userId,\s*courseId,\s*upToDayOnCourseId\)/.test(diarySource) ||
+       !/writeCoreDiary\(diaryPersistence,\s*checkCourseAccessById,\s*userId,\s*dayOnCourseId,\s*content\)/.test(diarySource)) {
       errors.push("diary SQL composition must use exact Core read/write policy and owner-scoped port");
     }
   }
@@ -757,7 +757,7 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
        !persistence || required.some(x=>!persistence.names.includes(x)) ||
        !/readCoreSurveyComparison\(surveyPersistence,\s*userId,\s*courseId,\s*familySlug\)/.test(surveySource) ||
        !/readCoreSurveyResponse\(surveyPersistence,\s*userId,\s*stepId\)/.test(surveySource) ||
-       !/writeCoreSurveyResponse\(surveyPersistence,\s*userId,\s*input\)/.test(surveySource) ||
+       !/writeCoreSurveyResponse\(surveyPersistence,\s*checkCourseAccessById,\s*userId,\s*input\)/.test(surveySource) ||
        /from ["']@gafus\/prisma["']/.test(surveySource)){
       errors.push("survey SQL composition must use exact Core policy and owner-scoped SQL port");
     }
@@ -878,7 +878,7 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
       // This is not permission for arbitrary Core imports in Course adapters.
       allowed.add("resolveCourseEntitlement");
       const policyImports=importsIn(root).filter(i=>i.runtime &&
-        i.specifier==="@gafus/core/services/contentAccess" &&
+        i.specifier==="../../content-access/composition/content-policy-instance.js" &&
         i.names.includes("resolveCourseEntitlement"));
       if(policyImports.length!==1)
         errors.push("course favorites requires exactly one Core entitlement policy import");
@@ -1063,9 +1063,9 @@ describe("AG1-001 actual API application/composition architecture gate",()=>{
     const sources=actualSources();
     const file="modules/surveys/composition/survey-rows.ts";
     const original=sources[file];
-    expect(original).toContain("writeCoreSurveyResponse(surveyPersistence, userId, input)");
+    expect(original).toContain("writeCoreSurveyResponse(surveyPersistence, checkCourseAccessById, userId, input)");
     sources[file]=original.replace(
-      "writeCoreSurveyResponse(surveyPersistence, userId, input)",
+      "writeCoreSurveyResponse(surveyPersistence, checkCourseAccessById, userId, input)",
       "writeSurveyResponseRows(input, () => true, () => 'COMPLETED')",
     );
     expect(assess(sources,WIRINGS)).toContain(
@@ -1081,14 +1081,14 @@ describe("AG1-001 actual API application/composition architecture gate",()=>{
     const sources=actualSources();
     const file="modules/training/composition/diary-rows.ts";
     const original=sources[file];
-    expect(original).toMatch(/readCoreDiary\(diaryPersistence, userId, courseId, upToDayOnCourseId\)/);
+    expect(original).toMatch(/readCoreDiary\(diaryPersistence, checkCourseAccessById, userId, courseId, upToDayOnCourseId\)/);
     sources[file]=original.replace(
-      "readCoreDiary(diaryPersistence, userId, courseId, upToDayOnCourseId)",
+      "readCoreDiary(diaryPersistence, checkCourseAccessById, userId, courseId, upToDayOnCourseId)",
       "readDiaryCourseEntries(userId, courseId, upToDayOnCourseId)",
     );
     expect(assess(sources,WIRINGS)).toContain(
       "diary SQL composition must use exact Core read/write policy and owner-scoped port");
-    sources[file]=original.replace("writeCoreDiary(diaryPersistence, userId, dayOnCourseId, content)",
+    sources[file]=original.replace("writeCoreDiary(diaryPersistence, checkCourseAccessById, userId, dayOnCourseId, content)",
       "writeDiaryUserDay(userId, dayOnCourseId, content)");
     expect(assess(sources,WIRINGS)).toContain(
       "diary SQL composition must use exact Core read/write policy and owner-scoped port");

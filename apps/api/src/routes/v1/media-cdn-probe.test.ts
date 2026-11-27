@@ -20,6 +20,25 @@ describe("Hono CDN status probe", () => {
     expect(res.status).toBe(401); expect(fetcher).not.toHaveBeenCalled();
     expect(res.headers.get("cache-control")).toBe("private, no-store");
   });
+  it("joins only concurrent identical authorized probes, then rechecks revocation", async () => {
+    let release!: (response: Response) => void;
+    const first = new Promise<Response>(resolve => { release = resolve; });
+    const upstream = vi.fn<typeof fetch>().mockImplementationOnce(() => first)
+      .mockResolvedValue(new Response(null, { status: 403 }));
+    vi.stubGlobal("fetch", upstream);
+    const target = "/api/v1/media-cdn-probe?url=" + encodeURIComponent(signed());
+    const app = testApp();
+    const a = app.request(target);
+    const b = app.request(target);
+    await vi.waitFor(() => expect(upstream).toHaveBeenCalledTimes(1));
+    expect((await testApp(false).request(target)).status).toBe(401);
+    release(new Response(null, { status: 503 }));
+    expect((await a).status).toBe(503);
+    expect((await b).status).toBe(503);
+    expect(upstream).toHaveBeenCalledTimes(1);
+    expect((await app.request(target)).status).toBe(403);
+    expect(upstream).toHaveBeenCalledTimes(2);
+  });
   it("rejects external hosts, extra parameters and unsigned URLs", async () => {
     const fetcher = vi.fn(); vi.stubGlobal("fetch", fetcher);
     const app = testApp();

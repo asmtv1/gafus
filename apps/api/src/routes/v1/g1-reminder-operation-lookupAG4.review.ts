@@ -1,4 +1,4 @@
-/** AG4 GET owner operation lookup, unmounted REVIEW ONLY. */
+import { reminderRows } from "../../modules/reminders/composition/reminder-rows.js";
 import { Hono } from "hono";
 import {
   lookupReminderAG4, ReminderInvalidError, ReminderUnknownError,
@@ -11,7 +11,7 @@ reminderOperationLookupAG4ReviewRoutes.get("/operations/:idempotencyKey", async 
   try {
     const actor = c.get("user");
     if (!actor?.id) return c.json({ success: false, code: "UNAUTHORIZED" }, 401);
-    const receipt = await lookupReminderAG4(actor.id, c.req.param("idempotencyKey"));
+    const receipt = await lookupReminderAG4(actor.id, c.req.param("idempotencyKey"), reminderRows);
     return c.json({ success: true, data: receipt });
   } catch (error) {
     if (error instanceof ReminderUnknownError) {

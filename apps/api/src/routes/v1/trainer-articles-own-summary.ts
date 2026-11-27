@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { getArticleViewersForAuthor } from "../../modules/articles/composition/article-rows.js";
 import { z } from "zod/v3";
 import { readTrainerOwnArticleMetadataApplication } from "../../modules/trainer-articles/composition/read-own-article-metadata.js";
-import type { TrainerArticleOwnMetadataRead } from "../../../../../packages/types/src/data/trainer-read-contracts";
+import type { TrainerArticleOwnMetadataRead } from "@gafus/types/trainer-read-contracts";
 
 const idPattern = /^[a-zA-Z0-9_-]{1,128}$/;
 const validViewer = z

@@ -1,13 +1,6 @@
 /** Public anonymous paid-course projection. Do not return lesson/media or owner rows. */
-export type PublicOutlineDay = {
-  id: string;
-  title: string;
-  order: number;
-  type: string;
-  equipment: string;
-  estimatedDuration: number;
-  theoryMinutes: number;
-};
+import type { PublicOutlineDay, PublicPaidCourseOutline } from "@gafus/types/course-outline";
+export type { PublicOutlineDay, PublicPaidCourseOutline } from "@gafus/types/course-outline";
 
 export interface PublicOutlineCourse {
   id: string;
@@ -19,16 +12,6 @@ export interface PublicOutlineCourse {
   isPrivate: boolean;
   isPaid: boolean;
 }
-
-export type PublicPaidCourseOutline = {
-  courseId: string;
-  courseType: string;
-  name: string;
-  description: string | null;
-  equipment: string | null;
-  trainingLevel: string | null;
-  outline: PublicOutlineDay[];
-};
 
 /** A missing or private/unpaid course must not trigger any day-content read. */
 export function isPublicPaidCourse<T extends Pick<PublicOutlineCourse, "isPrivate" | "isPaid">>(

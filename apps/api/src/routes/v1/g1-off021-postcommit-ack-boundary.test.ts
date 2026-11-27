@@ -12,13 +12,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 const m=vi.hoisted(()=>({mutate:vi.fn(),sync:vi.fn(),theory:vi.fn(),access:vi.fn(),notify:vi.fn(),getDay:vi.fn(),resetNotify:vi.fn()}));
-vi.mock("@gafus/core/services/training",()=>({
- getTrainingDays:vi.fn(),getTrainingDayWithMonetizedSteps:vi.fn(),requireCourseStepOperationAccess:m.access,
- syncUserCourseStatusFromDays:m.sync,updateStepAndDay:m.mutate,validateTheoryStepForCompletion:m.theory,
-}));
+vi.mock("../../modules/training/composition/sql-training-instance.js", () => ({ sqlTraining: {
+  getTrainingDays:vi.fn(),
+  getTrainingDayWithMonetizedSteps:vi.fn(),
+  requireCourseStepOperationAccess:m.access,
+  syncUserCourseStatusFromDays:m.sync,
+  updateStepAndDay:m.mutate,
+  validateTheoryStepForCompletion:m.theory
+} }));
 vi.mock("../../modules/daily-course/composition/dailyCourseApplication.js",()=>({getDailyCourseDayWithUserSteps:vi.fn(),getTodayDailyCourse:vi.fn(),updateDailyCourseStepAndDay:vi.fn()}));
 vi.mock("../../modules/training/composition/diary-rows",()=>({getDiaryEntries:vi.fn(),saveDiaryEntry:vi.fn()}));
-vi.mock("@gafus/core/services/course",()=>({checkCourseAccess:vi.fn()}));
+vi.mock("../../modules/courses/composition/catalog-read-instance.js",()=>({checkCourseAccess:vi.fn()}));
 vi.mock("@gafus/core/services/rewardedCredits",()=>({SubscriptionOrCreditsRequiredError:class extends Error{},requirePremiumOrRewardedAccessForVideoUrl:vi.fn()}));
 vi.mock("../../modules/video/composition/video-access.js",()=>({getProgress:vi.fn(),checkVideoAccess:vi.fn(),getVideoManifestInfo:vi.fn(),saveProgress:vi.fn()}));
 vi.mock("@gafus/course-server/video-progress", () => ({ getProgress: vi.fn(), saveProgress: vi.fn() }));

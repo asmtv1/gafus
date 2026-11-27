@@ -35,9 +35,10 @@ export function bullTelemetryConfig(
 }
 
 export function injectBullTelemetry(
-  html: string, config: BullTelemetryConfig | null,
+  html: string, config: BullTelemetryConfig | null, basePath = "/admin/queues",
 ): string {
   if (!config) return html;
+  if (!["/admin/queues", "/api/v1/admin/queues"].includes(basePath)) throw new Error("BULL_UI_BASE_PATH_INVALID");
   if (!html.startsWith("<!DOCTYPE html>") ||
       (html.match(/<\/head>/gi) ?? []).length !== 1 ||
       html.includes("gafus-browser-diagnostics-config"))
@@ -47,6 +48,6 @@ export function injectBullTelemetry(
   const element =
     '<script id="gafus-browser-diagnostics-config" type="application/json">' +
     encoded +
-    '</script><script defer src="/admin/queues/gafus-diagnostics.js"></script>';
+    '</script><script defer src="' + basePath + '/gafus-diagnostics.js"></script>';
   return html.replace("</head>",element+"</head>");
 }

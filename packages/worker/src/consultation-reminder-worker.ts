@@ -12,7 +12,7 @@ interface ReminderJobData {
   kind?: ConsultationReminderKind;
 }
 
-export function startConsultationReminderWorker(): void {
+export function startConsultationReminderWorker() {
   const worker = new Worker<ReminderJobData>(
     "consultation-reminder",
     async (job: Job<ReminderJobData>) => {
@@ -31,4 +31,5 @@ export function startConsultationReminderWorker(): void {
     logger.error("consultation-reminder worker error", err);
   });
   logger.success("consultation-reminder worker запущен");
+  return worker;
 }

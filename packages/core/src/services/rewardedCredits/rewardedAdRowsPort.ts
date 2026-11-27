@@ -210,32 +210,3 @@ export interface RewardedAdRowsPort {
         updatedAt: Date;
     }>;
 }
-let installed: Readonly<RewardedAdRowsPort> | null = null;
-export function registerRewardedAdRowsPort(port: RewardedAdRowsPort): void {
-    if (installed && installed !== port)
-        throw new Error("REWARDED_AD_ROWS_PORT_ALREADY_BOUND");
-    installed = port;
-}
-function requireRows(): Readonly<RewardedAdRowsPort> {
-    if (!installed)
-        throw new Error("REWARDED_AD_ROWS_PORT_UNBOUND");
-    return installed;
-}
-export const countRewardedDayRows: RewardedAdRowsPort["countRewardedDayRows"] = (...args) => requireRows().countRewardedDayRows(...args);
-export const existsPublicRewardedArticle: RewardedAdRowsPort["existsPublicRewardedArticle"] = (...args) => requireRows().existsPublicRewardedArticle(...args);
-export const existsPublicRewardedStep: RewardedAdRowsPort["existsPublicRewardedStep"] = (...args) => requireRows().existsPublicRewardedStep(...args);
-export const findActiveRewardedAccess: RewardedAdRowsPort["findActiveRewardedAccess"] = (...args) => requireRows().findActiveRewardedAccess(...args);
-export const findBlockingAdSession: RewardedAdRowsPort["findBlockingAdSession"] = (...args) => requireRows().findBlockingAdSession(...args);
-export const createAdSessionRow: RewardedAdRowsPort["createAdSessionRow"] = (...args) => requireRows().createAdSessionRow(...args);
-export const findRewardedAdSessionRow: RewardedAdRowsPort["findRewardedAdSessionRow"] = (...args) => requireRows().findRewardedAdSessionRow(...args);
-export const withRewardedDailyLock: RewardedAdRowsPort["withRewardedDailyLock"] = (...args) => requireRows().withRewardedDailyLock(...args);
-export const readShownRewardedEvent: RewardedAdRowsPort["readShownRewardedEvent"] = (...args) => requireRows().readShownRewardedEvent(...args);
-export const readDailyRewardedSettings: RewardedAdRowsPort["readDailyRewardedSettings"] = (...args) => requireRows().readDailyRewardedSettings(...args);
-export const appendRewardedAdEvent: RewardedAdRowsPort["appendRewardedAdEvent"] = (...args) => requireRows().appendRewardedAdEvent(...args);
-export const markAdSessionRewarded: RewardedAdRowsPort["markAdSessionRewarded"] = (...args) => requireRows().markAdSessionRewarded(...args);
-export const markAdSessionNonRewardedStatus: RewardedAdRowsPort["markAdSessionNonRewardedStatus"] = (...args) => requireRows().markAdSessionNonRewardedStatus(...args);
-export const findRewardedGrantBySession: RewardedAdRowsPort["findRewardedGrantBySession"] = (...args) => requireRows().findRewardedGrantBySession(...args);
-export const markAdSessionExpired: RewardedAdRowsPort["markAdSessionExpired"] = (...args) => requireRows().markAdSessionExpired(...args);
-export const withRewardedAccessLock: RewardedAdRowsPort["withRewardedAccessLock"] = (...args) => requireRows().withRewardedAccessLock(...args);
-export const createRewardedAccessGrant: RewardedAdRowsPort["createRewardedAccessGrant"] = (...args) => requireRows().createRewardedAccessGrant(...args);
-export const markAdSessionGranted: RewardedAdRowsPort["markAdSessionGranted"] = (...args) => requireRows().markAdSessionGranted(...args);

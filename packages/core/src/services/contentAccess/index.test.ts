@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  resolveCourseStepAccessTx,
-  resolveMiniGuideAccessTx,
+  createTransactionalContentPolicy,
   type CourseStepTarget,
   type MiniGuideTarget,
 } from "./index";
@@ -13,10 +12,8 @@ const mockAssignment = vi.fn();
 const mockGafus = vi.fn();
 const mockGuideLookup = vi.fn();
 
-vi.mock("../appFeatureFlags", () => ({
-  APP_FEATURE_APP_SUBSCRIPTION_GATING: "app_subscription_gating_enabled",
-  getAppFeatureFlagEnabled: (...args: unknown[]) => mockFlag(...args),
-}));
+const { resolveCourseStepAccessTx, resolveMiniGuideAccessTx } =
+  createTransactionalContentPolicy(() => mockFlag("app_subscription_gating_enabled", true));
 
 const tx = {
   user: { findUnique: (...args: unknown[]) => mockRole(...args) },

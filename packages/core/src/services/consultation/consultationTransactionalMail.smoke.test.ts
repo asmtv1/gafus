@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mock = vi.hoisted(() => ({
   findUnique: vi.fn(),
@@ -26,6 +26,7 @@ import type { ConsultationEmailType } from "@gafus/prisma";
 
 const booking = {
   id: "booking-1",
+  status: "CONFIRMED",
   clientOwnerName: "Аня",
   clientPhone: null,
   petName: null,
@@ -42,6 +43,8 @@ const booking = {
     user: { email: "trainer@example.test", username: "trainer", profile: { fullName: "Кинолог" } },
   },
 };
+
+afterEach(() => vi.useRealTimers());
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -85,7 +88,8 @@ describe("consultation mail delivery policy", () => {
     expect(logged).not.toContain("booking-1");
   });
 
-  it("expires appointment reminders quickly", async () => {
+  it("expires appointment reminders at slot start even if the queue TTL is longer", async () => {
+    vi.useFakeTimers().setSystemTime(new Date("2026-10-15T11:59:00Z"));
     await sendConsultationEmailFromLog(
       "log-2",
       "CLIENT_CONSULTATION_REMINDER_30M" as ConsultationEmailType,
@@ -93,8 +97,14 @@ describe("consultation mail delivery policy", () => {
     expect(mock.send).toHaveBeenCalledWith(
       expect.objectContaining({
         deliveryKey: "consultation-log-2",
-        maxQueueAgeMs: 600_000,
+        maxQueueAgeMs: 60_000,
       }),
     );
+  });
+  it("suppresses delayed reminder email after cancellation", async () => {
+    vi.useFakeTimers().setSystemTime(new Date("2026-10-15T12:00:00Z"));
+    mock.findUnique.mockResolvedValue({ booking: { ...booking, status: "CANCELLED_BY_USER" } });
+    await expect(sendConsultationEmailFromLog("late", "CLIENT_CONSULTATION_START")).resolves.toEqual({ kind: "STALE_REMINDER" });
+    expect(mock.send).not.toHaveBeenCalled();
   });
 });

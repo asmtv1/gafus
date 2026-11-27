@@ -94,7 +94,7 @@ async function sendReminderToUser(
       .map((result) => result.endpoint);
 
     if (invalidWebEndpoints.length > 0) {
-      await removeInvalidTrainingReminderEndpoints(invalidWebEndpoints);
+      await removeInvalidTrainingReminderEndpoints(userId, invalidWebEndpoints);
     }
 
     const expoResults =

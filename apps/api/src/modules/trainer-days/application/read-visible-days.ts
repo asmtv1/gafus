@@ -5,7 +5,7 @@ type VisibleDaysReader = typeof getVisibleDays;
 
 type PlainObject = Record<string, unknown>;
 import type { TrainerVisibleDayItem } from
-  "../../../../../../packages/types/src/data/trainer-read-contracts";
+  "@gafus/types/trainer-read-contracts";
 /** Backward-compatible name for consumers of the previous route/application type. */
 export type VisibleDayDto = TrainerVisibleDayItem;
 

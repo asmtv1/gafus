@@ -4,19 +4,7 @@
 import { ZodError } from "zod/v3";
 
 import {
-  readOwnedPreventionPet,
-  readOwnedPreventionEntryForUpdate,
-  readOwnedPreventionEntryId,
-  createPreventionRow,
-  updateOwnedPreventionRow,
-  deleteOwnedPreventionRow,
-  readPreventionRowsByPet,
-  readOwnedPreventionPetIds,
-  readPreventionRowsByPets,
-  withPreventionTransaction,
-  readExistingPreventionClientRow,
-  createPreventionRowTx,
-  updateOwnedPreventionRowTx,
+  requirePreventionRowsPort,
   type PreventionTx,
   type PreventionRowsPort,
 } from "./preventionRowsPort";
@@ -129,7 +117,7 @@ export async function createEntry(
 ): Promise<CreateEntryResult> {
   try {
     const validated = createEntrySchema.parse(data);
-    const pet = await (rowsPort?.readOwnedPreventionPet ?? readOwnedPreventionPet)(userId, petId);
+    const pet = await requirePreventionRowsPort(rowsPort).readOwnedPreventionPet(userId, petId);
     if (!pet) {
       return { success: false, error: "Питомец не найден" };
     }
@@ -144,7 +132,7 @@ export async function createEntry(
       reminderTimes: validated.reminderTimes,
     });
 
-    const entry = await (rowsPort?.createPreventionRow ?? createPreventionRow)({
+    const entry = await requirePreventionRowsPort(rowsPort).createPreventionRow({
       petId,
       ownerId: userId,
       type: validated.type,
@@ -192,7 +180,7 @@ export async function updateEntry(
 ): Promise<CreateEntryResult> {
   try {
     const validated = updateEntrySchema.parse(data);
-    const existing = await (rowsPort?.readOwnedPreventionEntryForUpdate ?? readOwnedPreventionEntryForUpdate)(userId, petId, entryId);
+    const existing = await requirePreventionRowsPort(rowsPort).readOwnedPreventionEntryForUpdate(userId, petId, entryId);
     if (!existing) {
       return { success: false, error: "Запись не найдена" };
     }
@@ -238,7 +226,7 @@ export async function updateEntry(
     const lastNotifiedForRemindAt =
       prevRemind === nextRemind ? existing.lastNotifiedForRemindAt : null;
 
-    const entry = await (rowsPort?.updateOwnedPreventionRow ?? updateOwnedPreventionRow)(
+    const entry = await requirePreventionRowsPort(rowsPort).updateOwnedPreventionRow(
       userId,
       petId,
       entryId,
@@ -288,11 +276,11 @@ export async function deleteEntry(
   rowsPort?: PreventionRowsPort,
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const existing = await (rowsPort?.readOwnedPreventionEntryId ?? readOwnedPreventionEntryId)(userId, petId, entryId);
+    const existing = await requirePreventionRowsPort(rowsPort).readOwnedPreventionEntryId(userId, petId, entryId);
     if (!existing) {
       return { success: false, error: "Запись не найдена" };
     }
-    await (rowsPort?.deleteOwnedPreventionRow ?? deleteOwnedPreventionRow)(userId, petId, entryId);
+    await requirePreventionRowsPort(rowsPort).deleteOwnedPreventionRow(userId, petId, entryId);
     return { success: true };
   } catch (error) {
     const ctx = { entryId, petId, userId };
@@ -319,11 +307,11 @@ export async function deleteEntry(
  */
 export async function getEntriesByPet(userId: string, petId: string, rowsPort?: PreventionRowsPort): Promise<GetEntriesResult> {
   try {
-    const pet = await (rowsPort?.readOwnedPreventionPet ?? readOwnedPreventionPet)(userId, petId);
+    const pet = await requirePreventionRowsPort(rowsPort).readOwnedPreventionPet(userId, petId);
     if (!pet) {
       return { success: false, error: "Питомец не найден" };
     }
-    const entries = await (rowsPort?.readPreventionRowsByPet ?? readPreventionRowsByPet)(userId, petId);
+    const entries = await requirePreventionRowsPort(rowsPort).readPreventionRowsByPet(userId, petId);
     return { success: true, data: entries };
   } catch (error) {
     const ctx = { petId, userId };
@@ -358,13 +346,13 @@ export async function getEntriesByPets(
       return { success: true, data: {} };
     }
 
-    const ownedPets = await (rowsPort?.readOwnedPreventionPetIds ?? readOwnedPreventionPetIds)(userId, petIds);
+    const ownedPets = await requirePreventionRowsPort(rowsPort).readOwnedPreventionPetIds(userId, petIds);
     const ownedPetIds = new Set(ownedPets.map((pet) => pet.id));
     if (ownedPetIds.size === 0) {
       return { success: true, data: {} };
     }
 
-    const entries = await (rowsPort?.readPreventionRowsByPets ?? readPreventionRowsByPets)(userId, Array.from(ownedPetIds));
+    const entries = await requirePreventionRowsPort(rowsPort).readPreventionRowsByPets(userId, Array.from(ownedPetIds));
 
     const grouped: Record<string, EntrySelect[]> = {};
     for (const entry of entries) {
@@ -448,7 +436,7 @@ export async function createNewPreventionEntryTx(
   rowsPort?: PreventionRowsPort,
 ): Promise<{ id: string }> {
   const computed = batchEntryToComputed(entry);
-  return (rowsPort?.createPreventionRowTx ?? createPreventionRowTx)(tx, {
+  return requirePreventionRowsPort(rowsPort).createPreventionRowTx(tx, {
     petId,
     ownerId: userId,
     type: entry.type,
@@ -477,7 +465,7 @@ export async function upsertPreventionEntriesBatch(
 ): Promise<BatchResult> {
   try {
     const parsed = batchRequestSchema.parse({ entries });
-    const pet = await (rowsPort?.readOwnedPreventionPet ?? readOwnedPreventionPet)(userId, petId);
+    const pet = await requirePreventionRowsPort(rowsPort).readOwnedPreventionPet(userId, petId);
     if (!pet) {
       return { success: false, error: "Питомец не найден" };
     }
@@ -485,17 +473,17 @@ export async function upsertPreventionEntriesBatch(
     let created = 0;
     let updated = 0;
 
-    await (rowsPort?.withPreventionTransaction ?? withPreventionTransaction)(async (tx) => {
+    await requirePreventionRowsPort(rowsPort).withPreventionTransaction(async (tx) => {
       for (const entry of parsed.entries) {
         const computed = batchEntryToComputed(entry);
-        const existing = await (rowsPort?.readExistingPreventionClientRow ?? readExistingPreventionClientRow)(tx, petId, entry.clientId);
+        const existing = await requirePreventionRowsPort(rowsPort).readExistingPreventionClientRow(tx, petId, entry.clientId);
         if (existing) {
           const prevRemind = existing.remindAt ? utcDayStart(existing.remindAt).getTime() : null;
           const nextRemind = computed.remindAt ? utcDayStart(computed.remindAt).getTime() : null;
           const lastNotifiedForRemindAt =
             prevRemind === nextRemind ? existing.lastNotifiedForRemindAt : null;
 
-          await (rowsPort?.updateOwnedPreventionRowTx ?? updateOwnedPreventionRowTx)(
+          await requirePreventionRowsPort(rowsPort).updateOwnedPreventionRowTx(
             tx,
             userId,
             petId,
@@ -517,7 +505,7 @@ export async function upsertPreventionEntriesBatch(
           );
           updated += 1;
         } else {
-          await (rowsPort?.createPreventionRowTx ?? createPreventionRowTx)(tx, {
+          await requirePreventionRowsPort(rowsPort).createPreventionRowTx(tx, {
             petId,
             ownerId: userId,
             type: entry.type,

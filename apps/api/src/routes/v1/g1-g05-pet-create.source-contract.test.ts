@@ -1,3 +1,4 @@
+import { petRows } from "../../modules/pets/composition/pet-rows-instance.js";
 /**
  * G05 registered Hono CREATE producer source contract, reconciled after accepted
  * birthDate/weight boundary guards. Core creation is mocked: no Prisma, Redis,
@@ -70,7 +71,7 @@ async function post(body: Record<string, unknown>, actor = "synthetic-A") {
 beforeEach(() => {
   httpRecords.length = 0;
   vi.clearAllMocks();
-  m.create.mockImplementation(async (ownerId: string, payload: typeof BASE) => ({
+  m.create.mockImplementation(async (_rows: unknown, ownerId: string, payload: typeof BASE) => ({
     id: "synthetic-pet",
     ownerId,
     ...payload,
@@ -105,17 +106,17 @@ describe("AG1 G05 current server source contract — NOT frozen producer", () =>
       success: true,
       data: { id: "synthetic-pet", ownerId: "synthetic-A" },
     });
-    expect(m.create).toHaveBeenCalledWith("synthetic-A", BASE);
+    expect(m.create).toHaveBeenCalledWith(petRows, "synthetic-A", BASE);
   });
   it("G05-S02 client-supplied ownerId is discarded by Hono schema", async () => {
     const x = await post({ ...BASE, ownerId: "forged-other", userId: "forged-other" });
     expect(x.response.status).toBe(201);
-    expect(m.create).toHaveBeenCalledWith("synthetic-A", BASE);
+    expect(m.create).toHaveBeenCalledWith(petRows, "synthetic-A", BASE);
   });
   it("G05-S03 synthetic B identity determines owner, not submitted body", async () => {
     const x = await post({ ...BASE, ownerId: "synthetic-A" }, "synthetic-B");
     expect(x.response.status).toBe(201);
-    expect(m.create).toHaveBeenCalledWith("synthetic-B", BASE);
+    expect(m.create).toHaveBeenCalledWith(petRows, "synthetic-B", BASE);
   });
   it("G05-S04 missing required birthDate fails 400 before Core", async () => {
     const { birthDate: _notSent, ...body } = BASE;
@@ -192,3 +193,5 @@ describe("AG1 G05 current server source contract — NOT frozen producer", () =>
     expect(m.create).toHaveBeenCalledTimes(2);
   });
 });
+
+vi.mock("../../modules/pets/composition/pet-rows-instance.js", () => ({ petRows: {} }));

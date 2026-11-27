@@ -1,5 +1,11 @@
+import { validVideoId, validVideoSnapshot, verifyVideoAck, type VideoJournalPreview, type VideoProgressSnapshot } from "./videoJournalContract";
+import { verifyTimerAck, type TimerJournalPreview } from "./timerJournalContract";
+import { stepJournalResource, validProgressVersion } from "./journalVersionFields";
+import { verifyDailyJournalAck, type DailyJournalPreview } from "./dailyJournalContract";
+import { evaluatePracticeJournalResponse, type PracticeJournalPreview } from "./newOnlyV2PracticeContract";
+import { evaluatePreventionJournalContract, type PreventionContractPreview } from "./newOnlyV2PreventionContract";
 /**
- * NEW-only native offline queue Phase 1. Intentionally has NO send/replay/ACK APIs.
+ * Owner/epoch-scoped native offline queue. Only explicitly verified journal ACKs may remove events.
  * Never opens or rewrites pre-v2 AsyncStorage keys or native media files.
  */
 export type NewOnlyV2QueueKind = "progress" | "prevention";
@@ -17,11 +23,15 @@ export interface V2PendingEvent {
 }
 interface V2Envelope extends V2SessionBinding {
   entries: V2PendingEvent[];
+  videoSnapshots?: Record<string, VideoProgressSnapshot>;
 }
 export interface NewOnlyV2Dependencies {
   storage: {
     getItem(key: string): Promise<string | null>;
     setItem(key: string, value: string): Promise<void>;
+    /** Native storage may enumerate existing owner-scoped envelopes for recovery. */
+    getAllKeys?(): Promise<readonly string[]>;
+    removeItem?(key: string): Promise<void>;
   };
   secure: {
     getItemAsync(key: string): Promise<string | null>;
@@ -123,6 +133,10 @@ function parseEnvelope(
     throw new NewOnlyV2Error("V2_QUARANTINED");
   }
   const envelope = v as unknown as V2Envelope;
+  if (envelope.videoSnapshots !== undefined && (!isObject(envelope.videoSnapshots) ||
+      Object.keys(envelope.videoSnapshots).length > 500 ||
+      Object.entries(envelope.videoSnapshots).some(([id, snapshot]) => !validVideoId(id) || !validVideoSnapshot(snapshot))))
+    throw new NewOnlyV2Error("V2_QUARANTINED");
   const seen = new Set<string>();
   for (const e of envelope.entries) {
     if (
@@ -142,6 +156,10 @@ function parseEnvelope(
   }
   return envelope;
 }
+function withVideoSnapshot(envelope: V2Envelope, id: string, snapshot: VideoProgressSnapshot): V2Envelope {
+  const entries = Object.entries(envelope.videoSnapshots ?? {}).filter(([key]) => key !== id);
+  return { ...envelope, videoSnapshots: Object.fromEntries([...entries, [id, snapshot]].slice(-500)) };
+}
 function keyFor(queue: NewOnlyV2QueueKind, binding: V2SessionBinding): string {
   return `gafus-${queue}-v2:${binding.principalId}:${binding.authEpoch}`;
 }
@@ -150,6 +168,33 @@ export class NewOnlyV2Queues {
   private active: V2SessionBinding | null = null;
   private generation = 0;
   private tail: Promise<void> = Promise.resolve();
+  private readonly pendingListeners = new Set<() => void>();
+  /** Notify only after the new immutable entry is durably published. */
+  subscribePendingWrites(listener: () => void): () => void {
+    this.pendingListeners.add(listener);
+    return () => { this.pendingListeners.delete(listener); };
+  }
+  private readonly practiceAcknowledgements = new Set<string>();
+  private readonly practiceListeners = new Set<() => void>();
+  subscribePracticeAcknowledgements(listener: () => void): () => void {
+    this.practiceListeners.add(listener);
+    return () => { this.practiceListeners.delete(listener); };
+  }
+  wasPracticeAcknowledged(eventId: string, binding: V2SessionBinding): boolean {
+    return this.active?.principalId === binding.principalId &&
+      this.active.authEpoch === binding.authEpoch && this.practiceAcknowledgements.has(eventId);
+  }
+  private readonly preventionAcknowledgements = new Set<string>();
+  private readonly preventionListeners = new Set<() => void>();
+
+  subscribePreventionAcknowledgements(listener: () => void): () => void {
+    this.preventionListeners.add(listener);
+    return () => { this.preventionListeners.delete(listener); };
+  }
+  wasPreventionAcknowledged(eventId: string, binding: V2SessionBinding): boolean {
+    return this.active?.principalId === binding.principalId &&
+      this.active.authEpoch === binding.authEpoch && this.preventionAcknowledgements.has(eventId);
+  }
 
   constructor(private readonly deps: NewOnlyV2Dependencies) {}
 
@@ -181,15 +226,112 @@ export class NewOnlyV2Queues {
     );
   }
 
+  /**
+   * Called exclusively after verified profile, before exposing the new epoch.
+   * Publish the complete destination before clearing sources. A crash between
+   * those writes leaves duplicate immutable event IDs, which the next restore
+   * merges before permitting any replay. Ownerless keys are never opened.
+   */
+  private async recoverOwnedQueues(binding: V2SessionBinding, version: number): Promise<void> {
+    if (!this.deps.storage.getAllKeys) return;
+    const check = async () => {
+      if (version !== this.generation) throw new NewOnlyV2Error("V2_SESSION_CHANGED");
+      const raw = await this.deps.secure.getItemAsync(BINDING_KEY);
+      let stored: unknown;
+      try { stored = raw ? JSON.parse(raw) : null; } catch {
+        throw new NewOnlyV2Error("V2_SESSION_UNVERIFIED");
+      }
+      if (version !== this.generation || !validBinding(stored) ||
+          stored.principalId !== binding.principalId || stored.authEpoch !== binding.authEpoch)
+        throw new NewOnlyV2Error("V2_SESSION_CHANGED");
+    };
+    await check();
+    const keys = await this.deps.storage.getAllKeys();
+    await check();
+    for (const kind of ["progress", "prevention"] as const) {
+      const prefix = `gafus-${kind}-v2:${binding.principalId}:`;
+      const target = keyFor(kind, binding);
+      const scoped = [...new Set(keys.filter(key =>
+        key.startsWith(prefix) && UUID_V4.test(key.slice(prefix.length))))];
+      if (!scoped.some(key => key !== target)) continue;
+      if (scoped.length > 1000) throw new NewOnlyV2Error("V2_QUEUE_LIMIT");
+      const sources: { key: string; envelope: V2Envelope }[] = [];
+      for (const key of [...new Set([target, ...scoped])]) {
+        await check();
+        const raw = await this.deps.storage.getItem(key);
+        if (raw === null) continue;
+        const epoch = key.slice(prefix.length);
+        const envelope = parseEnvelope(raw, { ...binding, authEpoch: epoch }, kind);
+        if (envelope.entries.length) sources.push({ key, envelope });
+      }
+      if (!sources.some(source => source.key !== target)) {
+        if (this.deps.storage.removeItem) {
+          for (const key of scoped) if (key !== target) {
+            await check();
+            await this.deps.storage.removeItem(key);
+          }
+        }
+        continue;
+      }
+      const merged = new Map<string, V2PendingEvent>();
+      for (const { envelope } of sources) {
+        for (const entry of envelope.entries) {
+          const previous = merged.get(entry.eventId);
+          if (previous && JSON.stringify(previous) !== JSON.stringify(entry))
+            throw new NewOnlyV2Error("V2_QUARANTINED");
+          merged.set(entry.eventId, entry);
+        }
+      }
+      if (merged.size > MAX_EVENTS) throw new NewOnlyV2Error("V2_QUEUE_LIMIT");
+      let entries: V2PendingEvent[];
+      if (kind === "progress") {
+        // Prior migrations can leave identical prefixes/copies. Never invent
+        // chronology between distinct historical timer histories using a
+        // device wall clock. Preserve every source if no common ordering is
+        // provable from one complete durable snapshot.
+        const full = sources.find(source => source.envelope.entries.length === merged.size);
+        if (!full) throw new NewOnlyV2Error("V2_QUARANTINED");
+        const positions = new Map(full.envelope.entries.map((event, index) => [event.eventId, index]));
+        if (sources.some(source => {
+          let position = -1;
+          return source.envelope.entries.some(event => {
+            const next = positions.get(event.eventId);
+            if (next === undefined || next <= position) return true;
+            position = next;
+            return false;
+          });
+        })) throw new NewOnlyV2Error("V2_QUARANTINED");
+        entries = full.envelope.entries;
+      } else {
+        // Prevention journal operations create immutable records independently.
+        entries = [...merged.values()];
+      }
+      await check();
+      await this.deps.storage.setItem(target, JSON.stringify({ ...binding, entries }));
+      // The new epoch is still inaccessible. Do not publish it until every
+      // copied source is cleared; otherwise an ACK could resurrect a copy.
+      for (const { key, envelope } of sources) {
+        if (key === target) continue;
+        await check();
+        if (this.deps.storage.removeItem) await this.deps.storage.removeItem(key);
+        else await this.deps.storage.setItem(key, JSON.stringify({ ...envelope, entries: [] }));
+      }
+      await check();
+    }
+  }
+
   /** Call ONLY after server-verified full login; never for cached profile. */
   async beginVerifiedLogin(principalId: string): Promise<V2SessionBinding> {
     if (!OWNER.test(principalId)) throw new NewOnlyV2Error("V2_INVALID_ID");
     const version = ++this.generation;
     this.active = null;
+    this.preventionAcknowledgements.clear();
+    this.practiceAcknowledgements.clear();
     return this.serial(async () => {
       if (version !== this.generation) throw new NewOnlyV2Error("V2_SESSION_CHANGED");
       const binding: V2SessionBinding = { schemaVersion: 2, principalId, authEpoch: this.uuid() };
       await this.deps.secure.setItemAsync(BINDING_KEY, JSON.stringify(binding));
+      await this.recoverOwnedQueues(binding, version);
       if (version !== this.generation) throw new NewOnlyV2Error("V2_SESSION_CHANGED");
       this.active = binding;
       return { ...binding };
@@ -200,6 +342,8 @@ export class NewOnlyV2Queues {
   async restoreVerifiedSession(principalId: string): Promise<boolean> {
     const version = ++this.generation;
     this.active = null;
+    this.preventionAcknowledgements.clear();
+    this.practiceAcknowledgements.clear();
     if (!OWNER.test(principalId)) return false;
     return this.serial(async () => {
       const raw = await this.deps.secure.getItemAsync(BINDING_KEY);
@@ -213,11 +357,14 @@ export class NewOnlyV2Queues {
         return false;
       }
       if (!validBinding(candidate) || candidate.principalId !== principalId) return false;
-      this.active = {
+      const binding: V2SessionBinding = {
         schemaVersion: 2,
         principalId: candidate.principalId,
         authEpoch: candidate.authEpoch,
       };
+      await this.recoverOwnedQueues(binding, version);
+      if (version !== this.generation) return false;
+      this.active = binding;
       return true;
     });
   }
@@ -253,6 +400,8 @@ export class NewOnlyV2Queues {
   async endSession(): Promise<void> {
     const version = ++this.generation;
     this.active = null;
+    this.preventionAcknowledgements.clear();
+    this.practiceAcknowledgements.clear();
     await this.serial(async () => {
       if (version !== this.generation) return;
       await this.deps.secure.deleteItemAsync(BINDING_KEY);
@@ -319,7 +468,122 @@ export class NewOnlyV2Queues {
     });
   }
 
-  /** Fully durable new-only enqueue. No network, ACK or removal path exists here. */
+  /** Only exact authenticated POST receipts authorize removal, never lookup alone. */
+  acknowledgePrevention(binding: V2SessionBinding, event: V2PendingEvent,
+    preview: PreventionContractPreview, response: unknown, isCurrent: () => boolean) {
+    return this.acknowledge("prevention", binding, event, isCurrent, stored =>
+      evaluatePreventionJournalContract(preview, binding, stored, "post", 200, response).status === "confirmed");
+  }
+
+  acknowledgePractice(binding: V2SessionBinding, event: V2PendingEvent,
+    preview: PracticeJournalPreview, response: unknown, isCurrent: () => boolean) {
+    if (!preview.post.body.expectedStepOnDayId || !preview.post.body.expectedStepId)
+      return Promise.resolve(false);
+    return this.acknowledge("progress", binding, event, isCurrent, stored =>
+      evaluatePracticeJournalResponse(preview, binding, stored, "post", 200, response).status === "confirmed");
+  }
+
+  acknowledgeDaily(binding: V2SessionBinding, event: V2PendingEvent,
+    preview: DailyJournalPreview, response: unknown, isCurrent: () => boolean) {
+    return this.acknowledge("progress", binding, event, isCurrent, stored =>
+      verifyDailyJournalAck(preview, binding, stored, response));
+  }
+
+  acknowledgeTimer(binding: V2SessionBinding, event: V2PendingEvent,
+    preview: TimerJournalPreview, response: unknown, isCurrent: () => boolean) {
+    return this.acknowledge("progress", binding, event, isCurrent, stored =>
+      verifyTimerAck(preview, binding, stored, response));
+  }
+
+  acknowledgeVideo(binding: V2SessionBinding, event: V2PendingEvent,
+    preview: VideoJournalPreview, response: unknown, isCurrent: () => boolean) {
+    const snapshot = verifyVideoAck(preview, binding, event, response);
+    if (!snapshot) return Promise.resolve(false);
+    return this.acknowledge("progress", binding, event, isCurrent,
+      stored => !!verifyVideoAck(preview, binding, stored, response),
+      { videoId: preview.post.body.videoId, snapshot });
+  }
+
+  /** Snapshot reads/writes never cross a verified owner or epoch. */
+  async videoSnapshot(videoId: string, binding: V2SessionBinding,
+    snapshot?: VideoProgressSnapshot, isCurrent: () => boolean = () => true): Promise<VideoProgressSnapshot | null> {
+    if (!validVideoId(videoId) || (snapshot && !validVideoSnapshot(snapshot))) return null;
+    const version = this.generation;
+    const current = () => isCurrent() && this.unchanged(version, binding);
+    return this.serial(async () => {
+      const attest = async () => {
+        if (!current()) return false;
+        const raw = await this.deps.secure.getItemAsync(BINDING_KEY);
+        let stored: unknown;
+        try { stored = raw ? JSON.parse(raw) : null; } catch { return false; }
+        return current() && validBinding(stored) &&
+          stored.principalId === binding.principalId && stored.authEpoch === binding.authEpoch;
+      };
+      if (!await attest()) return null;
+      const key = keyFor("progress", binding);
+      const raw = await this.deps.storage.getItem(key);
+      if (!await attest()) return null;
+      const envelope: V2Envelope = raw === null ? { ...binding, entries: [] } : parseEnvelope(raw, binding, "progress");
+      if (snapshot) {
+        // Never change the baseline of a pending immutable command.
+        if (envelope.entries.some(event => event.kind === "saveVideoProgress" && event.payload.videoId === videoId))
+          return null;
+        await this.deps.storage.setItem(key, JSON.stringify(withVideoSnapshot(envelope, videoId, snapshot)));
+        return current() ? snapshot : null;
+      }
+      const saved = envelope.videoSnapshots;
+      return saved && Object.hasOwn(saved, videoId) ? { ...saved[videoId] } : null;
+    });
+  }
+
+  private async acknowledge(
+    queue: NewOnlyV2QueueKind, binding: V2SessionBinding, event: V2PendingEvent,
+    isCurrent: () => boolean, verified: (stored: V2PendingEvent) => boolean,
+    video?: { videoId: string; snapshot: VideoProgressSnapshot },
+  ): Promise<boolean> {
+    const version = this.generation;
+    const current = () => isCurrent() && this.unchanged(version, binding);
+    if (!current()) return false;
+    return this.serial(async () => {
+      if (!current()) return false;
+      const attest = async () => {
+        const raw = await this.deps.secure.getItemAsync(BINDING_KEY);
+        let stored: unknown;
+        try { stored = raw ? JSON.parse(raw) : null; } catch { return false; }
+        return current() && validBinding(stored) &&
+          stored.principalId === binding.principalId && stored.authEpoch === binding.authEpoch;
+      };
+      if (!await attest()) return false;
+      const key = keyFor(queue, binding);
+      const raw = await this.deps.storage.getItem(key);
+      if (!current() || raw === null) return false;
+      const envelope = parseEnvelope(raw, binding, queue);
+      const stored = envelope.entries.find(row => row.eventId === event.eventId);
+      if (!stored || stored.createdAt !== event.createdAt || stored.kind !== event.kind ||
+          JSON.stringify(stored.payload) !== JSON.stringify(event.payload)) return false;
+      // Never reorder progress past an older command in the same queue.
+      if (queue === "progress" && envelope.entries[0]?.eventId !== event.eventId) return false;
+      if (!verified(stored) || !await attest()) return false;
+      await this.deps.storage.setItem(key, JSON.stringify({
+        ...(video ? withVideoSnapshot(envelope, video.videoId, video.snapshot) : envelope),
+        entries: envelope.entries.filter(row => row.eventId !== event.eventId),
+      }));
+      if (!current()) return false;
+      const receipts = queue === "prevention" ? this.preventionAcknowledgements : this.practiceAcknowledgements;
+      receipts.add(event.eventId);
+      if (receipts.size > 1000) {
+        const oldest = receipts.values().next().value;
+        if (oldest !== undefined) receipts.delete(oldest);
+      }
+      for (const listener of queue === "prevention" ? this.preventionListeners : this.practiceListeners) {
+        // A presentation subscriber cannot turn a committed deletion into a failed ACK.
+        try { listener(); } catch { /* The durable acknowledgement remains valid. */ }
+      }
+      return true;
+    });
+  }
+
+  /** Fully durable enqueue. The writer itself never sends or removes events. */
   async enqueue(
     queue: NewOnlyV2QueueKind,
     kind: string,
@@ -329,7 +593,7 @@ export class NewOnlyV2Queues {
     const version = this.generation;
     if (!binding) throw new NewOnlyV2Error("V2_SESSION_UNVERIFIED");
     if (!KINDS[queue].has(kind)) throw new NewOnlyV2Error("V2_INVALID_PAYLOAD");
-    const immutablePayload = clonePayload(payload);
+    let immutablePayload = clonePayload(payload);
     return this.serial(async () => {
       if (!this.unchanged(version, binding)) throw new NewOnlyV2Error("V2_SESSION_CHANGED");
       // Re-attest SecureStore binding even after restart, before a durable write.
@@ -355,6 +619,23 @@ export class NewOnlyV2Queues {
       const envelope: V2Envelope =
         previous === null ? { ...binding, entries: [] } : parseEnvelope(previous, binding, queue);
       if (envelope.entries.length >= MAX_EVENTS) throw new NewOnlyV2Error("V2_QUEUE_LIMIT");
+      if (queue === "progress") {
+        const { offlineProgressVersion, ...clean } = immutablePayload;
+        const resource = stepJournalResource(clean);
+        if (resource) {
+          const previous = [...envelope.entries].reverse().find(event => stepJournalResource(event.payload) === resource);
+          if (previous) {
+            delete clean.expectedVersion;
+            clean.previousEventId = previous.eventId;
+          } else if (kind === "saveVideoProgress" && validVideoId(clean.videoId) &&
+            envelope.videoSnapshots && Object.hasOwn(envelope.videoSnapshots, clean.videoId)) {
+            clean.expectedVersion = envelope.videoSnapshots[clean.videoId].progressVersion;
+          } else if (validProgressVersion(offlineProgressVersion)) {
+            clean.expectedVersion = offlineProgressVersion;
+          }
+        }
+        immutablePayload = clean;
+      }
       const entry: V2PendingEvent = {
         eventId: this.uuid(),
         createdAt: this.deps.now(),
@@ -366,11 +647,15 @@ export class NewOnlyV2Queues {
       await this.deps.storage.setItem(
         key,
         JSON.stringify({
-          ...binding,
+          ...envelope,
           entries: [...envelope.entries, entry],
         }),
       );
       if (!this.unchanged(version, binding)) throw new NewOnlyV2Error("V2_SESSION_CHANGED");
+      for (const listener of this.pendingListeners) {
+        // Observers may schedule work, but cannot invalidate a durable write.
+        try { listener(); } catch { /* keep the stored entry */ }
+      }
       return {
         ...entry,
         payload: clonePayload(entry.payload),

@@ -47,11 +47,11 @@ export async function sendBroadcastPush(
     // Lazy provider import keeps the normal Chat2/health API startup
     // independent of the CJS webpush package's static ESM re-exports.
     const { PushNotificationService, partitionPushSubscriptions,
-      sendExpoPushNotifications } =
+      sendExpoPushNotifications, deleteInvalidPushRegistrations } =
         await import("@gafus/webpush");
     const rows = await prisma.pushSubscription.findMany({
       select: {
-        endpoint: true,
+        id: true, userId: true, updatedAt: true, endpoint: true,
         keys: true,
       },
     });
@@ -66,8 +66,7 @@ export async function sendBroadcastPush(
       };
     }
 
-    const subscriptionLikes = rows.map((r) => ({ endpoint: r.endpoint, keys: r.keys }));
-    const partitioned = partitionPushSubscriptions(subscriptionLikes);
+    const partitioned = partitionPushSubscriptions(rows);
     const totalTargets =
       partitioned.web.length + partitioned.expo.length;
 
@@ -82,36 +81,34 @@ export async function sendBroadcastPush(
       url: linkUrl,
     };
 
-    const pushService = PushNotificationService.fromEnvironment();
 
     let sentCount = 0;
     let failedCount = 0;
 
     if (partitioned.web.length > 0) {
-      const result = await pushService.sendNotifications(partitioned.web, webPayload);
-      sentCount += result.successCount;
-      failedCount += result.failureCount;
-
-      const invalidEndpoints = result.results
-        .filter((r) => !r.success && PushNotificationService.shouldDeleteSubscription(r.error))
-        .map((r) => r.endpoint);
-
-      if (invalidEndpoints.length > 0) {
-        await prisma.pushSubscription.deleteMany({
-          where: { endpoint: { in: invalidEndpoints } },
-        });
-        logger.info(`Удалено ${invalidEndpoints.length} недействительных web-подписок`);
+      try {
+        const result = await PushNotificationService.fromEnvironment().sendNotifications(partitioned.web, webPayload);
+        sentCount += result.successCount;
+        failedCount += result.failureCount;
+        const invalid = new Set(result.results.filter(row =>
+          !row.success && PushNotificationService.shouldDeleteSubscription(row.error)).map(row => row.endpoint));
+        if (invalid.size) await deleteInvalidPushRegistrations(partitioned.web, invalid)
+          .catch(() => logger.warn("Не удалось очистить устаревшие web-подписки"));
+      } catch {
+        failedCount += partitioned.web.length;
+        logger.warn("Канал Web Push недоступен");
       }
     }
 
     if (partitioned.expo.length > 0) {
-      const expoResult = await sendExpoPushNotifications(partitioned.expo, {
-        title,
-        body,
-        url: linkUrl,
-      });
-      sentCount += expoResult.successCount;
-      failedCount += expoResult.failureCount;
+      try {
+        const expoResult = await sendExpoPushNotifications(partitioned.expo, { title, body, url: linkUrl });
+        sentCount += expoResult.successCount;
+        failedCount += expoResult.failureCount;
+      } catch {
+        failedCount += partitioned.expo.length;
+        logger.warn("Канал Expo Push недоступен");
+      }
     }
 
     logger.success("Массовая рассылка завершена", {

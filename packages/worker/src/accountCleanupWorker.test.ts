@@ -50,7 +50,8 @@ describe("durable account cleanup", () => {
   it("persists the CDN operation and waits instead of reporting completion on acceptance", async () => {
     await processAccountStorageCleanup(1);
     expect(mock.purge).toHaveBeenCalledOnce();
-    expect(statements()[0]).toContain('"purgeOperations" =');
+    expect(statements()[0]).toContain("CLEANUP_SWEEP_UNCERTAIN");
+    expect(statements()[1]).toContain('"purgeOperations" =');
     expect(statements()[0]).not.toContain("'done'");
   });
   it("completes only after an empty second sweep and confirmed CDN operation", async () => {
@@ -60,7 +61,7 @@ describe("durable account cleanup", () => {
     await processAccountStorageCleanup(1);
     expect(mock.sweep).toHaveBeenCalledOnce();
     expect(mock.done).toHaveBeenCalledWith(["operation"], expect.any(Function));
-    expect(statements()[0]).toContain("'done'");
+    expect(statements()[1]).toContain("'done'");
   });
   it.each(["questions", "documents"])(
     "completes verified private %s cleanup without scheduling any CDN purge",
@@ -82,12 +83,37 @@ describe("durable account cleanup", () => {
     expect(mock.purge).toHaveBeenCalledOnce();
     expect(mock.done).not.toHaveBeenCalled();
   });
+  it("persists uncertain sweep intent before touching storage; a reclaim resets stale purge receipts", async () => {
+    await processAccountStorageCleanup(1);
+    expect(mock.execute.mock.invocationCallOrder[0]).toBeLessThan(mock.sweep.mock.invocationCallOrder[0]);
+    const [claim] = mock.query.mock.calls[0];
+    expect(claim.join("")).toContain("CLEANUP_SWEEP_UNCERTAIN");
+    expect(claim.join("")).toContain('"purgeAfter" = CASE');
+    expect(claim.join("")).toContain('"purgeOperations" = CASE');
+    expect(claim.join("")).toContain('"keyCursor" = CASE');
+  });
+  it("does not delete or purge if the pre-sweep lease has expired", async () => {
+    mock.execute.mockResolvedValueOnce(0);
+    await processAccountStorageCleanup(1);
+    expect(mock.sweep).not.toHaveBeenCalled();
+    expect(mock.purge).not.toHaveBeenCalled();
+    expect(mock.execute).toHaveBeenCalledOnce();
+  });
+  it("does not start a new purge if the lease is lost after deleting a late object", async () => {
+    mock.query.mockResolvedValue([{ ...job, purgeAfter: new Date(0), purgeOperations: ["old"] }]);
+    mock.execute.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+    mock.sweep.mockResolvedValue(1);
+    await processAccountStorageCleanup(1);
+    expect(mock.purge).not.toHaveBeenCalled();
+    expect(mock.done).not.toHaveBeenCalled();
+    expect(mock.execute).toHaveBeenCalledTimes(2);
+  });
   it("retains a retry on storage errors without calling purge", async () => {
     mock.sweep.mockRejectedValue(new Error("provider error"));
     await processAccountStorageCleanup(1);
     expect(mock.purge).not.toHaveBeenCalled();
-    expect(statements()[0]).toContain("'pending'");
-    expect(mock.execute.mock.calls[0]).toContain("CLEANUP_RETRY");
+    expect(statements()[1]).toContain("'pending'");
+    expect(mock.execute.mock.calls[1]).toContain("CLEANUP_RETRY");
   });
   it("resets a failed CDN operation so the next attempt submits a new purge", async () => {
     mock.query.mockResolvedValue([
@@ -95,8 +121,8 @@ describe("durable account cleanup", () => {
     ]);
     mock.done.mockRejectedValue(new Error("CLEANUP_CDN_OPERATION_FAILED"));
     await processAccountStorageCleanup(1);
-    expect(mock.execute.mock.calls[0]).toContain(true);
-    expect(statements()[0]).not.toContain("'done'");
+    expect(mock.execute.mock.calls[1]).toContain(true);
+    expect(statements()[1]).not.toContain("'done'");
   });
   it("refuses to forget a persisted Yandex cleanup obligation after worker config drift", async () => {
     vi.stubEnv("GALLERY_DUAL_PROVIDER_CLEANUP", "false");

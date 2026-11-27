@@ -73,14 +73,3 @@ export interface CatalogReadPort {
   readCourseMetadataRow(courseType: string): Promise<CatalogMetadataRow | null>;
   readCourseOutlineRow(courseType: string): Promise<CatalogOutlineRow | null>;
 }
-let boundCatalogReadPort: Readonly<CatalogReadPort> | null = null;
-export function registerCatalogReadPort(port: CatalogReadPort): void {
-  if (boundCatalogReadPort !== null && boundCatalogReadPort !== port) {
-    throw new Error("COURSE_CATALOG_READ_PORT_ALREADY_BOUND");
-  }
-  boundCatalogReadPort = port;
-}
-export function requireCatalogReadPort(): Readonly<CatalogReadPort> {
-  if (!boundCatalogReadPort) throw new Error("COURSE_CATALOG_READ_PORT_UNBOUND");
-  return boundCatalogReadPort;
-}

@@ -8,7 +8,7 @@ import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { feedApi } from "@/shared/lib/api/feed";
-import { FeedPostCard } from "./screens";
+import { FeedPostCard } from "./FeedPostCard";
 import { FeedSectionShortcuts } from "./FeedSectionShortcuts";
 export function FeedPersonalScreen({ hidden = false }: { hidden?: boolean }) {
   const owner = useAuthStore((s) =>

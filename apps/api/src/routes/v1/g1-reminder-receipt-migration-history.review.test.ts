@@ -80,9 +80,9 @@ describe("Reminder receipt additive migration compatibility (review only)", () =
       "packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts",
     );
     const rows = read("packages/identity-write-server/src/reminderReviewRows.ts");
-    expect(core).toContain("requireReminderAG4ReviewRowsPort()");
+    expect(core).toContain("requireReminderAG4ReviewRowsPort(port)");
     expect(core).not.toContain("@gafus/identity-write-server/reminder-review-rows");
-    const composer=read("apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.ts");
+    const composer=read("apps/api/src/modules/reminders/composition/reminder-rows.ts");
     expect(composer).toContain("@gafus/identity-write-server/reminder-review-rows");
     expect(rows).toContain('INSERT INTO "ReminderMutationReceipt"');
     expect(rows).toContain('UPDATE "ReminderMutationReceipt" SET "state"');

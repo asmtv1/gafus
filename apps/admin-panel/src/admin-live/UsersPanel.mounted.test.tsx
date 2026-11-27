@@ -103,3 +103,24 @@ describe("Admin /users: ambiguous writes cannot be blindly repeated", () => {
     expect(host.querySelector(".user-editor")).toBeNull();
   });
 });
+
+
+describe("server-side user pages",()=>{
+  it("loads only the next page and does not expose old rows as its results",async()=>{
+    vi.useFakeTimers();
+    try {
+      const pagination={page:1,pageSize:25,total:27,search:"",sort:"createdAt" as const,direction:"desc" as const};
+      const initial={...source,pagination};
+      window.history.replaceState(null,"","/main-panel/users");
+      await act(async()=>root.render(<UsersPanel source={initial} actorRole="ADMIN" actorId="admin1" onSaved={saved}/>));
+      expect(host.textContent).toContain("@dogowner");
+      mock.request.mockResolvedValueOnce({...source,users:[{...record,id:"next",username:"nextowner",profile:null}],pagination:{...pagination,page:2}});
+      await press("Дальше");
+      expect(host.textContent).not.toContain("@dogowner");
+      await act(async()=>{await vi.advanceTimersByTimeAsync(250);});
+      expect(mock.request.mock.calls[0][0]).toContain("page=2&pageSize=25");
+      expect(host.textContent).toContain("@nextowner");
+      expect(host.textContent).toContain("Страница 2 из 2");
+    }finally{vi.useRealTimers();}
+  });
+});

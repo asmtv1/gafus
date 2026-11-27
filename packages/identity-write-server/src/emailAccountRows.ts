@@ -13,11 +13,11 @@ export function readPasswordResetRequestUser(email: string) {
 
 /** Do not invalidate previously mailed tokens until the provider ACKs this one. */
 export function claimPasswordResetEmailToken(input: {
-  userId: string; tokenHash: string; expiresAt: Date; requestedAt: Date; throttleMs: number;
+  userId: string; expectedEmail: string; tokenHash: string; expiresAt: Date; requestedAt: Date; throttleMs: number;
 }) {
   return prisma.$transaction(async tx => {
     const claim = await tx.user.updateMany({
-      where: { id: input.userId, OR: [
+      where: { id: input.userId, email: input.expectedEmail, OR: [
         { passwordResetRequestedAt: null },
         { passwordResetRequestedAt: { lte: new Date(input.requestedAt.getTime() - input.throttleMs) } },
       ] },
@@ -25,7 +25,7 @@ export function claimPasswordResetEmailToken(input: {
     });
     if (claim.count !== 1) return false;
     await tx.passwordResetToken.create({
-      data: { userId: input.userId, token: input.tokenHash, expiresAt: input.expiresAt },
+      data: { userId: input.userId, token: input.tokenHash, expiresAt: input.expiresAt, createdAt: input.requestedAt },
     });
     return true;
   });
@@ -36,18 +36,26 @@ export function rollbackFailedPasswordResetEmailToken(input: {
   userId: string; tokenHash: string; requestedAt: Date; previousRequestedAt: Date | null;
 }) {
   return prisma.$transaction(async tx => {
-    await tx.passwordResetToken.deleteMany({ where: { userId: input.userId, token: input.tokenHash } });
+    // Owner-first lock order matches reset consumption and email change.
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${input.userId} FOR UPDATE`;
     await tx.user.updateMany({
       where: { id: input.userId, passwordResetRequestedAt: input.requestedAt },
       data: { passwordResetRequestedAt: input.previousRequestedAt },
     });
+    await tx.passwordResetToken.deleteMany({ where: { userId: input.userId, token: input.tokenHash } });
   });
 }
 
+/** A delayed provider ACK must never delete a newer pending/delivered link. */
 export function retireOlderPasswordResetEmailTokens(userId: string, deliveredTokenHash: string) {
   return prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    const delivered = await tx.passwordResetToken.findUnique({
+      where: { token: deliveredTokenHash }, select: { userId: true, createdAt: true },
+    });
+    if (!delivered || delivered.userId !== userId) return;
     await tx.passwordResetToken.deleteMany({
-      where: { userId, token: { not: deliveredTokenHash } },
+      where: { userId, createdAt: { lt: delivered.createdAt } },
     });
   });
 }
@@ -137,8 +145,10 @@ export function consumeEmailChangeConfirmation(token: string): Promise<string | 
       where: { id: row.userId }, select: { email: true },
     });
     await tx.user.update({
-      where: { id: row.userId }, data: { email: row.newEmail }, select: { email: true },
+      where: { id: row.userId }, data: { email: row.newEmail, passwordResetRequestedAt: null }, select: { email: true },
     });
+    // Links mailed to the former email must not survive confirmation.
+    await tx.passwordResetToken.deleteMany({ where: { userId: row.userId } });
     await tx.emailChangeToken.deleteMany({ where: { userId: row.userId } });
     return previous?.email;
   });

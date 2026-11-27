@@ -116,8 +116,11 @@ export class NotificationProcessor {
       type: notification.type as "step" | "immediate",
     });
     const payload = this.createNotificationPayload(notificationData);
-    const results = await this.sendNotifications(subscriptions, payload);
+    const results = await this.sendNotifications(notification.userId, subscriptions, payload);
 
+    if (results.successCount === 0 && results.temporaryFailureCount > 0) {
+      throw new Error("PUSH_TRANSPORT_UNAVAILABLE");
+    }
     await this.updateNotificationStatus(notificationId, results.successCount > 0);
 
     this.logger.success("Notification processing completed", {
@@ -181,9 +184,9 @@ export class NotificationProcessor {
       let body: string;
 
       if (stepTitle.includes(separator)) {
-        const parts = stepTitle.split(separator, 2);
-        title = parts[0] || "Уведомление";
-        body = parts[1] || "Проверьте детали";
+        const index = stepTitle.indexOf(separator);
+        title = stepTitle.slice(0, index) || "Уведомление";
+        body = stepTitle.slice(index + 1) || "Проверьте детали";
       } else {
         title = stepTitle;
         body = "Проверьте детали";
@@ -263,9 +266,10 @@ export class NotificationProcessor {
   }
 
   private async sendNotifications(
+    userId: string,
     subscriptions: PushSubscription[],
     payload: NotificationPayload,
-  ): Promise<{ successCount: number; failedCount: number }> {
+  ): Promise<{ successCount: number; failedCount: number; temporaryFailureCount: number }> {
     const partitioned = partitionPushSubscriptions(subscriptions);
 
     let webResults: {
@@ -286,24 +290,23 @@ export class NotificationProcessor {
       }
     }
 
-    const expoResults =
-      partitioned.expo.length > 0 ?
-        await sendExpoPushNotifications(partitioned.expo, {
-          title: payload.title,
-          body: payload.body,
-          url: payload.data.url,
-        })
-      : {
-          successCount: 0,
-          failureCount: 0,
-          deletedCount: 0,
-          temporaryFailureCount: 0,
-        };
+    let expoResults = { successCount: 0, failureCount: 0, deletedCount: 0, temporaryFailureCount: 0 };
+    if (partitioned.expo.length) {
+      try {
+        expoResults = await sendExpoPushNotifications(partitioned.expo, {
+          title: payload.title, body: payload.body, url: payload.data.url,
+        });
+      } catch {
+        this.logger.warn("Expo push dispatch unavailable");
+        expoResults.failureCount = expoResults.temporaryFailureCount = partitioned.expo.length;
+      }
+    }
 
-    // Обрабатываем неудачные web-подписки
+    let invalidWeb = 0;
     for (const result of webResults.results) {
       if (!result.success && PushNotificationService.shouldDeleteSubscription(result.error)) {
-        await this.handleFailedSubscription(result.endpoint);
+        invalidWeb++;
+        await this.handleFailedSubscription(userId, result.endpoint);
       }
     }
 
@@ -319,20 +322,21 @@ export class NotificationProcessor {
     return {
       successCount: webResults.successCount + expoResults.successCount,
       failedCount: webResults.failureCount + expoResults.failureCount,
+      temporaryFailureCount: webResults.failureCount - invalidWeb + expoResults.temporaryFailureCount,
     };
   }
 
-  private async handleFailedSubscription(endpoint: string): Promise<void> {
+  private async handleFailedSubscription(userId: string, endpoint: string): Promise<void> {
     try {
       // Удаляем недействительную подписку из базы данных
-      await deleteInvalidPushEndpoint(endpoint);
+      await deleteInvalidPushEndpoint(userId, endpoint);
 
       this.logger.info("Removed invalid subscription", {
-        endpoint: endpoint.substring(0, 50) + "...",
+        channel: "web",
       });
     } catch (error) {
       this.logger.error("Failed to handle subscription failure", error as Error, {
-        endpoint: endpoint.substring(0, 50) + "...",
+        channel: "web",
       });
     }
   }
@@ -444,6 +448,10 @@ class PushWorker {
     });
   }
 
+  public async stop(): Promise<void> {
+    await this.worker.close();
+  }
+
   public start(): void {
     this.logger.success("Push worker started", {
       concurrency: config.worker.concurrency,
@@ -453,14 +461,8 @@ class PushWorker {
   }
 }
 
-// Запуск worker'а
-const startupLogger = createWorkerLogger("startup");
-startupLogger.info("Starting push-worker process...");
-
-try {
+export function startPushWorker(): () => Promise<void> {
   const worker = new PushWorker();
   worker.start();
-} catch (error) {
-  startupLogger.error("Failed to start push-worker", error as Error);
-  process.exit(1);
+  return () => worker.stop();
 }

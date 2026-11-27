@@ -237,6 +237,19 @@ describe("encrypted transactional mail outbox", () => {
     expect(callback).toHaveBeenCalledExactlyOnceWith(sensitiveMail.deliveryKey);
   });
 
+  it("expires a reminder cancelled after enqueue, before the provider sees it", async () => {
+    const row = { id: sensitiveMail.deliveryKey, attempts: 1,
+      ...encryptMailPayload({ ...sensitiveMail, attachments: undefined }, sensitiveMail.deliveryKey),
+      createdAt: new Date(), expiresAt: new Date(Date.now() + 60_000) };
+    db.findFirst.mockResolvedValueOnce({ id: row.id });
+    db.findUnique.mockResolvedValue(row);
+    const guard = vi.fn().mockResolvedValue(false);
+    const result = await processDueTransactionalMailOutbox({ batchSize: 1, canDispatchConsultationMail: guard });
+    expect(guard).toHaveBeenCalledWith(row.id, sensitiveMail.to);
+    expect(result).toMatchObject({ expired: 1, sent: 0 });
+    expect(sendResend).not.toHaveBeenCalled();
+  });
+
   it("unknown persisted attempt holds without sending again", async () => {
     const row = { id: sensitiveMail.deliveryKey, status: "PROCESSING", attempts: 1,
       ...encryptMailPayload(

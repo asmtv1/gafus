@@ -6,9 +6,6 @@ import {
 } from "./diaryService";
 
 const courseAccess = vi.fn();
-vi.mock("../course/courseService", () => ({
-  checkCourseAccessById: (...args: unknown[]) => courseAccess(...args),
-}));
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn() }),
 }));
@@ -20,9 +17,9 @@ const repo = {
   readDiaryCourseEntries: vi.fn(),
 } satisfies DiaryPersistencePort;
 const save = (user: string, occurrence: string, text: string) =>
-  coreSaveDiary(repo, user, occurrence, text);
+  coreSaveDiary(repo, courseAccess, user, occurrence, text);
 const get = (user: string, course: string, upTo?: string) =>
-  coreReadDiary(repo, user, course, upTo);
+  coreReadDiary(repo, courseAccess, user, course, upTo);
 beforeEach(() => {
   vi.clearAllMocks();
   courseAccess.mockResolvedValue({ hasAccess: true });

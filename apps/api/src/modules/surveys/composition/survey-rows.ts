@@ -1,3 +1,4 @@
+import { checkCourseAccessById } from "../../courses/composition/catalog-read-instance.js";
 /** API-only composition for survey SQL. Core may not import this module. */
 import {
   getSurveyComparison as readCoreSurveyComparison,
@@ -28,5 +29,5 @@ export const getSurveyResponse = (userId: string, stepId: string) =>
   readCoreSurveyResponse(surveyPersistence, userId, stepId);
 
 export const submitSurveyResponse = (
-  userId: string, input: Parameters<typeof writeCoreSurveyResponse>[2],
-) => writeCoreSurveyResponse(surveyPersistence, userId, input);
+  userId: string, input: Parameters<typeof writeCoreSurveyResponse>[3],
+) => writeCoreSurveyResponse(surveyPersistence, checkCourseAccessById, userId, input);

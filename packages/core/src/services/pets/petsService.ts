@@ -5,35 +5,8 @@ import { parseBirthDateCreateWire, parseBirthDateEditWire } from "../common/birt
  */
 import { createHash, randomUUID } from "crypto";
 
-import {
-  withPetSqlTx,
-  findCommittedPetReceipt,
-  claimPetCreationReceipt,
-  createPetWithAwards,
-  findOwnedPet,
-  existsOwnedPet,
-  readOwnedPetPhoto,
-  lockPetOwner,
-  updateOwnedPetWithAwards,
-  updateOwnedPetPhoto,
-  listOwnedPetDocuments,
-  readAllUserPetDocumentRows,
-  findOwnedPetDocument,
-  findOwnedPetDocumentForDownload,
-  findPetDocumentByUrl,
-  countOwnedPetDocuments,
-  createOwnedPetDocument,
-  deletePetDocumentRow,
-  renamePetDocumentRow,
-  readOwnedPetDocumentUrls,
-  deleteOwnedPetRow,
-  type PetType,
-  type PetProfilePatch,
-  type PetWithAwards,
-  enqueuePetMediaDeletionIntent,
-  consumePetMediaUploadReservation,
-  petMediaOutboxEnabled,
-} from "./petRowsPort";
+import type { PetRowsPort, PetType, PetProfilePatch, PetWithAwards } from "./petRowsPort";
+import type { VetVisitRowsPort } from "./vetVisitRowsPort";
 import {
   deleteFileFromCDN,
   getPetDocumentPath,
@@ -329,11 +302,12 @@ function canonicalPetCreateHash(data: CreatePetInput): string {
 }
 
 async function loadCommittedPetCreate(
+  petRows: PetRowsPort,
   userId: string,
   clientRequestId: string,
   expectedHash: string,
 ): Promise<PetWithAwards> {
-  const rows = await findCommittedPetReceipt(userId, clientRequestId);
+  const rows = await petRows.findCommittedPetReceipt(userId, clientRequestId);
   const saved = rows[0];
   if (!saved) throw new PetCreateIdempotencyError("PET_CREATE_RESULT_UNCONFIRMED");
   if (saved.payloadHash !== expectedHash) {
@@ -341,7 +315,7 @@ async function loadCommittedPetCreate(
   }
   // Tombstone semantics: retaining the receipt must not recreate a deleted Pet
   // or misreport a successful new create after deletion.
-  const existingPet = await existsOwnedPet(userId, saved.petId);
+  const existingPet = await petRows.existsOwnedPet(userId, saved.petId);
   if (!existingPet) {
     throw new PetCreateIdempotencyError("PET_CREATE_RESULT_UNAVAILABLE");
   }
@@ -381,11 +355,11 @@ export class PetMediaDirectPhotoUrlDeniedError extends Error {
 }
 
 /** Create one Pet; with clientRequestId, ensure exactly one durable SQL insert. */
-export async function createPet(userId: string, data: CreatePetInput): Promise<PetWithAwards> {
+export async function createPet(petRows: PetRowsPort, userId: string, data: CreatePetInput): Promise<PetWithAwards> {
   // A caller-supplied managed photo URL bypasses UUID candidate reservation
   // and permits a second owner's Pet row to race another owner's S3 cleanup.
   // Keep the original create API when the not-yet-deployed outbox is disabled.
-  if (petMediaOutboxEnabled() && data.photoUrl) throw new PetMediaDirectPhotoUrlDeniedError();
+  if (petRows.petMediaOutboxEnabled() && data.photoUrl) throw new PetMediaDirectPhotoUrlDeniedError();
   const clientRequestId = data.clientRequestId?.toLowerCase();
   try {
     // Before either legacy create or keyed transaction / receipt claim.
@@ -395,20 +369,20 @@ export async function createPet(userId: string, data: CreatePetInput): Promise<P
     assertPetCreateWeight(data.weightKg);
     if (!clientRequestId) {
       // Keep the legacy no-key path byte-compatible and non-idempotent.
-      return await createPetWithAwards(petCreateFields(userId, data, birthDate));
+      return await petRows.createPetWithAwards(petCreateFields(userId, data, birthDate));
     }
     if (!CREATE_PET_REQUEST_UUID_V4.test(clientRequestId)) {
       throw new PetCreateIdempotencyError("INVALID_CLIENT_REQUEST_ID");
     }
     const payloadHash = canonicalPetCreateHash(data);
     try {
-      return await withPetSqlTx(
+      return await petRows.withPetSqlTx(
         async (tx) => {
-          const pet = await createPetWithAwards(petCreateFields(userId, data, birthDate), tx);
+          const pet = await petRows.createPetWithAwards(petCreateFields(userId, data, birthDate), tx);
           const responseJson = JSON.stringify({ success: true, data: pet });
           // The unique claim is inserted AFTER Pet creation, but IN THE SAME
           // transaction. A lost race throws, rolling back the loser's Pet.
-          const claimed = await claimPetCreationReceipt(tx, {
+          const claimed = await petRows.claimPetCreationReceipt(tx, {
             ownerId: userId,
             clientRequestId,
             payloadHash,
@@ -424,7 +398,7 @@ export async function createPet(userId: string, data: CreatePetInput): Promise<P
       if (!(error instanceof ExistingPetCreateReceipt)) throw error;
       // PostgreSQL unique index waited for the winner's commit. Read its
       // durable response AFTER losing transaction rollback. No mutation retry.
-      return await loadCommittedPetCreate(userId, clientRequestId, payloadHash);
+      return await loadCommittedPetCreate(petRows, userId, clientRequestId, payloadHash);
     }
   } catch (error) {
     if (error instanceof PetCreateIdempotencyError) throw error;
@@ -445,9 +419,9 @@ export class PetWeightUpdateUnsupportedError extends Error {
 /**
  * Обновить питомца
  */
-export async function updatePet(petId: string, userId: string, data: UpdatePetInput) {
+export async function updatePet(petRows: PetRowsPort, petId: string, userId: string, data: UpdatePetInput) {
   // Проверяем, что питомец принадлежит пользователю
-  const existingPet = await findOwnedPet(userId, petId);
+  const existingPet = await petRows.findOwnedPet(userId, petId);
 
   if (!existingPet) {
     return null;
@@ -455,7 +429,7 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
   // This formerly silently ignored weightKg; reject direct Core callers too.
   if (data.weightKg !== undefined) throw new PetWeightUpdateUnsupportedError();
   assertPetMeasurements(data, true);
-  const guardedPhotoChange = petMediaOutboxEnabled() && data.photoUrl !== undefined;
+  const guardedPhotoChange = petRows.petMediaOutboxEnabled() && data.photoUrl !== undefined;
   // Only the specialized updatePetPhoto writes new object URLs. Existing
   // identical refs may be echoed by full-form clients; empty means clear.
   if (guardedPhotoChange && data.photoUrl && data.photoUrl !== existingPet.photoUrl)
@@ -477,18 +451,18 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
   if (data.notes !== undefined) updateData.notes = data.notes ?? null;
 
   try {
-    const pet = await withPetSqlTx(async (tx) => {
+    const pet = await petRows.withPetSqlTx(async (tx) => {
       if (guardedPhotoChange) {
         // Serialize direct photo clearing with photo upload, Pet deletion and
         // account deletion using the existing owner User lock.
-        const owner = await lockPetOwner(tx, userId);
+        const owner = await petRows.lockPetOwner(tx, userId);
         if (!owner.length) return null;
-        const current = await readOwnedPetPhoto(userId, petId, tx);
+        const current = await petRows.readOwnedPetPhoto(userId, petId, tx);
         if (!current) return null;
         if (data.photoUrl && data.photoUrl !== current.photoUrl)
           throw new PetMediaDirectPhotoUrlDeniedError();
         if (!data.photoUrl && current.photoUrl)
-          await enqueuePetMediaDeletionIntent(
+          await petRows.enqueuePetMediaDeletionIntent(
             tx,
             userId,
             petId,
@@ -496,7 +470,7 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
             "photo-replaced",
           );
       }
-      const updated = await updateOwnedPetWithAwards(tx, userId, petId, updateData);
+      const updated = await petRows.updateOwnedPetWithAwards(tx, userId, petId, updateData);
       return updated;
     });
 
@@ -511,7 +485,7 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
 /**
  * Обновить фото питомца (загрузка в CDN и сохранение URL в БД)
  */
-export async function updatePetPhoto(petId: string, userId: string, file: File): Promise<string> {
+export async function updatePetPhoto(petRows: PetRowsPort, petId: string, userId: string, file: File): Promise<string> {
   // The Hono transport already normalizes multipart image bytes and file name.
   // Direct Core callers must still not be able to pick an arbitrary S3 path.
   const extension = file.name.split(".").pop()?.toLowerCase();
@@ -544,12 +518,12 @@ export async function updatePetPhoto(petId: string, userId: string, file: File):
     // Deny foreign/nonexistent pet before touching S3. Recheck after a
     // concurrent delete under the per-user row lock in the actual SQL write.
     checkOwner: async () => {
-      if (petMediaOutboxEnabled()) {
-        await withPetSqlTx(async (tx) => {
-          await lockPetOwner(tx, userId);
-          const own = await existsOwnedPet(userId, petId, tx);
+      if (petRows.petMediaOutboxEnabled()) {
+        await petRows.withPetSqlTx(async (tx) => {
+          await petRows.lockPetOwner(tx, userId);
+          const own = await petRows.existsOwnedPet(userId, petId, tx);
           if (!own) throw new Error("Питомец не найден или не принадлежит пользователю");
-          await enqueuePetMediaDeletionIntent(
+          await petRows.enqueuePetMediaDeletionIntent(
             tx,
             userId,
             petId,
@@ -560,23 +534,23 @@ export async function updatePetPhoto(petId: string, userId: string, file: File):
         });
         return;
       }
-      const own = await existsOwnedPet(userId, petId);
+      const own = await petRows.existsOwnedPet(userId, petId);
       if (!own) throw new Error("Питомец не найден или не принадлежит пользователю");
     },
     upload: () => uploadFileToCDN(file, relativePath),
     writeOwnerPhoto: (location) =>
-      withPetSqlTx(
+      petRows.withPetSqlTx(
         async (tx) => {
-          const owners = await lockPetOwner(tx, userId);
+          const owners = await petRows.lockPetOwner(tx, userId);
           if (!owners.length) throw new Error("Пользователь не найден");
-          const pet = await readOwnedPetPhoto(userId, petId, tx);
+          const pet = await petRows.readOwnedPetPhoto(userId, petId, tx);
           if (!pet) throw new Error("Питомец не найден или не принадлежит пользователю");
-          if (petMediaOutboxEnabled()) {
+          if (petRows.petMediaOutboxEnabled()) {
             if (location !== candidateLocator)
               throw new Error("PET_MEDIA_CANDIDATE_LOCATION_MISMATCH");
-            await consumePetMediaUploadReservation(tx, userId, candidateLocator);
+            await petRows.consumePetMediaUploadReservation(tx, userId, candidateLocator);
             if (pet.photoUrl && pet.photoUrl !== location)
-              await enqueuePetMediaDeletionIntent(
+              await petRows.enqueuePetMediaDeletionIntent(
                 tx,
                 userId,
                 petId,
@@ -584,16 +558,16 @@ export async function updatePetPhoto(petId: string, userId: string, file: File):
                 "photo-replaced",
               );
           }
-          await updateOwnedPetPhoto(tx, userId, petId, location);
+          await petRows.updateOwnedPetPhoto(tx, userId, petId, location);
           return pet.photoUrl;
         },
         { timeout: 90_000 },
       ),
-    readOwnerPhoto: async () => (await readOwnedPetPhoto(userId, petId))?.photoUrl,
+    readOwnerPhoto: async () => (await petRows.readOwnedPetPhoto(userId, petId))?.photoUrl,
     deleteStorageObject: async (location) => {
       // Pre-upload candidate or old-photo cleanup is already reserved in SQL.
       // Never perform an unfenced direct DELETE while outbox mode is active.
-      if (!petMediaOutboxEnabled()) await deleteFileFromCDN(getRelativePathFromCDNUrl(location));
+      if (!petRows.petMediaOutboxEnabled()) await deleteFileFromCDN(getRelativePathFromCDNUrl(location));
     },
     onCleanupFailure: (phase) =>
       logger.error(
@@ -606,22 +580,22 @@ export async function updatePetPhoto(petId: string, userId: string, file: File):
 /**
  * Получить документы питомца
  */
-export async function listPetDocuments(petId: string, userId: string): Promise<PetDocumentDto[]> {
-  const pet = await existsOwnedPet(userId, petId);
+export async function listPetDocuments(petRows: PetRowsPort, petId: string, userId: string): Promise<PetDocumentDto[]> {
+  const pet = await petRows.existsOwnedPet(userId, petId);
   if (!pet) {
     throw new Error("Питомец не найден");
   }
 
-  const documents = await listOwnedPetDocuments(userId, petId);
+  const documents = await petRows.listOwnedPetDocuments(userId, petId);
   return Promise.all(documents.map((doc) => presentPetDocumentDto(toPetDocumentDto(doc))));
 }
 
 /**
  * Получить все документы питомцев пользователя
  */
-export async function listUserPetDocuments(userId: string): Promise<PetDocumentDto[]> {
+export async function listUserPetDocuments(petRows: PetRowsPort, userId: string): Promise<PetDocumentDto[]> {
   try {
-    const documents = await readAllUserPetDocumentRows(userId);
+    const documents = await petRows.readAllUserPetDocumentRows(userId);
     return Promise.all(documents.map((doc) => presentPetDocumentDto(toPetDocumentDto(doc))));
   } catch (error) {
     if (isPetDocumentTableMissingError(error)) {
@@ -638,6 +612,7 @@ export async function listUserPetDocuments(userId: string): Promise<PetDocumentD
  * Загрузить документ питомца
  */
 export async function uploadPetDocument(
+  petRows: PetRowsPort,
   petId: string,
   userId: string,
   file: File,
@@ -645,7 +620,7 @@ export async function uploadPetDocument(
   validatePetDocumentFile(file);
   // Never upload to a provider for an unauthenticated or foreign pet. The same
   // permission and quota are rechecked inside a short serializable owner lock.
-  const authorizedPet = await existsOwnedPet(userId, petId);
+  const authorizedPet = await petRows.existsOwnedPet(userId, petId);
   if (!authorizedPet) throw new Error("Питомец не найден");
 
   const ext = getDocumentExtension(file);
@@ -656,12 +631,12 @@ export async function uploadPetDocument(
     ? privateMediaLocation("documents", relativePath)
     : relativePath;
   let uploadedUrl: string | undefined;
-  if (petMediaOutboxEnabled()) {
-    await withPetSqlTx(async (tx) => {
-      await lockPetOwner(tx, userId);
-      const owned = await existsOwnedPet(userId, petId, tx);
+  if (petRows.petMediaOutboxEnabled()) {
+    await petRows.withPetSqlTx(async (tx) => {
+      await petRows.lockPetOwner(tx, userId);
+      const owned = await petRows.existsOwnedPet(userId, petId, tx);
       if (!owned) throw new Error("Питомец не найден");
-      await enqueuePetMediaDeletionIntent(
+      await petRows.enqueuePetMediaDeletionIntent(
         tx,
         userId,
         petId,
@@ -673,19 +648,19 @@ export async function uploadPetDocument(
   }
   try {
     uploadedUrl = await uploadFileToCDN(file, relativePath);
-    if (petMediaOutboxEnabled() && uploadedUrl !== attempted)
+    if (petRows.petMediaOutboxEnabled() && uploadedUrl !== attempted)
       throw new Error("PET_DOCUMENT_CANDIDATE_LOCATION_MISMATCH");
-    const result = await withPetSqlTx(
+    const result = await petRows.withPetSqlTx(
       async (tx) => {
-        const owners = await lockPetOwner(tx, userId);
+        const owners = await petRows.lockPetOwner(tx, userId);
         if (!owners.length) throw new Error("Пользователь не найден");
-        const pet = await existsOwnedPet(userId, petId, tx);
+        const pet = await petRows.existsOwnedPet(userId, petId, tx);
         if (!pet) throw new Error("Питомец не найден");
-        const documentsCount = await countOwnedPetDocuments(tx, userId, petId);
+        const documentsCount = await petRows.countOwnedPetDocuments(tx, userId, petId);
         if (documentsCount >= PET_DOCUMENTS_MAX_PER_PET)
           throw new Error("Достигнут лимит документов питомца");
-        if (petMediaOutboxEnabled()) await consumePetMediaUploadReservation(tx, userId, attempted);
-        return createOwnedPetDocument(tx, {
+        if (petRows.petMediaOutboxEnabled()) await petRows.consumePetMediaUploadReservation(tx, userId, attempted);
+        return petRows.createOwnedPetDocument(tx, {
           petId,
           ownerId: userId,
           name: file.name,
@@ -704,8 +679,8 @@ export async function uploadPetDocument(
     // returning a marker. A transient DB failure must never delete committed data.
     const candidate = uploadedUrl ?? attempted;
     try {
-      const committed = await findPetDocumentByUrl(userId, petId, candidate);
-      if (!committed && !petMediaOutboxEnabled())
+      const committed = await petRows.findPetDocumentByUrl(userId, petId, candidate);
+      if (!committed && !petRows.petMediaOutboxEnabled())
         await deleteFileFromCDN(getRelativePathFromCDNUrl(candidate));
     } catch {
       logger.error(
@@ -722,21 +697,22 @@ export async function uploadPetDocument(
  * Удалить документ питомца
  */
 export async function deletePetDocument(
+  petRows: PetRowsPort,
   documentId: string,
   userId: string,
   petId?: string,
 ): Promise<boolean> {
-  if (petMediaOutboxEnabled()) {
-    return withPetSqlTx(async (tx) => {
-      await lockPetOwner(tx, userId);
-      const doc = await findOwnedPetDocument(userId, documentId, petId, tx);
+  if (petRows.petMediaOutboxEnabled()) {
+    return petRows.withPetSqlTx(async (tx) => {
+      await petRows.lockPetOwner(tx, userId);
+      const doc = await petRows.findOwnedPetDocument(userId, documentId, petId, tx);
       if (!doc) return false;
-      await enqueuePetMediaDeletionIntent(tx, userId, doc.petId, doc.url, "document-delete");
-      await deletePetDocumentRow(documentId, tx);
+      await petRows.enqueuePetMediaDeletionIntent(tx, userId, doc.petId, doc.url, "document-delete");
+      await petRows.deletePetDocumentRow(documentId, tx);
       return true;
     });
   }
-  const existingDocument = await findOwnedPetDocument(userId, documentId, petId);
+  const existingDocument = await petRows.findOwnedPetDocument(userId, documentId, petId);
   if (!existingDocument) {
     return false;
   }
@@ -753,7 +729,7 @@ export async function deletePetDocument(
     if (parsePrivateMediaLocation(existingDocument.url)) throw error;
   }
 
-  await deletePetDocumentRow(documentId);
+  await petRows.deletePetDocumentRow(documentId);
   return true;
 }
 
@@ -761,6 +737,7 @@ export async function deletePetDocument(
  * Обновить название документа питомца
  */
 export async function renamePetDocument(
+  petRows: PetRowsPort,
   documentId: string,
   userId: string,
   name: string,
@@ -771,7 +748,7 @@ export async function renamePetDocument(
     throw new Error("Название документа не может быть пустым");
   }
 
-  const existingDocument = await findOwnedPetDocument(userId, documentId, petId);
+  const existingDocument = await petRows.findOwnedPetDocument(userId, documentId, petId);
   if (!existingDocument) {
     return null;
   }
@@ -782,7 +759,7 @@ export async function renamePetDocument(
     existingDocument.mimeType,
   );
 
-  const updatedDocument = await renamePetDocumentRow(documentId, nextFileName);
+  const updatedDocument = await petRows.renamePetDocumentRow(documentId, nextFileName);
   return presentPetDocumentDto(toPetDocumentDto(updatedDocument));
 }
 
@@ -790,11 +767,12 @@ export async function renamePetDocument(
  * Получить документ питомца для скачивания
  */
 export async function getPetDocumentById(
+  petRows: PetRowsPort,
   documentId: string,
   userId: string,
   petId?: string,
 ): Promise<PetDocumentDto | null> {
-  const document = await findOwnedPetDocument(userId, documentId, petId);
+  const document = await petRows.findOwnedPetDocument(userId, documentId, petId);
   if (!document) {
     return null;
   }
@@ -813,11 +791,12 @@ export interface PetDocumentDownloadPayload {
  * Подготовить данные документа питомца для скачивания
  */
 export async function preparePetDocumentDownload(
+  petRows: PetRowsPort,
   documentId: string,
   userId: string,
   petId?: string,
 ): Promise<PetDocumentDownloadPayload | null> {
-  const document = await findOwnedPetDocumentForDownload(userId, documentId, petId);
+  const document = await petRows.findOwnedPetDocumentForDownload(userId, documentId, petId);
   if (!document) {
     return null;
   }
@@ -837,27 +816,27 @@ export async function preparePetDocumentDownload(
 /**
  * Удалить питомца
  */
-export async function deletePet(petId: string, userId: string): Promise<boolean> {
+export async function deletePet(petRows: PetRowsPort, vetRows: VetVisitRowsPort, petId: string, userId: string): Promise<boolean> {
   let committed: { photoUrl: string | null; documents: string[] } | null;
   try {
-    committed = await withPetSqlTx(async (tx) => {
+    committed = await petRows.withPetSqlTx(async (tx) => {
       // Serialize photo updates, owner deletion and Vet cleanup through the
       // same owner lock. Foreign/nonexistent IDs never reach media deletion.
-      const owners = await lockPetOwner(tx, userId);
+      const owners = await petRows.lockPetOwner(tx, userId);
       if (!owners.length) return null;
-      const pet = await readOwnedPetPhoto(userId, petId, tx);
+      const pet = await petRows.readOwnedPetPhoto(userId, petId, tx);
       if (!pet) return null;
-      const documents = await readOwnedPetDocumentUrls(tx, userId, petId);
-      await lockVetPet(tx, petId, userId);
-      await enqueuePetVetCleanup(tx, petId, userId);
-      if (petMediaOutboxEnabled()) {
+      const documents = await petRows.readOwnedPetDocumentUrls(tx, userId, petId);
+      await lockVetPet(tx, petId, userId, vetRows);
+      await enqueuePetVetCleanup(tx, petId, userId, vetRows);
+      if (petRows.petMediaOutboxEnabled()) {
         const locations = [pet.photoUrl, ...documents.map((doc) => doc.url)].filter(
           (location): location is string => typeof location === "string" && !!location,
         );
         for (const location of new Set(locations))
-          await enqueuePetMediaDeletionIntent(tx, userId, petId, location, "pet-delete");
+          await petRows.enqueuePetMediaDeletionIntent(tx, userId, petId, location, "pet-delete");
       }
-      await deleteOwnedPetRow(tx, userId, petId);
+      await petRows.deleteOwnedPetRow(tx, userId, petId);
       return { photoUrl: pet.photoUrl, documents: documents.map((doc) => doc.url) };
     });
   } catch {
@@ -868,7 +847,7 @@ export async function deletePet(petId: string, userId: string): Promise<boolean>
   if (!committed) return false;
   // Once the reviewed outbox schema is deployed, a separately gated worker
   // owns deletion and verified HEAD: crashes cannot lose the committed intent.
-  if (petMediaOutboxEnabled()) return true;
+  if (petRows.petMediaOutboxEnabled()) return true;
 
   // Only after the DB commit: an S3 error must not pretend the Pet still
   // exists, nor ever delete media while its row can roll back. Physical

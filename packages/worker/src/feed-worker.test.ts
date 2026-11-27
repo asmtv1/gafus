@@ -28,6 +28,13 @@ describe("feed push delivery adapter", () => {
     await feedPushDelivery.deliver({ ...event, kind: "author_post", commentId: null });
     expect(mocks.expo).toHaveBeenCalledWith([{}], { title: "Моменты GAFUS", body: "Новая публикация автора, на которого вы подписаны.", url: "/feed/post" });
   });
+  it("still reaches a native device if the web provider is down", async () => {
+    mocks.partition.mockReturnValue({ web: [{}], expo: [{}] });
+    mocks.web.mockRejectedValueOnce(new Error("offline"));
+    mocks.expo.mockResolvedValueOnce({ successCount: 1, temporaryFailureCount: 0 });
+    await expect(feedPushDelivery.deliver(event)).resolves.toBeUndefined();
+    expect(mocks.expo).toHaveBeenCalledOnce();
+  });
   it("finishes gracefully without subscriptions", async () => {
     mocks.subscriptions.mockResolvedValue([]);
     await feedPushDelivery.deliver(event);
@@ -39,7 +46,7 @@ describe("feed push delivery adapter", () => {
   });
   it("sends web push with a clickable URL and grouped generic reaction text", async () => {
     mocks.partition.mockReturnValue({ web: [{}], expo: [] });
-    mocks.web.mockResolvedValue({ failureCount: 0 });
+    mocks.web.mockResolvedValue({ successCount: 1, failureCount: 0, results: [] });
     await feedPushDelivery.deliver({ ...event, kind: "post_reaction", commentId: null });
     const payload = JSON.parse(mocks.web.mock.calls[0][1]);
     expect(payload.data.url).toBe("/feed/post");

@@ -226,7 +226,7 @@ vi.mock("./FeedPostActions", async () => {
   };
 });
 import { useAuthStore } from "@/shared/stores";
-import { FeedDetailScreen } from "./screens";
+import { FeedDetailScreen } from "./FeedDetailScreen";
 import type { FeedCommentDto } from "@gafus/types";
 import { pickFeedMedia, uploadPickedFeedMedia } from "./uploads";
 const userFixture = (id: string) => ({

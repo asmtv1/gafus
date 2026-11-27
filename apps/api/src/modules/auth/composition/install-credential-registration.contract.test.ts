@@ -11,12 +11,10 @@ vi.mock("@gafus/identity-write-server/registration-contract-rows", () => ({
 }));
 
 describe("API credential registration composition", () => {
-  it("installs exactly one Persistence-owned transaction port while preserving input validation", async () => {
+  it("validates credentials before opening its supplied transaction", async () => {
     const core = await import("@gafus/core/services/auth");
-    await import("./install-credential-registration");
-    expect(() => core.registerCredentialRegistrationPort({} as never))
-      .toThrow("CREDENTIAL_REGISTRATION_PORT_ALREADY_BOUND");
-    await expect(core.registerUserWithCredentials({ username: "", email: "bad", password: "x" }))
+    const { credentialRegistrationPort } = await import("./credential-registration-instance");
+    await expect(core.registerUserWithCredentials({ username: "", email: "bad", password: "x" }, credentialRegistrationPort))
       .resolves.toMatchObject({ ok: false, code: "VALIDATION_ERROR" });
     expect(mock.transaction).not.toHaveBeenCalled();
   });

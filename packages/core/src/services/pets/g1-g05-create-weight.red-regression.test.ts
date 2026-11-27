@@ -9,7 +9,7 @@ import { createPet } from "./petsService";
 describe("G05 RED regression: real Core createPet must persist supplied weight", () => {
   it("RED-G05-04 optional supplied weight must not be discarded before Prisma create", async () => {
     fixture.create.mockResolvedValueOnce({ id: "fixture-pet", ownerId: "owner-A", weightKg: 4.25 });
-    await createPet("owner-A", {
+    await createPet(petRows, "owner-A", {
       name: "Лайма",
       type: "DOG",
       breed: "Метис",
@@ -24,7 +24,7 @@ describe("G05 RED regression: real Core createPet must persist supplied weight",
   });
   it("G05-G16 omitted weight preserves null", async () => {
     fixture.create.mockReset().mockResolvedValueOnce({ id: "pet-no-weight" });
-    await createPet("owner-A", {
+    await createPet(petRows, "owner-A", {
       name: "Бим",
       type: "DOG",
       breed: "Метис",
@@ -36,7 +36,7 @@ describe("G05 RED regression: real Core createPet must persist supplied weight",
   });
   it("G05-G17 decimal weight reaches Prisma unrounded", async () => {
     fixture.create.mockReset().mockResolvedValueOnce({ id: "fraction-pet" });
-    await createPet("owner-A", {
+    await createPet(petRows, "owner-A", {
       name: "Бим",
       type: "DOG",
       breed: "Метис",
@@ -51,5 +51,5 @@ describe("G05 RED regression: real Core createPet must persist supplied weight",
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
-registerPetRowsPort(originalPetRowsPort as PetRowsPort);
+import type { PetRowsPort } from "./petRowsPort";
+const petRows = originalPetRowsPort as PetRowsPort;

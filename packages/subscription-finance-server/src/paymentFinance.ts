@@ -29,7 +29,10 @@ export async function persistVerifiedFinanceFields(paymentId:string,data:Finance
 export async function persistRefundFinanceReceipt(
  tx:PaymentFinanceTransaction,data:{providerRefundId:string;paymentId:string;amountKopecks:number;refundedAt:Date},
 ):Promise<void>{
- await tx.appSubscriptionFinanceRefund.upsert({
+ const row = await tx.appSubscriptionFinanceRefund.upsert({
   where:{providerRefundId:data.providerRefundId},update:{},create:data,
+  select:{paymentId:true,amountKopecks:true,refundedAt:true},
  });
+ if (row.paymentId !== data.paymentId || row.amountKopecks !== data.amountKopecks ||
+     row.refundedAt.getTime() !== data.refundedAt.getTime()) throw new Error("FINANCE_REFUND_RECEIPT_CONFLICT");
 }

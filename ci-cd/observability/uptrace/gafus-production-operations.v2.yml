@@ -56,6 +56,21 @@ grid_sections:
         query:
           - perMin(sum($failed)) as failed_jobs_per_min
 
+      - title: Synced GPS walks (10-minute grace, all platforms)
+        metrics:
+          - gafus_mobile_telemetry_walk_gps_eligible_1h as $eligible
+          - gafus_mobile_telemetry_walk_gps_no_points_1h as $missing
+          - gafus_mobile_telemetry_walk_gps_insufficient_fix_1h as $insufficient
+        query:
+          - max($eligible) as eligible
+          - max($missing) as no_points
+          - max($insufficient) as insufficient_fix
+      - title: GPS metric query availability
+        metrics:
+          - gafus_mobile_telemetry_walk_gps_available as $available
+        query:
+          - min($available) as available
+
   - title: 4. Mobile iOS
     items:
       - title: iOS pending and dead events
@@ -69,6 +84,12 @@ grid_sections:
         query:
           - perMin(sum($export{service="gafus-mobile-ios"})) as per_min group by outcome
 
+      - title: OTA device-reported lifecycle events (last hour)
+        metrics:
+          - gafus_mobile_telemetry_ota_reported_events_1h as $ota
+        query:
+          - max($ota{platform="ios"}) as events group by event
+
   - title: 5. Mobile Android
     items:
       - title: Android pending and dead events
@@ -81,6 +102,12 @@ grid_sections:
           - gafus_mobile_telemetry_service_export_total as $export
         query:
           - perMin(sum($export{service="gafus-mobile-android"})) as per_min group by outcome
+
+      - title: OTA device-reported lifecycle events (last hour)
+        metrics:
+          - gafus_mobile_telemetry_ota_reported_events_1h as $ota
+        query:
+          - max($ota{platform="android"}) as events group by event
 
   - title: 6. Web
     items:
@@ -145,11 +172,48 @@ grid_sections:
           - gafus_mail_stalled_pending as $stalled
         query:
           - max($stalled) as stalled_mail
+      - title: Password reset mail stalled and eligible
+        metrics:
+          - gafus_mail_reset_attempt_eligible_1h as $eligible
+          - gafus_mail_reset_attempt_stalled_1h as $stalled
+          - gafus_mail_reset_queue_stalled as $queue
+        query:
+          - max($eligible) as eligible
+          - max($stalled) as stalled
+          - max($queue) as queue_stalled
+      - title: Mail metric availability
+        metrics:
+          - gafus_mail_metrics_available as $available
+        query:
+          - min($available) as available
+      - title: Video first frame terminal observations
+        metrics:
+          - gafus_video_first_frame_observations_total as $frames
+        query:
+          - perMin(sum($frames)) as observations group by surface, platform, outcome
       - title: Media failures
         metrics:
           - gafus_media_failed_tasks as $failed
         query:
           - max($failed) as failed_media
+
+      - title: CDN invalidation backlog
+        metrics:
+          - gafus_media_cdn_purge_pending as $pending
+          - gafus_media_cdn_purge_expired_leases as $expired
+        query:
+          - max($pending) as pending
+          - max($expired) as expired_leases
+      - title: Oldest outstanding CDN invalidation
+        metrics:
+          - gafus_media_cdn_purge_oldest_age_seconds as $age
+        query:
+          - max($age) as age_seconds
+      - title: CDN invalidation metric availability
+        metrics:
+          - gafus_media_cdn_purge_available as $available
+        query:
+          - min($available) as available
 
   - title: 12. Uptrace Delivery
     items:

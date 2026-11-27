@@ -1,3 +1,15 @@
+import {
+  prepareChat2PushReceipt, readChat2OutboxMetrics, readDueChat2Outbox,
+  quarantineExhaustedChat2Outbox, claimChat2Outbox, renewChat2OutboxClaim,
+  acknowledgeChat2Outbox, failChat2Outbox,
+} from "@gafus/notifications-server/chat2-outbox-rows";
+import {
+  prepareChat2V2MediaDeletion, completeChat2V2MediaDeletion, readDeletedChat2Attachments,
+  markChat2AttachmentRemoving, completeChat2AttachmentDeletion, readDueChat2DeletionIntents,
+  claimChat2DeletionIntent, readLiveChat2Media, acknowledgeChat2DeletionIntent,
+  retryChat2DeletionIntent, pruneChat2CompletedMediaIntentsOnce,
+} from "@gafus/media-server/chat2-deletion-rows";
+export { pruneChat2CompletedMediaIntentsOnce };
 /** Chat 2.0 durable outbox: no Stream webhooks, only successful PostgreSQL writes. */
 import { randomUUID } from "node:crypto";
 import {
@@ -12,15 +24,13 @@ import {
   withServerSpan,
   markServerSpanError,
 } from "@gafus/logger/server-telemetry";
-import { prisma } from "@gafus/prisma";
 import {
   renderChat2OutboxMetricsPrometheus,
   chat2OutboxExecutionMetrics,
   type Chat2OutboxOutcome,
   type Chat2OutboxFailureClass,
 } from "./chat2-outbox-metrics.js";
-import { traceChat2DispatchStage } from "./chat2-outbox-tracing.js";
-import type { Prisma } from "@gafus/prisma";
+import { traceChat2DispatchStage, chat2DispatchTiming } from "./chat2-outbox-tracing.js";
 import { pushQueue } from "@gafus/queues";
 import { chat2DeletePrivateMedia, chat2V2DeleteObjects } from "@gafus/cdn-upload";
 import {
@@ -30,10 +40,6 @@ import {
   chat2BrokerPublishUrl,
 } from "./chat2-readiness";
 
-// The 1.7.2 Worker has no deadLetteredAt filter. Keep quarantined events
-// outside its due-time query during rolling deployments, in addition to the
-// PostgreSQL mixed-version UPDATE trigger that fences stale legacy claims.
-const CHAT2_DLQ_UNCLAIMABLE_AT = new Date("9999-12-31T00:00:00.000Z");
 
 const outboxLog = createWorkerLogger("chat2-outbox");
 configureServerTelemetry("gafus-worker");
@@ -79,104 +85,15 @@ async function publish(
 }
 
 async function enqueueChatPush(conversationId: string, messageId: string) {
-  const [c, message] = await Promise.all([
-    prisma.chat2Conversation.findUnique({ where: { id: conversationId } }),
-    prisma.chat2Message.findUnique({ where: { id: messageId } }),
-  ]);
-  if (!c || !message || message.deletedAt || !["CYNOLOGIST", "DIRECT"].includes(c.kind)) return;
-  let recipientId: string | null = null;
-  if (c.kind === "CYNOLOGIST") {
-    if (message.authorId !== c.createdById) return;
-    recipientId = process.env.CYNOLOGIST_CHAT_TRAINER_USER_ID ?? null;
-    if (!recipientId || recipientId === message.authorId) return;
-    const trainer = await prisma.user.findUnique({
-      where: { id: recipientId },
-      select: { role: true },
-    });
-    if (trainer?.role !== "TRAINER") throw new Error("CHAT2_TRAINER_ASSIGNMENT_MISMATCH");
-  } else {
-    const recipient = await prisma.chat2Member.findFirst({
-      where: { conversationId, userId: { not: message.authorId } },
-      select: { userId: true },
-    });
-    recipientId = recipient?.userId ?? null;
-    if (
-      !recipientId ||
-      (await prisma.chat2Block.findFirst({
-        where: {
-          OR: [
-            { blockerId: message.authorId, blockedId: recipientId },
-            { blockerId: recipientId, blockedId: message.authorId },
-          ],
-        },
-      }))
-    )
-      return;
-  }
-  const member = await prisma.chat2Member.findUnique({
-    where: {
-      conversationId_userId: { conversationId, userId: recipientId },
-    },
-  });
-  if (!member || member.role === "BANNED" || (member.mutedUntil && member.mutedUntil > new Date()))
-    return;
-  const notificationId = `chat2-${messageId}-${recipientId}`;
-  await prisma.$transaction(
-    async (tx) => {
-      const existing = await tx.chat2PushReceipt.findUnique({
-        where: {
-          messageId_recipientId: { messageId, recipientId },
-        },
-      });
-      if (existing) return;
-      const subscriptions = await tx.pushSubscription.findMany({
-        where: { userId: recipientId },
-        select: { endpoint: true, keys: true },
-      });
-      if (subscriptions.length)
-        await tx.stepNotification.create({
-          data: {
-            id: notificationId,
-            jobId: notificationId,
-            userId: recipientId,
-            day: 0,
-            stepIndex: 0,
-            endTs: Math.floor(Date.now() / 1000),
-            sent: false,
-            paused: false,
-            type: "immediate",
-            stepTitle:
-              c.kind === "CYNOLOGIST"
-                ? "Чат с кинологом|Вам написали в чате с кинологом"
-                : "Личные сообщения|Вам пришло новое сообщение",
-            url: `/chats/${conversationId}`,
-            subscription: {
-              subscriptions: subscriptions.map((s) => ({ endpoint: s.endpoint, keys: s.keys })),
-              count: subscriptions.length,
-            } as Prisma.InputJsonValue,
-          },
-        });
-      await tx.chat2PushReceipt.create({
-        data: {
-          messageId,
-          recipientId,
-          notificationId: subscriptions.length ? notificationId : null,
-        },
-      });
-    },
-    { isolationLevel: "Serializable" },
+  const notificationId = await prepareChat2PushReceipt(
+    conversationId, messageId, process.env.CYNOLOGIST_CHAT_TRAINER_USER_ID ?? null,
   );
-  const receipt = await prisma.chat2PushReceipt.findUnique({
-    where: {
-      messageId_recipientId: { messageId, recipientId },
-    },
-  });
-  if (receipt?.notificationId)
+  if (notificationId)
     await pushQueue.add(
       "push",
-      { notificationId: receipt.notificationId },
+      { notificationId: notificationId },
       {
-        jobId: receipt.notificationId,
+        jobId: notificationId,
         attempts: 3,
         backoff: { type: "exponential", delay: 1000 },
         removeOnComplete: { count: 10000 },
@@ -200,109 +117,34 @@ async function deleteChat2MediaObject(key: string): Promise<void> {
   const mediaId = key.slice("chat2-v2:".length);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mediaId))
     throw Error("CHAT2_V2_DELETE_INVALID_MARKER");
-  const task = await prisma.chat2V2MediaTask.findUnique({ where: { mediaId } });
-  if (!task) throw Error("CHAT2_V2_DELETE_TASK_MISSING");
-  if (!["READY", "FAILED", "EXPIRED"].includes(task.status))
-    throw Error("CHAT2_V2_DELETE_ACTIVE_PROCESSING");
-  const base = `chat2/${task.conversationId}/${task.ownerId}/${task.mediaId}`;
-  if (!task.sourceKey.startsWith(base + "/incoming/source."))
-    throw Error("CHAT2_V2_DELETE_INVALID_SOURCE");
-  const finalBase = base + "/v1/";
-  // Mark the row before touching S3. A crash can be retried from both this
-  // independent deletion intent and the Media V2 terminal-cleanup queue.
-  await prisma.chat2V2MediaTask.updateMany({
-    where: { mediaId, status: { in: ["READY", "FAILED", "EXPIRED"] } },
-    data: {
-      status: "EXPIRED",
-      cleanupKind: "ALL",
-      cleanupNextAt: new Date(),
-      cleanupCompletedAt: null,
-    },
-  });
+  const { sourceKey, finalBase } = await prepareChat2V2MediaDeletion(mediaId);
   await chat2V2DeleteObjects([
-    task.sourceKey,
+    sourceKey,
     finalBase + "image/s.webp",
     finalBase + "image/m.webp",
     finalBase + "poster.webp",
     finalBase + "video/360.mp4",
     finalBase + "video/720.mp4",
   ]);
-  await prisma.chat2V2MediaTask.updateMany({
-    where: { mediaId, status: "EXPIRED" },
-    data: {
-      cleanupKind: null,
-      cleanupCompletedAt: new Date(),
-      cleanupToken: null,
-      cleanupLeaseUntil: null,
-    },
-  });
+  await completeChat2V2MediaDeletion(mediaId);
 }
 
 async function purgeDeletedChat2Attachments(conversationId: string, messageId: string) {
-  const message = await prisma.chat2Message.findUnique({
-    where: { id: messageId },
-    select: { deletedAt: true, conversationId: true },
-  });
-  if (!message?.deletedAt || message.conversationId !== conversationId) return;
-  const media = await prisma.chat2Media.findMany({
-    where: { conversationId, messageId, status: { in: ["READY", "REMOVING"] } },
-    select: { id: true, objectKey: true },
-  });
+  const media = await readDeletedChat2Attachments(conversationId, messageId);
   for (const item of media) {
-    await prisma.chat2Media.updateMany({
-      where: { id: item.id, messageId, status: "READY" },
-      data: { status: "REMOVING" },
-    });
+    await markChat2AttachmentRemoving(item.id, messageId);
     await deleteChat2MediaObject(item.objectKey);
-    const removed = await prisma.chat2Media.deleteMany({
-      where: { id: item.id, messageId, status: "REMOVING" },
-    });
-    if (removed.count) {
-      // AFTER DELETE trigger inserted the durable intent. The S3 delete above
-      // already succeeded; mark it complete, or retry harmlessly after a crash.
-      await prisma.chat2MediaDeletionIntent.updateMany({
-        where: { objectKey: item.objectKey, status: "PENDING" },
-        data: { status: "DONE", completedAt: new Date(), claimedUntil: null, errorCode: null },
-      });
-    }
+    await completeChat2AttachmentDeletion(item, messageId);
   }
 }
 
 export async function chat2OutboxMetricsSnapshot(now = new Date()): Promise<string> {
-  const pending = { deliveredAt: null, deadLetteredAt: null };
-  const [count, dead, oldest, leased] = await Promise.all([
-    prisma.chat2OutboxEvent.count({ where: pending }),
-    prisma.chat2OutboxEvent.count({ where: { deadLetteredAt: { not: null } } }),
-    prisma.chat2OutboxEvent.findFirst({
-      where: pending,
-      orderBy: { createdAt: "asc" },
-      select: { createdAt: true },
-    }),
-    prisma.chat2OutboxEvent.count({ where: { ...pending, claimedUntil: { gt: now } } }),
-  ]);
-  return renderChat2OutboxMetricsPrometheus(
-    {
-      pending: count,
-      dead,
-      oldest: oldest?.createdAt ?? null,
-      leased,
-    },
-    now,
-  );
+  return renderChat2OutboxMetricsPrometheus(await readChat2OutboxMetrics(now), now);
 }
 
 export async function processChat2OutboxOnce(limit = 20) {
   const now = new Date();
-  const items = await prisma.chat2OutboxEvent.findMany({
-    where: {
-      deliveredAt: null,
-      deadLetteredAt: null,
-      nextAttemptAt: { lte: now },
-      OR: [{ claimedUntil: null }, { claimedUntil: { lt: now } }],
-    },
-    orderBy: { createdAt: "asc" },
-    take: Math.min(100, Math.max(1, limit)),
-  });
+  const items = await readDueChat2Outbox(now, limit);
   let delivered = 0,
     failed = 0,
     deadLettered = 0;
@@ -310,40 +152,13 @@ export async function processChat2OutboxOnce(limit = 20) {
     // Older rows which exhausted the pre-migration unbounded policy are
     // retained and quarantined; they are not silently discarded.
     if (item.attempts >= MAX_CHAT2_OUTBOX_ATTEMPTS) {
-      const moved = await prisma.chat2OutboxEvent.updateMany({
-        where: {
-          id: item.id,
-          deliveredAt: null,
-          deadLetteredAt: null,
-          OR: [{ claimedUntil: null }, { claimedUntil: { lt: new Date() } }],
-        },
-        data: {
-          deadLetteredAt: new Date(),
-          nextAttemptAt: CHAT2_DLQ_UNCLAIMABLE_AT,
-          claimedUntil: null,
-          claimToken: null,
-          lastErrorCode: item.lastErrorCode ?? "CHAT2_OUTBOX_ATTEMPTS_EXHAUSTED",
-        },
-      });
+      const moved = await quarantineExhaustedChat2Outbox(item);
       deadLettered += moved.count;
       continue;
     }
     const until = new Date(Date.now() + 30_000);
     const claimToken = randomUUID();
-    const claimed = await prisma.chat2OutboxEvent.updateMany({
-      where: {
-        id: item.id,
-        deliveredAt: null,
-        deadLetteredAt: null,
-        OR: [{ claimedUntil: null }, { claimedUntil: { lt: new Date() } }],
-      },
-      data: {
-        claimedUntil: until,
-        claimToken,
-        operationId: item.operationId ?? item.id,
-        attempts: { increment: 1 },
-      },
-    });
+    const claimed = await claimChat2Outbox(item, claimToken, until);
     if (!claimed.count) continue;
     const attemptStart = performance.now();
     let attemptOutcome: Chat2OutboxOutcome = "stale";
@@ -354,7 +169,7 @@ export async function processChat2OutboxOnce(limit = 20) {
       kind: "consumer",
       traceId: item.traceId,
       operationId: item.operationId ?? item.id,
-      attributes: { "gafus.job_attempt": item.attempts + 1 },
+      attributes: { "gafus.job_attempt": item.attempts + 1, ...chat2DispatchTiming(item, Date.now()) },
     });
     // Long-running attachment deletion may exceed a single 30-second lease.
     // Renew only while the DB still recognizes this claimant. An older worker
@@ -364,17 +179,7 @@ export async function processChat2OutboxOnce(limit = 20) {
     const heartbeat = setInterval(() => {
       if (renewing) return;
       renewing = true;
-      void prisma.chat2OutboxEvent
-        .updateMany({
-          where: {
-            id: item.id,
-            claimToken,
-            deliveredAt: null,
-            deadLetteredAt: null,
-            claimedUntil: { gt: new Date() },
-          },
-          data: { claimedUntil: new Date(Date.now() + 30_000) },
-        })
+      void renewChat2OutboxClaim(item.id, claimToken)
         .then((result) => {
           if (result.count !== 1) lostLease = true;
         })
@@ -410,15 +215,7 @@ export async function processChat2OutboxOnce(limit = 20) {
           "chat2.outbox.ack",
           item.operationId ?? item.id,
           () =>
-            prisma.chat2OutboxEvent.updateMany({
-              where: { id: item.id, claimToken, deliveredAt: null, deadLetteredAt: null },
-              data: {
-                deliveredAt: new Date(),
-                claimedUntil: null,
-                claimToken: null,
-                lastErrorCode: null,
-              },
-            }),
+            acknowledgeChat2Outbox(item.id, claimToken),
         );
         delivered += saved.count;
         attemptOutcome = saved.count ? "delivered" : "stale";
@@ -430,22 +227,9 @@ export async function processChat2OutboxOnce(limit = 20) {
       const exhausted = item.attempts + 1 >= MAX_CHAT2_OUTBOX_ATTEMPTS;
       const terminal = exhausted || !failure.retryable;
       failureClass = terminal ? "terminal" : "retryable";
-      const saved = await prisma.chat2OutboxEvent.updateMany({
-        where: { id: item.id, claimToken, deliveredAt: null, deadLetteredAt: null },
-        data: {
-          claimedUntil: null,
-          claimToken: null,
-          lastErrorCode: failure.code,
-          ...(terminal
-            ? { deadLetteredAt: new Date(), nextAttemptAt: CHAT2_DLQ_UNCLAIMABLE_AT }
-            : {
-                nextAttemptAt: new Date(
-                  Date.now() +
-                    Math.max(nextJobAttemptDelay(item.attempts + 1), failure.retryAfterMs ?? 0),
-                ),
-              }),
-        },
-      });
+      const saved = await failChat2Outbox(item.id, claimToken, failure.code, terminal,
+        new Date(Date.now() + Math.max(nextJobAttemptDelay(item.attempts + 1), failure.retryAfterMs ?? 0)),
+      );
       attemptOutcome = saved.count ? (terminal ? "dead_letter" : "retry") : "stale";
       if (terminal) {
         deadLettered += saved.count;
@@ -480,59 +264,25 @@ export async function processChat2MediaDeletionIntentsOnce(
   onlyObjectKey?: string,
 ) {
   const now = new Date();
-  const intents = await prisma.chat2MediaDeletionIntent.findMany({
-    where: {
-      ...(onlyObjectKey ? { objectKey: onlyObjectKey } : {}),
-      status: { in: ["PENDING", "RESERVED"] },
-      availableAt: { lte: now },
-      OR: [{ claimedUntil: null }, { claimedUntil: { lt: now } }],
-    },
-    orderBy: { createdAt: "asc" },
-    take: Math.max(1, Math.min(100, limit)),
-  });
+  const intents = await readDueChat2DeletionIntents(now, limit, onlyObjectKey);
   let deleted = 0;
   for (const intent of intents) {
     const lease = new Date(Date.now() + 45_000);
-    const claimed = await prisma.chat2MediaDeletionIntent.updateMany({
-      where: {
-        objectKey: intent.objectKey,
-        status: intent.status,
-        OR: [{ claimedUntil: null }, { claimedUntil: { lt: new Date() } }],
-      },
-      data: { claimedUntil: lease, attempts: { increment: 1 } },
-    });
+    const claimed = await claimChat2DeletionIntent(intent, lease);
     if (!claimed.count) continue;
     try {
       // Recovering a DB commit whose acknowledgement was lost: never delete
       // an S3 object while a live Chat2Media row still references its key.
-      const liveMedia = await prisma.chat2Media.findUnique({
-        where: { objectKey: intent.objectKey },
-        select: { id: true },
-      });
+      const liveMedia = await readLiveChat2Media(intent.objectKey);
       if (liveMedia) {
-        await prisma.chat2MediaDeletionIntent.updateMany({
-          where: { objectKey: intent.objectKey, status: intent.status, claimedUntil: lease },
-          data: { status: "DONE", completedAt: new Date(), claimedUntil: null, errorCode: null },
-        });
+        await acknowledgeChat2DeletionIntent(intent, lease);
         continue;
       }
       await deleteChat2MediaObject(intent.objectKey);
-      await prisma.chat2MediaDeletionIntent.updateMany({
-        where: { objectKey: intent.objectKey, status: intent.status, claimedUntil: lease },
-        data: { status: "DONE", completedAt: new Date(), claimedUntil: null, errorCode: null },
-      });
-      deleted++;
+      const saved = await acknowledgeChat2DeletionIntent(intent, lease);
+      deleted += saved.count;
     } catch {
-      await prisma.chat2MediaDeletionIntent.updateMany({
-        where: { objectKey: intent.objectKey, status: intent.status, claimedUntil: lease },
-        data: {
-          claimedUntil: null,
-          errorCode: "PRIVATE_MEDIA_DELETE_FAILED",
-          availableAt: new Date(
-            Date.now() + Math.min(60_000, 1000 * 2 ** Math.min(6, intent.attempts)),
-          ),
-        },
-      });
+      await retryChat2DeletionIntent(intent, lease);
     }
   }
   return { inspected: intents.length, deleted };
@@ -542,26 +292,7 @@ export async function processChat2MediaDeletionIntentsOnce(
  * never be pruned. A future Chat2Media DELETE re-creates its intent atomically
  * through the PostgreSQL trigger even after the old DONE row was removed.
  */
-export async function pruneChat2CompletedMediaIntentsOnce(limit = 100) {
-  const completedBefore = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const candidates = await prisma.chat2MediaDeletionIntent.findMany({
-    where: { status: "DONE", completedAt: { lt: completedBefore } },
-    select: { objectKey: true },
-    orderBy: { completedAt: "asc" },
-    take: Math.max(1, Math.min(500, limit)),
-  });
-  if (!candidates.length) return { inspected: 0, pruned: 0 };
-  // The conditional DELETE protects against a concurrent trigger re-arming
-  // an old DONE row as PENDING between the read and delete.
-  const removed = await prisma.chat2MediaDeletionIntent.deleteMany({
-    where: {
-      objectKey: { in: candidates.map(({ objectKey }) => objectKey) },
-      status: "DONE",
-      completedAt: { lt: completedBefore },
-    },
-  });
-  return { inspected: candidates.length, pruned: removed.count };
-}
+
 
 /** Explicit opt-in. Never start a production worker from local ChatGPT operations. */
 export function startChat2OutboxWorker() {
