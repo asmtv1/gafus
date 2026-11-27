@@ -82,6 +82,26 @@ suite("YooKassa cancellation and stale pending expiry on disposable PostgreSQL",
       trialUnavailableReason:null,paymentMethodFingerprintHash:null});
   });
 
+  it("binding active paid period keeps existing entitlement and never creates a second trial",async()=>{
+    const {owner,subscription}=await scopedSubscription("ACTIVE");
+    const from=new Date(Date.now()-2*86400000),until=new Date(Date.now()+12*86400000);
+    await prisma.appSubscription.update({where:{id:subscription.id},data:{
+      currentPeriodStart:from,currentPeriodEnd:until,cancelAtPeriodEnd:false}});
+    const hash=fingerprint();
+    const existing=await prisma.appSubscriptionTrial.create({data:{
+      userId:owner.id,provider:"YOOKASSA",subscriptionId:subscription.id,
+      startedAt:new Date(from.getTime()-3*86400000),endedAt:from,paymentMethodFingerprintHash:hash}});
+    const current=await load(subscription.id);
+    const method="qa-paid-"+randomUUID();
+    const input={subscription:current,paymentMethodId:method,paymentMethodLast4:"4242",
+      paymentMethodFingerprintHash:hash,paymentMethodDisplayTitle:"QA paid card"};
+    expect(await activateYookassaPaymentMethodSubscription(input)).toEqual({activated:true});
+    expect(await activateYookassaPaymentMethodSubscription(input)).toEqual({activated:true});
+    expect(await load(subscription.id)).toMatchObject({status:"ACTIVE",cancelAtPeriodEnd:false,
+      currentPeriodStart:from,currentPeriodEnd:until,yookassaPaymentMethodId:method});
+    expect(await prisma.appSubscriptionTrial.findMany({where:{userId:owner.id}})).toEqual([existing]);
+  });
+
   it("late binding after cancellation preserves paid entitlement and never reenables renewal",async()=>{
     const {owner,subscription}=await scopedSubscription("ACTIVE");
     const from=new Date(Date.now()-2*86400000),until=new Date(Date.now()+12*86400000);
