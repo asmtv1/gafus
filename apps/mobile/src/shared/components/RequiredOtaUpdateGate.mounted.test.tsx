@@ -343,6 +343,44 @@ describe("mandatory 1.7.5 OTA runtime gate", () => {
     expect(state.reload).not.toHaveBeenCalled();
   });
 
+  it("retries an interrupted mandatory download without unlocking navigation or marking it installed", async () => {
+    state.check.mockResolvedValue({ isAvailable: true, manifest: { id: "available-update" } });
+    state.fetch.mockRejectedValueOnce(new Error("Synthetic connection lost during download"));
+    await render();
+
+    expect(state.fetch).toHaveBeenCalledOnce();
+    expect(state.reload).not.toHaveBeenCalled();
+    expect(state.setItem).not.toHaveBeenCalledWith("@gafus/forced-ota-attempt-v1:android:1.7.5-ota.6", "reloaded");
+    expect(screen("courses")).toBeNull();
+    expect(host.textContent).toContain("Повторить загрузку");
+    const retry = host.querySelector("button");
+    expect(retry).not.toBeNull();
+    await act(async () => { retry?.click(); });
+
+    expect(state.check).toHaveBeenCalledTimes(2);
+    expect(state.fetch).toHaveBeenCalledTimes(2);
+    expect(state.setItem).toHaveBeenCalledWith("@gafus/forced-ota-attempt-v1:android:1.7.5-ota.6", "reloaded");
+    expect(state.reload).toHaveBeenCalledOnce();
+    expect(screen("courses")).toBeNull();
+  });
+
+  it("does not auto-reload a stale mandatory bundle, but permits explicit recovery", async () => {
+    const key = "@gafus/forced-ota-attempt-v1:android:1.7.5-ota.6";
+    state.getItem.mockImplementation(async (requested: string) => requested === key ? "reloaded" : null);
+    state.check.mockResolvedValue({ isAvailable: true, manifest: { id: "recovery-update" } });
+    await render();
+    expect(screen("courses")).toBeNull();
+    expect(state.check).not.toHaveBeenCalled();
+    expect(state.reload).not.toHaveBeenCalled();
+    const retry = host.querySelector("button");
+    expect(retry).not.toBeNull();
+    await act(async () => { retry?.click(); });
+    expect(state.check).toHaveBeenCalledOnce();
+    expect(state.fetch).toHaveBeenCalledOnce();
+    expect(state.reload).toHaveBeenCalledOnce();
+    expect(screen("courses")).toBeNull();
+  });
+
   it("downloads and reloads a confirmed update", async () => {
     state.check.mockResolvedValue({ isAvailable: true, manifest: { id: "available-update" } });
     await render();

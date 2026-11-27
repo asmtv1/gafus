@@ -36,11 +36,15 @@ test("cannot substitute EAS config, unsupported runtime or invalid update IDs",(
   assert.throws(()=>otaReleaseVersionName(version,"invalid-update-id"));
 });
 
-test('production export is strictly pinned to SDK57 1.7.5, API origin and approved CI',()=>{
+test('production export is strictly pinned to the checked-out runtime, API origin and approved CI',()=>{
   const valid={...env(),APP_ENV:'production',CI:'true',GAFUS_OTA_PRODUCTION_APPROVED:'true',
     EXPO_PUBLIC_API_BASE_URL:'https://api.gafus.ru',
     EXPO_PUBLIC_CHAT2_API_ORIGIN:'https://api.gafus.ru'};
-  assert.equal(validateProductionOtaExportEnv(valid).runtime,'1.7.5');
+  assert.equal(validateProductionOtaExportEnv(valid).runtime,version);
+  const android={...valid,OTA_PLATFORM:'android',GAFUS_OTA_TARGET_PLATFORM:'android'};
+  assert.equal(validateProductionOtaExportEnv(android).platform,'android');
+  const otherRuntime=version==='1.7.5'?'1.7.6':'1.7.5';
+  assert.throws(()=>validateProductionOtaExportEnv({...valid,OTA_RUNTIME:otherRuntime,EXPO_PUBLIC_APP_VERSION:otaReleaseVersionName(otherRuntime,updateId)}),/OTA_PRODUCTION_/);
   for(const patch of [{APP_ENV:'preview'},{CI:'false'},{GAFUS_OTA_PRODUCTION_APPROVED:'false'},
     {EXPO_PUBLIC_API_BASE_URL:'https://gafus.ru'},{EXPO_PUBLIC_APP_VERSION:'1.8.0'},
     {OTA_RUNTIME:'1.8.0'},{GAFUS_OTA_TARGET_PLATFORM:'android'}])
