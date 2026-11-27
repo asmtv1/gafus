@@ -10,12 +10,11 @@ import {
   ReminderCapError,
 } from "@gafus/core/services/reminders";
 import {getReminders,createReminder,updateReminder,deleteReminder} from "@gafus/notifications-server/training-reminder-application";
-import { reminderOperationLookupAG4ReviewRoutes } from
+import { createReminderOperationLookupRoutes } from
   "./g1-reminder-operation-lookupAG4.review.js";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-reminders");
-export const remindersRoutes = new Hono();
 
 /** ЧЧ:ММ, 00:00 – 23:59 */
 const REMINDER_TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -60,102 +59,111 @@ const updateSchema = z.object({
   timezone: timezoneSchema,
 });
 
-remindersRoutes.get("/", async (c) => {
-  try {
-    const user = c.get("user");
-    const data = await getReminders(user.id);
-    return c.json({ success: true, data });
-  } catch {
-    logger.error("GET reminders error", new Error("REMINDER_READ_FAILED"));
-    return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
-  }
-});
+export function createRemindersRoutes(rows = reminderRows) {
+  const reminderRows = rows;
+  const remindersRoutes = new Hono();
+  const reminderOperationLookupAG4ReviewRoutes = createReminderOperationLookupRoutes(rows);
+  remindersRoutes.get("/", async (c) => {
+    try {
+      const user = c.get("user");
+      const data = await getReminders(user.id);
+      return c.json({ success: true, data });
+    } catch {
+      logger.error("GET reminders error", new Error("REMINDER_READ_FAILED"));
+      return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
+    }
+  });
 
-remindersRoutes.post("/", zValidator("json", createSchema), async (c) => {
-  c.header("Cache-Control", "private, no-store");
-  c.header("Referrer-Policy", "no-referrer");
-  try {
-    const user = c.get("user");
-    const body = c.req.valid("json");
-    const idempotencyKey = c.req.header("Idempotency-Key");
-    const data = idempotencyKey === undefined
-      ? await createReminder(
-        user.id, body.name, body.reminderTime, body.reminderDays, body.timezone,
-      )
-      : (await createReminderAG4(user.id, {
-        name: body.name, reminderTime: body.reminderTime,
-        reminderDays: body.reminderDays, timezone: body.timezone,
-      }, idempotencyKey, reminderRows)).reminder;
-    return c.json({ success: true, data });
-  } catch (error) {
-    if (error instanceof ReminderConflictError) {
-      return c.json({ success: false, code: error.code }, 409);
-    }
-    if (error instanceof ReminderUnknownError) {
-      return c.json({ success: false, code: error.code }, 409);
-    }
-    if (error instanceof ReminderInvalidError) {
-      return c.json({ success: false, code: error.code }, 400);
-    }
-    if (error instanceof ReminderCapError) {
-      return c.json({ success: false, code: error.code, error: error.message }, 400);
-    }
-    if (error instanceof Error) {
-      const clientErrors = [
-        "Максимум 5 напоминаний",
-        "Некорректный формат времени",
-        "Некорректный формат дней",
-        "Некорректная timezone",
-      ];
-      if (clientErrors.some((msg) => error.message.startsWith(msg))) {
-        return c.json({ success: false, error: error.message }, 400);
+  remindersRoutes.post("/", zValidator("json", createSchema), async (c) => {
+    c.header("Cache-Control", "private, no-store");
+    c.header("Referrer-Policy", "no-referrer");
+    try {
+      const user = c.get("user");
+      const body = c.req.valid("json");
+      const idempotencyKey = c.req.header("Idempotency-Key");
+      const data = idempotencyKey === undefined
+        ? await createReminder(
+          user.id, body.name, body.reminderTime, body.reminderDays, body.timezone,
+        )
+        : (await createReminderAG4(user.id, {
+          name: body.name, reminderTime: body.reminderTime,
+          reminderDays: body.reminderDays, timezone: body.timezone,
+        }, idempotencyKey, reminderRows)).reminder;
+      return c.json({ success: true, data });
+    } catch (error) {
+      if (error instanceof ReminderConflictError) {
+        return c.json({ success: false, code: error.code }, 409);
       }
+      if (error instanceof ReminderUnknownError) {
+        return c.json({ success: false, code: error.code }, 409);
+      }
+      if (error instanceof ReminderInvalidError) {
+        return c.json({ success: false, code: error.code }, 400);
+      }
+      if (error instanceof ReminderCapError) {
+        return c.json({ success: false, code: error.code, error: error.message }, 400);
+      }
+      if (error instanceof Error) {
+        const clientErrors = [
+          "Максимум 5 напоминаний",
+          "Некорректный формат времени",
+          "Некорректный формат дней",
+          "Некорректная timezone",
+        ];
+        if (clientErrors.some((msg) => error.message.startsWith(msg))) {
+          return c.json({ success: false, error: error.message }, 400);
+        }
+      }
+      logger.error("POST reminders failed", new Error("REMINDER_CREATE_FAILED"));
+      return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
     }
-    logger.error("POST reminders failed", new Error("REMINDER_CREATE_FAILED"));
-    return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
-  }
-});
+  });
 
-remindersRoutes.put("/:id", zValidator("json", updateSchema), async (c) => {
-  try {
-    const user = c.get("user");
-    const { id } = c.req.param();
-    const body = c.req.valid("json");
-    const data = await updateReminder(user.id, id, body);
-    return c.json({ success: true, data });
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "Напоминание не найдено") {
+  remindersRoutes.put("/:id", zValidator("json", updateSchema), async (c) => {
+    try {
+      const user = c.get("user");
+      const { id } = c.req.param();
+      const body = c.req.valid("json");
+      const data = await updateReminder(user.id, id, body);
+      return c.json({ success: true, data });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === "Напоминание не найдено") {
+          return c.json({ success: false, error: error.message }, 404);
+        }
+        const clientErrors = [
+          "Некорректный формат времени",
+          "Некорректный формат дней",
+          "Некорректная timezone",
+        ];
+        if (clientErrors.some((msg) => error.message.startsWith(msg))) {
+          return c.json({ success: false, error: error.message }, 400);
+        }
+      }
+      logger.error("PUT reminders error", new Error("REMINDER_UPDATE_FAILED"));
+      return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
+    }
+  });
+
+  remindersRoutes.delete("/:id", async (c) => {
+    try {
+      const user = c.get("user");
+      const { id } = c.req.param();
+      await deleteReminder(user.id, id);
+      return c.json({ success: true });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Напоминание не найдено") {
         return c.json({ success: false, error: error.message }, 404);
       }
-      const clientErrors = [
-        "Некорректный формат времени",
-        "Некорректный формат дней",
-        "Некорректная timezone",
-      ];
-      if (clientErrors.some((msg) => error.message.startsWith(msg))) {
-        return c.json({ success: false, error: error.message }, 400);
-      }
+      logger.error("DELETE reminders error", new Error("REMINDER_DELETE_FAILED"));
+      return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
     }
-    logger.error("PUT reminders error", new Error("REMINDER_UPDATE_FAILED"));
-    return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
-  }
-});
+  });
 
-remindersRoutes.delete("/:id", async (c) => {
-  try {
-    const user = c.get("user");
-    const { id } = c.req.param();
-    await deleteReminder(user.id, id);
-    return c.json({ success: true });
-  } catch (error) {
-    if (error instanceof Error && error.message === "Напоминание не найдено") {
-      return c.json({ success: false, error: error.message }, 404);
-    }
-    logger.error("DELETE reminders error", new Error("REMINDER_DELETE_FAILED"));
-    return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
-  }
-});
+  // AG4 owner-scoped read-only operation status; GET never attempts a new POST.
+  remindersRoutes.route("/", reminderOperationLookupAG4ReviewRoutes);
 
-// AG4 owner-scoped read-only operation status; GET never attempts a new POST.
-remindersRoutes.route("/", reminderOperationLookupAG4ReviewRoutes);
+  return remindersRoutes;
+}
+
+export const remindersRoutes = createRemindersRoutes();
