@@ -38,8 +38,8 @@ describe("generic push-worker startup and native transport without VAPID",()=>{
   it("sends Expo-only notification without WebPush keys or network",async()=>{
     const {NotificationProcessor}=await import("./push-worker");
     const processor=new NotificationProcessor() as unknown as {
-      sendNotifications:(subscriptions:unknown[],payload:unknown)=>Promise<{
-        successCount:number;failedCount:number;
+      sendNotifications:(userId:string,subscriptions:unknown[],payload:unknown)=>Promise<{
+        successCount:number;failedCount:number;temporaryFailureCount:number;
       }>;
     };
     const payload={title:"Напоминание",body:"Упражнение",data:{url:"/courses"},
@@ -48,12 +48,12 @@ describe("generic push-worker startup and native transport without VAPID",()=>{
       endpoint:p256dh==="expo"?"ExpoPushToken[synthetic]":"https://example.invalid/fake",
       keys:{p256dh,auth:p256dh},
     });
-    expect(await processor.sendNotifications([subscription("expo")],payload))
-      .toEqual({successCount:1,failedCount:0});
+    expect(await processor.sendNotifications("synthetic-user",[subscription("expo")],payload))
+      .toEqual({successCount:1,failedCount:0,temporaryFailureCount:0});
     expect(mocks.fromEnv).not.toHaveBeenCalled();
     expect(mocks.expo).toHaveBeenCalledTimes(1);
-    expect(await processor.sendNotifications([subscription("web"),subscription("expo")],payload))
-      .toEqual({successCount:1,failedCount:1});
+    expect(await processor.sendNotifications("synthetic-user",[subscription("web"),subscription("expo")],payload))
+      .toEqual({successCount:1,failedCount:1,temporaryFailureCount:1});
     expect(mocks.fromEnv).toHaveBeenCalledTimes(1);
     expect(mocks.expo).toHaveBeenCalledTimes(2);
   });

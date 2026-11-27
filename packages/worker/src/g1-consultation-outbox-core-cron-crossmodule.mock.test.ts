@@ -10,7 +10,7 @@ const m = vi.hoisted(() => ({
   outboxFindFirst: vi.fn(), outboxFindUnique: vi.fn(), outboxUpdateMany: vi.fn(),
   attemptFindUnique: vi.fn(), logFindUnique: vi.fn(), logUpdateMany: vi.fn(),
   stubTransport: vi.fn(), providerPost: vi.fn(), queueAdd: vi.fn(),
-  actualOutbox: vi.fn(), actualReconcile: vi.fn(),
+  actualOutbox: vi.fn(), actualReconcile: vi.fn(), actualDispatchGuard: vi.fn(),
   redisConstructor: vi.fn(), bullQueueConstructor: vi.fn(),
 }));
 vi.mock("ioredis", () => ({
@@ -64,6 +64,7 @@ vi.mock("@gafus/consultation-server/booking-application", () => ({
 }));
 vi.mock("@gafus/consultation-server/mail-delivery", () => ({
   reconcileConsultationEmailLog: (...args: unknown[]) => m.actualReconcile(...args),
+  canDispatchConsultationMail: (...args: unknown[]) => m.actualDispatchGuard(...args),
 }));
 // Every unrelated cron import must be inert before importing actual scheduler.
 vi.mock("@gafus/questions-server/notifications", () => ({
@@ -143,6 +144,7 @@ beforeAll(async () => {
   makeEnvelope = mailer.encryptMailPayload;
   m.actualOutbox.mockImplementation(mailer.processDueTransactionalMailOutbox);
   m.actualReconcile.mockImplementation(core.reconcileConsultationEmailLog);
+  m.actualDispatchGuard.mockImplementation(core.canDispatchConsultationMail);
   startCron = worker.startCronJobs;
 });
 beforeEach(() => {
@@ -275,6 +277,7 @@ describe("actual outbox -> actual Core -> actual cron manual review", () => {
     await vi.waitFor(() => expect(m.error).toHaveBeenCalledWith(
       "CONSULTATION_MAIL_RECONCILIATION_MANUAL_REVIEW",
     ));
+    expect(m.actualDispatchGuard).toHaveBeenCalledWith(ID, "synthetic@invalid.test");
     expect(m.stubTransport).toHaveBeenCalledOnce();
     // Direct second invocation of the exact outbox source rechecks due state.
     const countBefore = m.stubTransport.mock.calls.length;
