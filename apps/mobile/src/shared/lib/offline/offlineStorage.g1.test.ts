@@ -235,6 +235,11 @@ describe("AG3 G1 safe offline paths", () => {
   const legacy = "file:///test-device-sandbox/offline/base/meta.json";
   nativeFs.files.set(legacy, "legacy");
   const oldScope = session.captureOfflineCourseScope()!;
+  session.setOfflineCoursePrincipal(null);
+  await expect(offline.getCourseMeta("base")).resolves.toBeNull();
+  await expect(offline.getOfflineVideoUri("base", videoUrl)).resolves.toBeNull();
+  await expect(offline.getCourseMeta("base", oldScope)).resolves.toBeNull();
+  await expect(offline.getOfflineCourseTypes()).resolves.toEqual([]);
   session.setOfflineCoursePrincipal("owner-B", true);
   await expect(offline.getCourseMeta("base")).resolves.toBeNull();
   await expect(offline.getOfflineVideoUri("base", videoUrl)).resolves.toBeNull();
