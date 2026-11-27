@@ -2,7 +2,7 @@
   "schema": 1,
   "source": "apps/web-vite/src/**/*.{test,spec}.{js,jsx,ts,tsx,cjs,mjs,cts,mts}",
   "legacyCommand": "node --test vite.config.test.mjs && vitest run src --maxWorkers=1",
-  "groupFingerprint": "d92d62b17ad7527cf5446213067f5b7aef5875c00dfa1780c1aebcc63dd75f31",
+  "groupFingerprint": "519be9df8d6098b30447dc3112c3570b775e33bfcc83618f4ccef1166c95a925",
   "groups": [
     {
       "id": "vite-config",
@@ -82,6 +82,7 @@
         "src/features/chats/Chat2Messenger.layout.mounted.test.tsx",
         "src/features/chats/Chat2Messenger.lightbox-close.test.ts",
         "src/features/chats/Chat2Messenger.palette.test.ts",
+        "src/features/chats/Chat2Messenger.stage11.mounted.test.tsx",
         "src/features/chats/Chat2Messenger.viewport.test.ts",
         "src/features/chats/Chat2StaffQueue.test.tsx",
         "src/features/chats/chat2-attachment-upload.test.ts",
