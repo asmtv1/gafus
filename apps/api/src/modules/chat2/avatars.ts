@@ -1,6 +1,9 @@
 import { chat2SignedPrivateMedia, getSignedDownloadUrl } from "@gafus/cdn-upload";
 
-export function createChatAvatars(prisma: Pick<typeof import("@gafus/prisma").prisma, "chat2Media">) {
+export function createChatAvatars(
+  prisma: Pick<typeof import("@gafus/prisma").prisma, "chat2Media">,
+  signRoomAvatar: typeof chat2SignedPrivateMedia = chat2SignedPrivateMedia,
+) {
   // Signed pictures expire after 10 minutes. Reuse their URLs for eight to
   // avoid forcing a new image download on every 12-15s chat-list refresh.
   // Ephemeral and bounded: no signed links are persisted to DB or logs.
@@ -73,7 +76,7 @@ export function createChatAvatars(prisma: Pick<typeof import("@gafus/prisma").pr
     if (cached?.until && cached.until > now) return cached.url;
     if (cached) roomAvatarCache.delete(objectKey);
     try {
-      const url = await chat2SignedPrivateMedia(objectKey, 60);
+      const url = await signRoomAvatar(objectKey, 60);
       if (roomAvatarCache.size >= 512) {
         const first = roomAvatarCache.keys().next().value;
         if (first) roomAvatarCache.delete(first);

@@ -25,3 +25,26 @@ Base runtime source: 9094af7d2. Subsequent da84486a3 changes only the earlier QA
 ## Open original exit criteria
 
 The implementation checkpoint and separate QA report remain the source of existing results. This pass strengthens stages 1, 5 and 14 only. It does not certify all 15 stages. Current local unit/integration/faults/recovery/coverage-risk/account-cleanup results are recorded in gafus-architecture-qa-20261127.md; they refer to the tested QA SHAs, not concurrent mobile diagnostics edits. Remaining: historical-SHA performance/SQL/bytes A/B for Chat2 and catalog, representative SQL/upgrade/cache/concurrency measurements, physical GPS/SQLite/startup and native signed builds/OTA/recovery, full browser scenarios including deletion, provider sandbox, real broker/CDN/object-store/monitoring and service recovery, release compatibility and each conditional legacy retirement. Keep old wire, offline/tombstone, Stream/CDN purge and migration-history obligations until the original removal gates are satisfied. No production or provider operation was performed.
+
+## Stages 3 and 4 — actual PostgreSQL read-path comparison
+
+Added `bash scripts/qa/roadmap-read-performance-isolated-pg.sh`. The owned temporary loopback PG18 cluster is populated with synthetic users, courses, assignments, subscriptions, reviews, conversations and media. A loopback Hono harness exercises the current legacy and candidate read services; SQL statement counts are observed from Prisma query events. The old avatar path uses individual metadata lookups; the candidate uses its batch lookup. Only the room-URL signer is injected (the default production signer is unchanged). No production JWT, real object storage or migration-dependent assertions. Schema setup uses db push in the disposable database.
+
+Final run (exit 0), five alternating measurement pairs, ten requests per arm; median of the five p95 values, milliseconds:
+
+| Scenario | Legacy p95 | Candidate p95 | SQL statements legacy → candidate | Raw response bytes legacy → candidate |
+|---|---:|---:|---:|---:|
+| 20-course catalog, first page | 8.910 | 4.369 | 17 → 9 | 121679 → 10041 |
+| 200-course catalog, first page | 40.924 | 6.507 | 17 → 9 | 1216846 → 33606 |
+| All 180 visible courses, 3 pages | 56.564 | 20.789 | 17 → 27 | 1216846 → 100580 |
+| Small room-access catalog | 5.859 | 2.855 | 10 → 5 | 671 → 671 |
+| Large room-access catalog | 28.090 | 6.173 | 34 → 5 | 3022 → 3022 |
+| 1 avatar | 2.105 | 2.407 | 3 → 3 | 157 → 157 |
+| 10 avatars | 3.352 | 2.362 | 12 → 3 | 1591 → 1591 |
+| 60 avatars | 7.490 | 2.362 | 62 → 3 | 9691 → 9691 |
+
+First-page gzip 26145 → 1301 bytes; full paginated gzip 26145 → 3941 bytes. Adding review records changed compact response by only two bytes (33606 → 33608). Full traversal increases SQL statements, but each page is bounded and total wire payload and measured local wall time decrease. Single-avatar case is not demonstrably faster.
+
+Parity assertions cover learner, trainer, partner, premium, expired and outsider roles, full pagination including equal timestamps and concurrent newer insertion, revocation of private-course permission and access to an already joined chat, avatar deduplication, missing and deleted records, warmed URL reuse and object-key replacement. No raw query text or private object keys logged. Real PG benchmark exit 0; Chat2 service unit tests 41/41; API typecheck exit 0. Logs: /tmp/gafus-roadmap-read-perf-r3.log, /tmp/gafus-roadmap-chat2-regression.log, /tmp/gafus-roadmap-read-typecheck.log.
+
+This is a current legacy-versus-candidate local comparison, not historical-SHA A/B, deployed edge latency, representative concurrency/EXPLAIN or provider acceptance. The prior open criteria are narrowed by this evidence but remain open where these additional proofs are required.
