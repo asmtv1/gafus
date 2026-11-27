@@ -173,3 +173,23 @@ test("Questions QA explicitly isolates 5507 and full API 3002 without affecting 
     }
   }
 });
+
+
+test("fresh browser QA routes every API including chat only to its disposable Hono", () => {
+  const values = { GAFUS_WEB_DEV_API_MODE: "local-hono", GAFUS_QA_FRESH_BROWSER_E2E: "1",
+    GAFUS_QA_PROJECT: "gafusqa123456abcdef", GAFUS_QA_WEB_PORT: "18421", API_PORT: "18422",
+    VITE_API_BASE_URL: "http://127.0.0.1:4174", GAFUS_WEB_GALLERY_FULL_HONO: undefined,
+    GAFUS_QUESTIONS_ISOLATED_QA: undefined, VITE_QUESTIONS_LOCAL_QA: undefined,
+    GAFUS_CHAT2_LOCAL_MEDIA_QA: undefined };
+  const saved = Object.fromEntries(Object.keys(values).map(k => [k, process.env[k]]));
+  try {
+    for (const [k,v] of Object.entries(values)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    const config = configFactory({ command: "serve", mode: "development" });
+    assert.equal(config.server.port, 18421);
+    assert.deepEqual(config.server.proxy, { "/api/v1": { target: "http://127.0.0.1:18422", changeOrigin: false } });
+    process.env.GAFUS_CHAT2_LOCAL_MEDIA_QA = "1";
+    assert.throws(() => configFactory({ command: "serve", mode: "development" }), /cannot share/);
+  } finally {
+    for (const [k,v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  }
+});
