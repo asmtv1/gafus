@@ -1,0 +1,4 @@
+Downloading isolated upstream Prometheus and Alertmanager binaries to temporary workspace
+curl: (28) Operation timed out after 178681 milliseconds with 96026615 out of 109721715 bytes received
+curl: (28) Recv failure: Connection reset by peer
+curl: (28) Recv failure: Connection reset by peer
