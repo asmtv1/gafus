@@ -7,7 +7,7 @@ import {
   getRequestCorrelation,
   withCorrelatedUseCase,
 } from "./lib/operation-observability.js";
-import { startCorrelatedSpan, withServerSpan } from "@gafus/logger/server-telemetry";
+import { startCorrelatedSpan, withServerSpan, flushServerTelemetry } from "@gafus/logger/server-telemetry";
 
 const port = Number(process.env.A2_OBS_API_PORT);
 const db = new URL(process.env.DATABASE_URL ?? "http://invalid");
@@ -79,6 +79,10 @@ app.post("/__a2_obs_callback", async c => {
   } finally {
     span.end();
   }
+  // The private acceptance callback is a deterministic export boundary, not
+  // a production request-path change. Require real collector delivery instead
+  // of losing a queued span on a heavily loaded test host.
+  await flushServerTelemetry();
   return c.json({ operationId: event.operationId, traceId: callbackTraceId,
     requestId: "requestId" in current ? current.requestId : undefined });
 });

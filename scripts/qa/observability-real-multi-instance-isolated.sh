@@ -123,7 +123,7 @@ launch_a2_api(){
   local port="$1" label="${2:-initial}"
   (
     cd apps/api
-    exec env -i PATH="$PATH" HOME="$HOME" NODE_ENV=development API_HOST=127.0.0.1 \
+    exec env -i PATH="$PATH" HOME="$HOME" TSX_TSCONFIG_PATH="$ROOT/scripts/qa/tsconfig.runtime.json" NODE_ENV=development API_HOST=127.0.0.1 \
       A2_OBS_API_PORT="$port" GAFUS_A2_OBS_ISOLATED=1 \
       A2_OBS_WORK_DIR="$WORK" A2_OBS_OTA_ORIGIN="$A2_OBS_OTA_ORIGIN" MOBILE_OTA_DELIVERY_ENV=preview \
       CHAT2_MOBILE_IOS_MIN_VERSION=1.7.5 CHAT2_MOBILE_ANDROID_MIN_VERSION=1.7.5 \
@@ -142,7 +142,7 @@ launch_a2_worker(){
   local port="$1" label="${2:-initial}"
   (
     cd packages/worker
-    exec env -i PATH="$PATH" HOME="$HOME" NODE_ENV=development \
+    exec env -i PATH="$PATH" HOME="$HOME" TSX_TSCONFIG_PATH="$ROOT/scripts/qa/tsconfig.runtime.json" NODE_ENV=development \
       A2_OBS_WORKER_PORT="$port" GAFUS_A2_OBS_ISOLATED=1 \
       DATABASE_URL="$DATABASE_URL" REDIS_URL="$REDIS_URL" \
       API_METRICS_KEY="$A2_OBS_KEY" CHAT2_WORKER_ENABLED=enabled \

@@ -14,6 +14,11 @@ umask 077
 pg_started=0
 redis_pid='' broker_pid='' child_pid='' real_broker_pid=''
 cleanup() {
+  local rc=$?
+  if [ "$rc" != 0 ]; then
+    echo "QA_FAILURE_DIAGNOSTICS"
+    tail -30 "$DIR/broker.log" "$DIR/real-broker.log" 2>/dev/null | sed -E 's/[a-f0-9]{64}/[redacted]/g' || true
+  fi
   if [ -n "$child_pid" ]; then kill -9 "$child_pid" 2>/dev/null || true; fi
   if [ -n "$broker_pid" ]; then kill "$broker_pid" 2>/dev/null || true; fi
   if [ -n "$real_broker_pid" ]; then kill "$real_broker_pid" 2>/dev/null || true; wait "$real_broker_pid" 2>/dev/null || true; fi
