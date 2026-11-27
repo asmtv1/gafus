@@ -1,0 +1,31 @@
+{
+  "runPrefix": "a2-obs-",
+  "scope": "isolated Prometheus Alertmanager webhook",
+  "recordedAt": "2026-11-27T22:33:43.991220+00:00",
+  "alerts": [
+    {
+      "name": "GafusChat2OutboxDeadLetters",
+      "status": "firing",
+      "startsAt": "2026-11-27T22:33:36.877Z",
+      "endsAt": "0001-01-01T00:00:00Z"
+    },
+    {
+      "name": "GafusMediaLeaseStalled",
+      "status": "firing",
+      "startsAt": "2026-11-27T22:33:36.877Z",
+      "endsAt": "0001-01-01T00:00:00Z"
+    },
+    {
+      "name": "GafusChat2OutboxDeadLetters",
+      "status": "resolved",
+      "startsAt": "2026-11-27T22:33:36.877Z",
+      "endsAt": "2026-11-27T22:33:38.877Z"
+    },
+    {
+      "name": "GafusMediaLeaseStalled",
+      "status": "resolved",
+      "startsAt": "2026-11-27T22:33:36.877Z",
+      "endsAt": "2026-11-27T22:33:38.877Z"
+    }
+  ]
+}

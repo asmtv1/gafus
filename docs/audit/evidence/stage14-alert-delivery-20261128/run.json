@@ -1,0 +1,19 @@
+{
+  "testedSha": "09e4c9b3f1e6a9260340f0eeafcf3da3da149de7",
+  "baseSha": "337b00899801d5d068180efbe2f6869406b4eea6",
+  "jobId": "4c744d2dffab087a8b97c5d998e2eb2df22880ab7f92c041",
+  "command": "bash scripts/qa/prometheus-alertmanager-isolated.sh",
+  "state": "exited",
+  "exitCode": 0,
+  "timedOut": false,
+  "durationMs": 115554,
+  "startedAt": "2026-11-27T22:31:48.782Z",
+  "finishedAt": "2026-11-27T22:33:44.307Z",
+  "temporaryDirectoryRemoved": true,
+  "rulesValidated": 40,
+  "namedFixtureScenarios": 25,
+  "officialArchives": [
+    {"project":"prometheus","version":"3.15.1","filename":"prometheus-3.15.1.darwin-arm64.tar.gz","sha256":"0d4d3d9837d27e4fcd0bd16d115b1b8d6732a4bf3e69107f1190d9ef653ae471"},
+    {"project":"alertmanager","version":"0.29.0","filename":"alertmanager-0.29.0.darwin-arm64.tar.gz","sha256":"05fa12ebfa8eb4d8907d708cfc79900fee488cbef73b7fa64b59ee30e16a774f"}
+  ]
+}
