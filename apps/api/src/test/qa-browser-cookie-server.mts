@@ -31,7 +31,7 @@ assert.ok((process.env.JWT_SECRET??'').length>=32);
 assert.ok((process.env.JWT_REFRESH_SECRET??'').length>=32);
 assert.equal(process.env.GAFUS_TEST_REPORT_PATH,report);
 assert.ok(report.startsWith(root+'/.qa/testing/qa-'));
-assert.match(report,/\/tasks\/[a-f0-9]{20}\/tests\.json$/);
+assert.match(report,/\/tasks\/[a-f0-9]{20}\/attempt-[1-9][0-9]*\/tests\.json$/);
 assert.ok(existsSync(taskDir));
 const expectations=JSON.parse(readFileSync(resolve(root,'tests/catalog/browser-cookie-cases.json'),'utf8'));
 assert.equal(expectations.schema,1);assert.equal(expectations.cases.length,13);

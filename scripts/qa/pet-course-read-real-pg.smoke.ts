@@ -54,9 +54,9 @@ async function main(){
    {dayId:day.id,courseId:course.id,order:0},
    {dayId:day.id,courseId:c2.id,order:0},
  ]});
- assert.deepEqual(new Set(await getCoursesUsingDay(day.id)),new Set([course.id,c2.id]));
+ assert.deepEqual(new Set(await getCoursesUsingDay(day.id,{listCourseIdsForTrainingDay})),new Set([course.id,c2.id]));
  assert.deepEqual(new Set(await listCourseIdsForTrainingDay(day.id)),new Set([course.id,c2.id]));
- assert.deepEqual(await getCoursesUsingDay("missing"),[]);
+ assert.deepEqual(await getCoursesUsingDay("missing",{listCourseIdsForTrainingDay}),[]);
  // The trainer editor's role is rechecked in DB, not trusted from an old access JWT.
  await prisma.user.update({where:{id:a.id},data:{role:"TRAINER"}});
  const ownEditor=await readCourseEditorSnapshot(course.id,{id:a.id,role:"TRAINER"});

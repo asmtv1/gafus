@@ -5,7 +5,7 @@ import {
  completeUserCourseRecord,completeExistingUserCourseRecord,countCourseDays,
  readCourseDayIds,readOwnTrainingStatuses,
 } from "@gafus/course-progress-server/completion";
-import {completeUserCourse,checkAndCompleteCourse} from "../../packages/core/src/services/user/userCourseService.js";
+import {completeUserCourse,checkAndCompleteCourse} from "../../apps/api/src/modules/user/composition/course-completion.js";
 const url=new URL(process.env.DATABASE_URL??"http://invalid");
 if(process.env.GAFUS_LOCAL_ISOLATED_API!=="1" || process.env.GAFUS_COURSE_PROGRESS_REAL_PG!=="1" ||
    url.protocol!=="postgresql:" || url.hostname!=="127.0.0.1" ||

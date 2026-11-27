@@ -314,7 +314,8 @@
       "format": "vitest-json",
       "status": "ready",
       "expectedCases": [
-        "requires every verified target, promotes only the tested set, stops checkout before recovery and isolates versions",
+        "requires signed targets, separates mandatory from publication, and isolates runtimes",
+        "restricts Android card checkout to testers and revokes it before recovery",
         "refuses delivery before upload, CI approval and explicit admin publication",
         "expands rollout to 100%, then pauses without deleting release or assets"
       ],
