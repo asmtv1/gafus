@@ -312,7 +312,7 @@ export function useVideoProgress(
             );
           };
           try {
-            if (!attested()) throw new Error("V2_SESSION_UNVERIFIED");
+            if (!binding || !attested()) throw new Error("V2_SESSION_UNVERIFIED");
             setSaveError(null);
             const receipt = await persistNewOnlyVideoProgress(
               newOnlyV2NativeQueues,

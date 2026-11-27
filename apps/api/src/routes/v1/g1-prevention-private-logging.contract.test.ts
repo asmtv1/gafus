@@ -1,3 +1,4 @@
+import { preventionRows } from "../../modules/pet-prevention/composition/prevention-rows-instance.js";
 /** Private prevention journal: the actual route must not log Core medical error content. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -112,7 +113,7 @@ describe("AG1 actual prevention journal route: private error logging (mock Core;
     const response = await req(base);
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true, data });
-    expect(m.get).toHaveBeenCalledExactlyOnceWith("synthetic-owner", pet);
+    expect(m.get).toHaveBeenCalledExactlyOnceWith("synthetic-owner", pet, preventionRows);
     expect(m.create).not.toHaveBeenCalled();
     expect(m.batch).not.toHaveBeenCalled();
     expect(m.update).not.toHaveBeenCalled();
@@ -132,7 +133,7 @@ describe("AG1 actual prevention journal route: private error logging (mock Core;
       reminderEnabled: false,
       reminderKind: "AFTER_DAYS",
       reminderTimes: ["09:00"],
-    });
+    }, preventionRows);
     expect(m.batch).not.toHaveBeenCalled();
     expect(m.update).not.toHaveBeenCalled();
     expect(m.remove).not.toHaveBeenCalled();
@@ -150,7 +151,7 @@ describe("AG1 actual prevention journal route: private error logging (mock Core;
       performedAt: new Date("2026-10-15T00:00:00.000Z"),
       notes: "SYNTHETIC_PRIVATE_RECORD",
       reminderEnabled: false,
-    }]);
+    }], preventionRows);
     expect(m.get).not.toHaveBeenCalled();
     expect(m.create).not.toHaveBeenCalled();
     expect(m.update).not.toHaveBeenCalled();
@@ -182,7 +183,7 @@ describe("AG1 actual prevention journal route: private error logging (mock Core;
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true, data });
     expect(m.update).toHaveBeenCalledExactlyOnceWith(
-      "synthetic-owner", pet, "entry-1", { notes: "synthetic-edited" },
+      "synthetic-owner", pet, "entry-1", { notes: "synthetic-edited" }, preventionRows,
     );
     expect(m.get).not.toHaveBeenCalled();
     expect(m.create).not.toHaveBeenCalled();
@@ -195,7 +196,7 @@ describe("AG1 actual prevention journal route: private error logging (mock Core;
     const response = await req(entry, "DELETE");
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true });
-    expect(m.remove).toHaveBeenCalledExactlyOnceWith("synthetic-owner", pet, "entry-1");
+    expect(m.remove).toHaveBeenCalledExactlyOnceWith("synthetic-owner", pet, "entry-1", preventionRows);
     expect(m.get).not.toHaveBeenCalled();
     expect(m.create).not.toHaveBeenCalled();
     expect(m.batch).not.toHaveBeenCalled();
@@ -215,8 +216,8 @@ describe("AG1 actual prevention journal route: private error logging (mock Core;
     await expect(sync.json()).resolves.toEqual({ success: false, error: "Питомец не найден" });
     expect(m.update).toHaveBeenCalledExactlyOnceWith("synthetic-owner", pet, "entry-1", {
       notes: "synthetic-edited",
-    });
-    expect(m.remove).toHaveBeenCalledExactlyOnceWith("synthetic-owner", pet, "entry-1");
+    }, preventionRows);
+    expect(m.remove).toHaveBeenCalledExactlyOnceWith("synthetic-owner", pet, "entry-1", preventionRows);
     expect(m.batch).toHaveBeenCalledOnce();
     expect(m.logError).not.toHaveBeenCalled();
   });

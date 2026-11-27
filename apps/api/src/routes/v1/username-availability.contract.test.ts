@@ -35,7 +35,7 @@ describe("username availability Hono -> shared DTO", () => {
     expect(parseUsernameAvailabilitySuccess(await response.json())).toEqual({
       success: true, data: { available },
     });
-    expect(service).toHaveBeenCalledExactlyOnceWith("User_1", "owner-1");
+    expect(service).toHaveBeenCalledExactlyOnceWith(authRows, "User_1", "owner-1");
   });
   it.each(["ab", "a!", "x".repeat(51), "имя"])(
     "rejects malformed username before service: %s", async username => {
@@ -63,7 +63,7 @@ describe("username availability Hono -> shared DTO", () => {
       const body = await response.json() as {success?: unknown};
       expect(body.success).not.toBe(true);
     } else {
-      expect(service).toHaveBeenCalledExactlyOnceWith(normalized, "owner-1");
+      expect(service).toHaveBeenCalledExactlyOnceWith(authRows, normalized, "owner-1");
       expect(parseUsernameAvailabilitySuccess(await response.json()))
         .toEqual({success:true,data:{available:true}});
     }

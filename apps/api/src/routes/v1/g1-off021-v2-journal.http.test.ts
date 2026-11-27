@@ -1,3 +1,5 @@
+import { offlineMutationRows } from "../../modules/offline/composition/offline-mutation-rows-instance.js";
+import { preventionRows } from "../../modules/pet-prevention/composition/prevention-rows-instance.js";
 /** AG1 OFF021 v2-only HTTP validation/ownership/error method proof.
  * Real Hono+Zod, injected verified principal, access and journal service.
  * No signed JWT, PG, migrated schema, native queue, or historical replay.
@@ -303,8 +305,8 @@ describe("OFF021 NEW-only v2 safe Hono adapter current implementation", () => {
           }),
         ]),
       }),
-      undefined,
-      undefined,
+      offlineMutationRows,
+      preventionRows,
     );
     expect(m.send).not.toHaveBeenCalled();
   });

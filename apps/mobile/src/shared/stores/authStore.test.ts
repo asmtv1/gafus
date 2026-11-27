@@ -42,6 +42,7 @@ vi.mock("react-native", () => ({
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
     getItem: vi.fn().mockResolvedValue(null),
+    getAllKeys: vi.fn().mockResolvedValue([]),
     removeItem: vi.fn().mockResolvedValue(undefined),
     setItem: vi.fn().mockResolvedValue(undefined),
   },
@@ -112,7 +113,10 @@ describe("authStore checkAuth", () => {
   beforeEach(async () => {
     vi.stubGlobal("__DEV__", false);
     vi.clearAllMocks();
-    getItemAsyncMock.mockResolvedValue("access-token");
+    const secure = new Map<string, string>([["auth_token", "access-token"]]);
+    getItemAsyncMock.mockImplementation(async (key: string) => secure.get(key) ?? null);
+    setItemAsyncMock.mockImplementation(async (key: string, value: string) => { secure.set(key, value); });
+    deleteItemAsyncMock.mockImplementation(async (key: string) => { secure.delete(key); });
     await useAuthStore.persist.rehydrate();
     useAuthStore.setState({
       user: persistedUser,
@@ -124,9 +128,8 @@ describe("authStore checkAuth", () => {
 
   it("migrates a previously authenticated user missing the V2 binding after an app update", async () => {
     // Old builds persisted auth_token + user but did not create gafus-v2-auth-binding.
-    getItemAsyncMock.mockImplementation(async (key: string) =>
-      key === "auth_token" ? "old-still-valid-access-token" : null,
-    );
+    await setItemAsyncMock("auth_token", "old-still-valid-access-token");
+    setItemAsyncMock.mockClear();
     authApiMock.getProfile.mockResolvedValueOnce({ success: true, data: persistedUser });
 
     await useAuthStore.getState().checkAuth();

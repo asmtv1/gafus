@@ -9,6 +9,8 @@ const mock = vi.hoisted(() => ({
   photo: vi.fn(), webp: vi.fn(), video: vi.fn(), poster: vi.fn(), messages: vi.fn(),
   next: 0,
 }));
+// Telemetry is a network boundary; mounted tests use the native view with a local ACK.
+vi.mock("@/shared/lib/api/client", () => ({ apiClient: vi.fn(async () => ({ success: true })) }));
 vi.mock("react-native", () => {
   const box = ({ children }: { children?: ReactNode }) => createElement("div", null, children);
   return {

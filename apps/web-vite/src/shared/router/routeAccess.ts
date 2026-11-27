@@ -25,7 +25,9 @@ type ConnectedFlowFlags = {
 };
 
 /** Route classification is independent of React and the session transport. */
-export function requiresConnectedSession(currentPath: RoutePath | null, flags: ConnectedFlowFlags = {}): boolean {
+export function requiresConnectedSession(
+  currentPath: RoutePath | null, flags: ConnectedFlowFlags = {},
+): boolean {
   // Preserve the existing App-lifetime private-session fence on owner gallery
   // direct URLs, even without injected feature-test transports.
   const galleryOwnerRoute =
@@ -73,6 +75,8 @@ export function requiresConnectedSession(currentPath: RoutePath | null, flags: C
   );
 }
 
-export function requiresOwnerFence(path: RoutePath | null, flags: ConnectedFlowFlags = {}): boolean {
+export function requiresOwnerFence(
+  path: RoutePath | null, flags: ConnectedFlowFlags = {},
+): boolean {
   return requiresConnectedSession(path, flags) && !(path && NEXT_PUBLIC_WEB_ROUTES.has(path));
 }

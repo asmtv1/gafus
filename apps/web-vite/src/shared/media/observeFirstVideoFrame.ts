@@ -8,13 +8,16 @@ export function observeFirstVideoFrame(
 ): () => void {
   let current: { started: number; callback?: number } | null = null;
   let disposed = false;
-  const emit = (event: WebFrameOutcome) => { try { report(event); } catch { /* telemetry is best effort */ } };
+  const emit = (event: WebFrameOutcome) => {
+    try { report(event); } catch { /* telemetry is best effort */ }
+  };
   function finishAbandoned() {
     const sample = current;
     current = null;
     if (!sample) return;
     if (sample.callback !== undefined) {
-      try { video.cancelVideoFrameCallback?.(sample.callback); } catch { /* stale callback is fenced below */ }
+      try { video.cancelVideoFrameCallback?.(sample.callback); }
+      catch { /* stale callback is fenced below */ }
     }
     emit({ outcome: "abandoned" });
   }
@@ -35,7 +38,8 @@ export function observeFirstVideoFrame(
         // presentationTime is the compositor submission timestamp on the
         // same monotonic clock, so a late JS callback doesn't inflate it.
         const presented = metadata?.presentationTime;
-        const observed = Number.isFinite(presented) ? presented : (Number.isFinite(callbackTime) ? callbackTime : now());
+        const observed = Number.isFinite(presented)
+          ? presented : (Number.isFinite(callbackTime) ? callbackTime : now());
         const elapsedMs = Math.round(observed - sample.started);
         if (Number.isSafeInteger(elapsedMs) && elapsedMs >= 0 && elapsedMs <= 120_000)
           emit({ outcome: "rendered", elapsedMs });

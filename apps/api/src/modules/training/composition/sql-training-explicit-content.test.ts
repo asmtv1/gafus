@@ -13,10 +13,12 @@ vi.mock("@gafus/core/services/training", () => ({
   getCoreTrainingDependencies: m.coreDeps,
   getTrainingDayContent: m.readContent,
 }));
-vi.mock("@gafus/core/services/contentAccess", () => ({
+vi.mock("@gafus/core/services/contentAccess", async (original) => ({
+  ...(await original<Record<string, unknown>>()),
   hasActiveGafusCourseStepAccess: m.occurrence,
 }));
-vi.mock("@gafus/entitlements-server", () => ({
+vi.mock("@gafus/entitlements-server", async (original) => ({
+  ...(await original<Record<string, unknown>>()),
   readActiveCourseStepGafusGrant: m.grant,
   readAllowedVideoCourseStepAccess: m.video,
 }));
@@ -26,7 +28,8 @@ vi.mock("@gafus/course-progress-server/training-service", () => ({
 vi.mock("@gafus/course-read-server/content-revision", () => ({
   readDurableCourseContentRevision: m.durableRevision,
 }));
-vi.mock("@gafus/course-read-server", () => ({
+vi.mock("@gafus/course-read-server", async (original) => ({
+  ...(await original<Record<string, unknown>>()),
   readTrainingDayContent: m.readDayRow,
 }));
 

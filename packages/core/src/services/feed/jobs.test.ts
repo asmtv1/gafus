@@ -8,8 +8,8 @@ import { createFeedStorageJobs } from "../../../../feed-server/src/storageJobs";
 const gafusPublication = vi.hoisted(() => ({
   register: vi.fn(async () => undefined),
 }));
-vi.mock("@gafus/core/services/gafus", async (importActual) => ({
-  ...(await importActual<typeof import("@gafus/core/services/gafus")>()),
+vi.mock("../../../../feed-server/src/gafus-reward-instance.js", async (importActual) => ({
+  ...(await importActual<typeof import("../../../../feed-server/src/gafus-reward-instance.js")>()),
   registerGafusPostPublicationTx: gafusPublication.register,
 }));
 

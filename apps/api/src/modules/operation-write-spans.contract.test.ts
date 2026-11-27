@@ -1,3 +1,4 @@
+import { preventionRows } from "./pet-prevention/composition/prevention-rows-instance.js";
 /** Correlated mutation spans must preserve all command parameters, including
  * the optional owner-bound idempotency binding, without logging payloads. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -74,7 +75,7 @@ describe("critical write spans preserve Core command boundaries", () => {
     expect(m.dailyStep.mock.calls[1]).toEqual([owner, "schedule-id", 1, "COMPLETE", binding]);
     expect(m.trainingStep.mock.calls[0]).toHaveLength(4);
     expect(m.trainingStep.mock.calls[1]).toEqual([owner, "course-day", 3, "COMPLETE", binding]);
-    expect(m.batch).toHaveBeenCalledWith(owner, "pet-id", [draft]);
+    expect(m.batch).toHaveBeenCalledWith(owner, "pet-id", [draft], preventionRows);
     expect(m.seen).toHaveBeenCalledExactlyOnceWith(owner, profileRows);
   });
   it("never acknowledges a failed Core mutation as a successful write", async () => {

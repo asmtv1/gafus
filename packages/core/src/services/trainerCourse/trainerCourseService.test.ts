@@ -2,10 +2,10 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import {
   canCreatePaidCourse,
-  createCourse,
-  updateCourse,
-  deleteCourse,
-  getCourseDraftWithRelations,
+  createCourse as createCourseImpl,
+  updateCourse as updateCourseImpl,
+  deleteCourse as deleteCourseImpl,
+  getCourseDraftWithRelations as getCourseDraftWithRelationsImpl,
 } from "./trainerCourseService";
 import { NotFoundError, ConflictError } from "../../errors/ServiceError";
 
@@ -71,13 +71,29 @@ const txStub = {
 
 const mockTransaction = vi.fn((fn: (tx: typeof txStub) => Promise<unknown>) => fn(txStub));
 
-vi.mock("./trainerCourseRowsPort", async () => {
-  const persistence = await import("@gafus/course-progress-server/trainer-course-rows");
-  return {
-    ...persistence,
-    isCourseVersionNoMatch: (error: unknown) => error instanceof persistence.CourseVersionNoMatch,
-  };
-});
+import type { TrainerCourseRowsPort } from "./trainerCourseRowsPort";
+import {
+  createTrainerCourseRow, updateTrainerCourseRows, readCourseRowLogo,
+  readCourseRowAuthor, readCourseDraftRow, readCourseRowVisibleAfterStale,
+  deleteTrainerCourseRowDependencies, CourseVersionNoMatch,
+} from "@gafus/course-progress-server/trainer-course-rows";
+const rows: TrainerCourseRowsPort = {
+  createRow: createTrainerCourseRow,
+  updateRows: updateTrainerCourseRows,
+  readLogo: readCourseRowLogo,
+  readAuthor: readCourseRowAuthor,
+  readDraft: readCourseDraftRow,
+  readVisibleAfterStale: readCourseRowVisibleAfterStale,
+  deleteDependencies: deleteTrainerCourseRowDependencies,
+  isVersionMismatch: (error) => error instanceof CourseVersionNoMatch,
+};
+const createCourse = (input: Parameters<typeof createCourseImpl>[0], authorId: string) =>
+  createCourseImpl(input, authorId, rows);
+const updateCourse = (input: Parameters<typeof updateCourseImpl>[0], actor: Parameters<typeof updateCourseImpl>[1]) =>
+  updateCourseImpl(input, actor, rows);
+const deleteCourse = (id: string) => deleteCourseImpl(id, rows);
+const getCourseDraftWithRelations = (id: string, trainerId: string, options?: { allowAdmin?: boolean }) =>
+  getCourseDraftWithRelationsImpl(id, trainerId, options, rows);
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {

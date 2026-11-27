@@ -121,7 +121,6 @@ export const operationMetricsMiddleware: MiddlewareHandler = async (c, next) => 
     span.end();
     inFlight--;
     const route = knownRoute(c.req.routePath);
-    const method = /^(GET|POST|PUT|PATCH|DELETE|HEAD)$/.test(c.req.method) ? c.req.method : "OTHER";
     const status = String(Math.floor(c.res.status / 100)) + "xx";
     const key = method + "|" + route + "|" + status;
     if (counters.has(key) || counters.size < MAX_ROUTES) {

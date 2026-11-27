@@ -373,14 +373,10 @@ async function journalCounts() {
     await prisma.$disconnect();
   });
   it("INT-M00 normal module exports", async () => {
-    const module = await import(
-      "../../../../../packages/core/src/services/training/trainingService"
-    );
-    const pub = await import("@gafus/core/services/training");
-    expect(Object.keys(module).length).toBeGreaterThan(14);
-    expect(typeof module.requireCourseStepOperationAccess).toBe("function");
-    expect(typeof pub.requireCourseStepOperationAccess).toBe("function");
-    expect(typeof module.applyStepAndDayTx).toBe("function");
+    const { sqlTraining } = await import("../../modules/training/composition/sql-training-instance");
+    expect(Object.keys(sqlTraining).length).toBeGreaterThan(14);
+    expect(typeof sqlTraining.requireCourseStepOperationAccess).toBe("function");
+    expect(typeof sqlTraining.applyStepAndDayTx).toBe("function");
   });
   it("INT-J00 actual loopback Hono signed JWT and owner-scoped unknown receipt GET 404", async () => {
     const r = await GET(randomUUID());

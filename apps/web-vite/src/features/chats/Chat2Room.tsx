@@ -922,7 +922,9 @@ export function Chat2Room({
           busy={busy}
           uploading={uploading}
           mediaCount={pendingMedia.length}
-          hasUnpreparedMedia={pendingMedia.some((x) => !x.attachment && !x.preparedPhoto && !x.preparedVideo)}
+          hasUnpreparedMedia={pendingMedia.some(
+            (x) => !x.attachment && !x.preparedPhoto && !x.preparedVideo,
+          )}
         />
       </div>
     </>

@@ -314,6 +314,7 @@ describe("getCoursesWithProgress", () => {
     expect(mockCourseFindMany).toHaveBeenCalledOnce();
     const query = mockCourseFindMany.mock.calls[0][0];
     expect(query).toEqual({
+      where: { OR: [{ isPrivate: false }, { access: { some: { userId: "u1" } } }] },
       select: {
         id: true,
         name: true,
@@ -561,6 +562,7 @@ describe("updateCourseLogoUrl / deleteCourseLogoFromRecord versioned CAS adapter
     expect(mockSetCourseLogoVersioned).toHaveBeenCalledExactlyOnceWith(
       { courseId: "c1", logoUrl: "https://cdn/l.png", expectedVersion: 7 },
       actor,
+      undefined,
     );
     expect(mockCourseUpdate).not.toHaveBeenCalled();
   });
@@ -579,6 +581,7 @@ describe("updateCourseLogoUrl / deleteCourseLogoFromRecord versioned CAS adapter
     expect(mockSetCourseLogoVersioned).toHaveBeenCalledExactlyOnceWith(
       { courseId: "c1", logoUrl: "https://new/logo.png", expectedVersion: 7 },
       actor,
+      undefined,
     );
     expect(mockCourseUpdate).not.toHaveBeenCalled();
   });
@@ -597,6 +600,7 @@ describe("updateCourseLogoUrl / deleteCourseLogoFromRecord versioned CAS adapter
     expect(mockSetCourseLogoVersioned).toHaveBeenCalledExactlyOnceWith(
       { courseId: "c1", logoUrl: "", expectedVersion: 10 },
       actor,
+      undefined,
     );
     expect(mockCourseUpdate).not.toHaveBeenCalled();
   });

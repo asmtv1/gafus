@@ -32,7 +32,7 @@ type Found = NonNullable<ApplicationDay>;
 export type ProducerIsActualCoreDay = Assert<ExactShape<Found, DailyCourseDayResponse>>;
 // The new opt-in response contains the stable occurrence key; the legacy
 // projection explicitly strips that key and preserves the old exact wire.
-type LegacyStep = Omit<DailyCourseStepDto, "bundleStepId" | "timerSnapshot">;
+type LegacyStep = Omit<DailyCourseStepDto, "bundleStepId" | "timerSnapshot" | "offlineProgressVersion">;
 type LegacyDay = Omit<Found, "steps" | "serverNow"> & { steps: LegacyStep[] };
 export type WholeDayMatchesHonoJson = Assert<ExactShape<JSONParsed<LegacyDay>, DailyCourseDayWire>>;
 export type AllStepsMatchHonoJson = Assert<

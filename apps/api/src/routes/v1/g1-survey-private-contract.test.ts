@@ -1,3 +1,5 @@
+import { surveyPersistence } from "../../modules/surveys/composition/survey-rows.js";
+import { checkCourseAccessById } from "../../modules/courses/composition/catalog-read-instance.js";
 // This route now binds the occurrence-specific read adapter at composition,
 // while the original Core error mock preserves the historical HTTP response.
 vi.mock("../../modules/rewarded-credits/composition/gafus-access.js", () => ({
@@ -233,7 +235,7 @@ describe("AG1-LEARN-032 surveys owner private cache policy", () => {
     expect(m.premium).toHaveBeenCalledExactlyOnceWith({
       userId: "owner-B", platform: "IOS", userStepId: "user-step-1",
     });
-    expect(m.submit).toHaveBeenCalledExactlyOnceWith(expect.any(Object), "owner-B", {
+    expect(m.submit).toHaveBeenCalledExactlyOnceWith(surveyPersistence, checkCourseAccessById, "owner-B", {
       ...payload, petId: null, answers: { q1: "private-B" }, surveySlug: "survey-from-path",
     });
     expect(m.comparison).not.toHaveBeenCalled();
@@ -284,7 +286,7 @@ describe("AG1-LEARN-032 surveys owner private cache policy", () => {
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     await expect(response.json()).resolves.toEqual(result);
     expect(m.premium).toHaveBeenCalledOnce();
-    expect(m.submit).toHaveBeenCalledExactlyOnceWith(expect.any(Object), "owner-A", {
+    expect(m.submit).toHaveBeenCalledExactlyOnceWith(surveyPersistence, checkCourseAccessById, "owner-A", {
       ...payload, surveySlug: "behavior",
     });
   });
@@ -309,7 +311,7 @@ describe("AG1-LEARN-032 surveys owner private cache policy", () => {
     const response = await post();
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-    expect(m.submit).toHaveBeenCalledWith(expect.any(Object), "owner-A", { ...payload, surveySlug: "behavior" });
+    expect(m.submit).toHaveBeenCalledWith(surveyPersistence, checkCourseAccessById, "owner-A", { ...payload, surveySlug: "behavior" });
   });
 
   it("invalid submission returns private 400 with no Core write", async () => {

@@ -99,7 +99,7 @@ describe("AG1 pet nullable measurement clear, stable fieldErrors", () => {
     for (const birthDate of ["2020-02-29", "2020-02-29T00:00:00.000Z"]) {
       const result = await pet({ birthDate });
       expect(result.status).toBe(200);
-      expect(petUpdate).toHaveBeenLastCalledWith("pet-A", "owner-A", { birthDate });
+      expect(petUpdate).toHaveBeenLastCalledWith(petRows, "pet-A", "owner-A", { birthDate });
     }
     expect(petUpdate).toHaveBeenCalledTimes(2);
   });

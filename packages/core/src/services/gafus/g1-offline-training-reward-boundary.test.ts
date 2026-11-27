@@ -96,6 +96,8 @@ describe("AG1 OFF021 existing training vs earning boundary (NO real DB)",()=>{
     // Course reconciliation now happens inside the single training DB transaction.
     expect(span).not.toContain("await syncUserCourseStatusFromDays(");
     const training=core("../../../../course-progress-server/src/trainingService.ts");
+    expect(training).toMatch(/async function updateStepAndDay\(/);
+    expect(training).toMatch(/\bupdateStepAndDay,/);
     expect(training).toContain("await syncUserCourseStatusFromDaysTx(tx, userId, result.courseId)");
     expect(span).not.toMatch(/awardActivityTx|awardBonusTx|changeGafusBalanceTx|grantRewardedCreditsToWallet|gafusRewardEvent/);
     expect(span).toContain("return c.json({ success: true })");
@@ -116,9 +118,11 @@ describe("AG1 OFF021 existing training vs earning boundary (NO real DB)",()=>{
     const trainingApiComposer=core("../../../../../apps/api/src/modules/training/composition/sql-training-instance.ts");
     expect(trainingApiComposer).toContain('@gafus/course-progress-server/training-service');
     expect(dailyComposition).toContain('@gafus/course-progress-server/daily-course-service');
-    expect(trainingCore).toMatch(/export const updateStepAndDay:/);
+    expect(trainingCore).not.toMatch(/export const updateStepAndDay:/);
     expect(dailyComposition).toMatch(/updateDailyCourseStepAndDay,/);
     const training=core("../../../../course-progress-server/src/trainingService.ts");
+    expect(training).toMatch(/async function updateStepAndDay\(/);
+    expect(training).toMatch(/\bupdateStepAndDay,/);
     const daily=core("../../../../course-progress-server/src/dailyCourseService.ts");
     const step=section(training,"async function updateStepAndDay(","async function syncUserCourseStatusFromDays(");
     const day=section(daily,"async function updateDailyCourseStepAndDay(","async function getDailyCourseScheduleStatistics(");

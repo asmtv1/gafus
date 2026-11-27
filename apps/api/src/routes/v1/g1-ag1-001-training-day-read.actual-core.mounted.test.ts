@@ -117,7 +117,7 @@ vi.mock("@gafus/core/services/auth", async (original) => ({
 // Core training/course barrels and the application module remain real.
 import { app } from "../../app";
 import { generateAccessToken } from "@gafus/auth/jwt";
-import { getTrainingDayWithMonetizedSteps } from "@gafus/core/services/training";
+import { sqlTraining } from "../../modules/training/composition/sql-training-instance.js";
 import { checkCourseAccess } from "../../modules/courses/composition/catalog-read-instance.js";
 
 const DAY = "clwdayoc0000000000000001";
@@ -224,7 +224,7 @@ beforeEach(() => {
 
 describe("AG1-001 registered training GET day -> real Core / synthetic Prisma", () => {
   it("returns unchanged free public day for signed owner, current Core selects, no writes", async () => {
-    expect(typeof getTrainingDayWithMonetizedSteps).toBe("function");
+    expect(typeof sqlTraining.getTrainingDayWithMonetizedSteps).toBe("function");
     expect(typeof checkCourseAccess).toBe("function");
     const r = await route("A");
     expect(r.status).toBe(200);
@@ -322,7 +322,7 @@ describe("AG1-001 registered training GET day -> real Core / synthetic Prisma", 
     );
     expect(m.userStepRead).toHaveBeenCalledExactlyOnceWith({
       where: { userTrainingId: "existing_user_training_a" },
-      select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true },
+      select: { id: true, stepOnDayId: true, status: true, paused: true, remainingSec: true, updatedAt: true },
     });
     noWrites(); // assert original Prisma.$transaction/create/createMany/upsert/queue zero
   });

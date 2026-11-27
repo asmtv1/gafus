@@ -15,12 +15,12 @@ function command(args,timeout=30000){
  assert.equal(result.status,0,String(result.stderr||result.error));
  return result.stdout;
 }
-test('all 13 owner routes are explicit unit-only, never turbo test scripts',()=>{
- assert.equal(inventory.summary.workspaces,70);
- assert.equal(inventory.summary.withTestScript,57);
- assert.equal(inventory.summary.withAdvisoryUnitScript,13);
- assert.equal(inventory.summary.withAnyTestRoute,70);
- assert.equal(groups.length,13);
+test('all 12 owner routes are explicit unit-only, never turbo test scripts',()=>{
+ assert.equal(inventory.summary.workspaces,67);
+ assert.equal(inventory.summary.withTestScript,55);
+ assert.equal(inventory.summary.withAdvisoryUnitScript,12);
+ assert.equal(inventory.summary.withAnyTestRoute,67);
+ assert.equal(groups.length,12);
  for(const g of groups){
    const w=byName.get(g.name);
    assert(w?.advisoryUnitOnly===true,'not advisory: '+g.name);
@@ -46,12 +46,12 @@ test('test-system CI plan excludes the new unit-only packages while unit package
  assert.equal(unit.tasks.length,1);
  assert.deepEqual(unit.tasks[0].command,['pnpm','--filter','@gafus/queues','test:unit']);
 });
-test('Turbo dry-run contains only NONEXISTENT placeholders for the 13 advisory package test tasks',()=>{
+test('Turbo dry-run contains only NONEXISTENT placeholders for the 12 advisory package test tasks',()=>{
  const data=JSON.parse(command(['pnpm','exec','turbo','run','test','--dry=json'],60000));
  const names=new Set(groups.map(g=>g.name));
  const found=data.tasks.filter(t=>t.task==='test'&&names.has(t.package));
- assert.equal(found.length,13);
+ assert.equal(found.length,12);
  for(const task of found)assert.equal(task.command,'<NONEXISTENT>',task.taskId);
  const real=data.tasks.filter(t=>t.task==='test'&&t.command!=='<NONEXISTENT>');
- assert.equal(real.length,57,'legacy Turbo task count changed');
+ assert.equal(real.length,55,'legacy Turbo task count changed');
 });

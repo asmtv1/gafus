@@ -317,7 +317,10 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
   it("opens direct short dashboard and nested URLs without additional auth checks", async () => {
     await mount("/users/user1/app-subscription");
     expect(window.location.pathname).toBe("/users/user1/app-subscription");
-    expect(calls).toContain("/api/v1/admin/users/user1/app-subscription");
+    await vi.waitFor(async () => {
+      await act(async () => { await Promise.resolve(); });
+      expect(calls).toContain("/api/v1/admin/users/user1/app-subscription");
+    });
     expect(calls.some(url => /^\/api\/v1\/admin\/users(?:\?|$)/.test(url))).toBe(false);
   });
 
@@ -345,10 +348,14 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
     await clickButton("Выбрать другого кинолога");
     expect(window.location.search).toBe("");
     expect(host.textContent).toContain("Первый");
-    const choose = [...host.querySelectorAll(".trainer-row")].find((r) =>
+    const findTrainer = () => [...host.querySelectorAll(".trainer-row")].find((r) =>
       r.textContent?.includes("Первый"),
     );
-    expect(choose).toBeTruthy();
+    await vi.waitFor(async () => {
+      await act(async () => { await Promise.resolve(); });
+      expect(findTrainer()).toBeTruthy();
+    });
+    const choose = findTrainer();
     await act(async () => {
       choose!.querySelector("button")!.click();
     });
@@ -470,7 +477,10 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
 
   it("loads only the selected user for a deep subscription link, not the entire user list", async () => {
     await mount("/main-panel/users/user1/app-subscription");
-    expect(calls).toContain("/api/v1/admin/users/user1/app-subscription");
+    await vi.waitFor(async () => {
+      await act(async () => { await Promise.resolve(); });
+      expect(calls).toContain("/api/v1/admin/users/user1/app-subscription");
+    });
     expect(calls.some(url => /^\/api\/v1\/admin\/users(?:\?|$)/.test(url))).toBe(false);
     expect(host.textContent).toContain("Подписка отдельного пользователя");
   });

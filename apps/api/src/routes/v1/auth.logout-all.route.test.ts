@@ -43,7 +43,7 @@ describe("WEB1 POST auth/logout-all — registered Hono and Core revocation", ()
     const response = await issue();
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ success: true });
-    expect(revoke).toHaveBeenCalledExactlyOnceWith("owner-A");
+    expect(revoke).toHaveBeenCalledExactlyOnceWith(authRows, "owner-A");
     const cookie = response.headers.get("set-cookie") ?? "";
     expect(cookie).toContain("gafus_access=");
     expect(cookie).toContain("gafus_refresh=");
@@ -67,7 +67,7 @@ describe("WEB1 POST auth/logout-all — registered Hono and Core revocation", ()
   it("supports explicit Mobile bearer with no cookie clearing", async () => {
     const result = await issue({authorization:"Bearer synthetic", "content-type":"application/json"});
     expect(result.status).toBe(200);
-    expect(revoke).toHaveBeenCalledExactlyOnceWith("owner-A");
+    expect(revoke).toHaveBeenCalledExactlyOnceWith(authRows, "owner-A");
     expect(result.headers.get("set-cookie")).toBeNull();
   });
 });

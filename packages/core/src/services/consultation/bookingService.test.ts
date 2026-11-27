@@ -64,6 +64,12 @@ vi.mock("@gafus/notifications-server/consultation-email-outbox", () => ({
   stageConsultationEmailIntents: (...a: unknown[]) => stageConsultationEmailIntents(...a),
 }));
 
+// Bind the transport at the explicit application composition seam.
+vi.mock("@gafus/consultation-write-server/service", async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  sendConsultationPush: (...args: unknown[]) => sendImmediatePushNotification(...args),
+}));
+
 vi.mock("@gafus/notifications-server/immediatePushService", () => ({
   sendImmediatePushNotification: (...a: unknown[]) => sendImmediatePushNotification(...a),
 }));

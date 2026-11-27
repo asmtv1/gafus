@@ -1,3 +1,4 @@
+import { checkCourseAccessById } from "../../courses/composition/catalog-read-instance.js";
 import { describe, expect, it, vi } from "vitest";
 
 const p = vi.hoisted(() => ({
@@ -26,6 +27,7 @@ describe("API diary SQL composition", () => {
     await expect(getDiaryEntries("owner-A", "course-A", "occ-A")).resolves.toEqual({ entries: [] });
     expect(p.readCore).toHaveBeenCalledExactlyOnceWith(
       diaryPersistence,
+      checkCourseAccessById,
       "owner-A",
       "course-A",
       "occ-A",
@@ -40,6 +42,7 @@ describe("API diary SQL composition", () => {
     });
     expect(p.writeCore).toHaveBeenCalledExactlyOnceWith(
       diaryPersistence,
+      checkCourseAccessById,
       "owner-A",
       "occ-A",
       "текст",

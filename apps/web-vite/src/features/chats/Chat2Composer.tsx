@@ -18,7 +18,9 @@ export function Chat2Composer({
   mediaCount: number;
   hasUnpreparedMedia: boolean;
 }) {
-  const draft = useSyncExternalStore(draftState.subscribe, draftState.getSnapshot, draftState.getSnapshot);
+  const draft = useSyncExternalStore(
+    draftState.subscribe, draftState.getSnapshot, draftState.getSnapshot,
+  );
   return (
   <form className={css.composer} onSubmit={onSubmit}>
     <div className={css.composerField}>

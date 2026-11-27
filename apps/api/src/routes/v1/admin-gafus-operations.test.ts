@@ -1,3 +1,7 @@
+import { adminRows } from "../../modules/gafus/composition/admin-rows-instance.js";
+import { gafusWallet } from "../../modules/gafus/composition/wallet-instance.js";
+import { gafusLock } from "../../modules/gafus/composition/wallet-lock-instance.js";
+import { legacyGafusImportPorts } from "../../modules/gafus/composition/legacy-import.js";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const f = vi.hoisted(() => ({
@@ -80,12 +84,12 @@ describe("Gafus admin fraud and operator legacy import", () => {
     const result = await request("/fraud");
     expect(result.status).toBe(200);
     expect(result.headers.get("cache-control")).toContain("no-store");
-    expect(f.fraud).toHaveBeenCalledWith({ actorId: "admin-1", status: "OPEN" });
+    expect(f.fraud).toHaveBeenCalledWith({ actorId: "admin-1", status: "OPEN" }, adminRows);
   });
 
   it("lists resolved signals and rejects unknown statuses", async () => {
     expect((await request("/fraud?status=RESOLVED")).status).toBe(200);
-    expect(f.fraud).toHaveBeenCalledWith({ actorId: "admin-1", status: "RESOLVED" });
+    expect(f.fraud).toHaveBeenCalledWith({ actorId: "admin-1", status: "RESOLVED" }, adminRows);
     vi.clearAllMocks();
     expect((await request("/fraud?status=all")).status).toBe(400);
     expect(f.fraud).not.toHaveBeenCalled();
@@ -96,7 +100,7 @@ describe("Gafus admin fraud and operator legacy import", () => {
     expect(response.status).toBe(200);
     expect(f.review).toHaveBeenCalledWith({
       actorId: "admin-1", signalId: "signal1", ...validReview,
-    }, expect.any(Object), expect.any(Object));
+    }, gafusWallet, gafusLock, adminRows);
   });
 
   it("dismisses a fraud signal with reversal zero", async () => {
@@ -107,7 +111,7 @@ describe("Gafus admin fraud and operator legacy import", () => {
     expect(f.review).toHaveBeenCalledWith({
       actorId: "admin-1", signalId: "signal1", action: "DISMISS",
       requestedReversal: 0, reason: "Нарушение не подтвердилось",
-    }, expect.any(Object), expect.any(Object));
+    }, gafusWallet, gafusLock, adminRows);
   });
 
   it("rejects unconfirmed reversal, reason too short or extra actor before Core", async () => {
@@ -152,7 +156,7 @@ describe("Gafus admin fraud and operator legacy import", () => {
     expect(response.status).toBe(200);
     expect(f.importBatch).toHaveBeenCalledWith({
       actorId: "admin-1", confirmed: true, batchSize: 50, cursor: "next1",
-    }, expect.objectContaining({ runOneTransaction: expect.any(Function) }));
+    }, legacyGafusImportPorts, gafusWallet.changeGafusBalanceTx);
     expect(await response.json()).toEqual({
       success: true, data: { imported: 1, credits: 3, nextCursor: null },
     });

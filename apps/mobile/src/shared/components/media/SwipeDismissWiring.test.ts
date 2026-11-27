@@ -30,6 +30,6 @@ describe("Mobile fullscreen media swipe coverage", () => {
     expect(socialControls).toContain('accessibilityLabel="Развернуть видео"');
     expect(feedInline).toContain('accessibilityLabel="Закрыть видео"');
     expect(feedInline).toContain("<SwipeDismissMedia onDismiss={() => setExpanded(false)}>");
-    expect(feedInline).toContain("<VideoView player={player} style={s.expandedVideo}");
+    expect(feedInline).toContain("<MeasuredVideoView frameSurface=\"moments\" player={player} style={s.expandedVideo}");
   });
 });

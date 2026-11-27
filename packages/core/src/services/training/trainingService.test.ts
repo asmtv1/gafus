@@ -1277,6 +1277,7 @@ describe("getTrainingDayWithUserSteps", () => {
         status: true,
         paused: true,
         remainingSec: true,
+        updatedAt: true,
       },
     });
     expect(mockTransaction).toHaveBeenCalledTimes(1);

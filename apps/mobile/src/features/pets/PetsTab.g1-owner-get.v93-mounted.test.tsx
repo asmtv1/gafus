@@ -505,7 +505,7 @@ describe("MOBILE_PETS_DELETE_ACK_GUARD_20261024 mounted existing PetsTab", () =>
     const { confirm } = await openConfirmation();
     const invalidated = vi.spyOn(client, "invalidateQueries");
     await act(async () => confirm());
-    await vi.waitFor(() => expect(m.deletePet).toHaveBeenCalledWith("pet-A"));
+    await vi.waitFor(() => expect(m.deletePet).toHaveBeenCalledWith("pet-A", expect.any(Function)));
     await vi.waitFor(() => expect(m.track).toHaveBeenCalledWith(
       expect.objectContaining({ elementId: "pet-delete-fail" }),
     ));

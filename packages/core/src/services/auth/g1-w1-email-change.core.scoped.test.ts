@@ -116,7 +116,7 @@ beforeEach(()=>{
 });
 describe("W1 real email Core orchestration under fake Prisma/mail",()=>{
  it("24h token is staged before the new-address delivery",async()=>{
-  await requestEmailChange("A"," FRESH@SAMPLE.TEST ", fixtureEmailAccountRowsPort);
+  await requestEmailChange("A"," FRESH@SAMPLE.TEST ", undefined, fixtureEmailAccountRowsPort);
   expect(m.createCalls).toHaveBeenCalledWith("A","fresh@sample.test");
   const t=lastToken();expect(t).toMatch(/^[A-Za-z0-9_-]{43}$/);
   expect(m.tokens.get(t)?.newEmail).toBe("fresh@sample.test");
@@ -126,27 +126,27 @@ describe("W1 real email Core orchestration under fake Prisma/mail",()=>{
  });
  it("password-protected account rejects missing or wrong current password before email",async()=>{
   m.passwordRequired=true;m.passwordHash=bcrypt.hashSync("CurrentPass123",4);
-  await expect(requestEmailChange("A","fresh@sample.test", fixtureEmailAccountRowsPort)).rejects.toThrow("Неверный текущий пароль");
-  await expect(requestEmailChange("A","fresh@sample.test","WrongPassword12")).rejects.toThrow("Неверный текущий пароль");
+  await expect(requestEmailChange("A","fresh@sample.test", undefined, fixtureEmailAccountRowsPort)).rejects.toThrow("Неверный текущий пароль");
+  await expect(requestEmailChange("A","fresh@sample.test","WrongPassword12", fixtureEmailAccountRowsPort)).rejects.toThrow("Неверный текущий пароль");
   expect(m.mail).not.toHaveBeenCalled();expect(m.tokens.size).toBe(0);
-  await requestEmailChange("A","fresh@sample.test","CurrentPass123");
+  await requestEmailChange("A","fresh@sample.test","CurrentPass123", fixtureEmailAccountRowsPort);
   expect(m.tokens.size).toBe(1);expect(m.mail).toHaveBeenCalledTimes(1);
  });
  it("successful confirmation notifies only old confirmed address",async()=>{
-  await requestEmailChange("A","fresh@sample.test", fixtureEmailAccountRowsPort);
+  await requestEmailChange("A","fresh@sample.test", undefined, fixtureEmailAccountRowsPort);
   await confirmEmailChangeByToken(lastToken(), fixtureEmailAccountRowsPort);
   expect(m.notice).toHaveBeenCalledExactlyOnceWith("a@sample.test");
   expect(m.users.get("A")).toBe("fresh@sample.test");
  });
  it("old-address notification outage does not undo confirmed email",async()=>{
   m.notice.mockRejectedValueOnce(new Error("SYNTH_NOTICE_DOWN"));
-  await requestEmailChange("A","fresh@sample.test", fixtureEmailAccountRowsPort);
+  await requestEmailChange("A","fresh@sample.test", undefined, fixtureEmailAccountRowsPort);
   await confirmEmailChangeByToken(lastToken(), fixtureEmailAccountRowsPort);
   expect(m.users.get("A")).toBe("fresh@sample.test");
  });
  it("sequential request invalidates old token; newest confirms once, replay invalid",async()=>{
-  await requestEmailChange("A","first@sample.test", fixtureEmailAccountRowsPort);const first=lastToken();
-  await requestEmailChange("A","second@sample.test", fixtureEmailAccountRowsPort);const next=lastToken();
+  await requestEmailChange("A","first@sample.test", undefined, fixtureEmailAccountRowsPort);const first=lastToken();
+  await requestEmailChange("A","second@sample.test", undefined, fixtureEmailAccountRowsPort);const next=lastToken();
   expect(first).not.toBe(next);
   expect(m.tokens.has(first)).toBe(false);
   expect(m.tokens.size).toBe(1);
@@ -158,9 +158,9 @@ describe("W1 real email Core orchestration under fake Prisma/mail",()=>{
  it("monotonic issuance disambiguates two links staged in the same millisecond",async()=>{
   const now=Date.now();const clock=vi.spyOn(Date,"now").mockReturnValue(now);
   try{
-   await requestEmailChange("A","first@sample.test", fixtureEmailAccountRowsPort);
+   await requestEmailChange("A","first@sample.test", undefined, fixtureEmailAccountRowsPort);
    const first=lastToken();const firstAt=m.tokens.get(first)!.createdAt.getTime();
-   await requestEmailChange("A","second@sample.test", fixtureEmailAccountRowsPort);
+   await requestEmailChange("A","second@sample.test", undefined, fixtureEmailAccountRowsPort);
    const second=lastToken();
    expect(m.tokens.has(first)).toBe(false);
    expect(m.tokens.size).toBe(1);
@@ -168,50 +168,50 @@ describe("W1 real email Core orchestration under fake Prisma/mail",()=>{
   }finally{clock.mockRestore();}
  });
  it("mail failure retains previously issued and persisted token",async()=>{
-  await requestEmailChange("A","first@sample.test", fixtureEmailAccountRowsPort);const old=lastToken();
+  await requestEmailChange("A","first@sample.test", undefined, fixtureEmailAccountRowsPort);const old=lastToken();
   m.mail.mockRejectedValueOnce(new Error("SYNTH_SMTP_UNAVAILABLE"));
-  await expect(requestEmailChange("A","new@sample.test", fixtureEmailAccountRowsPort)).rejects.toThrow("SYNTH_SMTP_UNAVAILABLE");
+  await expect(requestEmailChange("A","new@sample.test", undefined, fixtureEmailAccountRowsPort)).rejects.toThrow("SYNTH_SMTP_UNAVAILABLE");
   expect(m.tokens.has(old)).toBe(true);expect(m.tokens.size).toBe(1);
   expect([...m.tokens.values()][0]?.newEmail).toBe("first@sample.test");
   expect(m.transactionCalls).toHaveBeenCalledTimes(4);
  });
  it("create failure rolls back token replacement; previously issued link remains",async()=>{
-  await requestEmailChange("A","first@sample.test", fixtureEmailAccountRowsPort);m.failCreate=true;
-  await expect(requestEmailChange("A","new@sample.test", fixtureEmailAccountRowsPort)).rejects.toThrow("SYNTH_PRISMA_CREATE_ERROR");
+  await requestEmailChange("A","first@sample.test", undefined, fixtureEmailAccountRowsPort);m.failCreate=true;
+  await expect(requestEmailChange("A","new@sample.test", undefined, fixtureEmailAccountRowsPort)).rejects.toThrow("SYNTH_PRISMA_CREATE_ERROR");
   expect(m.tokens.size).toBe(1);
   expect([...m.tokens.values()][0]?.newEmail).toBe("first@sample.test");
  });
  it("serialized fake owner lock leaves one token under concurrent requests",async()=>{
   const done=await Promise.allSettled([
-   requestEmailChange("A","one@sample.test", fixtureEmailAccountRowsPort),requestEmailChange("A","two@sample.test", fixtureEmailAccountRowsPort),
+   requestEmailChange("A","one@sample.test", undefined, fixtureEmailAccountRowsPort),requestEmailChange("A","two@sample.test", undefined, fixtureEmailAccountRowsPort),
   ]);
   expect(done.map(x=>x.status)).toEqual(["fulfilled","fulfilled"]);
   expect(m.tokens.size).toBe(1);expect(m.mail).toHaveBeenCalledTimes(2);
   expect(m.transactionCalls).toHaveBeenCalledTimes(4);
  });
  it("actual confirmation Core uses one $transaction for lookup, update, token delete",async()=>{
-  await requestEmailChange("A","fresh@sample.test", fixtureEmailAccountRowsPort);const key=lastToken();
+  await requestEmailChange("A","fresh@sample.test", undefined, fixtureEmailAccountRowsPort);const key=lastToken();
   await confirmEmailChangeByToken(key, fixtureEmailAccountRowsPort);
   expect(m.transactionCalls).toHaveBeenCalledTimes(3);
   expect(m.updateCalls).toHaveBeenCalledWith("A","fresh@sample.test");
   expect(m.tokens.size).toBe(0);
  });
  it("fake transaction rollback after user update failure restores old email and token",async()=>{
-  await requestEmailChange("A","fresh@sample.test", fixtureEmailAccountRowsPort);const t=lastToken();m.failDelete=true;
+  await requestEmailChange("A","fresh@sample.test", undefined, fixtureEmailAccountRowsPort);const t=lastToken();m.failDelete=true;
   await expect(confirmEmailChangeByToken(t, fixtureEmailAccountRowsPort)).rejects.toThrow("SYNTH_PRISMA_DELETE_ERROR");
   expect(m.users.get("A")).toBe("a@sample.test");expect(m.tokens.has(t)).toBe(true);
  });
  it("valid token of A while B exists changes A only, even with no caller principal",async()=>{
-  await requestEmailChange("A","fresh@sample.test", fixtureEmailAccountRowsPort);await confirmEmailChangeByToken(lastToken(), fixtureEmailAccountRowsPort);
+  await requestEmailChange("A","fresh@sample.test", undefined, fixtureEmailAccountRowsPort);await confirmEmailChangeByToken(lastToken(), fixtureEmailAccountRowsPort);
   expect(m.users.get("A")).toBe("fresh@sample.test");expect(m.users.get("B")).toBe("b@sample.test");
  });
  it("email now owned by B causes conflict; no update and token remains",async()=>{
-  await requestEmailChange("A","fresh@sample.test", fixtureEmailAccountRowsPort);const t=lastToken();m.users.set("B","fresh@sample.test");
+  await requestEmailChange("A","fresh@sample.test", undefined, fixtureEmailAccountRowsPort);const t=lastToken();m.users.set("B","fresh@sample.test");
   await expect(confirmEmailChangeByToken(t, fixtureEmailAccountRowsPort)).rejects.toThrow("Этот email уже занят");
   expect(m.users.get("A")).toBe("a@sample.test");expect(m.tokens.has(t)).toBe(true);
  });
  it("expired token rejects inside transaction, does not change account",async()=>{
-  await requestEmailChange("A","fresh@sample.test", fixtureEmailAccountRowsPort);const t=lastToken();m.tokens.get(t)!.expiresAt=new Date(Date.now()-1000);
+  await requestEmailChange("A","fresh@sample.test", undefined, fixtureEmailAccountRowsPort);const t=lastToken();m.tokens.get(t)!.expiresAt=new Date(Date.now()-1000);
   await expect(confirmEmailChangeByToken(t, fixtureEmailAccountRowsPort)).rejects.toThrow("недействительна");
   expect(m.users.get("A")).toBe("a@sample.test");expect(m.tokens.has(t)).toBe(true);
  });

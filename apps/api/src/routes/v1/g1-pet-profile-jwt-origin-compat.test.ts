@@ -58,7 +58,7 @@ describe("Pet/profile nullable clear JWT bearer/cookie real Hono contract", () =
     expect(updatePet).toHaveBeenCalledWith(petRows, "pet-X", "owner-A", { neckGirthCm: null });
     expect((await put(petPath, { bellyGirthCm: null, ownerId: "owner-A" }, b)).status)
       .toBe(200);
-    expect(updatePet).toHaveBeenLastCalledWith("pet-X", "owner-B", { bellyGirthCm: null });
+    expect(updatePet).toHaveBeenLastCalledWith(petRows, "pet-X", "owner-B", { bellyGirthCm: null });
   });
   it("JWT02 cookie without/wrong Origin 403, trusted Origin 200", async () => {
     expect((await put(profilePath, { city: "" }, a, true)).status).toBe(403);

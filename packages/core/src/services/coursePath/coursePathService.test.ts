@@ -52,7 +52,7 @@ describe("course-path pure read application boundary", () => {
         entries: [{ id: "diary-1", contentExcerpt: "a".repeat(250) + "..." }],
       },
     });
-    expect(mocks.diary).toHaveBeenCalledExactlyOnceWith(diaryPersistence, viewerId, courseId);
+    expect(mocks.diary).toHaveBeenCalledExactlyOnceWith(diaryPersistence, reads.checkCourseAccess, viewerId, courseId);
     expect(reads.readOwnedCoursePathProgress).toHaveBeenCalledExactlyOnceWith(viewerId, courseId);
   });
 

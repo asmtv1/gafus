@@ -22,6 +22,12 @@ vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ error: vi.fn() }),
 }));
 
+vi.mock("../../modules/courses/composition/read-courses.js", async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  getCatalogCardPage: async (ownerId: string) => ({
+    items: await getCoursesMock(ownerId), next: null,
+  }),
+}));
 import { coursesRoutes } from "./courses";
 import { listCourses, setCourseFavorite } from
   "../../../../../apps/web-vite/src/features/courses/courseApi";

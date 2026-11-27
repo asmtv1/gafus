@@ -72,7 +72,7 @@ describe("pet visibility route", () => {
     vi.mocked(updatePet).mockResolvedValueOnce({ id: "pet-1", showInProfile: false } as unknown as Awaited<ReturnType<typeof updatePet>>);
     const response = await createAuthenticatedTestApp().request(jsonRequest("/api/v1/pets/pet-1", "PUT", { showInProfile: false }));
     expect(response.status).toBe(200);
-    expect(updatePet).toHaveBeenLastCalledWith("pet-1", "user-1", { showInProfile: false });
+    expect(updatePet).toHaveBeenLastCalledWith(petRows, "pet-1", "user-1", { showInProfile: false });
     expect(await response.json()).toMatchObject({ success: true, data: { showInProfile: false } });
   });
   it("rejects string booleans", async () => {
