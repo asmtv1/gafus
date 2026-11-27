@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "database": "archqa_http_b2ffe32b3945",
+  "postgresPort": 61895,
+  "redisPort": 61897,
+  "wrapperSha256": "f3757406c65e31976cab75b75b93cec56e8fbd90061190849421a72317c179b1",
+  "ownedPostgresStopped": true,
+  "ownedRedisStopped": true,
+  "ownedApiStopped": true,
+  "ownedTemporaryDirectoryRemoved": true,
+  "otherProcessesUntouched": true,
+  "location": "disposable-loopback-PostgreSQL18-Redis-Hono",
+  "noProductionConnections": true
+}

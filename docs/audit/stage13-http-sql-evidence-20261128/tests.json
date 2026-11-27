@@ -1,0 +1,37 @@
+{
+  "numPassedTests": 5,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "testResults": [
+    {
+      "name": "/Users/asmtv1/Desktop/gafus-qa-stage13-20261128/apps/api/src/test/qa-stage13-http-sql.acceptance.mts",
+      "assertionResults": [
+        {
+          "fullName": "article paid detail, grant, expiry, foreign and cache ACL",
+          "title": "article paid detail, grant, expiry, foreign and cache ACL",
+          "status": "passed"
+        },
+        {
+          "fullName": "Q&A mounted owner ACL, hidden question and hidden answer",
+          "title": "Q&A mounted owner ACL, hidden question and hidden answer",
+          "status": "passed"
+        },
+        {
+          "fullName": "consultation mounted owner lookup/list and foreign cancel/confirm",
+          "title": "consultation mounted owner lookup/list and foreign cancel/confirm",
+          "status": "passed"
+        },
+        {
+          "fullName": "articles list SQL reader size",
+          "title": "articles list SQL reader size",
+          "status": "passed"
+        },
+        {
+          "fullName": "questions list SQL reader size",
+          "title": "questions list SQL reader size",
+          "status": "passed"
+        }
+      ]
+    }
+  ]
+}
