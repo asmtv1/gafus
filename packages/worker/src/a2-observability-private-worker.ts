@@ -38,7 +38,11 @@ const server = createServer(async (req, res) => {
   if (req.url === "/__a2_readiness_diagnostic" && auth === expected) {
     const [broker, database] = await Promise.all([
       probeChat2BrokerAuth(),
-      chat2OutboxMetricsSnapshot().then(() => true, () => false),
+      chat2OutboxMetricsSnapshot().then(() => ({ ok: true }), (error: unknown) => {
+        const candidate = error as { code?: unknown; errorCode?: unknown };
+        const code = candidate?.code ?? candidate?.errorCode;
+        return { ok: false, code: typeof code === "string" && /^P[0-9]{4}$/.test(code) ? code : "UNKNOWN" };
+      }),
     ]);
     res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({
       freshPoll: chat2PollIsFresh(), broker, database,

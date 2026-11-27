@@ -58,6 +58,7 @@ describe("Chat2 outbox crash/fencing/DLQ", () => {
     const call = send.mock.calls as unknown as Array<[string, { body: string }]>;
     const body = JSON.parse(call[0]![1].body);
     expect(body.data.eventId).toBe("evt_test_chat_123");
+    expect(body.idempotency_key).toBe(body.data.eventId);
     expect(body.data).not.toHaveProperty("privatePayload");
   });
   it("DLQs an exhausted attempt instead of continuously resending", async () => {

@@ -57,6 +57,8 @@ import json,sys
 c=json.load(open("infra/chat2/centrifugo.json"))
 c["engine"]["redis"]["address"]="redis://127.0.0.1:"+sys.argv[2]
 c["health"]={"enabled":True}
+for ns in c["channel"]["namespaces"]:
+    if ns["name"]=="chat2": ns["history_ttl"]="600s"
 json.dump(c,open(sys.argv[1],"w"))
 PYCONF
   CENTRIFUGO_HTTP_API_KEY="$SECRET" \
