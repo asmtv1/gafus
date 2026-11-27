@@ -21,7 +21,7 @@ if(process.env.GAFUS_LOCAL_ISOLATED_API!=="1" || process.env.GAFUS_WALKS_LOAD_RE
    db.protocol!=="postgresql:" || db.hostname!=="127.0.0.1" || db.pathname!=="/gafus_fresh_walks_load" ||
    !/^\/tmp\/gafus-walks-load-pg\.[A-Za-z0-9]+\/pg$/.test(pgDir) ||
    !Number.isInteger(port) || port<1024 || port>65535 || db.port!==String(port) ||
-   output!=="/tmp/gafus-walks-local-latency.json")
+   (output!=="/tmp/gafus-walks-local-latency.json" && output!==pgDir+"/../walk-delta-profile.json"))
   throw new Error("REFUSING_NON_DISPOSABLE_WALKS_LOAD_TARGET");
 
 function quantile(sorted:number[],pct:number):number{
@@ -202,6 +202,16 @@ async function main(){
    assert.equal(denied.status,404,"private track must be owner-scoped");
    const seen=await get("",a.id);
    assert.equal((await seen.json()).data[0].clientId,walkClientId);
+
+   // Targeted follow-up: retain actual mounted owner/ACL checks and the
+   // complete delta profile, without repeating the unrelated load/chaos test.
+   if(process.env.GAFUS_WALKS_LOAD_DELTA_ONLY==="1"){
+     assert.equal(output,pgDir+"/../walk-delta-profile.json");
+     const delta=await verifyDeltaProtocol(base,deltaOwner.id,b.id);
+     writeFileSync(output,JSON.stringify({mode:"delta-only",ownerIsolation:true,delta},null,2)+"\n",{mode:0o600});
+     console.log("WALKS_DELTA_REAL_PG_PASS",JSON.stringify(delta));
+     return;
+   }
 
    const paths=["","/deleted"];
    const readOnce=async(i:number)=>{

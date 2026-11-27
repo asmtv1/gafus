@@ -49,6 +49,11 @@ describe("dog walk persisted owner access", () => {
     expect(markerOwner).toBe(owner);
     expect(JSON.parse(payload)).toMatchObject([{ clientId: "fb2f0e7b-0c4d-4918-b518-45ed15ca19e2" }]);
     expect(sql.join("?")).toContain('ON CONFLICT ("userId", "clientId") DO UPDATE');
-    expect(mocked.query.mock.calls[0][0].join("?")).toContain('NOT EXISTS');
+    const [historySql, historyOwner, tombstoneOwner] = mocked.query.mock.calls[0];
+    expect(historyOwner).toBe("jwt-actor");
+    expect(tombstoneOwner).toBe(historyOwner);
+    expect(historySql.join("?")).toContain('w."clientId" NOT IN (');
+    expect(historySql.join("?")).toContain('SELECT d."clientId" FROM "DogWalkTombstone" d WHERE d."userId" = ?');
+    expect(historySql.join("?")).toContain(') ORDER BY w."startedAt" DESC, w."clientId" DESC LIMIT 2000');
   });
 });

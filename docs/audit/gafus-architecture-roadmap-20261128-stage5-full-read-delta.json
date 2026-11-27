@@ -1,0 +1,58 @@
+{
+  "mode": "delta-only",
+  "ownerIsolation": true,
+  "delta": {
+    "history": 2000,
+    "emptyAckBytes": 39,
+    "emptyDeltaBytes": 92,
+    "oneChangeBytes": 364,
+    "initialBytes": 546090,
+    "changedRecords": 101,
+    "trackPoints": 205,
+    "replayCursorStable": true,
+    "tombstoneWins": true,
+    "ownerIsolation": true,
+    "pairs": [
+      {
+        "legacyP95Ms": 24.66,
+        "deltaP95Ms": 3.05,
+        "legacyBytes": 546025,
+        "deltaBytes": 92,
+        "legacyGzipBytes": 24522,
+        "deltaGzipBytes": 96
+      },
+      {
+        "legacyP95Ms": 39.27,
+        "deltaP95Ms": 3.65,
+        "legacyBytes": 546025,
+        "deltaBytes": 92,
+        "legacyGzipBytes": 24522,
+        "deltaGzipBytes": 96
+      },
+      {
+        "legacyP95Ms": 20.43,
+        "deltaP95Ms": 4.4,
+        "legacyBytes": 546025,
+        "deltaBytes": 92,
+        "legacyGzipBytes": 24522,
+        "deltaGzipBytes": 96
+      },
+      {
+        "legacyP95Ms": 17.81,
+        "deltaP95Ms": 3.06,
+        "legacyBytes": 546025,
+        "deltaBytes": 92,
+        "legacyGzipBytes": 24522,
+        "deltaGzipBytes": 96
+      },
+      {
+        "legacyP95Ms": 153.96,
+        "deltaP95Ms": 12.35,
+        "legacyBytes": 546025,
+        "deltaBytes": 92,
+        "legacyGzipBytes": 24522,
+        "deltaGzipBytes": 96
+      }
+    ]
+  }
+}
