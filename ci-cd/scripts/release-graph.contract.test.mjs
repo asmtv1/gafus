@@ -150,6 +150,8 @@ test('Vite public bits compile exactly once with sealed private maps, then trans
   const privateArchive=app.steps.find(s=>s.name?.startsWith('Upload immutable private Web release maps from build-apps'));
   const publicUpload=app.steps.find(s=>s.name?.startsWith('Upload public Vite release artifacts'));
   assert.equal(compile.env.GAFUS_PRIVATE_MAPS_ENABLED,'true');
+  assert.equal(compile.env.TURBO_FORCE,'true',
+    'Private sealed maps are outside Turbo outputs: release builds must bypass cache reads');
   assert.equal(compile.env.GAFUS_RELEASE_SHA,'${{ github.sha }}');
   assert.equal(compile.env.VITE_GAFUS_BUILD_ID,'${{ github.sha }}');
   assert(compile.run.includes('--concurrency=1') && compile.run.includes('github.base_ref'),
