@@ -48,7 +48,20 @@ async function allocatePort(port=0) {
   });
 }
 function start(name,args,env){const child=spawn('pnpm',args,{cwd:root,env,stdio:['ignore','pipe','pipe'],detached:true});const log=createWriteStream(join(out,name+'.log'),{flags:'w',mode:0o600});child.stdout.pipe(log,{end:false});child.stderr.pipe(log,{end:false});child.on('close',()=>log.end());children.push(child);return child;}
-async function awaitHttp(url, timeoutMs){const until=Date.now()+timeoutMs;while(Date.now()<until){if(servers.some(c=>c.exitCode!==null || c.signalCode!==null))throw Error('SERVICE_EARLY_EXIT');try{const res=await fetch(url,{signal:AbortSignal.timeout(1500)});if(res.status!==502 && res.status!==503 && res.status!==500) return res.status;}catch{}await sleep(450);}throw Error('SERVICE_TIMEOUT '+url);}
+async function awaitHttp(url, timeoutMs, expectedStatus){
+ const until=Date.now()+timeoutMs;
+ let lastStatus='unreachable';
+ while(Date.now()<until){
+   if(servers.some(c=>c.exitCode!==null || c.signalCode!==null))throw Error('SERVICE_EARLY_EXIT');
+   try{
+     const res=await fetch(url,{signal:AbortSignal.timeout(Math.min(3000,Math.max(1,until-Date.now())))});
+     lastStatus=res.status;
+     if(res.status===expectedStatus)return res.status;
+   }catch{}
+   await sleep(450);
+ }
+ throw Error('SERVICE_TIMEOUT '+url+' expected='+expectedStatus+' last='+lastStatus);
+}
 async function verify(fixture){const db=new pg.Client({connectionString:database.toString()});await db.connect();try{
  const q=await db.query('SELECT us.status,ut."userId",us."stepOnDayId" FROM "UserStep" us JOIN "UserTraining" ut ON ut.id=us."userTrainingId" WHERE ut."dayOnCourseId"=$1 AND us."stepOnDayId"=$2',[fixture.ids.dayOnCourse,fixture.ids.stepOnDay]);
  const c=await db.query('SELECT status FROM "UserCourse" WHERE "courseId"=$1 AND "userId"=$2',[fixture.ids.course,fixture.ids.learner]);
@@ -72,8 +85,13 @@ async function main(){try{
     NODE_OPTIONS:'--require '+join(root,'scripts/qa/block-nonlocal-network.cjs')};
  servers.push(start('api',['--filter','@gafus/api','exec','tsx','src/index.ts'],env));
  servers.push(start('web',['--filter','@gafus/web-vite','dev'],env));
- const api=await awaitHttp('http://127.0.0.1:'+apiPort+'/api/v1/auth/me',80000);
- const web=await awaitHttp(fixture.login,80000);
+ // A local Mac may be compiling several independent worktrees. Bound the
+ // shared startup budget without relaxing HTTP readiness or browser/SQL assertions.
+ const startupBudgetMs=automated?80000:180000;
+ const [api,web]=await Promise.all([
+   awaitHttp('http://127.0.0.1:'+apiPort+'/api/v1/auth/me',startupBudgetMs,401),
+   awaitHttp(fixture.login,startupBudgetMs,200),
+ ]);
  const ready={runId:project,webOrigin,gitCommit:process.env.GAFUS_TEST_COMMIT||'',apiStatus:api,webStatus:web,fixture,readyAt:new Date().toISOString()};
  writeFileSync(join(out,'ready.json'),JSON.stringify(ready,null,2)+'\n',{mode:0o600});
  console.log('WEB_E2E_STAND_READY '+JSON.stringify({path:out,apiStatus:api,webStatus:web,courseType:fixture.type}));
