@@ -87,10 +87,10 @@ vi.mock("centrifuge", () => ({
     on(event: string, callback: () => void) { scenario.socketEvents.set(event, callback); }
     newSubscription() { return {
       on(event: string, callback: () => void) { scenario.subEvents.set(event, callback); },
-      subscribe() {},
+      subscribe() { /* Subscription events are driven by the test fixture. */ },
     }; }
-    connect() {}
-    disconnect() {}
+    connect() { /* Connection events are driven by the test fixture. */ }
+    disconnect() { /* Connection events are driven by the test fixture. */ }
   }
 }));
 import { Chat2Messenger } from "./Chat2Messenger";
@@ -205,7 +205,8 @@ it("profiles a long chat during typing and reconnect with unchanged history", as
     await act(async () => { original.call(input, "x".repeat(i)); input.dispatchEvent(new Event("input", { bubbles: true })); });
   }
   const typing = { commits: commits.length, durationMs: commits.reduce((a,b)=>a+b,0),
-    dateCalls: format.mock.calls.length, requests: scenario.readTimeline.mock.calls.length-queries };
+    dateCalls: format.mock.calls.length,
+    requests: scenario.readTimeline.mock.calls.length-queries };
   expect(input.value).toBe("x".repeat(12));
   // Slow hosts may cross the real polling deadline; report those reads, but
   // do not attribute timer-triggered requests to draft input.
@@ -222,9 +223,10 @@ it("profiles a long chat during typing and reconnect with unchanged history", as
   });
   await vi.waitFor(() => expect(host.textContent).toContain("Stage11 message 181"), { timeout: 20000 });
   const reconnect = { commits: commits.length, durationMs: commits.reduce((a,b)=>a+b,0),
-    dateCalls: format.mock.calls.length, requests: scenario.readTimeline.mock.calls.length-beforeReconnect };
+    dateCalls: format.mock.calls.length,
+    requests: scenario.readTimeline.mock.calls.length-beforeReconnect };
   expect(input.value).toBe("x".repeat(12));
   expect(host.querySelectorAll('div[class*="message_"]').length).toBe(181);
   expect(reconnect.requests).toBeGreaterThanOrEqual(1);
-  console.log("STAGE11_CHAT_PROFILE", JSON.stringify({ typing, reconnect, rows: 180 }));
+  console.warn("STAGE11_CHAT_PROFILE", JSON.stringify({ typing, reconnect, rows: 180 }));
 }, 60000);
