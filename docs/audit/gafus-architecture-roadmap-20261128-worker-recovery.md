@@ -38,3 +38,41 @@ Existing `docs/audit/gafus-architecture-roadmap-20261128-local-followup.md` reco
 - R4 at `600c3c087`: four services ready and HTTP→SQL→Worker→Centrifugo→callback PASS; OTLP callback span missing, overall exit 1.
 - R5 at `96174e54988d1011ec4138d3e6c684d9998cfcab`: after explicit flush in private QA callback, OTLP correlation PASS (6 spans), two-API baseline PASS, PG and Redis outage recovery PASS, user seed PASS and encrypted archive capture PASS. Job `d68de24742d5e4f1b87d372b826043f5568613b6c8a6d2ef` timed out at 600772 ms (SIGTERM); cleanup trap removed the owned directory, then the shell continued into restore. Subsequent ENOENT and A2_RESTORE_SCHEMA_OR_DATA_FAILED are not evidence of a corrupt snapshot. No full-service RTO/RPO yet. R5 log: /tmp/gafus-qa-worker-20261128/real-multi-r5.log.
 - Resume inspection: HEAD still 96174e549; no R6 log, no active restore shell or listener on ports 56241–56248. Previously orphaned tsx processes on other checkout paths not touched. No Prometheus verified official archive established.
+
+## R6 — completed local full-service restore (PASS)
+
+Tested exact SHA: `715965b266fc1ceb731cf8e645bad521d7340026`.
+Job `0e1f8ab1307be17ec3069d28bacc0bf1d3370880cab6bcfa`, exited 0, no timeout, total profile 80,816 ms. One controlled retry, no rerun of accepted standalone Centrifugo, account cleanup or recovery profiles.
+
+Reproduce from this branch with the verified local Centrifugo 6.9.7 binary and the existing prebuilt workspace dependencies:
+
+```bash
+set -o pipefail
+env -u A2_EXTERNAL_DRILL_CONFIG -u A2_EXTERNAL_DRILL_APPROVED \
+    -u A2_RESTORE_MAX_RTO_MS -u A2_RESTORE_MAX_RPO_MS \
+    A2_RESTORE_SKIP_ACCEPTED_OUTAGES=1 \
+    bash scripts/qa/observability-restore-rpo-rto.sh --service
+```
+
+The R6 change binds temporary directory ownership to a random marker, terminates only verified direct children, bounds shutdown with TERM/KILL and reaps them, exits on TERM/INT instead of resuming after cleanup, and explicitly skips only the previously accepted load and dependency outage drills in restore-only mode. All recovery assertions retained. R6 crossed the exact R5 failure boundary: old services reaped, work ownership verified, encrypted archive restored, new independent PG cluster started. After job exit no listeners remained on 56241–56248 and the temporary directory was absent. No provider credentials or external drill configuration used.
+
+| R6 check | Result |
+|---|---|
+| Fresh independent PG cluster; two API and two Chat2 Worker processes | PASS |
+| Real HTTP→SQL→Worker→Centrifugo→callback; OTLP search correlation (6 spans) | PASS |
+| Encrypted archive and restored bytes (3 objects, active and previous preview OTA releases) | PASS, file-backed fixture |
+| Auth; owner/outsider private-course ACL; owner walk and foreign walk isolation | PASS |
+| Media ownership and byte SHA-256; previous signed synthetic OTA manifest and asset; active asset hash | PASS |
+| Pre-backup Chat2 history and post-restore new user message | PASS |
+| Real post-restore user outbox ACK and trace chain | PASS |
+| Restored pending outbox, restored DLQ; intentionally post-snapshot acknowledged write absent | PASS |
+| Full-service RTO to verified user action and Worker ACK | 29,106 ms |
+| Service readiness after recovery start | 26,434 ms |
+| Pending restored outbox drain after readiness | 317 ms |
+| Observed gap between acknowledged pre-/post-backup writes | 7,898 ms, one deliberate lost post-snapshot write |
+| Product RTO/RPO threshold certification | UNSPECIFIED — no approved numeric budgets |
+| Production/staging provider recovery, actual CDN policy | NOT TESTED / PENDING |
+| Actual prior binary API/Worker rollback | NOT PROVEN — previous signed synthetic OTA asset and prior mixed-version queue contract only |
+| Prometheus→Alertmanager transport | BLOCKED — earlier curl exit 28; no verified official artifacts available, not retried |
+
+Receipts (tracked, no credentials): `docs/audit/evidence/stage7-14-worker-recovery-20261128/{r6-service-restore.json,r6-otlp-query.json,r6-run.json,r6.log,SHA256SUMS}`. Original local artifacts remain `artifacts/a2-obs-real-service-restore.json`, `artifacts/a2-obs-real-otlp-query.json`. R6 is a local full-service functional acceptance, not a claim that production RPO is 7.898 seconds or that external backup/CDN providers have been validated. Earlier accepted profiles were tested on their recorded SHAs; aggregate evidence is not a clean build or one-SHA integration receipt. Integration can consume this branch without repeating separate accepted profiles unless merged changes require it. No merge, push or rollout performed.

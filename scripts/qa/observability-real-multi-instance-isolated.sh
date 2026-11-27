@@ -20,6 +20,7 @@ for cli in apps/api/node_modules/.bin/tsx packages/worker/node_modules/.bin/tsx 
   [[ -x "$cli" ]] || { echo "A2_LOCAL_WORKSPACE_CLI_UNAVAILABLE:$cli"; exit 2; }
 done
 umask 077
+mkdir -p artifacts
 # Archive previous receipts and start with fresh paths for the new run.
 A2_HISTORY="artifacts/a2-obs-history/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 for previous in \
@@ -34,33 +35,61 @@ for previous in \
   mv -- "$previous" "$A2_HISTORY/$(basename "$previous")"
 done
 WORK="$(mktemp -d /tmp/gafus-a2-obs-real-multi.XXXXXX)"
+owner_token="$(openssl rand -hex 16)"
+printf '%s\n' "$owner_token" > "$WORK/.a2-owner"
 pg_started=0; pg_data=''; redis_pid=''; broker_pid=''; trace_pid=''; child_pids=()
-cleanup(){
-  set +e
-  for pid in "${child_pids[@]:-}"; do [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true; done
-  [[ -n "$broker_pid" ]] && kill "$broker_pid" 2>/dev/null
-  [[ -n "$trace_pid" ]] && kill "$trace_pid" 2>/dev/null
-  [[ -n "$redis_pid" ]] && kill "$redis_pid" 2>/dev/null
-  sleep 1
-  # tsx CLI forks one Node child: the subshell PID alone cannot stop it.
-  # Kill ONLY listeners on this fixture's reserved ports whose command line
-  # also names our specific test launcher and isolated worktree.
-  for port in 56244 56245 56246 56247; do
-    owned_pid="$(lsof -tiTCP:$port -sTCP:LISTEN 2>/dev/null | head -1)"
-    [[ -z "$owned_pid" ]] && continue
-    owned_command="$(ps -p "$owned_pid" -o command= 2>/dev/null)"
-    if printf '%s' "$owned_command" | grep -Fq "$ROOT/" &&
-       printf '%s' "$owned_command" | grep -Fq 'src/a2-observability-private-'; then
-      kill "$owned_pid" 2>/dev/null || true
-    fi
-  done
-  for pid in "${child_pids[@]:-}"; do [[ -n "$pid" ]] && kill -9 "$pid" 2>/dev/null || true; done
-  if [[ "$pg_started" == 1 ]]; then pg_ctl -D "$pg_data" -m immediate stop >/dev/null 2>&1; fi
-  if [[ "$WORK" == /tmp/gafus-a2-obs-real-multi.* && -d "$WORK" && ! -L "$WORK" ]]; then
-    rm -rf -- "$WORK"
-  fi
+owns_work(){
+  [[ "$WORK" == /tmp/gafus-a2-obs-real-multi.* && -d "$WORK" && ! -L "$WORK" &&
+     -f "$WORK/.a2-owner" && ! -L "$WORK/.a2-owner" &&
+     "$(cat "$WORK/.a2-owner")" == "$owner_token" ]]
 }
-trap cleanup EXIT INT TERM
+owns_child(){
+  local pid="$1" parent
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  parent="$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d '[:space:]')"
+  [[ "$parent" == "$$" ]]
+}
+# A closed HTTP listener is not process exit: Worker still owns Redis clients.
+# Bound TERM grace and force only still-owned direct children, then reap.
+stop_owned_children(){
+  local pid i active
+  for pid in "$@"; do
+    if owns_child "$pid"; then kill -TERM "$pid" 2>/dev/null || true; fi
+  done
+  for i in {1..20}; do
+    active=0
+    for pid in "$@"; do if owns_child "$pid"; then active=1; fi; done
+    [[ "$active" == 0 ]] && break
+    sleep .25
+  done
+  for pid in "$@"; do
+    if owns_child "$pid"; then kill -KILL "$pid" 2>/dev/null || true; fi
+    [[ -z "$pid" ]] || wait "$pid" 2>/dev/null || true
+  done
+}
+cleanup(){
+  local rc=$?
+  trap - EXIT
+  trap '' INT TERM
+  set +e
+  stop_owned_children "${child_pids[@]:-}" "$broker_pid" "$trace_pid" "$redis_pid"
+  if owns_work; then
+    if [[ "$pg_started" == 1 && ( "$pg_data" == "$WORK/pg" || "$pg_data" == "$WORK/pg-recovered" ) ]]; then
+      pg_ctl -D "$pg_data" -m immediate -w stop >/dev/null 2>&1 || {
+        echo A2_CLEANUP_PG_STOP_FAILED; exit 1;
+      }
+    fi
+    rm -rf -- "$WORK"
+  else
+    echo A2_CLEANUP_WORK_OWNERSHIP_LOST
+    [[ "$rc" != 0 ]] || rc=1
+  fi
+  exit "$rc"
+}
+# Signal handlers MUST exit; EXIT cleanup runs once and never resumes restore.
+trap cleanup EXIT
+trap 'echo A2_INTERRUPTED_INT; exit 130' INT
+trap 'echo A2_INTERRUPTED_TERM; exit 143' TERM
 mkdir "$WORK/sock"
 pg_data="$WORK/pg"
 initdb -D "$pg_data" -A trust -U a2obs --no-instructions > "$WORK/pg-init.log" 2>&1
@@ -234,6 +263,9 @@ record={'runPrefix':'a2-obs-','recordedAt':datetime.datetime.now(datetime.timezo
 with open(sys.argv[4],'w') as f:json.dump(record,f,indent=2);f.write('\n')
 print('A2_REAL_OTLP_SEARCH_CORRELATION_PASS',len(spans))
 VERIFY_LOCAL_OTLP
+if [[ "${1:-}" == --restore-only && "${A2_RESTORE_SKIP_ACCEPTED_OUTAGES:-}" == 1 ]]; then
+  echo A2_RESTORE_ONLY_SKIP_PREVIOUSLY_ACCEPTED_LOAD_AND_OUTAGE_DRILLS
+else
 for window in 1 2 3; do
   node scripts/qa/observability-multi-instance.mjs \
     --target=http://127.0.0.1:56244/ready --target=http://127.0.0.1:56245/ready \
@@ -279,6 +311,7 @@ for i in {1..60}; do
 done
 [[ "$good" == 4 ]] || { echo A2_REDIS_RECOVERY_FAILED; exit 1; }
 echo A2_REAL_REDIS_OUTAGE_ALL_API_AND_WORKERS_RECOVERED
+fi
 # Full-service local restore, on a *new* PG data directory, with both real APIs
 # and Worker loops restarted on a fresh snapshot. RTO ends after the real
 # authenticated user scenario and its external ACK, not just readiness.
@@ -321,7 +354,7 @@ for port in 56244 56245 56246 56247; do
   pid="$(lsof -tiTCP:$port -sTCP:LISTEN 2>/dev/null | head -1)"
   [[ -n "$pid" ]] || { echo "A2_RECOVERY_SERVICE_PID_MISSING:$port"; exit 1; }
   owned_command="$(ps -p "$pid" -o command=)"
-  [[ "$owned_command" == *"$ROOT/"* && "$owned_command" == *src/a2-observability-private-* ]] ||
+  owns_child "$pid" && [[ "$owned_command" == *"$ROOT/"* && "$owned_command" == *src/a2-observability-private-* ]] ||
     { echo "A2_RECOVERY_UNOWNED_PROCESS:$port"; exit 1; }
   kill -TERM "$pid"
 done
@@ -334,12 +367,10 @@ for i in {1..60}; do
   sleep .2
 done
 [[ "$listeners" == 0 ]] || { echo A2_RECOVERY_OLD_SERVICES_STILL_RUNNING; exit 1; }
-# Reap launch-owned wrappers; don't retain old PIDs after restart.
-for pid in "${child_pids[@]:-}"; do
-  [[ -n "$pid" ]] || continue
-  if kill -0 "$pid" 2>/dev/null; then kill -TERM "$pid" 2>/dev/null || true; fi
-  wait "$pid" 2>/dev/null || true
-done
+# Listener closure alone does not end a Worker with live Redis clients.
+stop_owned_children "${child_pids[@]}"
+owns_work || { echo A2_RECOVERY_WORK_OWNERSHIP_LOST; exit 2; }
+echo A2_OLD_SERVICES_REAPED_AND_WORK_OWNERSHIP_VERIFIED
 child_pids=()
 pg_ctl -D "$pg_data" -m immediate -w stop >/dev/null
 pg_started=0
