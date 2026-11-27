@@ -25,7 +25,7 @@ async function readKey(id:string) {
   return {crypto,key:await crypto.AESEncryptionKey.import(encoded,"base64")};
 }
 // JSON coordinates, times and enum names are ASCII. Escape other text before encoding.
-const bytes=(s:string)=>Uint8Array.from(s.replace(/[^\x00-\x7f]/g,c=>"\\u"+c.charCodeAt(0).toString(16).padStart(4,"0")),c=>c.charCodeAt(0));
+const bytes=(s:string)=>Uint8Array.from(s.replace(/[\u0080-\uffff]/g,c=>"\\u"+c.charCodeAt(0).toString(16).padStart(4,"0")),c=>c.charCodeAt(0));
 export async function sealQaBatch(id:string,aad:string,value:unknown):Promise<string> {
   const {crypto,key}=await readKey(id);
   const sealed=await crypto.aesEncryptAsync(bytes(JSON.stringify(value)),key,{additionalData:bytes(aad)});

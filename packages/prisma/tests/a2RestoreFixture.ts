@@ -4,8 +4,7 @@ import { createHash, randomBytes, randomUUID, sign, X509Certificate } from "node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import bcrypt from "bcryptjs";
-import { prisma } from "@gafus/prisma";
+import { prisma } from "../src/client";
 const ownerName = "a2restoreowner";
 const outsiderName = "a2restoreoutsider";
 const roomId = "a2-restore-room";
@@ -15,9 +14,9 @@ const fingerprint = "b".repeat(64);
 const keyId = "a2-restore-test";
 const sha = (data: Uint8Array | string) => createHash("sha256").update(data).digest("hex");
 
-export async function seedRestoreFixture(workDir: string) {
+export async function seedRestoreFixture(workDir: string, hashPassword: (password: string) => Promise<string>) {
   const password = randomBytes(24).toString("base64url");
-  const hash = await bcrypt.hash(password, 10);
+  const hash = await hashPassword(password);
   // Real X.509 code-signing trust, as expected by the external backup
   // validator. Only a disposable fixture key is ever generated here.
   const certPath = join(workDir, "qa-ota-cert.pem");

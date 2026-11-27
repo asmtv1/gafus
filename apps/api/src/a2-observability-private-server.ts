@@ -1,6 +1,7 @@
 /** A2 isolated QA launcher: never part of production startup. */
 import { serve } from "@hono/node-server";
 import { randomUUID } from "node:crypto";
+import bcrypt from "bcryptjs";
 import {
   authorizedOperationMetrics,
   getRequestCorrelation,
@@ -31,10 +32,10 @@ const protectedFixture = (auth: string | undefined) =>
 const workDir = process.env.A2_OBS_WORK_DIR;
 if (!workDir || !/^\/tmp\/gafus-a2-obs-real-multi\.[a-zA-Z0-9]+$/.test(workDir))
   throw Error("A2_RESTORE_WORKDIR_REQUIRED");
-const { seedRestoreFixture, readRestoreMedia, readRestoreAsset } = await import("./test/a2-restore-fixture.js");
+const { seedRestoreFixture, readRestoreMedia, readRestoreAsset } = await import("../../../packages/prisma/tests/a2RestoreFixture.js");
 app.post("/__a2_restore_seed", async c => {
   if (!protectedFixture(c.req.header("Authorization"))) return c.body(null, 404);
-  return c.json(await seedRestoreFixture(workDir));
+  return c.json(await seedRestoreFixture(workDir, password => bcrypt.hash(password, 10)));
 });
 app.get("/__a2_restore_media", async c => {
   if (!protectedFixture(c.req.header("Authorization"))) return c.body(null, 404);

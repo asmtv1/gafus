@@ -45,7 +45,7 @@ export function prepareTimerJournal(binding:V2SessionBinding,event:V2PendingEven
   if(!Object.hasOwn(kinds,event.kind)||!binding.principalId||!UUID.test(binding.authEpoch))return null;
   // Unsupported historical entries remain visible and block the FIFO, never guessed.
   let body:TimerBody;
-  try{body=bodyFor(event)}catch{return null}
+  try{body=bodyFor(event);}catch{return null;}
   const preview:TimerJournalPreview=Object.freeze({post:Object.freeze({
     path:"/api/v1/offline/mutations",method:"POST",
     headers:Object.freeze({"X-Gafus-Sync-Protocol":"2","Idempotency-Key":body.eventId}),body,
@@ -59,7 +59,7 @@ export function verifyTimerAck(preview:TimerJournalPreview,binding:V2SessionBind
   if(!snapshot||snapshot.binding.principalId!==binding.principalId||snapshot.binding.authEpoch!==binding.authEpoch||
       !record(response)||response.success!==true||!record(response.ack))return false;
   let body:TimerBody;
-  try{body=bodyFor(event)}catch{return false}
+  try{body=bodyFor(event);}catch{return false;}
   const ack=response.ack;
   return JSON.stringify(body)===snapshot.body&&ack.protocol===2&&ack.eventId===body.eventId&&
     ack.operation===body.operation&&ack.state==="COMMITTED"&&typeof ack.replayed==="boolean"&&

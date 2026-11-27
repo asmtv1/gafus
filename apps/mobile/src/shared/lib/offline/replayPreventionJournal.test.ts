@@ -36,12 +36,12 @@ describe("prevention durable replay", () => {
   it("repeats identical body and idempotency key after lost ACK and restart, then removes exactly one event",async()=>{
     const f=await fixture();await f.enqueue();
     let sent: unknown;
-    const lost: PreventionReplayTransport=async r=>{sent=r;return {success:false,code:"REQUEST_TIMEOUT"}};
+    const lost: PreventionReplayTransport=async r=>{sent=r;return {success:false,code:"REQUEST_TIMEOUT"};};
     expect(await replayPreventionJournal(f.queue,f.binding,()=>true,lost,vi.fn())).toEqual({committed:0,pending:true});
     const restart=createNewOnlyV2Queues(f.deps);
     expect(await restart.restoreVerifiedSession("owner-a")).toBe(true);
     const notify=vi.fn();
-    const send: PreventionReplayTransport=async r=>{expect(r).toEqual(sent);return ack(r,true)};
+    const send: PreventionReplayTransport=async r=>{expect(r).toEqual(sent);return ack(r,true);};
     expect(await replayPreventionJournal(restart,f.binding,()=>true,send,notify)).toEqual({committed:1,pending:false});
     expect(await restart.getPending("prevention")).toEqual([]);
     expect(notify).toHaveBeenCalledOnce();
@@ -67,7 +67,7 @@ describe("prevention durable replay", () => {
   it("retains later enqueue and rejects duplicate drain deletion",async()=>{
     const f=await fixture();await f.enqueue();
     const notify=vi.fn();
-    const res=await replayPreventionJournal(f.queue,f.binding,()=>true,async r=>{await f.enqueue();return ack(r)},notify);
+    const res=await replayPreventionJournal(f.queue,f.binding,()=>true,async r=>{await f.enqueue();return ack(r);},notify);
     expect(res.committed).toBe(1);
     expect(await f.queue.getPending("prevention")).toHaveLength(1);
     expect(notify).toHaveBeenCalledOnce();

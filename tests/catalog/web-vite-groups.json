@@ -2,7 +2,7 @@
   "schema": 1,
   "source": "apps/web-vite/src/**/*.{test,spec}.{js,jsx,ts,tsx,cjs,mjs,cts,mts}",
   "legacyCommand": "node --test vite.config.test.mjs && vitest run src --maxWorkers=1",
-  "groupFingerprint": "efd7e3a0adf2f1b6bf7d7536cc4859275157d8ace117d3f5e0856b2d80b6befe",
+  "groupFingerprint": "d92d62b17ad7527cf5446213067f5b7aef5875c00dfa1780c1aebcc63dd75f31",
   "groups": [
     {
       "id": "vite-config",
@@ -508,6 +508,7 @@
       "mode": "vitest",
       "files": [
         "src/shared/media/browserVideoPoster.test.ts",
+        "src/shared/media/observeFirstVideoFrame.test.ts",
         "src/shared/media/photoRetryMessage.test.ts",
         "src/shared/media/videoPlaybackPolicy.test.ts",
         "src/shared/media/videoQualityTelemetry.test.ts",
@@ -517,14 +518,15 @@
         "src/shared/router/legacy-inventory.test.tsx",
         "src/shared/router/legacy-route-compat.test.tsx",
         "src/shared/router/location.test.tsx",
-        "src/shared/ui/BackButton.test.tsx",
-        "src/shared/ui/Buttons.test.tsx"
+        "src/shared/router/routeAccess.test.ts"
       ]
     },
     {
       "id": "shared-03",
       "mode": "vitest",
       "files": [
+        "src/shared/ui/BackButton.test.tsx",
+        "src/shared/ui/Buttons.test.tsx",
         "src/shared/ui/Loading.test.tsx",
         "src/shared/ui/SelectChevron.test.tsx"
       ]

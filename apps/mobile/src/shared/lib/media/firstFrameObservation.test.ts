@@ -12,7 +12,7 @@ describe("native view first frame",()=>{
     a.dispose();a.firstFrame();expect(report).toHaveBeenCalledExactlyOnceWith({outcome:"abandoned"});
   });
   it("bounds very long/negative intervals and isolates telemetry failures",()=>{
-    const report=vi.fn(()=>{throw Error("report failure")});let now=1;
+    const report=vi.fn(()=>{throw Error("report failure");});let now=1;
     const a=createNativeFrameObservation(()=>now,report);now=150001;
     expect(()=>a.firstFrame()).not.toThrow();expect(report).toHaveBeenCalledExactlyOnceWith({outcome:"abandoned"});
     const b=createNativeFrameObservation(()=>now,report);now=0;b.firstFrame();

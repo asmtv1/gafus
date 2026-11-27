@@ -150,7 +150,7 @@ suite("version-scoped OTA lifecycle", () => {
     const iosNext = { platform: "ios", runtimeVersion: "1.7.6" } as const;
     const nextNative = await native(iosNext, "17601", fp);
     const nextUpdate = await release(nextNative, 1, true);
-    await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("без явного разрешения");
+    await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("подписанная и подтверждённая App Store-сборка");
     await expect(publishVersionUpdate(await command(ios, "MANDATORY"))).rejects.toThrow("Сначала");
     const test = await command(ios, "TEST");
     await expect(publishVersionUpdate({ ...test, required: true })).rejects.toThrow("отдельным");
@@ -196,7 +196,7 @@ suite("version-scoped OTA lifecycle", () => {
     expect(await manifest({ ...d, runtimeVersion: "1.7.5" }, true)).toBeNull();
     await publishVersionUpdate(await command(android, "ALL"));
     expect((await manifest(d))?.updateId).toBe(standard);
-    await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("без явного разрешения");
+    await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("подписанная и подтверждённая App Store-сборка");
     await publishVersionUpdate(await command(iosNext, "TEST"));
     await selectVersionUpdate({ ...nextNative, testerAllowed: true, currentUpdateId: nextUpdate }, "manifest");
     expect(await allowsVersionCheckout(admin.id, "1.7.6", installation, fp, nextUpdate)).toBe(true);

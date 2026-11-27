@@ -879,7 +879,9 @@ export async function persistGpsBatch(samples: WalkFix[], receivedAt = Date.now(
     try { await captureQaBatch(scope.ownerId,scope.walkId,samples,receivedAt,scope.generation); }
     catch {
       // Mark an incomplete QA trace, without exposing coordinates or breaking the writer.
-      try { await db.runAsync("UPDATE walk_qa_capture SET truncated=1 WHERE ownerId=? AND walkId=?",scope.ownerId,scope.walkId); } catch {}
+      try { await db.runAsync("UPDATE walk_qa_capture SET truncated=1 WHERE ownerId=? AND walkId=?",scope.ownerId,scope.walkId); } catch {
+        console.warn("WALK_QA_CAPTURE_TRUNCATION_MARK_FAILED");
+      }
     }
   }
   return stored;

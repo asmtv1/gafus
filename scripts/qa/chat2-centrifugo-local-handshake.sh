@@ -2,7 +2,7 @@
 # Disposable Chat 2.0 WebSocket handshake; no production DB or external providers.
 # Isolated Docker network and random dev-only keys; no user messages or jobs.
 set -euo pipefail
-ROOT="/Users/asmtv1/Desktop/gafus-refactor"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 [[ "$PWD" == "$ROOT" ]] || { echo "CHAT2_QA_SCOPE_REFUSED"; exit 2; }
 [[ ! -L "$ROOT/infra/chat2/centrifugo.json" ]] || { echo "CHAT2_QA_CONFIG_LINK_REFUSED"; exit 2; }
 
@@ -36,10 +36,11 @@ docker run -d --rm --network "$net" --network-alias chat2-centrifugo \
   -e CENTRIFUGO_HTTP_API_KEY \
   centrifugo/centrifugo:v6.9.7 centrifugo -c /centrifugo/config.json >/dev/null
 
-# This known local QA image is only used as a Node runtime, with no API entrypoint.
+# Use a public runtime instead of a developer-specific previously built image.
 # No credential or production network is mounted into the client.
+docker image inspect node:20-alpine >/dev/null 2>&1 || docker pull node:20-alpine >/dev/null
 docker run -i --rm --network "$net" --entrypoint node \
-  gafus-refactor-local-qa-api:20261029 - <<'NODE'
+  node:20-alpine - <<'NODE'
 const net = require("node:net");
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 function handshake(origin) {

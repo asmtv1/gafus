@@ -10,8 +10,8 @@ const payload = {
 async function fixture() {
   const disk = new Map<string,string>(), secure = new Map<string,string>();
   const queue = createNewOnlyV2Queues({
-    storage:{getItem:async k=>disk.get(k)??null,setItem:async(k,v)=>{disk.set(k,v)}},
-    secure:{getItemAsync:async k=>secure.get(k)??null,setItemAsync:async(k,v)=>{secure.set(k,v)},deleteItemAsync:async k=>{secure.delete(k)}},
+    storage:{getItem:async k=>disk.get(k)??null,setItem:async(k,v)=>{disk.set(k,v);}},
+    secure:{getItemAsync:async k=>secure.get(k)??null,setItemAsync:async(k,v)=>{secure.set(k,v);},deleteItemAsync:async k=>{secure.delete(k);}},
     makeId:randomUUID,now:Date.now,
   });
   const binding=await queue.beginVerifiedLogin("owner-a");

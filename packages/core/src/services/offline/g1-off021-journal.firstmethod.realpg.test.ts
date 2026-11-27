@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { readFileSync, lstatSync, realpathSync } from "node:fs";
-import { beforeAll, afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 import { prisma } from "@gafus/prisma";
 import {

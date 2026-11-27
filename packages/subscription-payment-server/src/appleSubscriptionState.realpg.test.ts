@@ -80,7 +80,8 @@ suite("verified Apple server state is one serialized subscription transition", (
     const secondEnd = new Date("2027-01-01T00:00:00Z");
     await persistVerifiedAppleServerState(state("qa-apple-b",secondStart,secondEnd,"REVOKED"));
     expect((await subscription()).status).toBe("REVOKED");
-    await persistVerifiedAppleServerState(state("qa-apple-b",secondStart,secondEnd,"ACTIVE"));
+    await expect(persistVerifiedAppleServerState(state("qa-apple-b",secondStart,secondEnd,"ACTIVE")))
+      .rejects.toThrow("APPLE_TRANSACTION_REVOKED");
     expect((await subscription()).status).toBe("REVOKED");
     const {payments,events} = await receipts();
     expect(payments).toHaveLength(2);

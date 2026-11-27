@@ -66,7 +66,7 @@ export async function persistVerifiedAppleServerState(params: VerifiedAppleServe
     typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
     return prisma.$transaction(async (tx): Promise<AppleServerSyncStatus> => {
       const lockKey = createHash("sha256").update(originalTransactionId).digest().readInt32BE(0);
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(${APPLE_PURCHASE_LOCK_NAMESPACE}::int, ${lockKey}::int)`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(${APPLE_PURCHASE_LOCK_NAMESPACE}::int, ${lockKey}::int)::text AS locked`;
       // Serializes a provider callback with the Worker reconciliation path.
       await tx.$queryRaw`SELECT id FROM "AppSubscription" WHERE id=${subscription.id} FOR UPDATE`;
       const prior = await tx.appSubscription.findUniqueOrThrow({
@@ -223,7 +223,7 @@ export async function persistVerifiedApplePurchase(input: VerifiedApplePurchase)
     periodStart, periodEnd, isRevoked, priceMilliunits, currency } = input;
   const lockKey = createHash("sha256").update(originalTransactionId).digest().readInt32BE(0);
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(${APPLE_PURCHASE_LOCK_NAMESPACE}::int, ${lockKey}::int)`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(${APPLE_PURCHASE_LOCK_NAMESPACE}::int, ${lockKey}::int)::text AS locked`;
     const receipt = await tx.appSubscriptionPayment.findUnique({
       where: { appleTransactionId: transactionId },
       select: { id: true, userId: true, status: true, appleOriginalTransactionId: true },

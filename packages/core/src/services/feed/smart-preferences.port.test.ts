@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSmartFeedPreferences, type SmartFeedPreferencesPort } from "./smart-preferences";
+import { createSmartFeedPreferences } from "./smart-preferences";
 
 describe("smart preferences pure contract and owner bound port",()=>{
   it("rejects foreign keys and unknown actors, forwards values only",async()=>{

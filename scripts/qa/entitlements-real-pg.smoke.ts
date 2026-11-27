@@ -40,7 +40,7 @@ async function main(){
  await prisma.appSubscriptionPayment.update({where:{id:payment.id},data:{amount:100}});
  assert.equal(await hasPaidChatDisplaySubscription(user.id,now),true);
  assert.equal(await hasPaidChatDisplaySubscription(other.id,now),false);
- assert.equal(await getChatDisplayRole({id:user.id,role:"USER"},now),"subscriber");
+ assert.equal(await getChatDisplayRole({id:user.id,role:"USER"},hasPaidChatDisplaySubscription,now),"subscriber");
  await prisma.appSubscription.update({where:{id:subscription.id},data:{currentPeriodEnd:now}});
  assert.equal(await hasCurrentPaidSubscription(user.id,now),false,"period equal to now is expired");
  assert.equal(await hasPaidChatDisplaySubscription(user.id,now),false);

@@ -56,14 +56,14 @@ export interface FeedPreferenceOperations {
     cursor: string | null | undefined,
     take: number,
   ): Promise<
-    Array<{
+    {
       authorId: string;
       author: {
         id: string;
         username: string;
         profile: { fullName: string | null; avatarUrl: string | null } | null;
       };
-    }>
+    }[]
   >;
   submitReport(
     actorId: string,
@@ -75,7 +75,7 @@ export interface FeedPreferenceOperations {
     cursor: string | null | undefined,
     take: number,
   ): Promise<{
-    rows: Array<{
+    rows: {
       id: string;
       reporterId: string;
       authorId: string;
@@ -91,8 +91,8 @@ export interface FeedPreferenceOperations {
       moderatorId: string | null;
       createdAt: Date;
       resolvedAt: Date | null;
-    }>;
-    users: Array<{ id: string; username: string; feedPublishingBlocked: boolean }>;
+    }[];
+    users: { id: string; username: string; feedPublishingBlocked: boolean }[];
     pendingCount: number;
   }>;
   resolveReport(

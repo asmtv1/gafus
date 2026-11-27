@@ -78,12 +78,12 @@ export interface FeedCommentReadOperations {
     addressed: Pick<CommentRow, "id" | "author">[];
   }>;
   readCommentMedia(ids: string[]): Promise<
-    Array<{
+    {
       commentId: string;
       position: number;
       media: FeedMediaUrlKeys &
         Pick<FeedMediaDto, "status" | "width" | "height" | "durationSeconds">;
-    }>
+    }[]
   >;
 }
 

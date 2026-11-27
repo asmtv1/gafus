@@ -1,4 +1,4 @@
-import { Loading, PrimaryButton } from "./shared/ui";
+import { Loading } from "./shared/ui";
 
 import type { SyntheticAchievementTransport } from "./features/achievements/achievementsApi";
 import type { ServerAchievementsEntitlementWire } from "./features/achievements/achievementsEntitlement";

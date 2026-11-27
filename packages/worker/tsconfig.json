@@ -109,6 +109,9 @@
       "@gafus/questions-server/photos": [
         "../questions-server/dist/photos.d.ts"
       ],
+      "@gafus/consultation-shared/reminder-window": [
+        "../consultation-shared/dist/reminderWindow.d.ts"
+      ],
       "@gafus/consultation-server/booking-application": [
         "../consultation-server/dist/bookingApplication.d.ts"
       ],
@@ -355,6 +358,9 @@
       "@gafus/consultation-write-server/validation": [
         "../consultation-write-server/dist/validation.d.ts"
       ],
+      "@gafus/subscription-payment-server/transitions": [
+        "../subscription-payment-server/dist/subscriptionTransitions.d.ts"
+      ],
       "@gafus/subscription-payment-server/service": [
         "../subscription-payment-server/dist/paymentService.d.ts"
       ],
@@ -378,6 +384,9 @@
       ],
       "@gafus/subscription-payment-server/profit-math": [
         "../subscription-payment-server/dist/profitMath.d.ts"
+      ],
+      "@gafus/mobile-ota-server/telemetry": [
+        "../mobile-ota-server/dist/telemetry.d.ts"
       ],
       "@gafus/mobile-ota-server/diagnostics-spool-repository": [
         "../mobile-ota-server/dist/diagnostics-spool-repository.d.ts"
