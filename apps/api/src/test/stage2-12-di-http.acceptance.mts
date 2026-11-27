@@ -88,6 +88,12 @@ async function listen(app:typeof a.app) {
   const addr=server.address();assert.ok(addr&&typeof addr!=="string");
   return "http://127.0.0.1:"+addr.port;
 }
+async function closeServer(server: ReturnType<typeof serve>): Promise<void> {
+  if ("closeAllConnections" in server && typeof server.closeAllConnections === "function") {
+    server.closeAllConnections();
+  }
+  await new Promise<void>(resolve=>server.close(()=>resolve()));
+}
 type Req={token?:string;body?:unknown;key?:string;ip?:string};
 async function req(base:string,path:string,method="GET",o:Req={}){
   const response=await fetch(base+"/api/v1"+path,{method,headers:{
@@ -265,7 +271,7 @@ try{
     assert.equal(execFileSync("git",["-C",rollbackRoot,"status","--porcelain","--untracked-files=no"],{encoding:"utf8"}).trim(),"");
     // Close both candidate listeners. Mount the actual previous QA app from its
     // own worktree, then switch the current client transport to that listener.
-    for(const server of servers.splice(0)){server.closeAllConnections?.();await new Promise<void>(resolve=>server.close(()=>resolve()));}
+    for(const server of servers.splice(0)){await closeServer(server);}
     const rollbackModule=await import(pathToFileURL(rollbackRoot+"/apps/api/src/app.ts").href);
     const rollbackBase=await listen(rollbackModule.app);
     const currentSha=versions[3]![1]!;
@@ -284,7 +290,7 @@ try{
 }catch(e){failed=true;console.error("DI12_HTTP_FAIL",e instanceof Error?e.stack:e);}
 finally{
   Resolver.prototype.resolveMx=dns;
-  for(const server of servers){server.closeAllConnections?.();await new Promise<void>(resolve=>server.close(()=>resolve()));}
+  for(const server of servers){await closeServer(server);}
   await prisma.$disconnect();
 }
 process.exit(failed?1:0);
