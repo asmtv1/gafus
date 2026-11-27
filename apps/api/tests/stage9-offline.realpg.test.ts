@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { Hono } from "hono";
 import { prisma } from "@gafus/prisma";
-import { offlineRoutes } from "./offline";
-import { createNewOnlyV2Queues } from "../../../../mobile/src/shared/lib/offline/newOnlyV2Queues";
-import { replayProgressJournal, type ProgressReplayTransport } from "../../../../mobile/src/shared/lib/offline/replayProgressJournal";
+import { offlineRoutes } from "../src/routes/v1/offline";
+import { createNewOnlyV2Queues } from "../../mobile/src/shared/lib/offline/newOnlyV2Queues";
+import { replayProgressJournal, type ProgressReplayTransport } from "../../mobile/src/shared/lib/offline/replayProgressJournal";
 
 const legacy = {
   "progress-sync-storage": '{"state":{"queue":[{"queueId":"LEGACY"}]}}',

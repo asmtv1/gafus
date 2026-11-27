@@ -3,7 +3,7 @@ import path from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/routes/v1/stage9-offline.realpg.test.ts"],
+    include: ["tests/stage9-offline.realpg.test.ts"],
     testTimeout: 60_000,
     hookTimeout: 60_000,
   },
