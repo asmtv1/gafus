@@ -60,7 +60,10 @@ async function publish(
     redirect: "error",
     signal: AbortSignal.timeout(4000),
     headers: { "Content-Type": "application/json", "X-API-Key": key },
-    body: JSON.stringify({ channel, data: { eventId, eventType, messageId } }),
+    // Centrifugo v6.9.7 deduplicates retried publications by this stable
+    // key within its retention window. The eventId in data remains the
+    // receiver's durable logical identity outside the broker's window.
+    body: JSON.stringify({ channel, idempotency_key: eventId, data: { eventId, eventType, messageId } }),
   });
   if (!response.ok) {
     if (response.status === 401 || response.status === 403)

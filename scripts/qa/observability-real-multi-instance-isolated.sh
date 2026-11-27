@@ -87,6 +87,10 @@ export CENTRIFUGO_VAR_CHAT2_PROXY_SHARED_SECRET="$(openssl rand -hex 32)"
 "$BROKER" -c "$WORK/centrifugo.json" --http_server.address 127.0.0.1 --http_server.port 56243 > "$WORK/broker.log" 2>&1 & broker_pid=$!
 for i in {1..35}; do curl -sf --max-time 1 http://127.0.0.1:56243/health >/dev/null 2>&1 && break; sleep .25; done
 curl -sf --max-time 1 http://127.0.0.1:56243/health >/dev/null || { echo A2_LOCAL_CENTRIFUGO_FAILED; tail -12 "$WORK/broker.log" | cut -c1-170; exit 1; }
+curl -sf --max-time 5 -X POST -H "X-API-Key: $CENTRIFUGO_HTTP_API_KEY" \
+  -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:56243/api/info |
+  python3 -c 'import json,sys; d=json.load(sys.stdin); assert isinstance(d.get("result"),dict) and not d.get("error")'
+echo A2_AUTHENTICATED_LOCAL_BROKER_READY
 export DATABASE_URL='postgresql://a2obs@127.0.0.1:56241/gafus_a2_observability?schema=public'
 export REDIS_URL='redis://127.0.0.1:56242'
 (cd packages/prisma && ./node_modules/.bin/prisma db push --skip-generate > "$WORK/schema-push.log" 2>&1) || {
@@ -119,7 +123,7 @@ launch_a2_api(){
   local port="$1" label="${2:-initial}"
   (
     cd apps/api
-    env -i PATH="$PATH" HOME="$HOME" NODE_ENV=development API_HOST=127.0.0.1 \
+    exec env -i PATH="$PATH" HOME="$HOME" NODE_ENV=development API_HOST=127.0.0.1 \
       A2_OBS_API_PORT="$port" GAFUS_A2_OBS_ISOLATED=1 \
       A2_OBS_WORK_DIR="$WORK" A2_OBS_OTA_ORIGIN="$A2_OBS_OTA_ORIGIN" MOBILE_OTA_DELIVERY_ENV=preview \
       CHAT2_MOBILE_IOS_MIN_VERSION=1.7.5 CHAT2_MOBILE_ANDROID_MIN_VERSION=1.7.5 \
@@ -130,7 +134,7 @@ launch_a2_api(){
       CHAT2_MAIL_ENABLED=disabled GAFUS_DB_QUERY_METRICS=true \
       OTEL_TRACES_SAMPLER_ARG=1 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:56248/v1/traces \
       JWT_SECRET="$A2_OBS_KEY" JWT_REFRESH_SECRET="$A2_OBS_KEY" \
-      ./node_modules/.bin/tsx src/a2-observability-private-server.ts
+      node --import tsx "$ROOT/apps/api/src/a2-observability-private-server.ts"
   ) > "$WORK/api-$port-$label.log" 2>&1 & child_pids+=("$!")
 }
 for port in 56244 56245; do launch_a2_api "$port"; done
@@ -138,7 +142,7 @@ launch_a2_worker(){
   local port="$1" label="${2:-initial}"
   (
     cd packages/worker
-    env -i PATH="$PATH" HOME="$HOME" NODE_ENV=development \
+    exec env -i PATH="$PATH" HOME="$HOME" NODE_ENV=development \
       A2_OBS_WORKER_PORT="$port" GAFUS_A2_OBS_ISOLATED=1 \
       DATABASE_URL="$DATABASE_URL" REDIS_URL="$REDIS_URL" \
       API_METRICS_KEY="$A2_OBS_KEY" CHAT2_WORKER_ENABLED=enabled \
@@ -148,7 +152,7 @@ launch_a2_worker(){
       GALLERY_ENABLED=false FEED_ENABLED=false CLOUDRU_MEDIA_JOBS_ENABLED=false \
       CDN_HEALTH_MONITOR_ENABLED=false CHAT2_MAIL_ENABLED=disabled GAFUS_DB_QUERY_METRICS=true \
       OTEL_TRACES_SAMPLER_ARG=1 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:56248/v1/traces \
-      ./node_modules/.bin/tsx src/a2-observability-private-worker.ts
+      node --import tsx "$ROOT/packages/worker/src/a2-observability-private-worker.ts"
   ) > "$WORK/worker-$port-$label.log" 2>&1 & child_pids+=("$!")
 }
 for port in 56246 56247; do launch_a2_worker "$port"; done
@@ -165,7 +169,7 @@ for i in {1..90}; do
   done
   sleep .5
 done
-[[ "$ready_count" == 4 ]] || { echo "A2_PRIVATE_READINESS_FAILED:$ready_count"; for f in "$WORK"/api-*log "$WORK"/worker-*log; do tail -5 "$f" | cut -c1-170; done; exit 1; }
+[[ "$ready_count" == 4 ]] || { echo "A2_PRIVATE_READINESS_FAILED:$ready_count"; for port in 56246 56247; do curl -s --max-time 5 -H "Authorization: Bearer $A2_OBS_KEY" "http://127.0.0.1:$port/__a2_readiness_diagnostic" || true; echo; done; for f in "$WORK"/api-*log "$WORK"/worker-*log; do tail -5 "$f" | cut -c1-170; done; exit 1; }
 echo A2_TWO_REAL_APIS_TWO_REAL_CHAT2_WORKERS_PG_REDIS_CENTRIFUGO_READY
 # Metrics must fail closed and export true Prisma pool wait only after valid key.
 [[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:56244/internal/metrics)" == 404 ]]

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Real separate Node worker processes + actual disposable PG/Redis + fake loopback broker.
+# Real separate Node worker processes + disposable PG/Redis + loopback fault proxy.
+# --real-broker forwards to a local Centrifugo 6.9.7 and validates actual history.
 # A PostgreSQL trigger injects a crash-after-REMOTE-ACK-before-DB-commit window,
 # without modifying the production worker or contacting production services.
 set -euo pipefail
@@ -11,10 +12,11 @@ for tool in psql initdb pg_ctl createdb redis-server python3; do command -v "$to
 DIR="$(mktemp -d /tmp/gafus-archqa-outbox-multiprocess.XXXXXX)"
 umask 077
 pg_started=0
-redis_pid='' broker_pid='' child_pid=''
+redis_pid='' broker_pid='' child_pid='' real_broker_pid=''
 cleanup() {
   if [ -n "$child_pid" ]; then kill -9 "$child_pid" 2>/dev/null || true; fi
   if [ -n "$broker_pid" ]; then kill "$broker_pid" 2>/dev/null || true; fi
+  if [ -n "$real_broker_pid" ]; then kill "$real_broker_pid" 2>/dev/null || true; wait "$real_broker_pid" 2>/dev/null || true; fi
   if [ -n "$redis_pid" ]; then kill "$redis_pid" 2>/dev/null || true; fi
   if [ "$pg_started" = 1 ]; then pg_ctl -D "$DIR/pg" -m immediate stop >/dev/null 2>&1 || true; fi
   if [ -n "$child_pid" ]; then wait "$child_pid" 2>/dev/null || true; fi
@@ -44,7 +46,30 @@ export NODE_ENV=test GAFUS_OUTBOX_MULTIPROCESS_ONLY=1
 redis-server --bind 127.0.0.1 --port "$REDIS_PORT" --protected-mode yes \
   --save '' --appendonly no > "$DIR/redis.log" 2>&1 &
 redis_pid=$!
-python3 -u scripts/qa/chat2-outbox-multiprocess-broker.py "$BROKER_PORT" "$DIR/events.jsonl" "$SECRET" > "$DIR/broker.log" 2>&1 &
+REAL_PORT=0
+if [[ "${1:-}" == --real-broker ]]; then
+  BIN="$ROOT/.local-pg-scratch/chat2-bin/centrifugo"
+  [[ -x "$BIN" && ! -L "$BIN" ]] || { echo REAL_BROKER_BINARY_MISSING; exit 2; }
+  "$BIN" version | grep -F 'v6.9.7' >/dev/null
+  REAL_PORT="$(port)"
+  python3 - "$DIR/centrifugo.json" "$REDIS_PORT" <<'PYCONF'
+import json,sys
+c=json.load(open("infra/chat2/centrifugo.json"))
+c["engine"]["redis"]["address"]="redis://127.0.0.1:"+sys.argv[2]
+c["health"]={"enabled":True}
+for ns in c["channel"]["namespaces"]:
+    if ns["name"]=="chat2": ns["history_ttl"]="600s"
+json.dump(c,open(sys.argv[1],"w"))
+PYCONF
+  CENTRIFUGO_HTTP_API_KEY="$SECRET" \
+  CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY="$(openssl rand -hex 32)" \
+  CENTRIFUGO_VAR_CHAT2_PROXY_SHARED_SECRET="$(openssl rand -hex 32)" \
+    "$BIN" -c "$DIR/centrifugo.json" --http_server.address 127.0.0.1 --http_server.port "$REAL_PORT" > "$DIR/real-broker.log" 2>&1 &
+  real_broker_pid=$!
+  for i in $(seq 1 60); do curl -sf --max-time 1 "http://127.0.0.1:$REAL_PORT/health" >/dev/null && break; sleep .25; done
+  curl -sf --max-time 2 "http://127.0.0.1:$REAL_PORT/health" >/dev/null || { echo REAL_BROKER_NOT_READY; exit 1; }
+fi
+python3 -u scripts/qa/chat2-outbox-multiprocess-broker.py "$BROKER_PORT" "$DIR/events.jsonl" "$SECRET" "$REAL_PORT" > "$DIR/broker.log" 2>&1 &
 broker_pid=$!
 (cd packages/prisma && ./node_modules/.bin/prisma db push --skip-generate > "$DIR/prisma.log" 2>&1) || {
   echo "FAIL: disposable Prisma schema"; tail -25 "$DIR/prisma.log"; exit 1;
@@ -102,7 +127,7 @@ child_pid=''
 echo "Child A:"; tail -8 "$DIR/child-a.log"
 echo "Child B:"; tail -8 "$DIR/child-b.log"
 echo "Outbox DB rows:"; psql -X -q -A -t -h 127.0.0.1 -p "$PG_PORT" -U archqa -c 'SELECT id, attempts, "lastErrorCode", "deliveredAt" IS NOT NULL FROM "Chat2OutboxEvent";'
-echo "Fake broker calls: $(count_events archqa-concurrent)"
+echo "Broker calls: $(count_events archqa-concurrent)"
 verify_events archqa-concurrent 1 1
 [ "$(dbval 'SELECT count(*) FROM "Chat2OutboxEvent" WHERE "id"='\''archqa-concurrent'\'' AND "deliveredAt" IS NOT NULL AND attempts=1;')" = 1 ] || { echo "FAIL: concurrent DB delivery"; exit 1; }
 echo "PASS: two independent Worker processes -> one remote publish, one DB delivery"
@@ -124,9 +149,10 @@ SQL
 start_child "$DIR/child-crash.log"
 crash_pid=$child_pid
 entered=0
+ack_backend_pid=""
 for i in $(seq 1 90); do
-  if [ "$(count_events archqa-crash)" = 1 ] &&
-     [ "$(dbval "SELECT count(*) FROM pg_stat_activity WHERE datname='archqa_outbox_multiprocess' AND wait_event='PgSleep';")" = 1 ]; then
+  ack_backend_pid="$(dbval "SELECT pid FROM pg_stat_activity WHERE datname='archqa_outbox_multiprocess' AND wait_event='PgSleep' AND usename='archqa';")"
+  if [ "$(count_events archqa-crash)" = 1 ] && [[ "$ack_backend_pid" =~ ^[0-9]+$ ]]; then
     entered=1; break
   fi
   if ! kill -0 "$crash_pid" 2>/dev/null; then
@@ -138,6 +164,15 @@ done
 kill -9 "$crash_pid" 2>/dev/null || true
 wait "$crash_pid" 2>/dev/null || true
 child_pid=''
+# PostgreSQL can continue the in-flight statement after a client SIGKILL.
+# Abort only the exact sleeping ACK session in this owned disposable database;
+# otherwise DDL can wait for it to complete and the fault is nondeterministic.
+dbval "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid=$ack_backend_pid AND datname='archqa_outbox_multiprocess' AND usename='archqa' AND wait_event='PgSleep';" >/dev/null
+for i in $(seq 1 40); do
+  [ "$(dbval "SELECT count(*) FROM pg_stat_activity WHERE pid=$ack_backend_pid AND datname='archqa_outbox_multiprocess';")" = 0 ] && break
+  sleep 0.1
+done
+[ "$(dbval "SELECT count(*) FROM pg_stat_activity WHERE pid=$ack_backend_pid AND datname='archqa_outbox_multiprocess';")" = 0 ] || { echo "FAIL: ACK backend still active"; exit 1; }
 verify_events archqa-crash 1 1
 [ "$(dbval 'SELECT count(*) FROM "Chat2OutboxEvent" WHERE "id"='\''archqa-crash'\'' AND "deliveredAt" IS NULL AND "claimToken" IS NOT NULL;')" = 1 ] || {
   echo "FAIL: kill did not roll back PostgreSQL ACK"; exit 1;
@@ -154,6 +189,30 @@ child_pid=''
 echo "Recovery worker: $(tail -3 "$DIR/child-recovery.log" | tr '\n' ' ')"
 verify_events archqa-crash 2 1
 [ "$(dbval 'SELECT count(*) FROM "Chat2OutboxEvent" WHERE "id"='\''archqa-crash'\'' AND "deliveredAt" IS NOT NULL AND attempts=2;')" = 1 ] || {
-  echo "FAIL: recovered persisted delivery"; exit 1;
+  echo "FAIL: recovered persisted delivery"; dbval "SELECT id, attempts, COALESCE(\"lastErrorCode\",'none'), \"deliveredAt\" IS NOT NULL, \"deadLetteredAt\" IS NOT NULL FROM \"Chat2OutboxEvent\" WHERE id='archqa-crash';"; exit 1;
 }
 echo "PASS: real killed process AFTER broker ACK and BEFORE DB commit; same eventId replay, one idempotent consumer effect"
+
+# Lose the HTTP response after actual broker acceptance (or fake acceptance in default mode).
+psql -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -p "$PG_PORT" -U archqa <<'SQL'
+INSERT INTO "Chat2OutboxEvent" ("id","conversationId","eventType","nextAttemptAt")
+VALUES ('archqa-lost-ack','archqa-room','member.joined', TIMESTAMP '2020-01-01 00:00:00');
+SQL
+start_child "$DIR/child-lost-ack.log"
+wait "$child_pid"; child_pid=''
+verify_events archqa-lost-ack 1 1
+[ "$(dbval "SELECT count(*) FROM \"Chat2OutboxEvent\" WHERE id='archqa-lost-ack' AND attempts=1 AND \"deliveredAt\" IS NULL AND \"deadLetteredAt\" IS NULL AND \"claimToken\" IS NULL;")" = 1 ]
+for i in $(seq 1 40); do
+  [ "$(dbval "SELECT count(*) FROM \"Chat2OutboxEvent\" WHERE id='archqa-lost-ack' AND \"nextAttemptAt\" <= now();")" = 1 ] && break
+  sleep .2
+done
+start_child "$DIR/child-lost-ack-retry.log"
+wait "$child_pid"; child_pid=''
+verify_events archqa-lost-ack 2 1
+[ "$(dbval "SELECT count(*) FROM \"Chat2OutboxEvent\" WHERE id='archqa-lost-ack' AND attempts=2 AND \"deliveredAt\" IS NOT NULL;")" = 1 ]
+echo "PASS: broker accepted event, HTTP ACK lost, retry completed with one effect"
+if [[ "$REAL_PORT" != 0 ]]; then
+  curl -fsS --max-time 5 -X POST -H "X-API-Key: $SECRET" -H 'Content-Type: application/json' \
+    -d '{"channel":"chat2:archqa-room","limit":100}' "http://127.0.0.1:$REAL_PORT/api/history" |
+    python3 -c 'import sys,json,collections; d=json.load(sys.stdin); p=d["result"]["publications"]; ids=collections.Counter(x["data"]["eventId"] for x in p); assert ids=={"archqa-concurrent":1,"archqa-crash":1,"archqa-lost-ack":1},ids; print("REAL_CENTRIFUGO_HISTORY_EXACTLY_ONE_PUBLICATION_PER_EVENT", dict(ids))'
+fi
