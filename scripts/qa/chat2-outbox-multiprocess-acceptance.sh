@@ -124,9 +124,10 @@ SQL
 start_child "$DIR/child-crash.log"
 crash_pid=$child_pid
 entered=0
+ack_backend_pid=""
 for i in $(seq 1 90); do
-  if [ "$(count_events archqa-crash)" = 1 ] &&
-     [ "$(dbval "SELECT count(*) FROM pg_stat_activity WHERE datname='archqa_outbox_multiprocess' AND wait_event='PgSleep';")" = 1 ]; then
+  ack_backend_pid="$(dbval "SELECT pid FROM pg_stat_activity WHERE datname='archqa_outbox_multiprocess' AND wait_event='PgSleep' AND usename='archqa';")"
+  if [ "$(count_events archqa-crash)" = 1 ] && [[ "$ack_backend_pid" =~ ^[0-9]+$ ]]; then
     entered=1; break
   fi
   if ! kill -0 "$crash_pid" 2>/dev/null; then
@@ -138,6 +139,15 @@ done
 kill -9 "$crash_pid" 2>/dev/null || true
 wait "$crash_pid" 2>/dev/null || true
 child_pid=''
+# PostgreSQL can continue the in-flight statement after a client SIGKILL.
+# Abort only the exact sleeping ACK session in this owned disposable database;
+# otherwise DDL can wait for it to complete and the fault is nondeterministic.
+dbval "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid=$ack_backend_pid AND datname='archqa_outbox_multiprocess' AND usename='archqa' AND wait_event='PgSleep';" >/dev/null
+for i in $(seq 1 40); do
+  [ "$(dbval "SELECT count(*) FROM pg_stat_activity WHERE pid=$ack_backend_pid AND datname='archqa_outbox_multiprocess';")" = 0 ] && break
+  sleep 0.1
+done
+[ "$(dbval "SELECT count(*) FROM pg_stat_activity WHERE pid=$ack_backend_pid AND datname='archqa_outbox_multiprocess';")" = 0 ] || { echo "FAIL: ACK backend still active"; exit 1; }
 verify_events archqa-crash 1 1
 [ "$(dbval 'SELECT count(*) FROM "Chat2OutboxEvent" WHERE "id"='\''archqa-crash'\'' AND "deliveredAt" IS NULL AND "claimToken" IS NOT NULL;')" = 1 ] || {
   echo "FAIL: kill did not roll back PostgreSQL ACK"; exit 1;
@@ -154,6 +164,6 @@ child_pid=''
 echo "Recovery worker: $(tail -3 "$DIR/child-recovery.log" | tr '\n' ' ')"
 verify_events archqa-crash 2 1
 [ "$(dbval 'SELECT count(*) FROM "Chat2OutboxEvent" WHERE "id"='\''archqa-crash'\'' AND "deliveredAt" IS NOT NULL AND attempts=2;')" = 1 ] || {
-  echo "FAIL: recovered persisted delivery"; exit 1;
+  echo "FAIL: recovered persisted delivery"; dbval "SELECT id, attempts, COALESCE(\"lastErrorCode\",'none'), \"deliveredAt\" IS NOT NULL, \"deadLetteredAt\" IS NOT NULL FROM \"Chat2OutboxEvent\" WHERE id='archqa-crash';"; exit 1;
 }
 echo "PASS: real killed process AFTER broker ACK and BEFORE DB commit; same eventId replay, one idempotent consumer effect"
