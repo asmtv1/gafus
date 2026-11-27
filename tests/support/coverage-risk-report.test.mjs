@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {measureIstanbulSource,checkSummaryCounters,measureRiskCoverage,verifyRiskCoverageReceipt} from './coverage-risk-report.mjs';
+import {measureIstanbulSource,checkSummaryCounters,measureRiskCoverage,verifyRiskCoverageReceipt,compareHistoricalRiskCoverage} from './coverage-risk-report.mjs';
 const src=(path,covered=1)=>({path,statementMap:{0:{start:{line:1}},1:{start:{line:2}}},s:{0:covered,1:0},
   branchMap:{0:{locations:[{},{}]}},b:{0:[covered,0]}});
 const stats=(total,covered)=>({total,covered,pct:Number((100*covered/total).toFixed(2))});
@@ -60,4 +60,20 @@ test('complete source manifest + LCOV + Istanbul JSON + receipt are required; mu
     writeFileSync(join(root,names[0]),'export const changed=1;');
     assert.throws(()=>verifyRiskCoverageReceipt(root,'payment',join(root,'measured'),receipt,baseline),/RECEIPT_DRIFT/);
   }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+test('historical coverage only reports deltas for identical sources and denominators',()=>{
+  const path='packages/core/src/example.ts', hash='a'.repeat(64);
+  const row={sourceSha256:hash,lines:{total:3,covered:1},branches:{total:2,covered:1}};
+  const previous={head:'old',sources:{[path]:row}};
+  const current={...previous,previousBaseline:{file:'old.json'}};
+  const file={path,...row,lines:{total:3,covered:2}};
+  assert.equal(compareHistoricalRiskCoverage([file],previous,current,'old.json').sourceDeltas[0].lines.deltaCovered,1);
+  const changed=compareHistoricalRiskCoverage([{...file,sourceSha256:'b'.repeat(64),lines:{total:4,covered:2}}],previous,current,'old.json');
+  assert.equal(changed.status,'not-comparable');
+  assert.deepEqual(changed.changed,[{path,reasons:['source-changed','denominator-changed']}]);
+  assert.equal(changed.sourceDeltas,undefined);
+  assert.throws(()=>compareHistoricalRiskCoverage([file],{...previous,sources:{}},current,'old.json'),/invalid historical baseline source/);
+  assert.throws(()=>compareHistoricalRiskCoverage([file],{...previous,sources:{[path]:{...row,lines:{total:3,covered:4}}}},current,'old.json'),/invalid historical baseline counters/);
+  assert.throws(()=>compareHistoricalRiskCoverage([file],previous,current,'foreign.json'),/invalid explicit/);
 });

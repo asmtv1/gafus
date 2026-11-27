@@ -13,7 +13,7 @@ import { verifyWebViteGroupReport } from '../../tests/support/web-vite-group-rep
 import { verifyMobileRun } from '../../tests/support/mobile-run-report.mjs';
 import { verifyMobilePreflightEvidence } from '../../tests/support/mobile-preflight-report.mjs';
 import { verifyFaultReport } from '../../tests/support/fault-report.mjs';
-import { verifyRiskCoverageReceipt } from '../../tests/support/coverage-risk-report.mjs';
+import { verifyRiskCoverageReceipt, compareHistoricalRiskCoverage } from '../../tests/support/coverage-risk-report.mjs';
 import { verifyWorkerRecoveryReport } from '../../tests/support/worker-recovery-report.mjs';
 import { verifyApiHttpAcceptance } from '../../tests/support/api-auth-http-report.mjs';
 import { verifyBrowserCookieReport } from '../../tests/support/browser-cookie-report.mjs';
@@ -639,24 +639,8 @@ function report(plan, dir) {
     try{
       const previous=JSON.parse(readFileSync(comparisonBaselinePath,'utf8'));
       const current=JSON.parse(readFileSync(join(ROOT,'tests/catalog/coverage-risk-baseline.json'),'utf8'));
-      if(current.previousBaseline?.file!=='tests/catalog/coverage-risk-baseline-pre-transition-20261119.json' ||
-         previous.head!==current.head)throw Error('invalid explicit previous coverage baseline');
-      const sums={lines:{total:0,covered:0},branches:{total:0,covered:0}};
-      const perSource=coverageFiles.map(f=>{
-        const prior=previous.sources?.[f.path];
-        if(!prior || prior.sourceSha256!==f.sourceSha256)throw Error('previous baseline source fingerprint mismatch: '+f.path);
-        for(const k of ['lines','branches']){
-          if(!Number.isInteger(prior[k]?.total)||!Number.isInteger(prior[k]?.covered)||prior[k].total!==f[k].total)
-            throw Error('previous baseline denominator drift: '+f.path+' '+k);
-          sums[k].total+=prior[k].total;sums[k].covered+=prior[k].covered;
-        }
-        return {path:f.path,lines:{...prior.lines,deltaCovered:f.lines.covered-prior.lines.covered},
-          branches:{...prior.branches,deltaCovered:f.branches.covered-prior.branches.covered}};
-      });
-      for(const k of ['lines','branches'])sums[k].pct=sums[k].total>0?
-        Number((100*sums[k].covered/sums[k].total).toFixed(2)):null;
-      coveragePreviousBaseline={source:'tests/catalog/coverage-risk-baseline-pre-transition-20261119.json',
-        totals:sums,sourceDeltas:perSource};
+      coveragePreviousBaseline=compareHistoricalRiskCoverage(coverageFiles,previous,current,
+        'tests/catalog/coverage-risk-baseline-pre-transition-20261119.json');
     }catch(e){
       coveragePreviousBaseline={invalid:String(e.message||e)};
     }
@@ -919,6 +903,10 @@ function report(plan, dir) {
     for(const f of riskCoverage.files)lines.push(`| ${f.path} | ${f.lines.covered}/${f.lines.total} `+
       `| ${f.branches.covered}/${f.branches.total} | ${f.baseline.lines.covered}/${f.baseline.lines.total} `+
       `| ${f.baseline.branches.covered}/${f.baseline.branches.total} |`);
+    if(riskCoverage.previousBaseline?.status==='not-comparable'){
+      lines.push('', 'Historical comparison unavailable: source or instrumented denominator changed. Current measurements are verified; no before/after improvement is asserted.');
+      for(const f of riskCoverage.previousBaseline.changed) lines.push('- '+f.path+': '+f.reasons.join(', '));
+    }
     if(riskCoverage.previousBaseline?.totals){
       const prev=riskCoverage.previousBaseline.totals;
       lines.push('', `Compared to immutable pre-transition baseline: lines `+
