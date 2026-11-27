@@ -1,0 +1,16 @@
+{
+  "runPrefix": "a2-obs-",
+  "recordedAt": "2026-11-27T22:27:50.107402+00:00",
+  "scope": "isolated searchable OTLP HTTP JSON sink, NOT deployed tracing backend",
+  "spanCount": 6,
+  "stages": [
+    "chat2.outbox.ack",
+    "chat2.outbox.dispatch",
+    "chat2.outbox.publish",
+    "chat2.synthetic.callback.reconcile",
+    "chat2.synthetic.outbox.enqueue"
+  ],
+  "samePersistedOperationDifferentTraces": true,
+  "HTTPToApplicationOutboxWorkerBrokerSyntheticCallback": "PASS",
+  "realCloudJobAndDeployedSearch": "PENDING"
+}

@@ -1,0 +1,12 @@
+{
+  "testedSha": "715965b266fc1ceb731cf8e645bad521d7340026",
+  "jobId": "0e1f8ab1307be17ec3069d28bacc0bf1d3370880cab6bcfa",
+  "state": "exited",
+  "exitCode": 0,
+  "timedOut": false,
+  "durationMs": 80816,
+  "startedAt": "2026-11-27T22:27:20.284Z",
+  "finishedAt": "2026-11-27T22:28:41.070Z",
+  "isolatedPorts": "56241-56248",
+  "cleanupVerified": true
+}

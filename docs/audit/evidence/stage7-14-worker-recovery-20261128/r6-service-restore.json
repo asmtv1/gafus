@@ -1,0 +1,55 @@
+{
+  "runPrefix": "a2-obs-",
+  "recordedAt": "2026-11-27T22:28:31.831121+00:00",
+  "scope": "disposable PG crash -> encrypted external archive (storageMode in receipt) -> independent PG cluster and restored objects -> fresh 2 API + 2 Chat2 Worker -> authenticated user operation and ACK; synthetic media and X.509 signed preview OTA",
+  "externalArchive": {
+    "status": "ISOLATED_OBJECT_RESTORE_BYTES_VERIFIED",
+    "id": "bf85d92584b57abb44865de55b90a5ee",
+    "objects": 3,
+    "ota": {
+      "releases": 2,
+      "previous": 1,
+      "active": 1,
+      "expiredHistorical": 0
+    },
+    "unmapped": {
+      "petDocuments": 0,
+      "questionPhotos": 0,
+      "chat2V2ReadyMissingManifest": 0,
+      "questionV2ReadyMissingManifest": 0
+    },
+    "dbSha256": "b62c41f18e80dbfafa42b0897d5ce446c28469b9487b4dc384f9636e6925bbd4",
+    "objectRestoreElapsedMs": 4317,
+    "serviceRto": "UNVERIFIED",
+    "cdnAccessPolicy": "UNVERIFIED",
+    "storageMode": "file-backed-fixture"
+  },
+  "fullServiceRtoMs": 29106,
+  "serviceReadinessMs": 26434,
+  "userScenario": {
+    "auth": true,
+    "privateCourse": true,
+    "walk": true,
+    "mediaBytes": true,
+    "previousSignedOta": true,
+    "chatHistory": true
+  },
+  "postRestoreRealUserOutboxAck": true,
+  "freshServiceProcesses": true,
+  "realUserTraceChain": true,
+  "observedAcknowledgedRpoGapMs": 7898,
+  "observedAcknowledgedWriteLossCount": 1,
+  "restoredPreviouslyAcknowledgedWrite": true,
+  "postBackupAcknowledgedWriteAbsent": true,
+  "restoredPendingOutbox": true,
+  "restoredDeadLetter": true,
+  "restoredPendingWorkerDrainMs": 317,
+  "allServiceReadiness": true,
+  "checks": "PASS",
+  "stagingRpoRto": "PENDING",
+  "productBudgetStatus": "UNSPECIFIED",
+  "productBudgetMs": {
+    "fullServiceRtoMs": null,
+    "observedAcknowledgedRpoGapMs": null
+  }
+}
