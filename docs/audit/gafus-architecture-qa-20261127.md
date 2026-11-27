@@ -166,3 +166,15 @@ M	tests/catalog/web-vite-groups.json
 - Admin targeted: d820f143c30a8df9e9ec131b80362b5afa54ff6d56618bf3
 
 Проверять статус по логам и exit code; наличие запущенного job не означает PASS.
+
+### Local regression follow-up (2026-11-27, code commit 7daf375950e69c30a1b0fc34f11a0e37290f5d67)
+
+- Fixed API operation middleware's shadowed method binding and mobile offline video binding check.
+- Migrated regression tests to explicit owner-bound ports, restored auth and offline storage fixtures, updated the advisory manifest to the 67 actual packages (55 normal + 12 advisory), preserved exact assertions and strict route/registry membership.
+- Cleaned only untracked generated build directories in QA checkout; forced clean rebuild: 67/67 tasks, exit 0 (clean-build-r10.log). First invocation with incompatible Turbo flags failed before execution (r9).
+- Previous full typecheck: 119/122; API, Admin and Mobile targeted reruns exit 0. Previous lint: 5/6; strict Web lint rerun exit 0. Final static rerun in progress at this checkpoint (job 25f5dee9c90ba55bb2ff2d4caa5e8bb75cc2294a28c049e2).
+- Prior complete core-boundary and built-export guards exit 0 (44 tests; 67 packages, 389 exports, 2755 references). Latest repeated guard job 1fa35c0d2ea0c1a213a221a46acbfc8e3281bd04dab5319b not yet complete at checkpoint.
+- Full API regression after middleware fix: 2861 passed, 38 failed, 248 skipped; subsequent targeted API retests r11 154/154 and r12 44/44; remaining internal dependency-architecture audit still needs adaptation to new factories/typed ports with negative tests preserved.
+- Admin SPA 15/15; Trainer 19/19; advisory registry 3/3; consultation 32/32; mobile Feed 21/21 and corrected auth/offline-video tests 29/29; Core email/trainer 36/36 and remaining targeted Core 136/139 before consultation retest (32/32).
+- Not green: complete unit gate; outstanding payment unit mocks (17 previous failures), isolated media credential fixtures, additional full-suite rerun, and the internal API dependency-architecture test. The earlier all-unit run hit the execution timeout. Do not treat targeted test successes as proof of the complete suite.
+- Evidence: /tmp/gafus-archqa-20261127/code-gates-r5.txt and named logs. No production, push, merge, release or OTA operations.
