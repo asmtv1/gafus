@@ -1,0 +1,13 @@
+Downloading isolated upstream Prometheus and Alertmanager binaries to temporary workspace
+VERIFIED upstream SHA256: 0d4d3d9837d27e4fcd0bd16d115b1b8d6732a4bf3e69107f1190d9ef653ae471 prometheus-3.15.1.darwin-arm64.tar.gz
+VERIFIED upstream SHA256: 05fa12ebfa8eb4d8907d708cfc79900fee488cbef73b7fa64b59ee30e16a774f alertmanager-0.29.0.darwin-arm64.tar.gz
+Checking ci-cd/docker/prometheus/gafus-alerts.yml
+  SUCCESS: 40 rules found
+
+  SUCCESS
+
+  SUCCESS
+
+  SUCCESS
+
+PASS: Prometheus -> Alertmanager -> isolated webhook both firing AND resolved for 360p + DLQ
