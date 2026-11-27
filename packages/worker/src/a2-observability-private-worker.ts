@@ -2,7 +2,7 @@
 import { createServer } from "node:http";
 import { renderDatabaseMetrics } from "@gafus/logger/server-telemetry";
 import { disconnectCoreDatabase } from "@gafus/statistics/database-health";
-import { chat2PollIsFresh } from "./chat2-readiness";
+import { chat2PollIsFresh, probeChat2BrokerAuth } from "./chat2-readiness";
 import { startChat2OutboxWorker, chat2OutboxMetricsSnapshot } from "./chat2-outbox-worker";
 import { chat2OutboxExecutionMetrics } from "./chat2-outbox-metrics";
 
@@ -35,6 +35,16 @@ const server = createServer(async (req, res) => {
   }
   const auth = req.headers.authorization;
   const expected = "Bearer " + process.env.API_METRICS_KEY;
+  if (req.url === "/__a2_readiness_diagnostic" && auth === expected) {
+    const [broker, database] = await Promise.all([
+      probeChat2BrokerAuth(),
+      chat2OutboxMetricsSnapshot().then(() => true, () => false),
+    ]);
+    res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({
+      freshPoll: chat2PollIsFresh(), broker, database,
+    }));
+    return;
+  }
   if (req.url !== "/metrics" || auth !== expected) {
     res.writeHead(404).end();
     return;
