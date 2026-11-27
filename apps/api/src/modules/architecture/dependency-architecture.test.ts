@@ -15,6 +15,7 @@ type Wiring = {
   application: string; ports: Record<string, string>; repository?: string;
   runtimeServiceModule?: string;
   runtimeServiceByPort?: Readonly<Record<string,string>>;
+  serviceObjectByPort?: Readonly<Record<string,string>>;
 };
 const WIRINGS: readonly Wiring[] = [
   { module:"modules/user/composition/profile.ts",
@@ -49,7 +50,7 @@ const WIRINGS: readonly Wiring[] = [
     factory:"createReadTrainingDayApplication",
     application:"modules/training/application/read-training-day.ts",
     ports:{readDay:"getTrainingDayWithMonetizedSteps",
-      checkAccess:"checkCourseAccess"}, runtimeServiceByPort:{checkAccess:"../../courses/composition/catalog-read-instance.js"} },
+      checkAccess:"checkCourseAccess"}, runtimeServiceByPort:{readDay:"./sql-training-instance.js",checkAccess:"../../courses/composition/catalog-read-instance.js"}, serviceObjectByPort:{readDay:"sqlTraining"} },
   { module:"modules/courses/composition/read-courses.ts",
     route:"routes/v1/courses.ts", exportName:"courseReadApplication",
     factory:"createCourseReadApplication",
@@ -99,7 +100,7 @@ const WIRINGS: readonly Wiring[] = [
     route:"routes/v1/training.ts", exportName:"readTrainingDaysApplication",
     factory:"createReadTrainingDaysApplication",
     application:"modules/training/application/read-training-days.ts",
-    ports:{readDays:"getTrainingDays"} },
+    ports:{readDays:"getTrainingDays"}, runtimeServiceModule:"./sql-training-instance.js", serviceObjectByPort:{readDays:"sqlTraining"} },
   { module:"modules/achievements/composition/read-achievements.ts",
     route:"routes/v1/achievements.ts", exportName:"readAchievementsApplication",
     factory:"createReadAchievementsApplication",
@@ -123,7 +124,7 @@ const WIRINGS: readonly Wiring[] = [
     route:"routes/v1/training.ts", exportName:"writeStepProgressApplication",
     factory:"createWriteStepProgressApplication",
     application:"modules/training/application/write-step-progress.ts",
-    ports:{updateStep:"updateStepAndDay"} },
+    ports:{updateStep:"updateStepAndDay"}, runtimeServiceModule:"./sql-training-instance.js", serviceObjectByPort:{updateStep:"sqlTraining"} },
   { module:"modules/student-notes/composition/read-student-notes.ts",
     route:"routes/v1/notes.ts", exportName:"readStudentNotesApplication",
     factory:"createReadStudentNotesApplication",
@@ -335,6 +336,7 @@ function isAllowedTr013WireTypeImport(from:string, node:ts.ImportDeclaration,
   }else if(bindings.length!==1 || names[0]!==expected)return false;
   if(!ts.isStringLiteral(node.moduleSpecifier))return false;
   const spec=node.moduleSpecifier.text;
+  if(spec==="@gafus/types/trainer-read-contracts")return true;
   if(!spec.startsWith("."))return false;
   // Resolve from the checked source, not by substring/prefix in import text.
   const target=resolveLocal(from,spec,sources);
@@ -449,62 +451,72 @@ function approvedReadCall(body:ts.ConciseBody, requiredStage?:string):ts.CallExp
 /** Exact allowlist for per-route SQL composition. An explicit factory must
  * be imported by its route and must forward the same actor arguments in BOTH
  * branches; never allow a body-provided identity or unscoped DB operation. */
-const explicitReadPortCompositions: Readonly<Record<string,{factory:string;portType:string}>> = {
-  preventionJournalApplication:{factory:"createPreventionJournalApplicationForRows",portType:"PreventionRowsPort"},
-  readVisibleDaysApplication:{factory:"createReadVisibleDaysApplicationForRows",portType:"TrainingDayRowsPort"},
-  readVisibleStepsApplication:{factory:"createVisibleStepsApplicationForRows",portType:"TrainerStepRowsPort"},
-  readPublicTemplatesApplication:{factory:"createPublicTemplatesApplicationForRows",portType:"TrainerStepRowsPort"},
+const explicitReadPortCompositions: Readonly<Record<string,{
+  factory:string; portType:string; instance:string; instanceModule:string;
+  routeFactory:string; routeParam:string;
+}>> = {
+  preventionJournalApplication:{factory:"createPreventionJournalApplicationForRows",portType:"PreventionRowsPort",instance:"preventionRows",instanceModule:"./prevention-rows-instance.js",routeFactory:"createPetPreventionRoutes",routeParam:"rowsPort"},
+  readVisibleDaysApplication:{factory:"createReadVisibleDaysApplicationForRows",portType:"TrainingDayRowsPort",instance:"trainingDayRows",instanceModule:"./training-day-rows-instance.js",routeFactory:"createTrainerDaysRoutes",routeParam:"rowsPort"},
+  readVisibleStepsApplication:{factory:"createVisibleStepsApplicationForRows",portType:"TrainerStepRowsPort",instance:"trainerStepRows",instanceModule:"./trainer-step-rows-instance.js",routeFactory:"createTrainerStepsRoutes",routeParam:"rowsPort"},
+  readPublicTemplatesApplication:{factory:"createPublicTemplatesApplicationForRows",portType:"TrainerStepRowsPort",instance:"trainerStepRows",instanceModule:"../../trainer-steps/composition/trainer-step-rows-instance.js",routeFactory:"createTrainerTemplatesRoutes",routeParam:"rowsPort"},
+  readCourseEditorApplication:{factory:"createReadCourseEditorApplicationForRows",portType:"TrainerCourseRowsPort",instance:"trainerCourseRows",instanceModule:"./trainer-course-rows-instance.js",routeFactory:"createTrainerCoursesRoutes",routeParam:"courseRows"},
 };
-function explicitlyComposedReadPort(
-  source:ts.SourceFile,entry:Wiring,
-):boolean {
+function explicitlyComposedReadPort(source:ts.SourceFile,entry:Wiring):boolean {
   const expected=explicitReadPortCompositions[entry.exportName];
   if(!expected)return false;
   const installed=source.statements.find(n=>ts.isFunctionDeclaration(n) &&
     n.name?.text===expected.factory) as ts.FunctionDeclaration|undefined;
   if(!installed || installed.parameters.length!==1 ||
      installed.parameters[0]?.name.getText(source)!=="rowsPort" ||
-     !installed.parameters[0].questionToken ||
-     !installed.parameters[0].type ||
-     installed.parameters[0].type.getText(source)!==expected.portType ||
-     !installed.body)return false;
+     installed.parameters[0].questionToken || installed.parameters[0].initializer ||
+     installed.parameters[0].type?.getText(source)!==expected.portType ||
+     !installed.body || installed.body.statements.length!==1)return false;
+  const binding=exportedBindings(source).get(entry.exportName);
+  if(!binding || !ts.isCallExpression(binding) ||
+     !ts.isIdentifier(binding.expression) || binding.expression.text!==expected.factory ||
+     binding.arguments.length!==1 || binding.arguments[0].getText(source)!==expected.instance ||
+     !importsIn(source).some(i=>i.runtime && i.specifier===expected.instanceModule &&
+       i.names.length===1 && i.names[0]===expected.instance))return false;
   const ret=installed.body.statements.find(ts.isReturnStatement)?.expression;
   if(!ret || !ts.isCallExpression(ret) ||
      !ts.isIdentifier(ret.expression) || ret.expression.text!==entry.factory ||
-     ret.arguments.length!==1 || !ts.isObjectLiteralExpression(ret.arguments[0]))return false;
+     ret.arguments.length!==1 || !ts.isObjectLiteralExpression(ret.arguments[0]) ||
+     ret.arguments[0].properties.length!==Object.keys(entry.ports).length)return false;
   for(const [portName,coreName] of Object.entries(entry.ports)){
     const prop=ret.arguments[0].properties.find(p=>ts.isPropertyAssignment(p) &&
       (ts.isIdentifier(p.name)||ts.isStringLiteral(p.name)) && p.name.text===portName);
-    if(!prop || !ts.isPropertyAssignment(prop) ||
-       !ts.isArrowFunction(prop.initializer))return false;
+    if(!prop || !ts.isPropertyAssignment(prop) || !ts.isArrowFunction(prop.initializer))return false;
     const fn=prop.initializer;
     const stage=APPROVED_CORRELATED_STAGES[entry.module]?.[portName];
-    if(!stage || !ts.isCallExpression(fn.body) ||
-       !ts.isIdentifier(fn.body.expression) || fn.body.expression.text!=="withCorrelatedUseCase" ||
-       fn.body.arguments.length!==2 ||
-       !ts.isStringLiteral(fn.body.arguments[0]) || fn.body.arguments[0].text!==stage)return false;
-    const closure=fn.body.arguments[1];
-    if(!ts.isArrowFunction(closure) || closure.parameters.length!==0 ||
-       !ts.isConditionalExpression(closure.body) ||
-       !ts.isIdentifier(closure.body.condition) || closure.body.condition.text!=="rowsPort")return false;
-    const conditional=closure.body;
-    if(!ts.isCallExpression(conditional.whenTrue) ||
-       !ts.isCallExpression(conditional.whenFalse) ||
-       !ts.isIdentifier(conditional.whenTrue.expression) ||
-       !ts.isIdentifier(conditional.whenFalse.expression) ||
-       conditional.whenTrue.expression.text!==coreName ||
-       conditional.whenFalse.expression.text!==coreName)return false;
+    const call=approvedReadCall(fn.body,stage);
+    if(!call || !ts.isIdentifier(call.expression) || call.expression.text!==coreName)return false;
     const params=fn.parameters.map(p=>ts.isIdentifier(p.name)?p.name.text:null);
-    const expectedLegacy=conditional.whenFalse.arguments.map(a=>ts.isIdentifier(a)?a.text:null);
-    const expectedWithPort=conditional.whenTrue.arguments.map(a=>ts.isIdentifier(a)?a.text:null);
-    if(params.some(p=>p===null) ||
-       JSON.stringify(expectedLegacy)!==JSON.stringify(params) ||
-       JSON.stringify(expectedWithPort)!==JSON.stringify([...params,"rowsPort"]))return false;
+    const args=call.arguments.map(a=>ts.isIdentifier(a)?a.text:null);
+    const expectedArgs=portName==="readEditorSnapshot"?params:[...params,"rowsPort"];
+    if(params.some(p=>p===null) || JSON.stringify(args)!==JSON.stringify(expectedArgs))return false;
+    const spec=entry.runtimeServiceByPort?.[portName];
+    if(!importsIn(source).some(i=>i.runtime && i.names.includes(coreName) &&
+      (spec?i.specifier===spec:i.specifier.startsWith("@gafus/core/services/"))))return false;
   }
   return true;
 }
 
-function objectBinding(node:ts.Expression,key:string,allowStrictStudentNotes=false,allowFavoritesPolicyPort=false,allowPetsReadPort=false,requiredStage?:string,allowProfileRows=false):string|null {
+function routeUsesRequiredRowsFactory(route:ts.SourceFile,entry:Wiring):boolean {
+  const expected=explicitReadPortCompositions[entry.exportName];
+  if(!expected)return false;
+  const factory=route.statements.find(n=>ts.isFunctionDeclaration(n) &&
+    n.name?.text===expected.routeFactory) as ts.FunctionDeclaration|undefined;
+  const param=factory?.parameters.find(p=>p.name.getText(route)===expected.routeParam);
+  if(!factory?.body || !param || param.questionToken || param.initializer ||
+    param.type?.getText(route)!==expected.portType)return false;
+  return factory.body.statements.some(stmt=>ts.isVariableStatement(stmt) &&
+    stmt.declarationList.declarations.some(d=>d.initializer &&
+      ts.isCallExpression(d.initializer) && ts.isIdentifier(d.initializer.expression) &&
+      d.initializer.expression.text===expected.factory && d.initializer.arguments.length===1 &&
+      d.initializer.arguments[0].getText(route)===expected.routeParam));
+}
+
+function objectBinding(node:ts.Expression,key:string,allowStrictStudentNotes=false,allowFavoritesPolicyPort=false,allowPetsReadPort=false,requiredStage?:string,allowProfileRows=false,serviceObject?:string):string|null {
   if(!ts.isObjectLiteralExpression(node)) return null;
   for(const prop of node.properties) {
     if(ts.isShorthandPropertyAssignment(prop) && prop.name.text===key)
@@ -523,6 +535,20 @@ function objectBinding(node:ts.Expression,key:string,allowStrictStudentNotes=fal
       const arrow=prop.initializer;
       const call=approvedReadCall(arrow.body,requiredStage);
       if(!call) return null;
+      if(serviceObject) {
+        if(!ts.isPropertyAccessExpression(call.expression) ||
+           !ts.isIdentifier(call.expression.expression) ||
+           call.expression.expression.text!==serviceObject)return null;
+        const params=arrow.parameters;
+        if(params.length===1 && params[0].dotDotDotToken && ts.isIdentifier(params[0].name) &&
+           call.arguments.length===1 && ts.isSpreadElement(call.arguments[0]) &&
+           ts.isIdentifier(call.arguments[0].expression) &&
+           call.arguments[0].expression.text===params[0].name.text)return call.expression.name.text;
+        if(params.every(p=>ts.isIdentifier(p.name) && !p.dotDotDotToken) &&
+           call.arguments.length===params.length && call.arguments.every((arg,i)=>
+             ts.isIdentifier(arg) && arg.text===params[i].name.getText()))return call.expression.name.text;
+        return null;
+      }
       // Some overloaded/read-source ports must preserve the full original
       // argument tuple. Only the exact spread of the sole rest parameter is
       // accepted, and only when its immutable stage name is pinned above.
@@ -806,7 +832,7 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
             i.specifier==="../../../lib/operation-observability.js" &&
             i.names.length===1 && i.names[0]==="withCorrelatedUseCase"))
           errors.push("composition missing approved correlation helper "+entry.module);
-        if(objectBinding(binding.arguments[0],portName,strictNotesPort,strictCourseFavoritesPort,strictPetReadPort,requiredStage,allowProfileRows)!==coreName)
+        if(objectBinding(binding.arguments[0],portName,strictNotesPort,strictCourseFavoritesPort,strictPetReadPort,requiredStage,allowProfileRows,entry.serviceObjectByPort?.[portName])!==coreName)
           errors.push("composition wrong Core binding "+entry.exportName+"."+portName);
         if(entry.repository){
           if(!hasRouteImport(root,entry.repository,coreName,sources,entry.module))
@@ -817,7 +843,7 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
              : entry.runtimeServiceModule
                ? i.specifier===entry.runtimeServiceModule
                : i.specifier.startsWith("@gafus/core/services/")) &&
-           i.names.includes(coreName))) {
+           i.names.includes(entry.serviceObjectByPort?.[portName]??coreName))) {
           errors.push("composition missing runtime Core service "+coreName);
         }
       }
@@ -846,8 +872,7 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
     const factoryName=explicitReadPortCompositions[entry.exportName]?.factory;
     const factoryWired=explicit && factoryName &&
       hasRouteImport(route,entry.module,factoryName,sources,entry.route) &&
-      route.getFullText().includes(factoryName+"(rowsPort)") &&
-      /\browsPort\s*\?/.test(route.getFullText());
+      routeUsesRequiredRowsFactory(route,entry);
     if(!hasRouteImport(route,entry.module,entry.exportName,sources,entry.route) && !factoryWired)
       errors.push("route not wired through composition "+entry.exportName);
     if(importsIn(route).some(i=>i.runtime && i.specifier.startsWith(".") &&
@@ -885,7 +910,11 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
     }
     const coreImports=importsIn(root)
       .filter(i=>i.runtime && i.specifier.startsWith("@gafus/core/services/"))
-      .flatMap(i=>i.names);
+      .flatMap(i=>{
+        const bindings=i.declaration.importClause?.namedBindings;
+        return bindings && ts.isNamedImports(bindings)
+          ? bindings.elements.filter(el=>!el.isTypeOnly).map(el=>el.name.text) : i.names;
+      });
     for(const name of coreImports) {
       if(!allowed.has(name))
         errors.push("unapproved Core business import in composition "+name);
@@ -1391,6 +1420,28 @@ describe("AG1-001 actual API application/composition architecture gate",()=>{
     expect(assess({
       [APP_A]:simpleApp+"\nexport default createDatabaseConnection();",
     },[]).some(e=>e.includes("top-level export initialization"))).toBe(true);
+  });
+  it.each([
+    ["modules/pet-prevention/composition/journal.ts", "rowsPort: PreventionRowsPort", "rowsPort?: PreventionRowsPort", "composition wrong factory preventionJournalApplication"],
+    ["modules/pet-prevention/composition/journal.ts", "getEntriesByPet(userId, petId, rowsPort)", "getEntriesByPet(userId, petId, foreignRows)", "composition wrong factory preventionJournalApplication"],
+    ["modules/trainer-days/composition/read-visible-days.ts", "createReadVisibleDaysApplicationForRows(trainingDayRows)", "createReadVisibleDaysApplicationForRows(foreignRows)", "composition wrong factory readVisibleDaysApplication"],
+    ["routes/v1/trainer-courses.ts", "createReadCourseEditorApplicationForRows(courseRows)", "createReadCourseEditorApplicationForRows(rowsPort)", "route not wired through composition readCourseEditorApplication"],
+    ["modules/training/composition/read-training-day.ts", "sqlTraining.getTrainingDayWithMonetizedSteps", "foreignTraining.getTrainingDayWithMonetizedSteps", "composition wrong Core binding readTrainingDayApplication.readDay"],
+    ["modules/training/composition/read-training-days.ts", 'from "./sql-training-instance.js"', 'from "./foreign-training-instance.js"', "composition missing runtime Core service getTrainingDays"],
+  ] as const)("rejects new DI boundary substitution %s: %s", (file, before, after, error) => {
+    const sources=actualSources();
+    expect(sources[file]).toContain(before);
+    sources[file]=sources[file].replace(before,after);
+    expect(assess(sources,WIRINGS)).toContain(error);
+  });
+  it("allows the exact public erased trainer wire subpath but rejects runtime and foreign types", () => {
+    const from="modules/trainer-steps/application/read-visible-steps.ts";
+    const spec="@gafus/types/trainer-read-contracts";
+    expect(assess({[from]:simpleApp+'\nimport type { TrainerVisibleStepItem } from "'+spec+'";'},[])).toEqual([]);
+    for (const clause of ["import { TrainerVisibleStepItem }", "import type { TrainerPublicStepTemplateItem }"]) {
+      expect(assess({[from]:simpleApp+'\n'+clause+' from "'+spec+'";'},[])).toContain(
+        from+": forbidden application runtime/external dependency: "+spec);
+    }
   });
   it("rejects targeted registered route bypassing composition",()=>{
     const s=actualSources();

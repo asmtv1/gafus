@@ -132,7 +132,8 @@ const freezeAppleActiveSubscriptionTime = () => {
 describe("app subscription payment service", () => {
   beforeEach(() => {
     vi.useRealTimers();
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    mockTrialAdvisoryLock.mockResolvedValue([{ acquired: 1 }]);
     vi.stubEnv("YOOKASSA_SHOP_ID", "shop-id");
     vi.stubEnv("YOOKASSA_SECRET_KEY", "secret-key");
     vi.stubEnv("APPLE_BUNDLE_ID", "ru.gafus.app");
@@ -143,6 +144,7 @@ describe("app subscription payment service", () => {
     mockEventUpdate.mockResolvedValue({});
     mockEventUpdateMany.mockResolvedValue({ count: 1 });
     mockPaymentCreate.mockImplementation(async ({ data }: { data?: Record<string, unknown> }) => ({
+      ...data,
       id: "pay-1",
       idempotenceKey: data?.idempotenceKey ?? "appsub-init:test",
       amount: data?.amount ?? 1100,
@@ -162,15 +164,21 @@ describe("app subscription payment service", () => {
     mockSubscriptionFindFirst.mockResolvedValue(null);
     // The extracted Apple state adapter compares a locked prior period before
     // accepting a new verified JWS. Preserve the same PG read in unit fixtures.
-    mockSubscriptionFindUniqueOrThrow.mockImplementation(async ({where}: {where:{id:string}}) => {
-      const rows = [...mockSubscriptionFindFirst.mock.results].reverse();
-      for (const result of rows) {
-        const row = await result.value;
-        if (row?.id !== where.id) continue;
-        return { ...row, status: row.status ?? "PENDING", currentPeriodStart: row.currentPeriodStart ?? null,
-          currentPeriodEnd: row.currentPeriodEnd ?? null };
+    // Model the locked row using the same owner/provider/chain as the read fixture.
+    mockSubscriptionFindUniqueOrThrow.mockImplementation(async ({ where }: { where: { id: string } }) => {
+      const results = [...mockSubscriptionFindFirst.mock.results, ...mockSubscriptionFindMany.mock.results].reverse();
+      for (const result of results) {
+        const value = await result.value;
+        const row = (Array.isArray(value) ? value : [value]).find(r => r?.id === where.id);
+        if (!row) continue;
+        return {
+          status: "PENDING", currentPeriodStart: null, currentPeriodEnd: null,
+          cancelAtPeriodEnd: false, isLifetime: false, yookassaPaymentMethodId: null,
+          provider: row.appleOriginalTransactionId ? "APPLE" : "YOOKASSA",
+          ...row,
+        };
       }
-      return { status:"PENDING", currentPeriodStart:null, currentPeriodEnd:null };
+      throw new Error("TEST_LOCKED_SUBSCRIPTION_NOT_FOUND");
     });
     mockSubscriptionFindMany.mockResolvedValue([]);
     mockSubscriptionCreate.mockImplementation(
@@ -232,6 +240,7 @@ describe("app subscription payment service", () => {
         partnerReferral: { findUnique: mockReferralFindUnique, createMany: mockReferralCreateMany },
         partnerCommission: { create: mockCommissionCreate },
         appSubscription: {
+          findMany: mockSubscriptionFindMany,
           create: mockSubscriptionCreate,
           findFirst: mockSubscriptionFindFirst,
           findUniqueOrThrow: mockSubscriptionFindUniqueOrThrow,
@@ -243,6 +252,7 @@ describe("app subscription payment service", () => {
           findUnique: mockEventFindUnique,
         },
         appSubscriptionTrial: {
+          findUnique: mockTrialFindUnique,
           findFirst: mockTrialFindFirst,
           upsert: mockTrialUpsert,
         },
@@ -419,7 +429,7 @@ describe("app subscription payment service", () => {
     });
 
     expect(mockPaymentUpdateMany).toHaveBeenCalledWith({
-      where: { id: frozenPayment.id, status: { notIn: ["SUCCEEDED", "REFUNDED"] } },
+      where: { id: frozenPayment.id, userId: "user-1", provider: "YOOKASSA", OR: [{ yookassaPaymentId: null }, { yookassaPaymentId: "yoo-promo-flow" }], status: { notIn: ["SUCCEEDED", "REFUNDED"] } },
       data: expect.objectContaining({ status: "SUCCEEDED", planCode: "MONTHLY" }),
     });
     expect(mockPromoFindUnique).toHaveBeenCalledTimes(1);
@@ -702,7 +712,7 @@ describe("app subscription payment service", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("allows a fresh promo checkout after the failed initial request is recorded", async () => {
+  it("replays the same frozen promo checkout after an uncertain network failure", async () => {
     const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockPromoFindUnique.mockResolvedValue({
       id: "promo-retry",
@@ -732,9 +742,17 @@ describe("app subscription payment service", () => {
     await expect(startYookassaAppSubscriptionPayment(params)).resolves.toMatchObject({
       success: false,
     });
-    expect(mockPaymentUpdate).toHaveBeenCalledWith({
-      where: { id: "pay-1" },
-      data: expect.objectContaining({ status: "FAILED", failureCode: "NETWORK" }),
+    expect(mockPaymentUpdateMany).toHaveBeenCalledWith({
+      where: { id: "pay-1", subscriptionId: "sub-retry", provider: "YOOKASSA",
+        kind: "INITIAL", status: "PENDING", yookassaPaymentId: null, attemptCount: 1 },
+      data: { failureCode: "NETWORK", failureReason: "YooKassa request failed" },
+    });
+    expect(mockSubscriptionUpdateMany).not.toHaveBeenCalled();
+    const frozen = mockPaymentCreate.mock.calls[0][0].data;
+    const priorKey = frozen.idempotenceKey;
+    mockPaymentFindFirst.mockResolvedValueOnce({
+      ...frozen, id: "pay-1", createdAt: new Date(Date.now() - 60_000),
+      lastAttemptAt: new Date(Date.now() - 60_000), confirmationUrl: null,
     });
 
     vi.mocked(fetch).mockResolvedValueOnce({
@@ -744,17 +762,17 @@ describe("app subscription payment service", () => {
         confirmation: { confirmation_url: "https://yookassa.test/retry" },
       }),
     } as Response);
-    mockSubscriptionFindFirst.mockResolvedValueOnce({
-      id: "sub-retry",
-      status: "CANCELED",
-      isLifetime: false,
-      currentPeriodEnd: null,
-      yookassaPaymentMethodId: null,
+    mockSubscriptionFindUniqueOrThrow.mockResolvedValueOnce({
+      id: "sub-retry", userId: "user-retry", provider: "YOOKASSA", status: "PENDING",
+      isLifetime: false, currentPeriodEnd: null, yookassaPaymentMethodId: null,
     });
     await expect(startYookassaAppSubscriptionPayment(params)).resolves.toMatchObject({
       success: true,
       confirmationUrl: "https://yookassa.test/retry",
     });
+    expect(mockPaymentCreate).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetch).mock.calls.map(([, options]) =>
+      (options?.headers as Record<string, string>)["Idempotence-Key"])).toEqual([priorKey, priorKey]);
   });
 
   it("rejects YooKassa start when planCode is missing", async () => {
@@ -816,7 +834,7 @@ describe("app subscription payment service", () => {
       intervalDays: 7,
     });
     mockSubscriptionCreate.mockResolvedValue({ id: "sub-1" });
-    mockPaymentCreate.mockResolvedValue({ id: "pay-1" });
+    mockPaymentCreate.mockImplementation(async ({ data }) => ({ ...data, id: "pay-1" }));
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-26T10:00:00.000Z"));
     vi.stubGlobal(
@@ -861,7 +879,7 @@ describe("app subscription payment service", () => {
       monthlyAppleProductId: "premium-month",
     });
     mockSubscriptionCreate.mockResolvedValue({ id: "sub-month" });
-    mockPaymentCreate.mockResolvedValue({ id: "pay-month" });
+    mockPaymentCreate.mockImplementation(async ({ data }) => ({ ...data, id: "pay-month" }));
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-26T10:00:00.000Z"));
     vi.stubGlobal(
@@ -1188,7 +1206,9 @@ describe("app subscription payment service", () => {
     expect(mockSubscriptionUpdate).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "ACTIVE" }) }),
     );
-    expect(mockTrialAdvisoryLock).toHaveBeenCalledTimes(1);
+    expect(mockTrialAdvisoryLock).toHaveBeenCalledTimes(3);
+    expect(mockTrialAdvisoryLock.mock.calls[0][0].join(" ")).toContain("pg_advisory_xact_lock");
+    expect(mockTrialAdvisoryLock.mock.calls[1][0].join(" ")).toContain("FOR UPDATE");
     expect(mockTrialAdvisoryLock.mock.invocationCallOrder[0]).toBeLessThan(mockTrialFindFirst.mock.invocationCallOrder[0]);
     expect(mockTrialUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1215,7 +1235,7 @@ describe("app subscription payment service", () => {
       intervalDays: 7,
     });
     mockSubscriptionCreate.mockResolvedValue({ id: "sub-2" });
-    mockPaymentCreate.mockResolvedValue({ id: "pay-1" });
+    mockPaymentCreate.mockImplementation(async ({ data }) => ({ ...data, id: "pay-1" }));
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
     vi.stubGlobal(
@@ -1301,7 +1321,7 @@ describe("app subscription payment service", () => {
       monthlyAppleProductId: "premium-month",
     });
     mockSubscriptionCreate.mockResolvedValue({ id: "sub-month" });
-    mockPaymentCreate.mockResolvedValue({ id: "pay-month" });
+    mockPaymentCreate.mockImplementation(async ({ data }) => ({ ...data, id: "pay-month" }));
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
     vi.stubGlobal(
@@ -1460,7 +1480,7 @@ describe("app subscription payment service", () => {
     });
 
     expect(mockPaymentUpdateMany).toHaveBeenCalledWith({
-      where: { id: "pay-month", status: { notIn: ["SUCCEEDED", "REFUNDED"] } },
+      where: { id: "pay-month", userId: "user-1", provider: "YOOKASSA", OR: [{ yookassaPaymentId: null }, { yookassaPaymentId: "payment-month" }], status: { notIn: ["SUCCEEDED", "REFUNDED"] } },
       data: expect.objectContaining({
         status: "SUCCEEDED",
         planCode: "MONTHLY",
@@ -1468,7 +1488,7 @@ describe("app subscription payment service", () => {
         periodEnd: new Date("2026-06-29T10:00:00.000Z"),
       }),
     });
-    const activatedTerms = mockSubscriptionUpdate.mock.calls.find(([call]) => call.data.status === "ACTIVE")?.[0].data;
+    const activatedTerms = mockSubscriptionUpdateMany.mock.calls.find(([call]) => call.data.status === "ACTIVE")?.[0].data;
     if (kind === "INITIAL") {
       expect(activatedTerms).toMatchObject({ renewalPriceRub: 1465, renewalCurrency: "RUB", renewalIntervalDays: 30, planTitle: "Поддержка в чате" });
     } else {
@@ -1476,8 +1496,10 @@ describe("app subscription payment service", () => {
       expect(activatedTerms).not.toHaveProperty("renewalIntervalDays");
       expect(activatedTerms).not.toHaveProperty("planTitle");
     }
-    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
-      where: { id: "sub-month" },
+    expect(mockSubscriptionUpdateMany).toHaveBeenCalledWith({
+      where: { id: "sub-month", userId: "user-1", provider: "YOOKASSA", OR: [
+        { currentPeriodEnd: null }, { currentPeriodEnd: { lte: new Date("2026-06-29T10:00:00.000Z") } },
+      ] },
       data: expect.objectContaining({
         status: "ACTIVE",
         planCode: "MONTHLY",
@@ -1750,7 +1772,7 @@ describe("app subscription payment service", () => {
     expect(mockSubscriptionUpdate).not.toHaveBeenCalled();
   });
 
-  it("keeps current paid period when an active user binds a new YooKassa card", async () => {
+  it("keeps current paid period when the active payment method webhook repeats", async () => {
     const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-1",
@@ -1793,12 +1815,9 @@ describe("app subscription payment service", () => {
       },
     });
 
-    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
-      where: { id: "sub-1" },
-      data: expect.objectContaining({
-        currentPeriodEnd: new Date("2026-06-02T10:00:00.000Z"),
-      }),
-    });
+    expect(mockSubscriptionUpdate).not.toHaveBeenCalled();
+    expect(mockSubscriptionUpdateMany).not.toHaveBeenCalled();
+    expect(mockTrialUpsert).not.toHaveBeenCalled();
   });
 
   it("rejects YooKassa payment method activation when provider metadata is absent", async () => {
@@ -1894,6 +1913,11 @@ describe("app subscription payment service", () => {
   it("records but rejects inactive Apple subscription transactions", async () => {
     const { verifyAppleAppSubscription } = await createPaymentTestService();
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "account-token-1" });
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-expired", userId: "user-1", provider: "APPLE",
+      appleOriginalTransactionId: "orig-expired", status: "EXPIRED",
+      currentPeriodEnd: new Date(Date.now() - 1000),
+    });
     verifyAndDecodeTransaction.mockResolvedValue({
       type: "Auto-Renewable Subscription",
       transactionId: "tx-expired",
@@ -2124,6 +2148,7 @@ describe("app subscription payment service", () => {
       provider: "APPLE",
       appleOriginalTransactionId: "orig-sync",
     });
+    mockSubscriptionFindMany.mockResolvedValue([{ id: "sub-1", userId: "user-1", appleOriginalTransactionId: "orig-sync", user: { appleAppAccountToken: null } }]);
     mockGetAllSubscriptionStatuses.mockResolvedValue({
       data: [
         {
@@ -2219,6 +2244,7 @@ describe("app subscription payment service", () => {
       provider: "APPLE",
       appleOriginalTransactionId: "orig-notification",
     });
+    mockSubscriptionFindMany.mockResolvedValue([{ id: "sub-1", userId: "user-1", appleOriginalTransactionId: "orig-notification", user: { appleAppAccountToken: null } }]);
     mockGetAllSubscriptionStatuses.mockResolvedValue({
       data: [
         {
@@ -2329,18 +2355,14 @@ describe("app subscription payment service", () => {
       "APPLE_PRIVATE_KEY",
       "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----",
     );
-    mockSubscriptionFindMany.mockResolvedValue([
-      {
-        id: "sub-1",
-        userId: "user-1",
-        appleOriginalTransactionId: "orig-batch-1",
-      },
-      {
-        id: "sub-2",
-        userId: "user-2",
-        appleOriginalTransactionId: "orig-batch-2",
-      },
-    ]);
+    const batch = [
+      { id: "sub-1", userId: "user-1", appleOriginalTransactionId: "orig-batch-1", user: { appleAppAccountToken: null } },
+      { id: "sub-2", userId: "user-2", appleOriginalTransactionId: "orig-batch-2", user: { appleAppAccountToken: null } },
+    ];
+    mockSubscriptionFindMany.mockImplementation(async ({ where }) =>
+      typeof where.appleOriginalTransactionId === "string"
+        ? batch.filter(row => row.appleOriginalTransactionId === where.appleOriginalTransactionId) : batch,
+    );
     mockSubscriptionFindFirst
       .mockResolvedValueOnce({
         id: "sub-1",
@@ -2413,6 +2435,11 @@ describe("app subscription payment service", () => {
       userId: "user-1",
       appleOriginalTransactionId: "orig-expired",
       status: "CANCELED",
+    });
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-expired", userId: "user-1", provider: "APPLE",
+      appleOriginalTransactionId: "orig-expired", status: "EXPIRED",
+      currentPeriodEnd: new Date(Date.now() - 1000),
     });
     verifyAndDecodeTransaction.mockResolvedValue({
       type: "Auto-Renewable Subscription",

@@ -1,3 +1,5 @@
+import { beforeEach as mediaBeforeEach, afterEach as mediaAfterEach } from "vitest";
+import { installMediaCredentialFixture } from "../../../tests/support/media-credentials-fixture.cjs";
 import { describe, expect, it } from "vitest";
 import { galleryStorageConfigFromEnv, validateGalleryObjectConfig } from "./config";
 const env={ NODE_ENV:"development",GAFUS_LOCAL_ISOLATED_API:"1",
@@ -21,3 +23,7 @@ describe("WEB4 gallery guard exact 9500 only",()=>{
   expect(()=>galleryStorageConfigFromEnv({...env,...alter})).toThrow();
  });
 });
+
+let mediaFixture: ReturnType<typeof installMediaCredentialFixture>;
+mediaBeforeEach(() => { mediaFixture = installMediaCredentialFixture(); });
+mediaAfterEach(() => mediaFixture?.restore());

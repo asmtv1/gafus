@@ -1,3 +1,5 @@
+import { beforeEach as mediaBeforeEach, afterEach as mediaAfterEach } from "vitest";
+import { installMediaCredentialFixture } from "../../../tests/support/media-credentials-fixture.cjs";
 import { describe, expect, it } from "vitest";
 import { isolatedNonprodS3Config } from "./isolatedNonprodS3";
 import { privateMediaEnabled } from "./privateUserMedia";
@@ -27,3 +29,7 @@ describe("pet documents isolated S3 credentials and gate", () => {
     expect(() => privateMediaEnabled({ ...env, ...bad })).toThrow();
   });
 });
+
+let mediaFixture: ReturnType<typeof installMediaCredentialFixture>;
+mediaBeforeEach(() => { mediaFixture = installMediaCredentialFixture(); });
+mediaAfterEach(() => mediaFixture?.restore());

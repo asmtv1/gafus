@@ -1,3 +1,5 @@
+import { beforeEach as mediaBeforeEach, afterEach as mediaAfterEach } from "vitest";
+import { installMediaCredentialFixture } from "../../../tests/support/media-credentials-fixture.cjs";
 import { describe, expect, it } from "vitest";
 import { isolatedNonprodS3Config } from "./isolatedNonprodS3";
 const base = {
@@ -24,3 +26,7 @@ describe("WEB4 distinct nonproduction MinIO profile", () => {
     expect(() => isolatedNonprodS3Config("feed",{...base,...change})).toThrow();
   });
 });
+
+let mediaFixture: ReturnType<typeof installMediaCredentialFixture>;
+mediaBeforeEach(() => { mediaFixture = installMediaCredentialFixture(); });
+mediaAfterEach(() => mediaFixture?.restore());

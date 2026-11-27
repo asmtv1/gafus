@@ -1,3 +1,5 @@
+import { beforeEach as mediaBeforeEach, afterEach as mediaAfterEach } from "vitest";
+import { installMediaCredentialFixture } from "../../../tests/support/media-credentials-fixture.cjs";
 import { describe, expect, it } from "vitest";
 import { isolatedNonprodS3Config } from "./isolatedNonprodS3";
 const env = {
@@ -27,3 +29,7 @@ describe("Questions separate private localhost bucket is explicit/default-off", 
     expect(() => isolatedNonprodS3Config("questions", {...env,...bad})).toThrow();
   });
 });
+
+let mediaFixture: ReturnType<typeof installMediaCredentialFixture>;
+mediaBeforeEach(() => { mediaFixture = installMediaCredentialFixture(); });
+mediaAfterEach(() => mediaFixture?.restore());
