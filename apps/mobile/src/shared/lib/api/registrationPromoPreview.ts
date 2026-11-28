@@ -17,7 +17,10 @@ export async function previewRegistrationPromoCode(
       if (response.status >= 500) reportClientError(new Error("REGISTRATION_PROMO_SERVER_FAILURE"), { issueKey: "AuthRegistrationPromo", keys: { operation: "server" } });
       const errorData = await response
         .json()
-        .catch(() => ({}) as { error?: string; code?: string });
+        .catch(() => {
+          // diagnostic: expected Non-JSON HTTP error bodies retain the original status fallback; 5xx is reported above.
+          return {} as { error?: string; code?: string };
+        });
       return {
         success: false,
         error: errorData.error || "Промокод не удалось проверить",
