@@ -39,6 +39,11 @@ describe("Feed recovery only launches a Cloud pool for due durable media tasks",
     expect(await s.run()).toEqual({ dispatched: 2 });
     expect(s.video).toHaveBeenCalledTimes(2);
   });
+  it("never launches Cloud VIDEO for retired photos alone", async () => {
+    const s = setup([{ kind: "publish_photo", _count: { _all: 3 } }]);
+    expect(await s.run()).toEqual({ dispatched: 0 });
+    expect(s.video).not.toHaveBeenCalled();
+  });
   it("never launches Cloud VIDEO just to delete files or clean sources", async () => {
     const s = setup([
       { kind: "cleanup_source", _count: { _all: 1 } },

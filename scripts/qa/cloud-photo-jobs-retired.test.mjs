@@ -50,7 +50,14 @@ test('Feed S3 cleanup and historical photo migrations never wake a Cloud video J
  const cron=read('packages/worker/src/cron-scheduler.ts');
  assert(cron.includes('runFeedLocalMaintenanceTick'));
  const recovery=read('packages/worker/src/feed-media-recovery.ts');
- assert(recovery.includes('row.kind === "publish_video"'));
+ const recoveryRows=read('packages/feed-server/src/feedVideoRecoveryRows.ts');
+ const recoveryExport=JSON.parse(read('packages/feed-server/package.json')).exports['./feed-video-recovery'];
+ assert.equal(recoveryExport.default,'./dist/feedVideoRecoveryRows.js');
+ assert(recovery.includes('import { countDueFeedVideoRecovery } from "@gafus/feed-server/feed-video-recovery"'));
+ assert(recovery.includes('countDueVideos: countDueFeedVideoRecovery'));
+ assert(recovery.includes('video: createCloudruFeedPoolDispatcher("video")'));
+ assert(recoveryRows.includes('if (row.kind === "publish_video") videos += row._count._all;'));
+ assert(!recoveryRows.includes('"delete_keys", "cleanup_source"'));
  assert(!recovery.includes('"delete_keys", "cleanup_source"'));
  const worker=read('packages/worker/src/feed-local-maintenance.ts');
  for(const key of ['maintenance.run(10)','input.objects.delete(',
