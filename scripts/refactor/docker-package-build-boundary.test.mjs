@@ -59,13 +59,13 @@ test('CI bare pnpm build --filter cannot bypass the mandatory job gate',()=>{
     assert.doesNotMatch(src,/\bpnpm build --filter(=|\s)/);
   }
 });
-test('runtime image validation keeps 9/48 active baseline and separately verifies API 38/235, Worker 37/225 runtime graphs',()=>{
+test('runtime image validation keeps 9/48 active baseline and separately verifies API 38/244, Worker 37/234 runtime graphs',()=>{
   const verify=read('ci-cd/docker/check-runtime-package-exports.mjs');
   for(const name of ['core-client','achievements','consent','mobile-intro','notifications','feature-flags','admin-rewarded-ads','tracking','admin-reengagement','subscription-read-server'])
     assert.match(verify,new RegExp(name));
   assert.match(verify,/legacyPackages\.length !== 9 \|\| legacyExportsChecked !== 48/);
-  assert.match(verify,/exportsChecked !== 225/);
-  assert.match(verify,/exportsChecked !== 235/);
+  assert.match(verify,/exportsChecked !== 234/);
+  assert.match(verify,/exportsChecked !== 244/);
   assert.match(verify,/if \(legacyPackages\.includes\(name\)\) legacyExportsChecked\+\+/);
   const required = ['core-client','achievements-server','consent-server','mobile-intro-server','notifications-server','feature-flags-server','admin-rewarded-ads-server','tracking-server','admin-reengagement-server','subscription-read-server','subscription-write-server','statistics','logger','feed-server','questions-server','consultation-server','exam-server','gallery-server','course-server','pets-server','media-server','article-server','gafus-server','entitlements-server','course-read-server','trainer-ai-server','course-progress-server','identity-write-server','consultation-query-server','subscription-finance-server','subscription-trial-server','questions-write-server','consultation-write-server','subscription-payment-server'];
   const latestExportCount = required.reduce((sum, pkg) =>
@@ -73,6 +73,10 @@ test('runtime image validation keeps 9/48 active baseline and separately verifie
   const legacyExportCount = required.slice(0,9).reduce((sum,pkg)=>
     sum + Object.keys(JSON.parse(read(`packages/${pkg}/package.json`)).exports)
       .filter(key => !(pkg === "core-client" && key === "./chat2/realtime-subscription") &&
+        !(pkg === "core-client" && key === "./chat2/room-presentation") &&
+        !(pkg === "core-client" && key === "./chat2/draft") &&
+        !(pkg === "core-client" && key === "./utils/subscription-selection") &&
+        !(pkg === "notifications-server" && key === "./chat2-outbox-rows") &&
         !(pkg === "core-client" && key === "./chat2/send-attempt") &&
         !(pkg === "core-client" && key === "./walk-tracking") &&
         !(pkg === "notifications-server" && key === "./chat-outbox-diagnostics") &&
@@ -87,7 +91,7 @@ test('runtime image validation keeps 9/48 active baseline and separately verifie
         !(pkg === "notifications-server" && key === "./reminder-expiry-redaction") &&
         !(pkg === "notifications-server" && key === "./training-reminder-storage")).length,0);
   assert.equal(legacyExportCount,48,'active API baseline exports must not regress');
-  assert.equal(latestExportCount,220,'all combined 220 compiled runtime entrypoints must remain required');
+  assert.equal(latestExportCount,229,'all combined 229 compiled runtime entrypoints must remain required');
   assert.match(verify,/RUNTIME_WALK_TRACKING_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_TRAINING_REMINDER_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_TRAINING_REMINDER_DELIVERY_EXPORT_MISSING/);

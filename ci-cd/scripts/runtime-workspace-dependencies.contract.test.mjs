@@ -177,10 +177,14 @@ test('runtime image coverage counts match every current package export and prese
     'WALK_TRACKING_EXPORT_NOT_ENFORCED');
   assert.match(runtimeVerifierText, /if \(!trainingReminderApplicationExportChecked\)/,
     'NEW_REMINDER_APPLICATION_EXPORT_NOT_ENFORCED');
+  for (const spec of ['@gafus/core-client/chat2/room-presentation', '@gafus/core-client/utils/subscription-selection', '@gafus/core-client/chat2/draft', '@gafus/notifications-server/chat2-outbox-rows', '@gafus/feed-server/feed-video-recovery', '@gafus/media-server/chat2-deletion-rows', '@gafus/media-server/chat2-video-recovery', '@gafus/course-read-server/catalog-cards', '@gafus/subscription-payment-server/transitions']) {
+    assert(explicit.has(spec), `ARCHITECTURE_EXPORT_NOT_REGISTERED:${spec}`);
+  }
+  assert.match(runtimeVerifierText, /RUNTIME_ARCHITECTURE_EXPORT_MISSING/);
   for (const mode of ['api', 'worker']) {
     const actualCount = requiredByRuntime[mode].reduce((total, name) =>
       total + Object.keys(projects.get(name).exports ?? {}).length, 0);
-    const expected = mode === 'worker' ? 225 : 235;
+    const expected = mode === 'worker' ? 234 : 244;
     assert.equal(actualCount, expected, `RUNTIME_EXPORT_COVERAGE_DRIFT:${mode}`);
     assert(runtimeVerifierText.includes(`exportsChecked !== ${expected}`),
       `DOCKER_RUNTIME_EXPORT_COUNT_STALE:${mode}`);

@@ -203,6 +203,18 @@ const sharedContracts = [
   "@gafus/media-shared/purge-paths",
 ];
 const seenSharedContracts = new Set();
+// Architecture additions must not inflate the frozen legacy baseline.
+const chat2RoomPresentationExport = '@gafus/core-client/chat2/room-presentation';
+const subscriptionSelectionExport = '@gafus/core-client/utils/subscription-selection';
+const chat2DraftExport = '@gafus/core-client/chat2/draft';
+const chat2OutboxRowsExport = '@gafus/notifications-server/chat2-outbox-rows';
+const feedVideoRecoveryExport = '@gafus/feed-server/feed-video-recovery';
+const chat2DeletionRowsExport = '@gafus/media-server/chat2-deletion-rows';
+const chat2VideoRecoveryExport = '@gafus/media-server/chat2-video-recovery';
+const catalogCardsExport = '@gafus/course-read-server/catalog-cards';
+const subscriptionTransitionsExport = '@gafus/subscription-payment-server/transitions';
+const architectureExports = [chat2RoomPresentationExport, subscriptionSelectionExport, chat2DraftExport, chat2OutboxRowsExport, feedVideoRecoveryExport, chat2DeletionRowsExport, chat2VideoRecoveryExport, catalogCardsExport, subscriptionTransitionsExport];
+const seenArchitectureExports = new Set();
 // Admin consultation DTO queries must only ship in the API image.
 const mode = process.argv[2];
 if (!['api', 'worker'].includes(mode)) throw Error('RUNTIME_IMAGE_TARGET_REQUIRED');
@@ -523,6 +535,15 @@ for (const name of packages) {
     else if (specifier === petMediaSqlExport) petMediaSqlExportChecked = true;
     else if (specifier === petMediaDefaultDbExport) petMediaDefaultDbExportChecked = true;
     else if (specifier === vetVisitWriteRowsExport) vetVisitWriteRowsExportChecked = true;
+    else if (specifier === chat2RoomPresentationExport) seenArchitectureExports.add(specifier);
+    else if (specifier === subscriptionSelectionExport) seenArchitectureExports.add(specifier);
+    else if (specifier === chat2DraftExport) seenArchitectureExports.add(specifier);
+    else if (specifier === chat2OutboxRowsExport) seenArchitectureExports.add(specifier);
+    else if (specifier === feedVideoRecoveryExport) seenArchitectureExports.add(specifier);
+    else if (specifier === chat2DeletionRowsExport) seenArchitectureExports.add(specifier);
+    else if (specifier === chat2VideoRecoveryExport) seenArchitectureExports.add(specifier);
+    else if (specifier === catalogCardsExport) seenArchitectureExports.add(specifier);
+    else if (specifier === subscriptionTransitionsExport) seenArchitectureExports.add(specifier);
     else if (legacyPackages.includes(name)) legacyExportsChecked++;
   }
   // The deployed package must carry declarations, not just source-side exports.
@@ -668,13 +689,17 @@ for (const spec of sharedContracts) {
   if (!seenSharedContracts.has(spec))
     throw Error("RUNTIME_SHARED_CONTRACT_EXPORT_MISSING:" + spec);
 }
+for (const spec of architectureExports) {
+  if (!seenArchitectureExports.has(spec))
+    throw Error("RUNTIME_ARCHITECTURE_EXPORT_MISSING:" + spec);
+}
 // Frozen 9/48 remains independent of new package exports.
-// Four shared-contract packages: Worker 37 packages/225 exports;
-// API 38 packages/235 exports; frozen legacy 9/48 stays independent.
+// Four shared-contract packages: Worker 37 packages/234 exports;
+// API 38 packages/244 exports; frozen legacy 9/48 stays independent.
 // New notifications-server exports are validated independently, rather than
 // silently included in the fixed historical 48-export baseline.
 if (newPackages.length !== 28 || apiOnly.length !== 1 || workerOnly.length !== 0 ||
   packages.length !== (mode === 'worker' ? 37 : 38) ||
-  (mode === 'worker' ? exportsChecked !== 225 : exportsChecked !== 235))
+  (mode === 'worker' ? exportsChecked !== 234 : exportsChecked !== 244))
   throw Error("RUNTIME_POSTSUBSCRIPTION_EXPORT_COVERAGE_CHANGED:packages=" + packages.length + ":exports=" + exportsChecked);
 console.log(`RUNTIME_PACKAGING_PASS target=${mode} packages=${packages.length} compiled_exports=${exportsChecked}`);
