@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "status": "PROPOSAL_VERIFIED_OWNER_REVIEW_REQUIRED",
+  "ownerApproval": null,
+  "productionMigrationAuthorized": false,
+  "candidateBaseSha": "8c59794061e766c4db5d72cc83fdd4a028e2dfd7",
+  "productionSourceSha": "afb4fb0b4d2c95e04658f04160d5fd16dfe9ff12",
+  "dbReport": {
+    "commit": "3a4c9cf20e8b624d2261a03a12f4f976bc9ef12b",
+    "path": "docs/audit/gafus-direct-prod-db-20261128.md"
+  },
+  "checkpoint": {
+    "schemaSha256": "eceee5fa0ca9ed7ac3d6dfbc44f30cfd29b772662c534f142e29178ffe12aa42",
+    "ledgerSha256": "ab671c55b705417f01f8001ed6b50530552853e7a08cacf3d8048ff1851da8dd",
+    "expectedApplied": 186,
+    "expectedRolledBack": 4,
+    "expectedSources": 186
+  },
+  "schemaEvidence": "Previously confirmed report fingerprint only; no new dump or live schema recomputation performed.",
+  "pendingMigrations": [
+    {
+      "name": "20261126220000_dog_walk_changes",
+      "sqlSha256": "e168fe3d055c626746d08aeb5ff3082fbb0a604d461b80fd4dd96725e7406c32"
+    },
+    {
+      "name": "20261127090000_consultation_push_receipts",
+      "sqlSha256": "84477c7ddea3bbb19f2cc50b25a0484c4db928d6618cb37535d256172bd4442a"
+    },
+    {
+      "name": "20261127140000_walk_gps_ota_operational_signals",
+      "sqlSha256": "6bf1361b4202e74ca59ade5e7c5883b78bf6291ea30317b90350e08cff1cbc19"
+    },
+    {
+      "name": "20261127150000_yookassa_frozen_checkout_return_url",
+      "sqlSha256": "117798522713ae5d82424270cb68aaece86be0a49cbf0f0390a39e822322a42a"
+    },
+    {
+      "name": "20261127160000_mail_attempt_operational_category",
+      "sqlSha256": "8be82a249ad5fdfa48e3c379a759e60a82deb1a112949f1c40f1725f7da3799f"
+    },
+    {
+      "name": "20261127170000_mail_event_received_at_brin",
+      "sqlSha256": "434c6b0a5a86bb4be31f2eb9fdf2d2bbf958b7c49efb3ab64154d45cea54b034"
+    }
+  ],
+  "expectedCandidateSources": 192,
+  "filesSha256": {
+    "ci-cd/scripts/approved-legacy-migration-baseline-20261115.json": "5954ee70c5b81eee6a8e3b0c342657bde49b3110f27c4e12631bd724ca3af65a",
+    "ci-cd/scripts/verify-production-migration-ledger.py": "bf5591175c64d11a6d5e3919681d9cb798ed64ae7919f1920718f483d43dc4a7",
+    "ci-cd/scripts/verify-production-migration-ledger.test.mjs": "0a7a54eed57359391d164b795667b287c1b11d6a21f359c5388d37ad72935ee6",
+    "docs/audit/evidence/direct-prod-ledger-20261128/pending-batch.proposal.patch": "b56d8a5420b5c707acb554e6cd03a20a2d0b0dd8f1fb484529696877e1e10a95"
+  },
+  "liveLedgerReadOnly": {
+    "jobId": "970bf18b5d2ef2c452bfc1a03d4abb7a186311c7f9df7b2a",
+    "exitCode": 0,
+    "productionHeadMatched": true,
+    "applied": 186,
+    "rolledBack": 4,
+    "failed": 0,
+    "ledgerSha256": "ab671c55b705417f01f8001ed6b50530552853e7a08cacf3d8048ff1851da8dd",
+    "metadataOnly": true,
+    "activeVerifierExit": 1,
+    "activeVeto": "LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE",
+    "isolatedProposalVerifierExit": 0,
+    "isolatedProposalResult": "PRODUCTION_MIGRATION_LEDGER_PASS:applied=186:pending=6"
+  },
+  "contracts": {
+    "command": "node --test ci-cd/scripts/verify-production-migration-ledger.test.mjs",
+    "jobId": "e89796e2846d4e5c7efb48e53514f57bc8e543e83d04ecab",
+    "exitCode": 0,
+    "tests": 8,
+    "passed": 8,
+    "failed": 0,
+    "syntheticCases": [
+      "unapproved batch veto",
+      "exact six PASS",
+      "schema drift",
+      "ledger digest drift",
+      "missing rolled-back row",
+      "premature applied row",
+      "changed SQL bytes",
+      "extra pending SQL",
+      "missing pending SQL"
+    ]
+  },
+  "patchCheckExit": 0,
+  "reviewRequired": "Owner must explicitly approve the six named hashes against the pinned schema and complete ledger, after reviewing DB report risks. Only then apply the proposal patch in the coordinated candidate branch, rerun contracts and exact current production preflight with a freshly confirmed schema fingerprint and ledger. Any drift requires new review. No deploy implied by this approval; other release gates remain.",
+  "postMigrationCheckpoint": "Not proposed or predicted. Capture actual schema/ledger and separately review after any authorized migration.",
+  "scope": "No production writes, dumps, user rows, secrets, push, PR, Actions or deploy. Existing historical approval evidence remains unchanged; this receipt records technical verification only."
+}
