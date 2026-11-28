@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "afb4fb0b4d2c95e04658f04160d5fd16dfe9ff12",
+  "runId": "45859249717",
+  "runAttempt": "1",
+  "images": {
+    "web": "ghcr.io/asmtv1/gafus-web@sha256:a49724cf465512e0bda4338856a0b80f9b5e27a250d434b69dd5f8e54b8a2611",
+    "trainer-panel": "ghcr.io/asmtv1/gafus-trainer-panel@sha256:961dfca94caa6ccf129dc7fad463d98fa852381667199e4f1247a88dad578433",
+    "admin-panel": "ghcr.io/asmtv1/gafus-admin-panel@sha256:006c9c8a39394ba87b472f564866e583265cfc6c7dbaf018bf0bdbdd684301d6",
+    "api": "ghcr.io/asmtv1/gafus-api@sha256:020c9ec05fec4e3247dbb902407bd4de3c0b389f9c9a047d83b9a2d213d24c1c",
+    "worker": "ghcr.io/asmtv1/gafus-worker@sha256:fccf53ec2dde618ad91d3bba28beebeae041f090986bbf492e5814e4f172e2e2",
+    "bull-board": "ghcr.io/asmtv1/gafus-bull-board@sha256:7ab6d6596b2b2b2fa183ecdd6ab2c80379d7a3f1dc65af2397f8acc9913b6f58",
+    "prisma": "ghcr.io/asmtv1/gafus-prisma@sha256:96fdde295b026f3078c60f31e2bc9b8fee2d1a093b19728194949bff57a83f1e"
+  }
+}

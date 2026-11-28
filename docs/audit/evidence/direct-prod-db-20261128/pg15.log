@@ -1,0 +1,12 @@
+synthetic scratch /tmp/gafus-release-db.Py35EN
+15.20 (Homebrew)
+baseline reviewed SQL + forward=23 (no Prisma journal fabricated)
+379c211e983139d5b54016b414f2a915d03e998e87c676b51cfe6bacca02c54b  /tmp/gafus-release-db.Py35EN/pre.dump
+apply 20261126220000_dog_walk_changes
+apply 20261127090000_consultation_push_receipts
+apply 20261127140000_walk_gps_ota_operational_signals
+apply 20261127150000_yookassa_frozen_checkout_return_url
+apply 20261127160000_mail_attempt_operational_category
+apply 20261127170000_mail_event_received_at_brin
+OLD_SQL_SHAPES_PASS
+SYNTHETIC_PRE_MIGRATION_RESTORE_PASS
