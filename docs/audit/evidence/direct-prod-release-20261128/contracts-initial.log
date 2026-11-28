@@ -1,0 +1,673 @@
+v22.23.5
+TAP version 13
+# Subtest: production broker ONLY uses authenticated subscribe-proxy on private Hono route
+ok 1 - production broker ONLY uses authenticated subscribe-proxy on private Hono route
+  ---
+  duration_ms: 1.553916
+  type: 'test'
+  ...
+# Subtest: old room JWTs cannot bypass proxy: distinct never-issued broker verifier key
+ok 2 - old room JWTs cannot bypass proxy: distinct never-issued broker verifier key
+  ---
+  duration_ms: 0.446875
+  type: 'test'
+  ...
+# Subtest: Hono connection requires proxy mode and separate secrets: missing env means 503 NOT legacy
+ok 3 - Hono connection requires proxy mode and separate secrets: missing env means 503 NOT legacy
+  ---
+  duration_ms: 0.110417
+  type: 'test'
+  ...
+# Subtest: Web and Mobile require proxy-only, no old JWT call, no refresh or downgrade
+ok 4 - Web and Mobile require proxy-only, no old JWT call, no refresh or downgrade
+  ---
+  duration_ms: 0.740833
+  type: 'test'
+  ...
+# Subtest: active subscriptions are revoked after committed BAN, reconnects always check readGate
+ok 5 - active subscriptions are revoked after committed BAN, reconnects always check readGate
+  ---
+  duration_ms: 1.095875
+  type: 'test'
+  ...
+# Subtest: public nginx ingress blocks /internal while preserving public WSS only
+ok 6 - public nginx ingress blocks /internal while preserving public WSS only
+  ---
+  duration_ms: 0.511292
+  type: 'test'
+  ...
+# Subtest: mobile forced-update policy exists and needs a published new store build before activation
+ok 7 - mobile forced-update policy exists and needs a published new store build before activation
+  ---
+  duration_ms: 0.6435
+  type: 'test'
+  ...
+# Subtest: automatic main release syncs Cloud.ru Jobs after app; manual redeploy stays app-only
+ok 8 - automatic main release syncs Cloud.ru Jobs after app; manual redeploy stays app-only
+  ---
+  duration_ms: 95.913541
+  type: 'test'
+  ...
+# Subtest: manual app-only release refuses retired Gallery CDN without relying on Beget network
+ok 9 - manual app-only release refuses retired Gallery CDN without relying on Beget network
+  ---
+  duration_ms: 3.291042
+  type: 'test'
+  ...
+# Subtest: production readiness probes real Vite and Hono endpoints, never removed Next routes
+ok 10 - production readiness probes real Vite and Hono endpoints, never removed Next routes
+  ---
+  duration_ms: 0.298959
+  type: 'test'
+  ...
+# Subtest: Gallery redirect preflight receives all fail-closed viewer release bindings
+ok 11 - Gallery redirect preflight receives all fail-closed viewer release bindings
+  ---
+  duration_ms: 34.540417
+  type: 'test'
+  ...
+# Subtest: cutover preflight can run Node 24 without installing pnpm; release gates remain blocking
+ok 12 - cutover preflight can run Node 24 without installing pnpm; release gates remain blocking
+  ---
+  duration_ms: 25.453833
+  type: 'test'
+  ...
+# Subtest: main release preflights existing Cloud.ru Jobs before app and syncs after API health
+ok 13 - main release preflights existing Cloud.ru Jobs before app and syncs after API health
+  ---
+  duration_ms: 19.418791
+  type: 'test'
+  ...
+# Subtest: Vite image matrix restores the verified build-apps artifact instead of recompiling
+ok 14 - Vite image matrix restores the verified build-apps artifact instead of recompiling
+  ---
+  duration_ms: 18.674208
+  type: 'test'
+  ...
+# Subtest: one coordinated release enables verified Chat2 CDN-first delivery with S3 fallback
+ok 15 - one coordinated release enables verified Chat2 CDN-first delivery with S3 fallback
+  ---
+  duration_ms: 17.055292
+  type: 'test'
+  ...
+# Subtest: no Cloud.ru Docker build, push, phantom Job, old Gallery image or CDN/S3 mutation in release workflows
+ok 16 - no Cloud.ru Docker build, push, phantom Job, old Gallery image or CDN/S3 mutation in release workflows
+  ---
+  duration_ms: 99.15975
+  type: 'test'
+  ...
+# Subtest: no worker dispatch until Cloud.ru new-image cutover; activation has failure rollback
+ok 17 - no worker dispatch until Cloud.ru new-image cutover; activation has failure rollback
+  ---
+  duration_ms: 17.922125
+  type: 'test'
+  ...
+# Subtest: Cloud.ru release is hard-gated to main, exact SHA and deployed API, verifies V2 routes
+ok 18 - Cloud.ru release is hard-gated to main, exact SHA and deployed API, verifies V2 routes
+  ---
+  duration_ms: 241.725417
+  type: 'test'
+  ...
+# Subtest: both workflows invoke one production cutover and serialize releases
+ok 19 - both workflows invoke one production cutover and serialize releases
+  ---
+  duration_ms: 0.794583
+  type: 'test'
+  ...
+# Subtest: manual deploy never builds, stops the database or uses the legacy env builder
+ok 20 - manual deploy never builds, stops the database or uses the legacy env builder
+  ---
+  duration_ms: 0.328084
+  type: 'test'
+  ...
+# Subtest: every image is release-SHA tagged and rollback stays available during cutover
+ok 21 - every image is release-SHA tagged and rollback stays available during cutover
+  ---
+  duration_ms: 0.132959
+  type: 'test'
+  ...
+# Subtest: old Docker release images are pruned without removing live images or volumes
+ok 22 - old Docker release images are pruned without removing live images or volumes
+  ---
+  duration_ms: 0.23425
+  type: 'test'
+  ...
+# Subtest: deployment budgets pulls and reuses only immutable locally cached images
+ok 23 - deployment budgets pulls and reuses only immutable locally cached images
+  ---
+  duration_ms: 1.300834
+  type: 'test'
+  ...
+# Subtest: polls require no separate feature flag in Web, API or background worker
+ok 24 - polls require no separate feature flag in Web, API or background worker
+  ---
+  duration_ms: 1.61825
+  type: 'test'
+  ...
+# Subtest: CI exercises migrations and real PostgreSQL poll end-to-end before deploying main
+ok 25 - CI exercises migrations and real PostgreSQL poll end-to-end before deploying main
+  ---
+  duration_ms: 48.788583
+  type: 'test'
+  ...
+# Subtest: poll migration remains additive and polls use Feed availability without a second flag
+ok 26 - poll migration remains additive and polls use Feed availability without a second flag
+  ---
+  duration_ms: 7.236375
+  type: 'test'
+  ...
+# Subtest: app-only manual deploy verifies exact successful main release and never patches Cloud.ru Jobs
+ok 27 - app-only manual deploy verifies exact successful main release and never patches Cloud.ru Jobs
+  ---
+  duration_ms: 1.629375
+  type: 'test'
+  ...
+# Subtest: reusable app-only release preserves provider configuration and activates V2 without changing jobs
+ok 28 - reusable app-only release preserves provider configuration and activates V2 without changing jobs
+  ---
+  duration_ms: 66.71825
+  type: 'test'
+  ...
+# Subtest: migration recovery only runs after verified snapshot + 162 completed migrations, never rolls schema back or edits Cloud Jobs
+ok 29 - migration recovery only runs after verified snapshot + 162 completed migrations, never rolls schema back or edits Cloud Jobs
+  ---
+  duration_ms: 33.990542
+  type: 'test'
+  ...
+# Subtest: read-only live production verification ties all running containers to verified SHA and checks restarts, OOM, critical logs, backup, schema and HTTPS
+ok 30 - read-only live production verification ties all running containers to verified SHA and checks restarts, OOM, critical logs, backup, schema and HTTPS
+  ---
+  duration_ms: 27.953667
+  type: 'test'
+  ...
+# Subtest: refactor Vite CI targets the vite branch without modifying main deploy workflow
+ok 31 - refactor Vite CI targets the vite branch without modifying main deploy workflow
+  ---
+  duration_ms: 0.951959
+  type: 'test'
+  ...
+# Subtest: immutable AMD64 Refactor images and no mutable prod latest tag
+ok 32 - immutable AMD64 Refactor images and no mutable prod latest tag
+  ---
+  duration_ms: 0.493208
+  type: 'test'
+  ...
+# Subtest: SPA fallback does not intercept Hono API and immutable assets
+ok 33 - SPA fallback does not intercept Hono API and immutable assets
+  ---
+  duration_ms: 0.192125
+  type: 'test'
+  ...
+# Subtest: Docker context excludes private local state and OS/mobile build caches
+ok 34 - Docker context excludes private local state and OS/mobile build caches
+  ---
+  duration_ms: 0.323375
+  type: 'test'
+  ...
+# Subtest: Docker packages the exact previously verified CI build artifact
+ok 35 - Docker packages the exact previously verified CI build artifact
+  ---
+  duration_ms: 0.122916
+  type: 'test'
+  ...
+# Subtest: Vite assets are verified within the current Refactor frontend, without Next baselines
+ok 36 - Vite assets are verified within the current Refactor frontend, without Next baselines
+  ---
+  duration_ms: 0.052834
+  type: 'test'
+  ...
+# Subtest: CI refuses partial Git pushes that omit untracked Vite sources
+ok 37 - CI refuses partial Git pushes that omit untracked Vite sources
+  ---
+  duration_ms: 0.282375
+  type: 'test'
+  ...
+# Subtest: release candidate builds every production-owned image for AMD64 before publishing
+ok 38 - release candidate builds every production-owned image for AMD64 before publishing
+  ---
+  duration_ms: 0.256959
+  type: 'test'
+  ...
+# Subtest: release CI validates production Compose with synthetic-only environment
+ok 39 - release CI validates production Compose with synthetic-only environment
+  ---
+  duration_ms: 1.112958
+  type: 'test'
+  ...
+# Subtest: static Vite image Dockerfiles use nginx and API/worker images retain pnpm 10.12.4
+ok 40 - static Vite image Dockerfiles use nginx and API/worker images retain pnpm 10.12.4
+  ---
+  duration_ms: 2.527667
+  type: 'test'
+  ...
+# Subtest: Prisma runtime image reuses pnpm build-stage cache without npm network
+ok 41 - Prisma runtime image reuses pnpm build-stage cache without npm network
+  ---
+  duration_ms: 0.169208
+  type: 'test'
+  ...
+# Subtest: refactor image matrix exactly matches production build-images Dockerfiles
+ok 42 - refactor image matrix exactly matches production build-images Dockerfiles
+  ---
+  duration_ms: 1.302583
+  type: 'test'
+  ...
+# Subtest: Prisma Docker and hosted CI require importable generated client, not just image layers
+ok 43 - Prisma Docker and hosted CI require importable generated client, not just image layers
+  ---
+  duration_ms: 0.107708
+  type: 'test'
+  ...
+# Subtest: all release jobs have a valid DAG: no unknown prerequisites or cycles
+ok 44 - all release jobs have a valid DAG: no unknown prerequisites or cycles
+  ---
+  duration_ms: 0.987625
+  type: 'test'
+  ...
+# Subtest: all seven production images are mandatory before deploy; no mutable latest image
+ok 45 - all seven production images are mandatory before deploy; no mutable latest image
+  ---
+  duration_ms: 2.680291
+  type: 'test'
+  ...
+# Subtest: the full graph orders app deployment, job sync/verify and post-deploy validation
+ok 46 - the full graph orders app deployment, job sync/verify and post-deploy validation
+  ---
+  duration_ms: 0.074416
+  type: 'test'
+  ...
+# Subtest: no release graph job is reached through a branchless manual bypass
+ok 47 - no release graph job is reached through a branchless manual bypass
+  ---
+  duration_ms: 0.137375
+  type: 'test'
+  ...
+# Subtest: Cloud media CI gate runs actual Feed/Chat2/Questions Vitest instead of a pnpm no-op
+ok 48 - Cloud media CI gate runs actual Feed/Chat2/Questions Vitest instead of a pnpm no-op
+  ---
+  duration_ms: 2.143542
+  type: 'test'
+  ...
+# Subtest: all public Vite SPA Docker images normalize runner-private file modes for unprivileged Nginx
+ok 49 - all public Vite SPA Docker images normalize runner-private file modes for unprivileged Nginx
+  ---
+  duration_ms: 0.356209
+  type: 'test'
+  ...
+# Subtest: image matrix PR smoke is read-only and full gates precede production publish
+ok 50 - image matrix PR smoke is read-only and full gates precede production publish
+  ---
+  duration_ms: 1.092542
+  type: 'test'
+  ...
+# Subtest: PR into main cannot bypass Cloud media gate before local image smoke
+ok 51 - PR into main cannot bypass Cloud media gate before local image smoke
+  ---
+  duration_ms: 0.194958
+  type: 'test'
+  ...
+# Subtest: Vite public bits compile exactly once with sealed private maps, then transfer to Docker by SHA
+ok 52 - Vite public bits compile exactly once with sealed private maps, then transfer to Docker by SHA
+  ---
+  duration_ms: 1.268
+  type: 'test'
+  ...
+# Subtest: Admin uses one canonical Vite config for build, dev and preview
+ok 53 - Admin uses one canonical Vite config for build, dev and preview
+  ---
+  duration_ms: 2.701916
+  type: 'test'
+  ...
+# Subtest: exact seven SHA+run+attempt digest and deterministic checksum
+ok 54 - exact seven SHA+run+attempt digest and deterministic checksum
+  ---
+  duration_ms: 1.603916
+  type: 'test'
+  ...
+# Subtest: reject partial/duplicate/unknown/cross-SHA/cross-attempt and invalid smoke/arch
+ok 55 - reject partial/duplicate/unknown/cross-SHA/cross-attempt and invalid smoke/arch
+  ---
+  duration_ms: 0.413541
+  type: 'test'
+  ...
+# Subtest: deployment verifies exact repository and disallows stale/extra fields
+ok 56 - deployment verifies exact repository and disallows stale/extra fields
+  ---
+  duration_ms: 0.217792
+  type: 'test'
+  ...
+# Subtest: Linux API and Worker images can reach every mandatory compiled runtime package
+ok 57 - Linux API and Worker images can reach every mandatory compiled runtime package
+  ---
+  duration_ms: 285.63125
+  type: 'test'
+  ...
+# Subtest: missing direct API import fails before slow Docker build
+ok 58 - missing direct API import fails before slow Docker build
+  ---
+  duration_ms: 82.629833
+  type: 'test'
+  ...
+# Subtest: missing mandatory Worker legacy package fails before slow Docker build
+ok 59 - missing mandatory Worker legacy package fails before slow Docker build
+  ---
+  duration_ms: 18.398708
+  type: 'test'
+  ...
+# Subtest: runtime image coverage counts match every current package export and preserve baseline 9/48
+not ok 60 - runtime image coverage counts match every current package export and preserve baseline 9/48
+  ---
+  duration_ms: 2.38275
+  type: 'test'
+  location: '/Users/asmtv1/Desktop/gafus-qa-direct-prod-20261128/ci-cd/scripts/runtime-workspace-dependencies.contract.test.mjs:152:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    LEGACY_9_48_CHANGED_OR_NEW_EXPORT_NOT_REGISTERED
+
+    52 !== 48
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 48
+  actual: 52
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/asmtv1/Desktop/gafus-qa-direct-prod-20261128/ci-cd/scripts/runtime-workspace-dependencies.contract.test.mjs:173:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: primary workflows, independent Beget audit/backup and internal workflows
+ok 61 - primary workflows, independent Beget audit/backup and internal workflows
+  ---
+  duration_ms: 149.551917
+  type: 'test'
+  ...
+# Subtest: main CI reconciles Cloud.ru image links while Deploy Only remains app-only
+ok 62 - main CI reconciles Cloud.ru image links while Deploy Only remains app-only
+  ---
+  duration_ms: 21.278042
+  type: 'test'
+  ...
+# Subtest: Beget control-plane outage cannot block an ordinary source release
+ok 63 - Beget control-plane outage cannot block an ordinary source release
+  ---
+  duration_ms: 22.317333
+  type: 'test'
+  ...
+# Subtest: single build has immutable digest and only touches the selected service
+ok 64 - single build has immutable digest and only touches the selected service
+  ---
+  duration_ms: 20.676541
+  type: 'test'
+  ...
+# Subtest: Cloud.ru updates require explicit confirmation and cannot delete S3/Jobs
+ok 65 - Cloud.ru updates require explicit confirmation and cannot delete S3/Jobs
+  ---
+  duration_ms: 7.110667
+  type: 'test'
+  ...
+# Subtest: backup is append-only, verifies uploaded file and never deletes old backups
+ok 66 - backup is append-only, verifies uploaded file and never deletes old backups
+  ---
+  duration_ms: 16.390916
+  type: 'test'
+  ...
+# Subtest: pnpm store cache integrity is never disabled in any CI job
+ok 67 - pnpm store cache integrity is never disabled in any CI job
+  ---
+  duration_ms: 2.569375
+  type: 'test'
+  ...
+# Subtest: prepare-deps uses one fail-closed Turbo graph instead of repeated manual package builds
+ok 68 - prepare-deps uses one fail-closed Turbo graph instead of repeated manual package builds
+  ---
+  duration_ms: 11.714083
+  type: 'test'
+  ...
+# Subtest: dependency validation is blocking (cannot echo and continue)
+ok 69 - dependency validation is blocking (cannot echo and continue)
+  ---
+  duration_ms: 0.421291
+  type: 'test'
+  ...
+# Subtest: Core dependency order is represented by the real package graph
+ok 70 - Core dependency order is represented by the real package graph
+  ---
+  duration_ms: 0.747875
+  type: 'test'
+  ...
+# Subtest: Core is built before Auth in the clean dependency build
+ok 71 - Core is built before Auth in the clean dependency build
+  ---
+  duration_ms: 12.265459
+  type: 'test'
+  ...
+# Subtest: prepare-deps excludes redundant release app builds without dropping auxiliary gates
+ok 72 - prepare-deps excludes redundant release app builds without dropping auxiliary gates
+  ---
+  duration_ms: 7.275625
+  type: 'test'
+  ...
+# Subtest: workspace runtime DAG contains no cycles or unresolved workspace package names
+ok 73 - workspace runtime DAG contains no cycles or unresolved workspace package names
+  ---
+  duration_ms: 18.9625
+  type: 'test'
+  ...
+# Subtest: turbo typecheck waits for Prisma client generation, even alongside sibling builds
+ok 74 - turbo typecheck waits for Prisma client generation, even alongside sibling builds
+  ---
+  duration_ms: 7.94475
+  type: 'test'
+  ...
+# Subtest: reviewed workflow graph contains all source, cloud and symbols gates
+ok 75 - reviewed workflow graph contains all source, cloud and symbols gates
+  ---
+  duration_ms: 1.707
+  type: 'test'
+  ...
+# Subtest: a release must never bypass the nonprod/no-secret checks
+ok 76 - a release must never bypass the nonprod/no-secret checks
+  ---
+  duration_ms: 0.573958
+  type: 'test'
+  ...
+# Subtest: PR or push can never carry Nonprod secret-bearing cloud acceptance
+ok 77 - PR or push can never carry Nonprod secret-bearing cloud acceptance
+  ---
+  duration_ms: 0.578917
+  type: 'test'
+  ...
+# Subtest: missing verified binary identity prevents SDK57 symbol upload
+ok 78 - missing verified binary identity prevents SDK57 symbol upload
+  ---
+  duration_ms: 0.564125
+  type: 'test'
+  ...
+# Subtest: source map upload cannot follow an already pushed public image
+ok 79 - source map upload cannot follow an already pushed public image
+  ---
+  duration_ms: 0.815292
+  type: 'test'
+  ...
+# Subtest: manual single-container cannot publish before Uptrace preflight
+ok 80 - manual single-container cannot publish before Uptrace preflight
+  ---
+  duration_ms: 1.50775
+  type: 'test'
+  ...
+# Subtest: manual Deploy Only cannot bypass reusable production source gate
+ok 81 - manual Deploy Only cannot bypass reusable production source gate
+  ---
+  duration_ms: 3.089958
+  type: 'test'
+  ...
+# Subtest: automated image publishing requires independent CI observability tests
+ok 82 - automated image publishing requires independent CI observability tests
+  ---
+  duration_ms: 1.18475
+  type: 'test'
+  ...
+# Subtest: collector fault injection cannot receive production secrets or run on push
+ok 83 - collector fault injection cannot receive production secrets or run on push
+  ---
+  duration_ms: 1.535208
+  type: 'test'
+  ...
+# Subtest: private symbols S3 acceptance cannot run on push
+ok 84 - private symbols S3 acceptance cannot run on push
+  ---
+  duration_ms: 0.813792
+  type: 'test'
+  ...
+# Subtest: private symbols S3 acceptance requires the protected preview environment
+ok 85 - private symbols S3 acceptance requires the protected preview environment
+  ---
+  duration_ms: 0.621417
+  type: 'test'
+  ...
+# Subtest: reusable SSH deployment script remains below GitHub scalar limit and byte-identical after fragmentation
+ok 86 - reusable SSH deployment script remains below GitHub scalar limit and byte-identical after fragmentation
+  ---
+  duration_ms: 15.480083
+  type: 'test'
+  ...
+# Subtest: pack exact 3 public dists and restore dot-directories with SHA256 equality
+ok 87 - pack exact 3 public dists and restore dot-directories with SHA256 equality
+  ---
+  duration_ms: 186.874041
+  type: 'test'
+  ...
+# Subtest: wrong SHA, changed archive bytes and extra public map are denied
+ok 88 - wrong SHA, changed archive bytes and extra public map are denied
+  ---
+  duration_ms: 49.177625
+  type: 'test'
+  ...
+# Subtest: fail closed for missing domain files or public sourcemaps/symlinks
+ok 89 - fail closed for missing domain files or public sourcemaps/symlinks
+  ---
+  duration_ms: 3.894833
+  type: 'test'
+  ...
+# Subtest: reject private map and malicious symlink in release dist before packaging
+ok 90 - reject private map and malicious symlink in release dist before packaging
+  ---
+  duration_ms: 5.591125
+  type: 'test'
+  ...
+# Subtest: CI build-apps runs mandatory uncached pnpm Core boundaries BEFORE all direct turbo and mobile tasks
+ok 91 - CI build-apps runs mandatory uncached pnpm Core boundaries BEFORE all direct turbo and mobile tasks
+  ---
+  duration_ms: 0.924209
+  type: 'test'
+  ...
+# Subtest: negative CI fixtures: conditional, nonblocking, cached-after-build or wrong command cannot pass
+ok 92 - negative CI fixtures: conditional, nonblocking, cached-after-build or wrong command cannot pass
+  ---
+  duration_ms: 0.166875
+  type: 'test'
+  ...
+# Subtest: root main CI Types 87-test suite is blocking after its own build, before Core
+not ok 93 - root main CI Types 87-test suite is blocking after its own build, before Core
+  ---
+  duration_ms: 38.90625
+  type: 'test'
+  location: '/Users/asmtv1/Desktop/gafus-qa-direct-prod-20261128/scripts/refactor/ci-types-after-build.test.mjs:26:1'
+  failureType: 'testCodeFailure'
+  error: 'Types tests follow built declaration and precede Core build'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    verify (file:///Users/asmtv1/Desktop/gafus-qa-direct-prod-20261128/scripts/refactor/ci-types-after-build.test.mjs:19:10)
+    TestContext.<anonymous> (file:///Users/asmtv1/Desktop/gafus-qa-direct-prod-20261128/scripts/refactor/ci-types-after-build.test.mjs:27:15)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: single-container workflow Types acceptance is mandatory before any image
+ok 94 - single-container workflow Types acceptance is mandatory before any image
+  ---
+  duration_ms: 8.119167
+  type: 'test'
+  ...
+# Subtest: independent Vite candidate executes mandatory Types test after workspace dependencies
+ok 95 - independent Vite candidate executes mandatory Types test after workspace dependencies
+  ---
+  duration_ms: 6.560542
+  type: 'test'
+  ...
+# Subtest: every production and QA Dockerfile avoids unsafe root pnpm build --filter, keeps graph
+ok 96 - every production and QA Dockerfile avoids unsafe root pnpm build --filter, keeps graph
+  ---
+  duration_ms: 1.573209
+  type: 'test'
+  ...
+# Subtest: independent CI entrypoints enforce boundary before first workspace build, without skipping/errors
+ok 97 - independent CI entrypoints enforce boundary before first workspace build, without skipping/errors
+  ---
+  duration_ms: 64.760375
+  type: 'test'
+  ...
+# Subtest: CI bare pnpm build --filter cannot bypass the mandatory job gate
+ok 98 - CI bare pnpm build --filter cannot bypass the mandatory job gate
+  ---
+  duration_ms: 0.464708
+  type: 'test'
+  ...
+# Subtest: runtime image validation keeps 9/48 active baseline and separately verifies API 38/235, Worker 37/225 runtime graphs
+not ok 99 - runtime image validation keeps 9/48 active baseline and separately verifies API 38/235, Worker 37/225 runtime graphs
+  ---
+  duration_ms: 3.448125
+  type: 'test'
+  location: '/Users/asmtv1/Desktop/gafus-qa-direct-prod-20261128/scripts/refactor/docker-package-build-boundary.test.mjs:62:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    active API baseline exports must not regress
+
+    52 !== 48
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 48
+  actual: 52
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/asmtv1/Desktop/gafus-qa-direct-prod-20261128/scripts/refactor/docker-package-build-boundary.test.mjs:89:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: negative fixtures: missing and non-blocking boundary step are rejected
+ok 100 - negative fixtures: missing and non-blocking boundary step are rejected
+  ---
+  duration_ms: 11.021084
+  type: 'test'
+  ...
+# Subtest: API and Worker deployment keeps Sharp platform binaries from optional dependencies
+ok 101 - API and Worker deployment keeps Sharp platform binaries from optional dependencies
+  ---
+  duration_ms: 0.76425
+  type: 'test'
+  ...
+1..101
+# tests 101
+# suites 0
+# pass 98
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1122.220458
+exit_code=1

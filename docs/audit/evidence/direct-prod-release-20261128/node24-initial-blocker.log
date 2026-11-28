@@ -1,0 +1,4 @@
+dyld[5141]: Library not loaded: /opt/homebrew/opt/simdjson/lib/libsimdjson.26.dylib
+  Referenced from: <38BB4ACE-9D21-3F3A-8592-00239769689D> /opt/homebrew/Cellar/node/24.7.0/bin/node
+  Reason: tried: '/opt/homebrew/opt/simdjson/lib/libsimdjson.26.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/opt/homebrew/opt/simdjson/lib/libsimdjson.26.dylib' (no such file), '/opt/homebrew/opt/simdjson/lib/libsimdjson.26.dylib' (no such file), '/opt/homebrew/Cellar/simdjson/5.1.1/lib/libsimdjson.26.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/opt/homebrew/Cellar/simdjson/5.1.1/lib/libsimdjson.26.dylib' (no such file), '/opt/homebrew/Cellar/simdjson/5.1.1/lib/libsimdjson.26.dylib' (no such file)
+exit_code=134
