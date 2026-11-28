@@ -1,6 +1,6 @@
 /** Authenticated grant issuance; never trust usernames or roles in the request body. */
 import {selectVersionUpdate} from '@gafus/mobile-ota-server/version-selection';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { z } from 'zod/v3';
 import { issueRegisteredTesterGrant } from '@gafus/mobile-ota-server/tester-grant-service';
 import { isRegisteredOtaTester } from '@gafus/mobile-ota-server/tester-grant-service';
@@ -36,11 +36,11 @@ mobileOtaTesterRoutes.post('/grant',async(c)=>{
 
 /** The exact *same* cohort selection as the signed Expo manifest endpoint.
  * A global "required" flag alone may NEVER lock out users assigned to the
- * previous release (or zero-percent non-testers). This route is authenticated.
+ * previous release (or zero-percent non-testers). Only the private route supplies an actor.
  */
 const mandatoryInput = input.extend({nativeReleaseId:z.string().uuid().optional()});
 
-mobileOtaTesterRoutes.post('/mandatory-policy', async(c) => {
+async function mandatoryPolicy(c: Context, actorId?: string) {
   if (process.env.MOBILE_OTA_DELIVERY_ENV !== 'production')
     return c.json({success:false,code:'OTA_POLICY_DISABLED'},404);
   const parsed=mandatoryInput.safeParse(await c.req.json().catch(()=>null));
@@ -51,7 +51,7 @@ mobileOtaTesterRoutes.post('/mandatory-policy', async(c) => {
     // Versions before 1.7.5 cannot be forced by the new signed-OTA policy.
     if (!supportsMandatoryOta(runtimeVersion))
       return c.json({success:true,data:{required:false,version:null,selectedRevision:null}});
-    const managed=await selectVersionUpdate({...parsed.data,nativeFingerprint:nativeFingerprint.toLowerCase()},"policy",c.get("user").id);
+    const managed=await selectVersionUpdate({...parsed.data,nativeFingerprint:nativeFingerprint.toLowerCase()},"policy",actorId);
     if(managed!==undefined) return c.json({success:true,data:{required:managed?.required??false,
       version:managed?.required ? runtimeVersion+"-ota."+managed.revision : null,selectedRevision:managed?.revision??null}});
     const policy=await getMandatoryOtaControl(platform,runtimeVersion);
@@ -62,7 +62,7 @@ mobileOtaTesterRoutes.post('/mandatory-policy', async(c) => {
         (policy.platform==='all'||policy.platform===platform) &&
         policy.version.startsWith(runtimeVersion+'-ota.')) {
       const secret=process.env.MOBILE_OTA_INSTALLATION_HASH_KEY??'';
-      const verifiedTester=secret.length>=32 && await isRegisteredOtaTester(c.get('user').id);
+      const verifiedTester=!!actorId && secret.length>=32 && await isRegisteredOtaTester(actorId);
       const nativeKeyId=await getVerifiedNativeOtaSigningKeyId({
         appId:'gafus',environment:'production',platform,runtimeVersion,
         nativeFingerprint:nativeFingerprint.toLowerCase(),
@@ -81,4 +81,15 @@ mobileOtaTesterRoutes.post('/mandatory-policy', async(c) => {
   }catch {
     return c.json({success:false,code:'OTA_POLICY_UNAVAILABLE'},503);
   }
+}
+
+mobileOtaTesterRoutes.post('/mandatory-policy', c => mandatoryPolicy(c, c.get('user').id));
+
+// Public startup policy always resolves the stable installation cohort. Never
+// accept an account identity, tester grant or authorization header here.
+export const publicMobileOtaPolicyRoutes = new Hono();
+publicMobileOtaPolicyRoutes.post('/mandatory-policy', c => {
+  c.header('Cache-Control', 'private, no-store');
+  c.header('Referrer-Policy', 'no-referrer');
+  return mandatoryPolicy(c);
 });

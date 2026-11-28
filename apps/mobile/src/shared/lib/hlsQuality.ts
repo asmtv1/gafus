@@ -47,7 +47,7 @@ export function parseHlsQualityVariants(
     /* eslint-disable @gafus/require-client-catch-tracer -- невалидная строка варианта HLS пропускается парсером */
     try {
       uri = new URL(relativeUri.trim(), manifestUri).toString();
-    } catch {
+    } catch { /* diagnostic: expected Malformed HLS variant is skipped while valid alternatives remain. */
       continue;
     }
     /* eslint-enable @gafus/require-client-catch-tracer */

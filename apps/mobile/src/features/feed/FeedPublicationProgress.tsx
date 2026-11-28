@@ -31,7 +31,7 @@ export function FeedPublicationProgress({ phase, progress }: Props) {
     let active = true;
     void AccessibilityInfo.isReduceMotionEnabled().then(enabled => {
       if (active) setReduceMotion(enabled);
-    }).catch(() => undefined);
+    }).catch(() => { /* diagnostic: expected Optional accessibility preference may be unavailable on the platform. */ return undefined; });
     const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
     return () => { active = false; subscription.remove(); };
   }, []);

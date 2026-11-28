@@ -25,7 +25,7 @@ export function isLongLivedPublicFeedCdnUrl(raw: string, now = Date.now()): bool
     return Number.isSafeInteger(expiresMs) &&
       expiresMs - now >= dayMs &&
       expiresMs - now <= 2 * dayMs;
-  } catch { return false; }
+  } catch { /* diagnostic: expected Malformed URL is ineligible for persistent caching. */  return false; }
 }
 const signature = /^\/md5\([A-Za-z0-9_-]{22},\d{10}\)/;
 function authorizedFinalPath(scope: 'gallery' | 'feed', path: string): boolean {

@@ -87,7 +87,7 @@ vi.mock("@/shared/components", async () => {
     TexturedSafeAreaView: Box,
   };
 });
-vi.mock("./screens", () => ({ FeedPostCard: () => null }));
+vi.mock("./FeedPostCard", () => ({ FeedPostCard: () => null }));
 vi.mock("./FeedSectionShortcuts", () => ({ FeedSectionShortcuts: () => null }));
 vi.mock("react-native", async () => {
   const R = await import("react");

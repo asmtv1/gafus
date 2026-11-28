@@ -28,7 +28,7 @@ export async function sampleQaSteps(ownerId:string,walkId:string,from:number,to:
       const result=await Pedometer.getStepCountAsync(new Date(from),new Date(to));
       if(!Number.isSafeInteger(result.steps)||result.steps<0) return {kind:"unknown",reason:"invalid"};
       return {kind:"ios-interval",from,to,requestedAt,receivedAt:Date.now(),delta:result.steps,complete:false};
-    } catch {return {kind:"unknown",reason:"unavailable"};}
+    } catch { /* diagnostic: expected Unavailable QA sensor is explicitly unknown. */ return {kind:"unknown",reason:"unavailable"};}
   };
   let timer:ReturnType<typeof setTimeout>|undefined;
   try {

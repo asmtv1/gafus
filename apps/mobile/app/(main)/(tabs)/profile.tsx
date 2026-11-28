@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, ScrollView, Alert, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
@@ -171,7 +172,7 @@ export default function ProfileScreen() {
       setOsPermission(
         status === "granted" ? "granted" : status === "denied" ? "denied" : "undetermined",
       );
-    } catch {
+    } catch { /* diagnostic: expected Unavailable permission query leaves permission status undetermined. */
       // оставляем undetermined
     }
   }, []);
@@ -430,7 +431,7 @@ export default function ProfileScreen() {
     try {
       await sendMobileTelemetrySelfTest(reportClientErrorAndWait);
       Alert.alert("Диагностика", "Тестовая JS-ошибка сохранена в локальную очередь отправки.");
-    } catch (error) {
+    } catch (error) { /* diagnostic: expected Self-test failure is surfaced in the diagnostic UI; avoid recursion. */
       const message = error instanceof Error ? error.message : "Неизвестная ошибка отправки";
       Alert.alert("Диагностика", `Не удалось сохранить тестовую ошибку: ${message}`);
     } finally {
@@ -475,6 +476,12 @@ export default function ProfileScreen() {
     }
   };
 
+  useScreenDataReady("SCREEN_PROFILE_DATA_READY",
+    isCurrentOwnProfileActor(actor) && !profilePending && !profileFetching &&
+      !profileError && !!profileUser &&
+      (profileUser.role !== "USER" || (!studentNotesLoading && !studentNotesFailed)) &&
+      (profileUser.role !== "TRAINER" || (!trainerCoursesLoading && !trainerCoursesFailed)),
+    JSON.stringify([actorOwnerId, actorEpoch]));
   // No private profile/name/avatar is rendered until an exact owned GET succeeds.
   if (!isCurrentOwnProfileActor(actor)) {
     return (

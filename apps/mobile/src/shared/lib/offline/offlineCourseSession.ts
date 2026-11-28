@@ -49,7 +49,7 @@ export function cachedCredentialOwnsCourses(token: string, cachedId: string): bo
     const encoded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
     const payload: unknown = JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=")));
     return !!payload && typeof payload === "object" && "sub" in payload && payload.sub === cachedId;
-  } catch {
+  } catch { /* diagnostic: expected Malformed credentials fail closed and are never copied into diagnostics. */
     // Do not log malformed credentials.
     return false;
   }

@@ -60,3 +60,17 @@ describe("authenticated mandatory OTA policy", () => {
     expect(state.handleExpired).not.toHaveBeenCalled();
   });
 });
+
+describe("public mandatory OTA policy", () => {
+  it("uses no JWT or token refresh for the guest installation", async () => {
+    vi.clearAllMocks();
+    state.authenticated = false;
+    state.loading = false;
+    state.api.mockResolvedValue({success:true,data:{required:true,version:"1.7.5-ota.6",selectedRevision:6}});
+    const { fetchMandatoryOtaCohortDecision } = await import("./mandatoryPolicyQuery");
+    expect((await fetchMandatoryOtaCohortDecision(captureOtaSession()!)).required).toBe(true);
+    expect(state.api).toHaveBeenCalledWith("/api/v1/public/mobile-ota/mandatory-policy",
+      expect.objectContaining({skipAuth:true,skipAuthRefreshReplay:true}));
+    expect(state.handleExpired).not.toHaveBeenCalled();
+  });
+});

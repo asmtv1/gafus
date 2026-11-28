@@ -1,4 +1,5 @@
 import * as Crypto from "expo-crypto";
+import { measureMobileOperation } from "@/shared/lib/telemetry/mobilePerformance";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "expo-camera";
 import { File } from "expo-file-system";
@@ -110,7 +111,7 @@ export function ensureFeedVideoPrepared(item: FeedPickedMedia): Promise<void> {
   item.videoPreparation = task;
   void task.finally(() => {
     if (item.videoPreparation === task) item.videoPreparation = undefined;
-  }).catch(() => undefined);
+  }).catch(() => { /* diagnostic: expected Cleanup branch must not produce an unhandled rejection; original task retains its result. */ return undefined; });
   return task;
 }
 
@@ -170,7 +171,7 @@ export async function prepareFeedPickedMedia(asset: ImagePicker.ImagePickerAsset
   };
   // Start preparation immediately, while the original asset remains available
   // as a retry source. Failure does not discard the selected video tile.
-  if (item.kind === "video") void ensureFeedVideoPrepared(item).catch(() => undefined);
+  if (item.kind === "video") void ensureFeedVideoPrepared(item).catch(() => { /* diagnostic: expected Preparation task retains failure for publication retry; preflight cannot reject globally. */ return undefined; });
   return item;
 }
 /** Native JPEG copy lives until post success/dismissal, or the user removes the photo. */
@@ -184,7 +185,7 @@ export function releaseFeedPickedMedia(item: FeedPickedMedia): void {
     return;
   }
   if (!item.converted || item.kind !== "photo") return;
-  try { new File(item.uri).delete(); } catch { /* Native cache may already be cleared. */ }
+  try { new File(item.uri).delete(); } catch { /* diagnostic: expected Temporary native cache may already have been released. */  /* Native cache may already be cleared. */ }
   item.clientRenditions?.small.dispose();
   item.clientRenditions?.medium.dispose();
 }
@@ -250,6 +251,12 @@ export function feedAssetForPublication(item: FeedPickedMedia): FeedPickedMedia 
 }
 
 export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedia,
+  onProgress?: (loaded: number, total: number) => void, purpose?: "comment"): Promise<string> {
+  return measureMobileOperation(item.kind === "video" ? "FEED_VIDEO_UPLOAD" : "FEED_PHOTO_UPLOAD",
+    () => uploadPickedFeedMediaAttempt(postId, item, onProgress, purpose));
+}
+
+async function uploadPickedFeedMediaAttempt(postId: string, item: FeedPickedMedia,
   onProgress?: (loaded: number, total: number) => void, purpose?: "comment"): Promise<string> {
   // Give each video transfer failure a stable stage. Native errors and S3
   // messages otherwise collapse to the same generic retry text in the feed.

@@ -47,7 +47,9 @@
     "check:workspace-public-exports": "node scripts/check-workspace-public-exports.mjs",
     "check:workspace-built-exports": "node scripts/check-workspace-public-exports.mjs --built",
     "check:feature-flag-policy": "node scripts/check-feature-flag-policy.mjs",
-    "check:core-boundaries": "node scripts/check-api-composition-installs.mjs --require-zero && node scripts/check-core-feed-persistence-ratchet.mjs --require-zero && node scripts/check-architecture-layers.mjs && node scripts/check-core-server-facades.mjs && node scripts/check-domain-package-prisma-boundary.mjs && node scripts/check-app-prisma-boundary.mjs && node scripts/check-worker-prisma-boundary.mjs && pnpm check:web-core-boundary && pnpm check:core-server-boundary && node scripts/check-utc-sql-clock.mjs && node scripts/check-types-logger-imports.mjs && node scripts/check-wire-contract-imports.mjs && node scripts/check-workspace-public-exports.mjs && node scripts/check-feature-flag-policy.mjs && node --test scripts/check-feature-flag-policy.test.mjs scripts/check-api-composition-installs.test.mjs scripts/check-core-feed-persistence-ratchet.test.mjs scripts/check-architecture-layers.test.mjs scripts/check-core-server-facades.test.mjs scripts/check-core-client-boundary.test.mjs scripts/check-types-logger-imports.test.mjs scripts/check-wire-contract-imports.test.mjs scripts/check-workspace-public-exports.test.mjs scripts/check-utc-sql-clock.test.mjs scripts/qa/training-source-no-shadow.test.mjs",
+    "test:mobile-diagnostics": "node --test scripts/qa/mobile-diagnostic-pipeline.test.cjs",
+    "check:mobile-diagnostic-catalog": "node scripts/check-mobile-diagnostic-catalog.cjs",
+    "check:core-boundaries": "node scripts/check-mobile-diagnostic-catalog.cjs && node scripts/check-mobile-diagnostic-catches.cjs --require-zero && node --test scripts/qa/mobile-diagnostic-pipeline.test.cjs && node scripts/check-api-composition-installs.mjs --require-zero && node scripts/check-core-feed-persistence-ratchet.mjs --require-zero && node scripts/check-architecture-layers.mjs && node scripts/check-core-server-facades.mjs && node scripts/check-domain-package-prisma-boundary.mjs && node scripts/check-app-prisma-boundary.mjs && node scripts/check-worker-prisma-boundary.mjs && pnpm check:web-core-boundary && pnpm check:core-server-boundary && node scripts/check-utc-sql-clock.mjs && node scripts/check-types-logger-imports.mjs && node scripts/check-wire-contract-imports.mjs && node scripts/check-workspace-public-exports.mjs && node scripts/check-feature-flag-policy.mjs && node --test scripts/check-feature-flag-policy.test.mjs scripts/check-api-composition-installs.test.mjs scripts/check-core-feed-persistence-ratchet.test.mjs scripts/check-architecture-layers.test.mjs scripts/check-core-server-facades.test.mjs scripts/check-core-client-boundary.test.mjs scripts/check-types-logger-imports.test.mjs scripts/check-wire-contract-imports.test.mjs scripts/check-workspace-public-exports.test.mjs scripts/check-utc-sql-clock.test.mjs scripts/qa/training-source-no-shadow.test.mjs",
     "test:unit": "node scripts/qa/test-system.mjs run --profile unit",
     "test:integration": "node scripts/qa/test-system.mjs run --profile integration",
     "test:e2e:web": "node scripts/qa/test-system.mjs run --profile e2e-web",
@@ -70,7 +72,8 @@
     "test:browser-cookie": "node scripts/qa/test-system.mjs run --profile browser-cookie",
     "test:account-delete-web": "node scripts/qa/test-system.mjs run --profile account-delete-web",
     "test:qa-vite-cleanup": "node --test tests/support/owned-vite-process.test.mjs",
-    "test:account-cleanup-worker": "node scripts/qa/test-system.mjs run --profile account-cleanup-worker"
+    "test:account-cleanup-worker": "node scripts/qa/test-system.mjs run --profile account-cleanup-worker",
+    "check:mobile-diagnostic-catches": "node scripts/check-mobile-diagnostic-catches.cjs --require-zero"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.899.0",

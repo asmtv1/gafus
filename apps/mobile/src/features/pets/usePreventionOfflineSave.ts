@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 /** OFF021 Phase1 — screen-lifetime durable local prevention with verified ACK refresh. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CreatePreventionEntryData } from "@/shared/lib/api/pets";
@@ -120,7 +121,7 @@ export function usePreventionOfflineSave(
         setPendingState({ owner: principalId, epoch: binding.authEpoch, petId, rows });
         setReadState({ owner: principalId, epoch: binding.authEpoch, petId, status: "READY" });
       }
-    } catch {
+    } catch (diagnosticError) { reportClientError(diagnosticError, {issueKey:"PetPreventionPending",keys:{operation:"read"},severity:"warning"});
       // Never render unknown-owner or unreadable pending bytes.
       if (isCurrent(ticket, principalId, binding.authEpoch)) {
         setPendingState(null);
@@ -171,7 +172,7 @@ export function usePreventionOfflineSave(
         setPendingState({ owner: principalId, epoch, petId, rows });
         setReadState({ owner: principalId, epoch, petId, status: "READY" });
         callbacks.onSaved();
-      } catch (error) {
+      } catch (error) { /* diagnostic: expected Original failure is forwarded to explicit onFailed callback. */
         if (isCurrent(ticket, principalId, epoch)) {
           callbacks.onFailed(
             error instanceof Error ? error : new Error("V2_LOCAL_RESULT_UNCONFIRMED"),

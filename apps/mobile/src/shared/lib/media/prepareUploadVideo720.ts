@@ -73,7 +73,7 @@ export async function prepareUploadVideo720(
         }
         return acceptable;
       } finally { handle.close(); }
-    } catch { return false; }
+    } catch { /* diagnostic: expected Unverifiable MP4 is not reusable; export path validates it. */  return false; }
   })();
   // Skip another lossy export for an already compliant small H264/AAC MP4.
   if ((asset.mimeType === "video/mp4" || /\.mp4(?:$|\?)/i.test(asset.fileName ?? asset.uri)) &&
@@ -115,13 +115,14 @@ export async function prepareUploadVideo720(
     if (!bytes || bytes > 200 * 1024 * 1024 || !meetsContract(output, true)) {
       const reason = !bytes ? "VIDEO720_FILE_EMPTY"
         : bytes > 200 * 1024 * 1024 ? "VIDEO720_FILE_TOO_LARGE" : "VIDEO720_INVALID_MP4";
-      try { new File(output).delete(); } catch { /* temporary native cache */ }
+      try { new File(output).delete(); } catch { /* diagnostic: expected Temporary native cache deletion is best effort cleanup. */  /* temporary native cache */ }
       return fail(reason);
     }
     return { uri: output, bytes, mime: "video/mp4", dispose() {
-      try { new File(output!).delete(); } catch { /* native cache already cleared */ }
+      try { new File(output!).delete(); } catch { /* diagnostic: expected Native temporary cache may already have been cleared. */  /* native cache already cleared */ }
     } };
   } catch (error) {
+    /* diagnostic: expected Native exporter failures map to the caller-visible onFailure code; raw native error details are not forwarded. */
     // Keep private paths and the native error message out of logs. Only expose
     // known, non-sensitive exporter status codes for troubleshooting on device.
     if (typeof __DEV__ !== "undefined" && __DEV__) {
@@ -135,7 +136,7 @@ export async function prepareUploadVideo720(
     // Never expose file URIs or video bytes through analytics. The caller
     // receives a stable reason to distinguish native, timeout and output errors.
     if (cancelId && !compress) {
-      try { await Video?.cancelCompression(cancelId); } catch { /* best effort */ }
+      try { await Video?.cancelCompression(cancelId); } catch { /* diagnostic: expected Temporary file disposal is best effort cleanup. */  /* best effort */ }
     }
     return fail(error instanceof Error && error.message === "LOCAL_VIDEO_TIMEOUT"
       ? "VIDEO720_TIMEOUT" : "VIDEO720_NATIVE_ERROR");

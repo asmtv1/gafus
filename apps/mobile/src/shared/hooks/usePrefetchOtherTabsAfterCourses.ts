@@ -171,7 +171,7 @@ export function usePrefetchOtherTabsAfterCourses({
           }
 
           if (!cancelled) authDoneRef.current = true;
-        } catch {
+        } catch { /* diagnostic: expected Speculative prefetch failure does not change authoritative query state. */
           // Префетч не критичен для UX — не засоряем Tracer
         }
       })();

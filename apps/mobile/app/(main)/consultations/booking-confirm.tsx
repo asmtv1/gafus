@@ -232,7 +232,7 @@ export default function ConsultationBookingConfirmScreen() {
             setBookingRestriction(res.error ?? "Запись временно недоступна");
           }
         })
-        .catch(() => {
+        .catch(() => { /* diagnostic: expected Speculative availability check repeats authoritatively on submit. */
           /* Submit verifies again and displays request errors. */
         });
     }
@@ -510,7 +510,7 @@ export default function ConsultationBookingConfirmScreen() {
           platform: "mobile",
           pathOrScreen: "/consultations/booking-confirm",
         });
-        void queryClient.invalidateQueries({ queryKey: ["consultations"] }).catch(() => {});
+        void queryClient.invalidateQueries({ queryKey: ["consultations"] }).catch(() => { /* diagnostic: expected Post-booking cache invalidation is best effort; booking result stays authoritative. */ });
         hapticFeedback.medium();
         router.replace("/(main)/(tabs)/consultations?view=mine" as Href);
       } catch (error) {

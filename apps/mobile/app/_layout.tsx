@@ -1,3 +1,4 @@
+import { mobilePerformance, recordMobileStartupReady } from "@/shared/lib/telemetry/mobilePerformance";
 import { ChatPushNavigation } from "@/shared/components/ChatPushNavigation";
 import { initAnalyticsMobile } from "@gafus/analytics/mobile";
 import Constants from "expo-constants";
@@ -76,7 +77,7 @@ function DeferredRewardedAdsWarmup() {
         if (cancelled) return;
         void import("@/features/rewarded-ads/adapter/yandexRewardedAds").then(
           ({ warmUpYandexMobileAds }) => cancelled ? undefined : warmUpYandexMobileAds(),
-        ).catch(() => undefined);
+        ).catch(() => { /* diagnostic: expected Optional SDK warmup cannot block startup; actual ad flow handles failures. */ return undefined; });
       }, 0);
     });
     return () => {
@@ -131,6 +132,7 @@ export default function RootLayout() {
           });
         })
         .finally(() => {
+          recordMobileStartupReady();
           // Android's static native poster is independent of the JS bundle.
           // Release it only after auth, fonts and initial route layout are ready.
           if (Platform.OS === "android") {
@@ -142,7 +144,8 @@ export default function RootLayout() {
   }, [appContentLaidOut, authLoading, fontsReady, fontError]);
 
   useEffect(() => {
-    void checkAuth();
+    const authStarted=Date.now();
+    void checkAuth().finally(()=>mobilePerformance.record("AUTH_RESTORE",Date.now()-authStarted));
   }, [checkAuth]);
 
   useEffect(() => {

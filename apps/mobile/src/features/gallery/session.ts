@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { registerGallerySessionCleanup } from "@/shared/stores/galleryCleanupBridge";
 import { Image } from "expo-image";
 import type { QueryClient } from "@tanstack/react-query";
@@ -106,8 +107,8 @@ export function clearGallerySession() {
   // Remove *physical* cached bytes on logout/account switch, not only React
   // query references or decoded memory pixels. This affects Expo's shared
   // image cache (including public images), intentionally favoring privacy.
-  void Image.clearMemoryCache().catch(() => undefined);
-  void Image.clearDiskCache().catch(() => undefined);
+  void Image.clearMemoryCache().catch(error => reportClientError(error,{issueKey:"GalleryCacheCleanup",keys:{operation:"memory"}}));
+  void Image.clearDiskCache().catch(error => reportClientError(error,{issueKey:"GalleryCacheCleanup",keys:{operation:"disk"}}));
 }
 
 // Register once when the gallery feature loads, without importing authStore here.

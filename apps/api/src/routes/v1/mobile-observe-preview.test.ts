@@ -108,3 +108,27 @@ describe('Observe preview bounded OTLP ingress',()=>{
   expect(mismatched.status).toBe(403);
  });
 });
+
+it('production startup metrics are durably stored, not silently discarded or sent directly',async()=>{
+ const repo:ObservePreviewRepository={store:vi.fn(async()=>1)};
+ const verifyReleaseScopes=vi.fn(async()=>undefined);
+ const exportMetrics=vi.fn(async()=>({ok:true,status:200}));
+ const route=createObservePreviewRoutes({repo,verifyReleaseScopes,exportMetrics,gate:new TelemetryIngressRateGate(20,20),
+  env:{GAFUS_TELEMETRY_ENVIRONMENT:'production',GAFUS_OBSERVE_NATIVE_INGEST_ENABLED:'true',
+   GAFUS_TELEMETRY_PRODUCTION_APPROVED:'true',GAFUS_TELEMETRY_INGEST_ENABLED:'true'}});
+ const native=payload();
+ native.resourceLogs[0]!.resource.attributes[5]!.value.stringValue='production';
+ const body={resourceMetrics:native.resourceLogs.map(item=>({resource:item.resource,scopeMetrics:[{
+  scope:{name:'expo-observe'},metrics:[{name:'expo.app_startup.cold_launch_time',unit:'s',gauge:{dataPoints:[{
+   timeUnixNano:(BigInt(Date.now())*1_000_000n).toString(),asDouble:1.2,
+  }]}}]}]}))};
+ const result=await route.request('/'+P+'/v1/metrics',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+ expect(result.status).toBe(200);
+ expect(repo.store).toHaveBeenCalledOnce();
+ expect(repo.store).toHaveBeenCalledWith([expect.objectContaining({kind:'performance_summary',updateId:'unknown',
+  performance:[expect.objectContaining({metric:'NATIVE_COLD_LAUNCH',sumMs:1200})]})],
+  [expect.objectContaining({environment:'production'})]);
+ expect(exportMetrics).not.toHaveBeenCalled();
+ vi.mocked(repo.store).mockRejectedValueOnce(new Error('storage unavailable'));
+ expect((await route.request('/'+P+'/v1/metrics',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})).status).toBe(503);
+});

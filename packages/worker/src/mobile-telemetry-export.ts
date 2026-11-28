@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { sanitizeSymbolicatedStack, type MobileSymbolication } from './mobile-telemetry-symbolication';
 /** Private OTLP/HTTP JSON exporter for SDK57 diagnostic events.
  * Never import from a browser/mobile entry. The uptrace-dsn is process-only. */
 import { parseMobileTelemetryEvent, parseMobileTraceparent, type MobileTelemetryEventV1 } from '@gafus/types';
@@ -11,6 +13,8 @@ export type MobileOtlpStatus = {kind:'exported'} |
 export type MobileSpoolLog = {
   eventId: string; service: string; environment: string;
   payload: unknown; attempts: number;
+  release?: {status:"ota"|"embedded"|"unknown";revision?:number;sourceSha?:string};
+  symbolication?:MobileSymbolication;
 };
 const attr = (key:string, value:string|number|boolean) => ({
   key, value:typeof value === 'string' ? {stringValue:value} :
@@ -36,21 +40,60 @@ export function buildMobileOtlpLog(row: MobileSpoolLog): object {
     attr('app.version',e.appVersion),
     attr('app.build',e.build),
   ];
+  if (e.installationId) fields.push(attr('gafus.installation_id',e.installationId));
+  if (e.routeScreen) fields.push(attr('gafus.route_screen',e.routeScreen));
+  if (e.breadcrumbs?.length) fields.push(attr('gafus.breadcrumbs',JSON.stringify(e.breadcrumbs)));
   if (e.exceptionType) fields.push(attr('exception.type',e.exceptionType));
-  if (e.stack) fields.push(attr('exception.stacktrace',e.stack));
+  const symbolicated=sanitizeSymbolicatedStack(row.symbolication?.stack);
+  if(symbolicated) {
+    fields.push(attr('exception.stacktrace',symbolicated));
+    if(e.stack)fields.push(attr('gafus.bundle_stacktrace',e.stack));
+  } else if (e.stack) fields.push(attr('exception.stacktrace',e.stack));
+  if(row.symbolication)fields.push(attr('gafus.symbolication_status',row.symbolication.status));
   if (e.errorCode) fields.push(attr('gafus.error_code',e.errorCode));
   if (e.operation) fields.push(attr('gafus.operation',e.operation));
+  if (e.module) fields.push(attr('gafus.module',e.module));
+  if (e.screen) fields.push(attr('gafus.screen',e.screen));
+  if (e.stackStatus) fields.push(attr('gafus.stack_status',e.stackStatus));
+  if (row.release) {
+    fields.push(attr('gafus.release_resolution',row.release.status));
+    if (row.release.status==='ota' && Number.isSafeInteger(row.release.revision) && row.release.revision!>0)
+      fields.push(attr('gafus.ota_revision',row.release.revision!));
+    if (row.release.sourceSha && /^[a-f0-9]{40}$/i.test(row.release.sourceSha))
+      fields.push(attr('gafus.source_sha',row.release.sourceSha));
+  }
+  const unknown = !e.errorCode || e.errorCode === 'JS_UNKNOWN' || e.errorCode === 'JS_UNHANDLED' || e.errorCode === 'NATIVE_CRASH';
+  const fingerprint = createHash('sha256').update(JSON.stringify([
+    e.errorCode??e.kind,e.module??'',e.operation??'',e.exceptionType??'',
+    ...(unknown ? [e.stack?.split('\n').slice(0,3)??[]] : []),
+  ])).digest('hex').slice(0,32);
+  if(e.kind!=='session_start'&&e.kind!=='performance_summary'&&e.kind!=='telemetry_health'&&e.platform!=='web') {
+    fields.push(attr('gafus.error_fingerprint',fingerprint),attr('grouping.fingerprint',fingerprint),
+      attr('exception.message',e.errorCode??e.kind),attr('gafus.occurrences',e.occurrences??1));
+    if(e.lastOccurredAt)fields.push(attr('gafus.last_occurred_at',e.lastOccurredAt));
+  }
+  if(e.health)for(const [key,value] of Object.entries(e.health))fields.push(attr('gafus.telemetry_health.'+key,value));
+  if(e.performance)fields.push(attr('gafus.performance_histograms',JSON.stringify(e.performance)));
+  if(e.http) {
+    fields.push(attr('http.request.method',e.http.method),attr('gafus.http_endpoint_group',e.http.endpointGroup),
+      attr('gafus.http_category',e.http.category),attr('gafus.http_duration_ms',e.http.durationMs),
+      attr('gafus.http_retry_count',e.http.retryCount));
+    if(e.http.status)fields.push(attr('http.response.status_code',e.http.status));
+    if(e.http.clientTraceparent)fields.push(attr('gafus.client_trace_id',e.http.clientTraceparent.split('-')[1]!));
+    if(e.http.serverTraceId)fields.push(attr('gafus.server_trace_id',e.http.serverTraceId));
+  }
   if (e.osVersion) fields.push(attr('os.version',e.osVersion));
   const occurred=BigInt(Date.parse(e.occurredAt)) * 1_000_000n;
-  const body=e.errorCode ?? e.kind;
+  const body=e.kind==='session_start'||e.kind==='performance_summary'||e.kind==='telemetry_health'||e.platform==='web'?e.errorCode??e.kind:unknown ? (e.errorCode ?? e.kind)+':'+fingerprint : e.errorCode!;
   const record:{timeUnixNano:string;severityNumber:number;severityText:string;
     body:{stringValue:string};attributes:ReturnType<typeof attr>[];
     traceId?:string;spanId?:string} = {
       timeUnixNano:occurred.toString(), severityNumber:sev(e.severity),
       severityText:e.severity, body:{stringValue:body}, attributes:fields,
     };
-  if (traceparent) {
-    const [,traceId,spanId]=traceparent.split('-');
+  if(e.http?.serverTraceId)record.traceId=e.http.serverTraceId;
+  else if (e.http?.clientTraceparent || traceparent) {
+    const [,traceId,spanId]=(e.http?.clientTraceparent??traceparent!).split('-');
     if (traceId && spanId) {record.traceId=traceId; record.spanId=spanId;}
   }
   return {resourceLogs:[{resource:{attributes:[

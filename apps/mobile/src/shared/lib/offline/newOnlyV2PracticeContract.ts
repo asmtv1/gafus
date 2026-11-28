@@ -205,7 +205,7 @@ export function evaluatePracticeJournalResponse(
     currentBody = extractPracticeBody(currentEvent);
     // Do not report raw untrusted offline payloads from this pure validator.
     // eslint-disable-next-line @gafus/require-client-catch-tracer
-  } catch {
+  } catch { /* diagnostic: expected Changed queued payload remains pending; never log private queued content. */
     // A changed queued event must remain pending; never log potentially private payload.
     return pending;
   }

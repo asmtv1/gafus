@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { videoRetryMessage } from "@/shared/lib/media/videoRetryMessage";
 import { photoRetryMessage } from "@/shared/lib/media/photoRetryMessage";
 import { useEffect, useRef, useState } from "react";
@@ -113,6 +114,13 @@ function ActorFeedDetailScreen({
     );
   };
   const focused = useQuery({ queryKey: ["feed", "comment", commentId, userId], queryFn: () => feedApi.getComment(commentId!), enabled: !!commentId && status.data?.enabled === true, retry: false });
+  useScreenDataReady("SCREEN_FEED_DETAIL_DATA_READY",
+    currentActor() && status.data?.enabled === true && !status.isError &&
+      !post.isPending && !post.isError && !!post.data &&
+      !comments.isPending && (!comments.isError || comments.isFetchNextPageError) &&
+      !!comments.data?.pages[0] &&
+      (!commentId || (!focused.isPending && !focused.isError && focused.data?.postId === id)),
+    JSON.stringify([id, commentId, userId, actor?.epoch]));
   const scroll = useRef<ScrollView>(null);
   const focusedY = useRef(0);
   useEffect(() => {
@@ -142,7 +150,7 @@ function ActorFeedDetailScreen({
       composerRevision.current += 1;
       setCommentFiles(next);
       picked = []; // Retain prepared copies for this comment until sent/removed.
-    } catch (error) {
+    } catch (error) { reportClientError(error, {issueKey:"FeedCommentAttachment",keys:{operation:"pick"},severity:"warning"});
       if (currentActor()) Alert.alert("Вложения", errorMessage(error));
     } finally {
       for (const file of picked) releaseFeedPickedMedia(file);
@@ -158,7 +166,7 @@ function ActorFeedDetailScreen({
     try{
       const mediaId=await uploadPickedFeedMedia(id,selected,undefined,"comment");
       confirmedCommentMedia.current.set(requestId,mediaId);
-    }catch(cause){
+    }catch(cause){ reportClientError(cause, {issueKey:"FeedCommentPhoto",keys:{operation:"retry"},severity:"warning"});
       if(currentActor())setCommentFileFailures(prev=>({...prev,[requestId]:photoRetryMessage(cause)}));
     }finally{
       flight.current=false;

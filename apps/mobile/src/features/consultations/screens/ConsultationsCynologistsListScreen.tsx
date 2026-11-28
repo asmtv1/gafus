@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
@@ -77,6 +78,8 @@ function CatalogForActor({ owner, epoch }: { owner: string; epoch: string }) {
     },
   });
 
+  useScreenDataReady("SCREEN_CONSULTATIONS_DATA_READY",
+    current() && !query.isPending && !query.isError && !!query.data);
   const { refetch } = query;
   const refresh = useCallback(async () => {
     if (refreshInFlight.current || !current()) return;

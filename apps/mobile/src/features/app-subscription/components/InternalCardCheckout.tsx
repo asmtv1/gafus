@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as Browser from "expo-web-browser";
@@ -106,7 +107,7 @@ export function InternalCardCheckout({
       const page = await Browser.openAuthSessionAsync(url, callback);
       if (sameOwner() && (page.type === "cancel" || page.type === "dismiss"))
         report("Платёжная страница закрыта. Проверяем статус.");
-    } catch {
+    } catch (diagnosticError) { reportClientError(diagnosticError, {issueKey:"InternalCardCheckout",keys:{operation:"return"},severity:"warning"});
       if (sameOwner()) report("Не удалось вернуться с платёжной страницы. Проверяем статус.");
     } finally {
       if (sameOwner()) await checkStatus();

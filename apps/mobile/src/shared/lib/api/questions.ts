@@ -87,7 +87,7 @@ export async function uploadClientQuestionsPhoto(
   } catch (error) {
     if (reservationId) void apiClient(`/api/v1/questions/photos/${reservationId}`, {
       method: "DELETE", suppressSubscriptionPaywall: true,
-    }).catch(() => undefined);
+    }).catch(() => { /* diagnostic: expected Best-effort reservation cleanup cannot replace original upload failure. */ return undefined; });
     throw new PhotoUploadStageError(stage, error);
   } finally {
     if (!preparedVariants) {
@@ -155,7 +155,7 @@ export async function uploadQuestionPhoto(uri:string,
   }catch(error){
     void apiClient("/api/v1/questions/photos/"+received.id,{
       method:"DELETE",suppressSubscriptionPaywall:true,
-    }).catch(()=>undefined);
+    }).catch(()=>{ /* diagnostic: expected Best-effort reservation cleanup cannot replace original upload failure. */ return undefined; });
     throw error;
   }
 }

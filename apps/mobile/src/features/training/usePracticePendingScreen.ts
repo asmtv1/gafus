@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 /** Phase1 local-only practice preview: screen focus/restart, owner/epoch fence. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { NewOnlyV2Queues } from "@/shared/lib/offline/newOnlyV2Queues";
@@ -90,7 +91,7 @@ export function usePracticePendingScreen(
       if (!verified(token, ownerId, binding.authEpoch)) return;
       setSnapshot({ ...meta, rows });
       setReadState({ ...meta, status: "READY" });
-    } catch {
+    } catch (diagnosticError) { reportClientError(diagnosticError, {issueKey:"PracticePendingJournal",keys:{operation:"read"},severity:"warning"});
       if (verified(token, ownerId, binding.authEpoch)) {
         setSnapshot(null);
         setReadState({ ...meta, status: "UNAVAILABLE" });

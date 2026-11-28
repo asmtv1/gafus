@@ -10,7 +10,7 @@ const safeImageUrl = (value: unknown): string | null => {
     return (url.protocol === "https:" || url.protocol === "http:") && !url.username && !url.password
       ? value
       : null;
-  } catch {
+  } catch { /* diagnostic: expected Invalid public image URL is omitted without logging the URL. */
     return null;
   }
 };
@@ -46,7 +46,7 @@ export function publicContactLinks(profile: PublicProfile["profile"]): {
       ) {
         website = { name: websiteUrl, url: parsed.href };
       }
-    } catch {
+    } catch { /* diagnostic: expected Malformed external link is intentionally excluded from rendering. */
       /* Malformed external links are not rendered or opened. */
     }
   }

@@ -115,7 +115,7 @@ import { adminQueuesRoutes, adminQueuesAccessRoutes } from "./routes/v1/admin-qu
 import { consultationsRoutes } from "./routes/v1/consultations.js";
 import { appSubscriptionRoutes } from "./routes/v1/app-subscription.js";
 import { mobileOtaRoutes } from "./routes/mobile-ota.js";
-import { mobileOtaTesterRoutes } from "./routes/v1/mobile-ota-tester.js";
+import { mobileOtaTesterRoutes, publicMobileOtaPolicyRoutes } from "./routes/v1/mobile-ota-tester.js";
 import { mobileOtaTelemetryRoutes } from "./routes/mobile-ota-telemetry.js";
 import { mobileTelemetryRoutes } from "./routes/v1/mobile-telemetry.js";
 import { webTelemetryRoutes } from "./routes/v1/web-telemetry.js";
@@ -167,6 +167,7 @@ app.route("/", healthRoutes);
 // Публичная конфигурация мобильного приложения (без JWT)
 app.use("/api/v1/public/*", apiRateLimiter);
 app.route("/api/v1/public", publicMobileRoutes);
+app.route("/api/v1/public/mobile-ota", publicMobileOtaPolicyRoutes);
 app.route("/api/v1/public/paid-course-outline", publicPaidCourseOutlineRoutes);
 app.route("/api/v1/public/platform-stats", publicStatsRoutes);
 app.use("/api/v1/media-delivery/*", apiRateLimiter);

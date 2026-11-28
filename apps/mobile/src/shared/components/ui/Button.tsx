@@ -84,7 +84,7 @@ export function Button({
 
   const handlePress = (e: Parameters<NonNullable<PaperButtonProps["onPress"]>>[0]) => {
     if (haptic) {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* diagnostic: expected Optional haptic feedback must not block a button action. */ return undefined; });
     }
     onPress?.(e);
   };

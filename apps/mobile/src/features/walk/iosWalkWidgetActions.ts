@@ -72,7 +72,7 @@ async function apply(ownerId: string, action: WidgetWalkAction): Promise<void> {
     }
     if (active) active = { ...resumeWalk(active, now), stepBaselineAtResume: active.steps };
     else {
-      const permissions = await Pedometer.getPermissionsAsync().catch(() => null);
+      const permissions = await Pedometer.getPermissionsAsync().catch(() => { /* diagnostic: expected Unavailable permission leaves step data unknown. */ return null; });
       active = {
         ...startWalk(journal.preference.mode, now, journal.preference.countdownMinutes * 60),
         clientId: Crypto.randomUUID(),
@@ -121,7 +121,7 @@ async function apply(ownerId: string, action: WidgetWalkAction): Promise<void> {
     // A headless widget may not have a hydrated auth store.
     await reportCompletedWalkGps(ownerId, completed, async () =>
       (await AsyncStorage.getItem(WALK_WIDGET_OWNER_KEY)) === ownerId,
-    ).catch(() => undefined);
+    ).catch(() => { /* diagnostic: expected Diagnostic report must not prevent widget stop completion. */ return undefined; });
   }
   await publishWalkWidgetSnapshot(
     journal.active ?? journal.completed[0] ?? null,
@@ -142,7 +142,7 @@ export function processPendingIosWalkCommands(): Promise<void> {
   if (Constants.appOwnership === "expo") return Promise.resolve();
   if (Platform.OS !== "ios") return Promise.resolve();
   const next = serial
-    .catch(() => undefined)
+    .catch(() => { /* diagnostic: expected Previous action failure must not poison the serialized action chain. */ return undefined; })
     .then(async () => {
       const currentAuth = useAuthStore.getState();
       if (

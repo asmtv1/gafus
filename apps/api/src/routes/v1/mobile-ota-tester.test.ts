@@ -12,7 +12,7 @@ vi.mock('@gafus/mobile-ota-server/mandatory-control',async(importOriginal)=>({
   ...await importOriginal<typeof import('@gafus/mobile-ota-server/mandatory-control')>(),
   getMandatoryOtaControl:mocked.control,
 }));
-import {mobileOtaTesterRoutes} from './mobile-ota-tester';
+import {mobileOtaTesterRoutes,publicMobileOtaPolicyRoutes} from './mobile-ota-tester';
 const secret='test-key-with-at-least-thirty-two-characters-safe';
 const installationId='7ba9c3db-d4b1-4cff-8d60-ce424d1706d5';
 const native={platform:'ios' as const,runtimeVersion:'1.7.5',nativeFingerprint:'b'.repeat(64)};
@@ -131,5 +131,35 @@ describe('mandatory OTA authorization follows signed manifest cohorts',()=>{
     const r=await request(policyBody,true,'mandatory-policy');
     expect(r.status).toBe(503);
     expect((await r.json()).code).toBe('OTA_POLICY_UNAVAILABLE');
+  });
+});
+
+describe('public mandatory OTA before sign-in',()=>{
+  function publicRequest(body: unknown){
+    const app=new Hono();
+    app.route('/api/v1/public/mobile-ota',publicMobileOtaPolicyRoutes);
+    return app.request('/api/v1/public/mobile-ota/mandatory-policy',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer untrusted'},
+      body:JSON.stringify(body),
+    });
+  }
+  it.each(['ios','android'] as const)('resolves stable mandatory policy for %s without a user',async(platform)=>{
+    mocked.control.mockResolvedValue({required:true,version:'1.7.5-ota.6',platform,channel:'production'});
+    const r=await publicRequest({...policyBody,platform});
+    expect(r.status).toBe(200);
+    expect(r.headers.get('cache-control')).toContain('no-store');
+    expect((await r.json()).data).toEqual({required:true,version:'1.7.5-ota.6',selectedRevision:6});
+    expect(mocked.user).not.toHaveBeenCalled();
+    expect(mocked.selected).toHaveBeenCalledWith(expect.objectContaining({platform,testerAllowed:false}));
+  });
+  it('rejects account or tester claims from the client',async()=>{
+    expect((await publicRequest({...policyBody,userId:'admin',testerAllowed:true})).status).toBe(400);
+    expect(mocked.user).not.toHaveBeenCalled();
+  });
+  it('does not mandate a release outside the stable cohort',async()=>{
+    mocked.selected.mockResolvedValue({revision:5});
+    const r=await publicRequest(policyBody);
+    expect((await r.json()).data).toEqual({required:false,version:null,selectedRevision:5});
+    expect(mocked.selected).toHaveBeenCalledWith(expect.objectContaining({testerAllowed:false}));
   });
 });

@@ -92,7 +92,7 @@ jobs:
           pnpm --filter @gafus/mobile exec vitest run --config vitest.config.ts \
             src/shared/lib/telemetry src/shared/lib/otaPolicy.test.ts src/shared/lib/tracer
           node --test apps/mobile/plugins/*.test.cjs
-          node --test apps/mobile/scripts/prepare-sdk57-private-symbols.test.mjs
+          node --test apps/mobile/scripts/prepare-sdk57-private-symbols.test.mjs apps/mobile/scripts/native-store-diagnostic-archive.test.mjs
           node --test apps/mobile/scripts/ota-payment-profile.test.mjs
           node --test scripts/observability/uptrace-nonprod-acceptance.test.mjs
           node --test scripts/observability/uptrace-ack-gateway.test.mjs

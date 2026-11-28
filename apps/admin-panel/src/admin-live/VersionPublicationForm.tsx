@@ -1,3 +1,4 @@
+import { MobileDiagnosticQuality, useMobileDiagnosticQuality } from "./MobileDiagnosticQuality";
 import { useEffect, useRef, useState } from "react";
 import { requestAdmin } from "./api";
 
@@ -90,6 +91,7 @@ type NativeBuild = {
 
 export function VersionPublicationForm({ nativeReleases }: { nativeReleases: NativeBuild[] }) {
   const [platform, setPlatform] = useState("ios");
+  const quality=useMobileDiagnosticQuality();
   const [nativeId, setNativeId] = useState("");
   const builds = nativeReleases.filter(
     (build) =>
@@ -285,6 +287,7 @@ export function VersionPublicationForm({ nativeReleases }: { nativeReleases: Nat
           Выпуск заблокирован. Требуется подтверждение нативной сборки на устройстве.
         </p>
       )}
+      {selected && <MobileDiagnosticQuality compact failed={quality.failed} rows={quality.rows?.filter(row=>row.platform===platform&&row.runtimeVersion===version&&row.revision===selected.revision&&selected.nativeIds.includes(row.nativeReleaseId))??null}/>}
       {selected && (
         <p>
           Подпись и файлы подтверждены для {selected.compatible} сборок, исключено —{" "}

@@ -12,6 +12,8 @@ const {
   setItemAsyncMock: vi.fn(),
 }));
 
+vi.mock("expo-crypto", async () => ({ randomUUID: (await import("node:crypto")).randomUUID }));
+
 vi.mock("expo-secure-store", () => ({
   deleteItemAsync: deleteItemAsyncMock,
   getItemAsync: getItemAsyncMock,

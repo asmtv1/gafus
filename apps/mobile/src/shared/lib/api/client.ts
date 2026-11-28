@@ -4,6 +4,8 @@ import { authTokenStorage as SecureStore } from "@/shared/lib/authTokenStorage";
 import { API_BASE_URL, NETWORK_TIMEOUTS } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { isAbortError } from "./abortError";
+import { buildMobileHttpDiagnostic, mobileEndpointGroup, newMobileTraceparent } from "./apiDiagnostics";
+import { mobilePerformance } from "@/shared/lib/telemetry/mobilePerformance";
 import { getMobileClientHeaders } from "./client-context";
 import {
   notifySubscriptionRequired,
@@ -41,7 +43,7 @@ let isRefreshing = false;
 let refreshPromise: Promise<RefreshAccessTokenResult> | null = null;
 
 type SafeJsonOk = { ok: true; value: unknown };
-type SafeJsonErr = { ok: false; error: string; preview?: string };
+type SafeJsonErr = { ok: false; error: string; preview?: string; cause?: unknown };
 type RefreshAccessTokenFailureCode =
   | "NO_REFRESH_TOKEN"
   | "REFRESH_REJECTED"
@@ -192,19 +194,7 @@ async function safeParseResponseJson(
   }
   try {
     return { ok: true, value: JSON.parse(trimmed) as unknown };
-  } catch (parseError) {
-    reportClientError(
-      sensitive
-        ? new Error("VET_INVALID_JSON_RESPONSE")
-        : parseError instanceof Error
-          ? parseError
-          : new Error(String(parseError)),
-      {
-        issueKey: "ApiClient",
-        severity: "warning",
-        keys: { operation: "parse_response_json", status: response.status },
-      },
-    );
+  } catch (parseError) { /* diagnostic: expected Invalid JSON becomes established response error handled by API diagnostics. */
     const preview = trimmed.slice(0, 120).replace(/\s+/g, " ");
     const base =
       "Сервер вернул ответ в неожиданном формате. Попробуйте позже или проверьте подключение.";
@@ -212,7 +202,7 @@ async function safeParseResponseJson(
       !sensitive && __DEV__
         ? `${base} (HTTP ${response.status}, начало: ${preview}${trimmed.length > 120 ? "…" : ""})`
         : base;
-    return sensitive ? { ok: false, error: message } : { ok: false, error: message, preview };
+    return sensitive ? { ok: false, error: message, cause: new Error("SENSITIVE_INVALID_JSON_RESPONSE") } : { ok: false, error: message, preview, cause: parseError };
   }
 }
 
@@ -432,11 +422,13 @@ async function apiClientWithRefreshLimit<T>(
   const token = skipAuth ? null : await SecureStore.getItemAsync("auth_token");
   if (requestGuard && !requestGuard(token)) return getSessionChangedError();
 
+  const clientTraceparent=newMobileTraceparent();
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
     ...getMobileClientHeaders(),
     ...(token && { Authorization: `Bearer ${token}` }),
     ...headers,
+    ...(clientTraceparent?{traceparent:clientTraceparent}:{}),
   };
 
   const config: RequestInit = {
@@ -451,9 +443,11 @@ async function apiClientWithRefreshLimit<T>(
   const safeEndpoint = traceEndpoint(endpoint);
   const sensitive = vetEndpoint(endpoint) || endpoint === "/api/v1/auth/change-password";
 
+  const startedAt=Date.now();
   try {
     if (requestGuard && !requestGuard(token)) return getSessionChangedError();
-    const response = await fetchWithTimeout(`${chat2OnlyBaseUrl(endpoint, chat2Origin)}${endpoint}`, config, timeoutMs);
+    const response = await fetchWithTimeout(`${chat2OnlyBaseUrl(endpoint, chat2Origin)}${endpoint}`, config, timeoutMs).finally(()=>mobilePerformance.record(`API_${mobileEndpointGroup(endpoint)}`,Date.now()-startedAt));
+
 
     // Auto-refresh при 401
     if (response.status === 401 && !skipAuth && !alreadyRefreshed && !skipAuthRefreshReplay) {
@@ -472,13 +466,13 @@ async function apiClientWithRefreshLimit<T>(
     const parsed = await safeParseResponseJson(response, sensitive);
     if (requestGuard && !requestGuard(token)) return getSessionChangedError();
     if (!parsed.ok) {
-      reportClientError(new Error(parsed.error), {
-        issueKey: "ApiClient",
+      reportClientError(parsed.cause ?? new Error("API_INVALID_RESPONSE"), {
+        issueKey: "ApiClientInvalidResponse",
+        http: buildMobileHttpDiagnostic({endpoint,method,category:"invalid_response",startedAt,retried:alreadyRefreshed,response,clientTraceparent}),
         keys: {
           endpoint: safeEndpoint,
           httpStatus: String(response.status),
           invalidBody: "1",
-          ...(parsed.preview ? { bodyPreview: parsed.preview.slice(0, 80) } : {}),
         },
       });
       return {
@@ -490,6 +484,10 @@ async function apiClientWithRefreshLimit<T>(
     const data = parsed.value;
 
     if (!response.ok) {
+      if(response.status>=500)reportClientError(new Error("API_SERVER_FAILURE"),{
+        issueKey:"ApiClientServerFailure",
+        http:buildMobileHttpDiagnostic({endpoint,method,category:"server",startedAt,retried:alreadyRefreshed,response,clientTraceparent}),
+      });
       const code = extractHttpErrorCode(data);
       if (
         shouldNotifySubscriptionRequired({
@@ -524,6 +522,9 @@ async function apiClientWithRefreshLimit<T>(
         : error,
       {
         issueKey: "ApiClient",
+        severity:isAbortError(error)||isNetworkRequestError(error)?"warning":"error",
+        http:buildMobileHttpDiagnostic({endpoint,method,category:isAbortError(error)?"timeout":isNetworkRequestError(error)?"network":"unknown",
+          startedAt,retried:alreadyRefreshed,clientTraceparent}),
         keys: { endpoint: safeEndpoint },
       },
     );
@@ -555,22 +556,28 @@ export async function apiClientMultipart<T>(
   const safeEndpoint = traceEndpoint(endpoint);
   const sensitive = vetEndpoint(endpoint);
 
+  const startedAt=Date.now();
+  let retried=false;
+  let clientTraceparent:string|undefined;
   let selectedToken: string | null | undefined;
   const doFetch = async (): Promise<{ response: Response; token: string | null } | null> => {
     const token = await SecureStore.getItemAsync("auth_token");
     selectedToken = token;
     if (requestGuard && !requestGuard(token)) return null;
+    clientTraceparent=newMobileTraceparent();
     const headers: Record<string, string> = {
       ...getMobileClientHeaders(),
+      ...(clientTraceparent?{traceparent:clientTraceparent}:{}),
     };
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
+    const attemptStarted=Date.now();
     const response = await fetchWithTimeout(url, {
       method: "POST",
       headers,
       body: buildFormData(),
-    });
+    }).finally(()=>mobilePerformance.record("API_MULTIPART",Date.now()-attemptStarted));
     return {response, token};
   };
 
@@ -583,6 +590,7 @@ export async function apiClientMultipart<T>(
       const refreshResult = await refreshAccessToken(isCurrent);
       if (!isCurrent()) return getSessionChangedError();
       if (refreshResult.success) {
+        retried=true;
         selected = await doFetch();
         if (!selected || (requestGuard && !requestGuard(selected.token))) return getSessionChangedError();
       } else {
@@ -590,11 +598,13 @@ export async function apiClientMultipart<T>(
       }
     }
     const {response, token} = selected;
+
     const parsed = await safeParseResponseJson(response, sensitive);
     if (requestGuard && !requestGuard(token)) return getSessionChangedError();
     if (!parsed.ok) {
-      reportClientError(new Error(parsed.error), {
-        issueKey: "ApiClientMultipart",
+      reportClientError(parsed.cause ?? new Error("API_MULTIPART_INVALID_RESPONSE"), {
+        issueKey: "ApiClientMultipartInvalidResponse",
+        http:buildMobileHttpDiagnostic({endpoint,method:"POST",category:"invalid_response",startedAt,retried,response,clientTraceparent}),
         keys: {
           endpoint: safeEndpoint,
           httpStatus: String(response.status),
@@ -610,6 +620,10 @@ export async function apiClientMultipart<T>(
     const data = parsed.value;
 
     if (!response.ok) {
+      if(response.status>=500)reportClientError(new Error("API_MULTIPART_SERVER_FAILURE"),{
+        issueKey:"ApiClientMultipartServerFailure",
+        http:buildMobileHttpDiagnostic({endpoint,method:"POST",category:"server",startedAt,retried,response,clientTraceparent}),
+      });
       return {
         success: false,
         error: extractHttpErrorMessage(data, response),
@@ -622,6 +636,9 @@ export async function apiClientMultipart<T>(
     if (requestGuard && !requestGuard(selectedToken)) return getSessionChangedError();
     reportClientError(sensitive ? new Error("VET_MULTIPART_FAILED") : error, {
       issueKey: "ApiClientMultipart",
+      severity:isAbortError(error)||isNetworkRequestError(error)?"warning":"error",
+      http:buildMobileHttpDiagnostic({endpoint,method:"POST",category:isAbortError(error)?"timeout":isNetworkRequestError(error)?"network":"unknown",
+        startedAt,retried,clientTraceparent}),
       keys: { endpoint: safeEndpoint },
     });
     if (isAbortError(error)) {

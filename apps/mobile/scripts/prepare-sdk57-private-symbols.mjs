@@ -13,13 +13,14 @@ const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const ensure=(condition,code)=>{if(!condition)throw Error('SYMBOL_ARCHIVE_'+code);};
 const OUT=/^[a-f0-9]{64}\.map$/;
 export function buildPrivateSymbolArchive(input){
-  const {repoRoot,exportRoot,outputDir,platform,environment,runtime,sourceSha,updateId,revision}=input;
+  const {repoRoot,exportRoot,outputDir,platform,environment,runtime,sourceSha,updateId,revision,nativeBuild,nativeArtifactSha256}=input;
   ensure(['ios','android'].includes(platform),'PLATFORM_INVALID');
   ensure(['preview','production'].includes(environment),'ENV_INVALID');
   ensure(/^\d+\.\d+\.\d+$/.test(runtime) && runtime!=='1.7.4','RUNTIME_NOT_SDK57');
   ensure(SHA.test(sourceSha),'SOURCE_SHA_INVALID');
   ensure(UUID.test(updateId),'UPDATE_ID_INVALID');
-  ensure(REV.test(String(revision)),'REVISION_INVALID');
+  const embedded=Number(revision)===0;
+  ensure(embedded?(/^\d{1,20}$/.test(nativeBuild??'')&&/^[a-f0-9]{64}$/.test(nativeArtifactSha256??'')):REV.test(String(revision)),'REVISION_INVALID');
   const config=JSON.parse(fs.readFileSync(path.join(repoRoot,'apps/mobile/app.json'),'utf8')).expo;
   const pkg=JSON.parse(fs.readFileSync(path.join(repoRoot,'apps/mobile/package.json'),'utf8'));
   ensure(config.version===runtime&&pkg.version===runtime&&pkg.dependencies.expo==='57.0.33','APP_VERSION_MISMATCH');
@@ -47,7 +48,7 @@ export function buildPrivateSymbolArchive(input){
     }
     const identity={schemaVersion:1,private:true,retentionClass:'release-symbols',
       environment,platform,runtimeVersion:runtime,updateId,sourceSha,revision:Number(revision),
-      maps,createdAt:new Date().toISOString()};
+      ...(embedded?{nativeBuild,nativeArtifactSha256}:{}),maps,createdAt:new Date().toISOString()};
     const manifest=JSON.stringify(identity,null,2)+'\n';
     fs.writeFileSync(path.join(outputDir,'private-symbol-manifest.json'),manifest,{flag:'wx',mode:0o600});
     return {state:'LOCAL_PRIVATE_SYMBOLS_NOT_UPLOADED',manifestSha256:hash(manifest),
@@ -60,8 +61,8 @@ export function buildPrivateSymbolArchive(input){
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   try{
     const args=process.argv.slice(2);
-    if(args.length!==9||args.some(x=>!x))throw Error('USAGE: node prepare-sdk57-private-symbols.mjs <repoRoot> <exportRoot> <outputDir> <ios|android> <preview|production> <runtime> <sourceSha> <updateId> <revision>');
-    const result=buildPrivateSymbolArchive({repoRoot:args[0],exportRoot:args[1],outputDir:args[2],platform:args[3],environment:args[4],runtime:args[5],sourceSha:args[6],updateId:args[7],revision:args[8]});
+    if(![9,11].includes(args.length)||args.some(x=>!x))throw Error('USAGE: node prepare-sdk57-private-symbols.mjs <repoRoot> <exportRoot> <outputDir> <ios|android> <preview|production> <runtime> <sourceSha> <updateId> <revision> [nativeBuild nativeArtifactSha256]');
+    const result=buildPrivateSymbolArchive({repoRoot:args[0],exportRoot:args[1],outputDir:args[2],platform:args[3],environment:args[4],runtime:args[5],sourceSha:args[6],updateId:args[7],revision:args[8],nativeBuild:args[9],nativeArtifactSha256:args[10]});
     console.log(JSON.stringify(result));
   }catch(e){console.error(e instanceof Error?e.message:String(e));process.exitCode=1;}
 }

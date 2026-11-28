@@ -33,7 +33,7 @@ async function hasQueuedVideoProgress(videoId: string): Promise<boolean> {
     return events.some(
       (event) => event.kind === "saveVideoProgress" && event.payload.videoId === videoId,
     );
-  } catch {
+  } catch { /* diagnostic: expected Unreadable offline queue conservatively counts as pending. */
     return true;
   }
 }
@@ -312,7 +312,7 @@ export function useVideoProgress(
             );
           };
           try {
-            if (!attested()) throw new Error("V2_SESSION_UNVERIFIED");
+            if (!binding || !attested()) throw new Error("V2_SESSION_UNVERIFIED");
             setSaveError(null);
             const receipt = await persistNewOnlyVideoProgress(
               newOnlyV2NativeQueues,

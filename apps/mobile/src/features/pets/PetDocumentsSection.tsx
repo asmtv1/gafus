@@ -349,10 +349,6 @@ export function PetDocumentsSection({ pet, actor }: PetDocumentsSectionProps) {
     },
     onError: (error) => {
       if (!currentActor()) return;
-      console.error("[PetDocumentsRename] onError", {
-        petId: pet.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "PetsScreen",
         keys: { operation: "rename_pet_document", petId: pet.id },

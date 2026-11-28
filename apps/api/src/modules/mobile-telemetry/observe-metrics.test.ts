@@ -73,3 +73,34 @@ describe('Expo Observe metrics privacy and OTLP ACK',()=>{
    .toMatchObject({ok:false,status:503,errorCode:'OBSERVE_METRICS_AUTH_CONFIGURATION'});
  });
 });
+
+it('converts native startup measurements to release-scoped replay-safe spool histograms',async()=>{
+ const {nativeStartupEvents}=await import('./observe-metrics.js');
+ const raw=payload('expo.app_startup.cold_launch_time');
+ raw.resourceMetrics[0]!.resource.attributes[5]!.value.stringValue='production';
+ const safe=normalizeObserveMetrics(raw,now);
+ const events=nativeStartupEvents(raw,safe);
+ expect(events).toHaveLength(1);
+ expect(events[0]).toMatchObject({kind:'performance_summary',updateId:'unknown',channel:'production',
+  performance:[{metric:'NATIVE_COLD_LAUNCH',count:1,sumMs:1250,buckets:[0,0,0,0,0,1,0,0,0,0]}]});
+ expect(nativeStartupEvents(raw,safe)).toEqual(events);
+ expect(JSON.stringify(events)).not.toMatch(/private-device-session|private\/user|my-secret/);
+ const rawNavigation=payload('expo.navigation.tti');
+ expect(nativeStartupEvents(rawNavigation,normalizeObserveMetrics(rawNavigation,now))).toEqual([]);
+});
+
+it('uses real SDK point session identities to deduplicate retries without conflating devices',async()=>{
+ const {nativeStartupEvents}=await import('./observe-metrics.js');
+ const raw=payload('expo.app_startup.cold_launch_time');
+ const metric=raw.resourceMetrics[0]!.scopeMetrics[0]!.metrics[0]!;
+ const point=metric.gauge.dataPoints[0]!;
+ metric.gauge.dataPoints=[{...point,attributes:[attr('session.id','session-A')]},
+  {...point,attributes:[attr('session.id','session-B')]},
+  {...point,attributes:[attr('session.id','session-A')]}];
+ raw.resourceMetrics[0]!.scopeMetrics[0]!.metrics.push({...metric,name:'expo.unknown.memory'});
+ const safe=normalizeObserveMetrics(raw,now,{nativeStartupOnly:true});
+ const events=nativeStartupEvents(raw,safe);
+ expect(events).toHaveLength(2);
+ expect(JSON.stringify(events)).not.toMatch(/session-A|session-B|expo.unknown.memory/);
+ expect(nativeStartupEvents(raw,safe)).toEqual(events);
+});

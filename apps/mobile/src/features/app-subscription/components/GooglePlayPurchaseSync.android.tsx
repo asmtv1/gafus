@@ -36,7 +36,7 @@ export function GooglePlayPurchaseSync() {
       }
       if (entitled && sameOwner()) await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
     }
-    void restore().catch(() => {
+    void restore().catch(() => { /* diagnostic: expected Automatic restore is speculative; explicit restore remains available. */
       // The explicit restore action remains available after a transient Play failure.
     });
     return () => { current = false; };

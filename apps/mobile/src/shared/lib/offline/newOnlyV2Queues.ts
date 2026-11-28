@@ -353,7 +353,7 @@ export class NewOnlyV2Queues {
         candidate = JSON.parse(raw);
         // Untrusted SecureStore parse errors may contain secret values; never report raw.
         // eslint-disable-next-line @gafus/require-client-catch-tracer
-      } catch {
+      } catch { /* diagnostic: expected Unverifiable binding cannot authorize offline access. */
         return false;
       }
       if (!validBinding(candidate) || candidate.principalId !== principalId) return false;
@@ -380,7 +380,7 @@ export class NewOnlyV2Queues {
         candidate = raw ? JSON.parse(raw) : null;
         // Untrusted SecureStore parse errors may contain secret values; never report raw.
         // eslint-disable-next-line @gafus/require-client-catch-tracer
-      } catch {
+      } catch { /* diagnostic: expected Invalid candidate is absent until verified. */
         candidate = null;
       }
       if (
@@ -423,7 +423,7 @@ export class NewOnlyV2Queues {
         secureBinding = secureRaw ? JSON.parse(secureRaw) : null;
         // Untrusted SecureStore parse errors may contain secret values; never report raw.
         // eslint-disable-next-line @gafus/require-client-catch-tracer
-      } catch {
+      } catch { /* diagnostic: expected Unavailable secure binding is not proof of ownership. */
         secureBinding = null;
       }
       if (!this.unchanged(version, binding)) return [];
@@ -446,7 +446,7 @@ export class NewOnlyV2Queues {
         finalBinding = finalBindingRaw ? JSON.parse(finalBindingRaw) : null;
         // Ignore untrusted parse details: SecureStore text can contain private values.
         // eslint-disable-next-line @gafus/require-client-catch-tracer
-      } catch {
+      } catch { /* diagnostic: expected Unavailable final binding blocks authorization. */
         finalBinding = null;
       }
       if (!this.unchanged(version, binding)) return [];
@@ -515,7 +515,7 @@ export class NewOnlyV2Queues {
         if (!current()) return false;
         const raw = await this.deps.secure.getItemAsync(BINDING_KEY);
         let stored: unknown;
-        try { stored = raw ? JSON.parse(raw) : null; } catch { return false; }
+        try { stored = raw ? JSON.parse(raw) : null; } catch { /* diagnostic: expected Failed attestation prevents replay. */  return false; }
         return current() && validBinding(stored) &&
           stored.principalId === binding.principalId && stored.authEpoch === binding.authEpoch;
       };
@@ -549,7 +549,7 @@ export class NewOnlyV2Queues {
       const attest = async () => {
         const raw = await this.deps.secure.getItemAsync(BINDING_KEY);
         let stored: unknown;
-        try { stored = raw ? JSON.parse(raw) : null; } catch { return false; }
+        try { stored = raw ? JSON.parse(raw) : null; } catch { /* diagnostic: expected Failed attestation prevents replay. */  return false; }
         return current() && validBinding(stored) &&
           stored.principalId === binding.principalId && stored.authEpoch === binding.authEpoch;
       };
@@ -577,7 +577,7 @@ export class NewOnlyV2Queues {
       }
       for (const listener of queue === "prevention" ? this.preventionListeners : this.practiceListeners) {
         // A presentation subscriber cannot turn a committed deletion into a failed ACK.
-        try { listener(); } catch { /* The durable acknowledgement remains valid. */ }
+        try { listener(); } catch { /* diagnostic: expected Durable acknowledgement remains valid despite best effort cleanup failure. */  /* The durable acknowledgement remains valid. */ }
       }
       return true;
     });
@@ -603,7 +603,7 @@ export class NewOnlyV2Queues {
         candidate = stored ? JSON.parse(stored) : null;
         // Untrusted SecureStore parse errors may contain secret values; never report raw.
         // eslint-disable-next-line @gafus/require-client-catch-tracer
-      } catch {
+      } catch { /* diagnostic: expected Invalid candidate is not trusted; pending journal preserved. */
         candidate = null;
       }
       if (
@@ -654,7 +654,7 @@ export class NewOnlyV2Queues {
       if (!this.unchanged(version, binding)) throw new NewOnlyV2Error("V2_SESSION_CHANGED");
       for (const listener of this.pendingListeners) {
         // Observers may schedule work, but cannot invalidate a durable write.
-        try { listener(); } catch { /* keep the stored entry */ }
+        try { listener(); } catch { /* diagnostic: expected Stored entry remains intact for future replay rather than being dropped. */  /* keep the stored entry */ }
       }
       return {
         ...entry,

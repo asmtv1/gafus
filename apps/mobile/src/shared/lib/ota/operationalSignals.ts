@@ -25,7 +25,7 @@ export async function detectOtaSignatureRejection(input: {
   try {
     const logs = await readLogs(Math.min(MAX_LOG_AGE_MS, Math.max(1000, Date.now() - startedAt + 1000)));
     if (isCurrent() && hasOtaSignatureRejection(logs, startedAt, endedAt, updateId)) report();
-  } catch {
+  } catch { /* diagnostic: expected Inaccessible native logs are unknown rather than a signature rejection. */
     // Older native engines and inaccessible logs are unknown, not a signature failure.
   }
 }
@@ -52,17 +52,17 @@ export function createMandatoryOtaAttemptMonitor(input: {
     emit("MANDATORY_INCOMPLETE");
     reportIncomplete();
     // Do not block a failed update or the retry button on diagnostics.
-    void storage.setItem(key, "reported:" + target).catch(() => undefined);
+    void storage.setItem(key, "reported:" + target).catch(() => { /* diagnostic: expected Operational marker write is best effort; cannot block mandatory OTA. */ return undefined; });
   }
   return {
     async start() {
-      const previous = await storage.getItem(key).catch(() => null);
+      const previous = await storage.getItem(key).catch(() => { /* diagnostic: expected Unreadable marker is unknown, not confirmed previous attempt. */ return null; });
       if (!isCurrent()) return;
       if (previous === "pending:" + target) {
         emit("MANDATORY_INCOMPLETE");
         reportIncomplete();
       }
-      await storage.setItem(key, "pending:" + target).catch(() => undefined);
+      await storage.setItem(key, "pending:" + target).catch(() => { /* diagnostic: expected Operational marker write is best effort; cannot block mandatory OTA. */ return undefined; });
       if (!isCurrent()) return;
       active = true;
       emit("MANDATORY_ATTEMPT");
@@ -80,8 +80,8 @@ export function createMandatoryOtaAttemptMonitor(input: {
 export async function retireMandatoryOtaAttemptMarker(
   storage: Storage, key: string, isCurrent: () => boolean,
 ): Promise<void> {
-  const previous = await storage.getItem(key).catch(() => null);
+  const previous = await storage.getItem(key).catch(() => { /* diagnostic: expected Unreadable marker is unknown, not confirmed previous attempt. */ return null; });
   if (previous && previous !== "idle" && isCurrent()) {
-    await storage.setItem(key, "idle").catch(() => undefined);
+    await storage.setItem(key, "idle").catch(() => { /* diagnostic: expected Marker retirement is best effort; cannot prevent startup. */ return undefined; });
   }
 }

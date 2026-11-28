@@ -24,7 +24,7 @@ function persistQueue(scope: OfflineCourseScope, state: OfflineState) {
   const queue = state.status.status === "downloading"
     ? [state.status.courseType, ...state.downloadQueue] : state.downloadQueue;
   const value = JSON.stringify({ ownerId: scope.principalId, queue });
-  queueWrites = queueWrites.catch(() => undefined).then(async () => {
+  queueWrites = queueWrites.catch(() => { /* diagnostic: expected Prior failed queue write must not poison the serialization tail. */ return undefined; }).then(async () => {
     await zustandStorage.setItem(queueKey(scope), value);
   }).catch(error => { reportClientError(error, { issueKey: "OfflineDownloadQueuePersist" }); });
 }
@@ -33,7 +33,7 @@ function validQueue(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter((item): item is string => {
     if (typeof item !== "string") return false;
-    try { assertSafeOfflineSegment(item); return true; } catch { return false; }
+    try { assertSafeOfflineSegment(item); return true; } catch { /* diagnostic: expected Unverifiable offline scope cannot authorize another actor. */  return false; }
   }))].slice(0, 500);
 }
 
@@ -143,7 +143,7 @@ export const useOfflineStore = create<OfflineStore>()((set, get) => ({
       startDownload: async (courseType: string) => {
         const scope = captureOfflineCourseScope();
         if (!scope?.canWrite()) return;
-        try { assertSafeOfflineSegment(courseType); } catch { return; }
+        try { assertSafeOfflineSegment(courseType); } catch { /* diagnostic: expected Invalid course segment blocks download before queue mutation. */  return; }
         await hydration;
         if (!scope.canWrite()) return;
         const hasSpace = await hasEnoughDiskSpace();
@@ -226,7 +226,7 @@ function refreshOfflineOwner() {
       try {
         const saved = JSON.parse(raw) as { ownerId?: string; queue?: unknown };
         if (saved.ownerId === scope.principalId) queue = validQueue(saved.queue);
-      } catch { /* Invalid local queue stays quarantined. */ }
+      } catch { /* diagnostic: expected Invalid local queue stays quarantined rather than being replayed. */  /* Invalid local queue stays quarantined. */ }
     }
     const courses = await getOfflineCourseTypes(scope);
     const downloaded: Record<string, DownloadedCourse> = Object.create(null);

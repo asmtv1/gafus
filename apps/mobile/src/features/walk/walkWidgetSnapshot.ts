@@ -76,7 +76,7 @@ export async function loadWalkWidgetSnapshot(): Promise<WalkWidgetSnapshot> {
     ) {
       return data as WalkWidgetSnapshot;
     }
-  } catch {
+  } catch { /* diagnostic: expected Corrupt snapshot is represented by safe empty widget state. */
     /* Return safe empty state for corrupt snapshot. */
   }
   return buildWalkWidgetSnapshot(null, Date.now());

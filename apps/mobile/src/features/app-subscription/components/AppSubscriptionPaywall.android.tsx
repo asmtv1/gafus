@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Linking, Modal, ScrollView, StyleSheet, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -92,7 +93,7 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
     setMessage(null);
     try {
       await action();
-    } catch {
+    } catch (diagnosticError) { reportClientError(diagnosticError, {issueKey:"GooglePlayOperation",keys:{operation:"execute"}});
       if (sameOwner()) setMessage("Не удалось выполнить операцию. Проверьте статус покупки и повторите позже.");
     } finally {
       locked.current = false;
@@ -156,7 +157,7 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
           subscriptionOffers: [{ sku: selected.productId, offerToken: selected.offerToken }],
         } },
       });
-    } catch (error) {
+    } catch (error) { if (dispatched.current && sameOwner() && (error as {code?:string})?.code !== ErrorCode.UserCancelled) reportClientError(error, {issueKey:"GooglePlayBuy",keys:{operation:"dispatch"},severity:"warning"});
       if (!dispatched.current || !sameOwner()) return;
       dispatched.current = false;
       setWaiting(false);
@@ -293,7 +294,7 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
                 }} />
               <Button label="Управлять в Google Play" onPress={() => void Linking.openURL(
                 "https://play.google.com/store/account/subscriptions?package=ru.gafus.app",
-              ).catch(() => setMessage("Не удалось открыть Google Play."))} />
+              ).catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"GooglePlayManagement",keys:{operation:"open"},severity:"warning"}); return setMessage("Не удалось открыть Google Play."); })} />
             </View>
             <View style={styles.legalLinks}>
               <Text style={styles.legal} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}>

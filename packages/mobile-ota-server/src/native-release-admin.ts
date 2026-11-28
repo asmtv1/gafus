@@ -38,6 +38,7 @@ export const verifyNativeInput = z.object({
     nativeArtifactSha256: SHA256,
     nativeReleaseId: UUID.optional(),
     embeddedUpdateId: UUID.optional(),
+    embeddedSymbolsRef: z.string().regex(/^symbols-s3:[a-f0-9]{64}$/).optional(),
     physicalDeviceVerified: z.boolean(),
     distributionVerified: z.boolean(),
     reference: z.string().min(4).max(256),
@@ -120,7 +121,7 @@ export async function registerNativeCandidate(input: NativeReleaseInput, actorId
 export async function verifyNativeCandidate(id: string, input: VerifyNativeInput, actorId: string) {
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<{
-      id:string;verified:boolean;embeddedUpdateId:string|null;attestation:{nativeArtifactSha256:string};
+      id:string;verified:boolean;embeddedUpdateId:string|null;attestation:{nativeArtifactSha256:string;embeddedSymbolsRef?:string};
     }[]>`
       SELECT id,verified,"embeddedUpdateId",attestation FROM "MobileNativeRelease" WHERE id=${id}::uuid FOR UPDATE
     `;
@@ -136,7 +137,12 @@ export async function verifyNativeCandidate(id: string, input: VerifyNativeInput
         throw new MobileOtaNativeError("NATIVE_OPERATION_CONFLICT");
       return {nativeReleaseId:id,verified:input.action === "VERIFY",replayed:true};
     }
-    const backfill=input.action==="VERIFY" && !rows[0].embeddedUpdateId && !!input.evidence.embeddedUpdateId;
+    const symbols=input.evidence.embeddedSymbolsRef;
+    if(symbols&&(input.action!=="VERIFY"||!(rows[0].embeddedUpdateId||input.evidence.embeddedUpdateId)||
+      (rows[0].attestation.embeddedSymbolsRef&&rows[0].attestation.embeddedSymbolsRef!==symbols)))
+      throw new MobileOtaNativeError("NATIVE_SYMBOL_PROOF_MISMATCH");
+    const backfill=input.action==="VERIFY" && ((!rows[0].embeddedUpdateId && !!input.evidence.embeddedUpdateId)||
+      (!!symbols&&!rows[0].attestation.embeddedSymbolsRef));
     if (rows[0].embeddedUpdateId && input.evidence.embeddedUpdateId && rows[0].embeddedUpdateId!==input.evidence.embeddedUpdateId)
       throw new MobileOtaNativeError("NATIVE_ARTIFACT_PROOF_MISMATCH");
     if ((input.action === "VERIFY") === rows[0].verified && !backfill)
@@ -157,7 +163,8 @@ export async function verifyNativeCandidate(id: string, input: VerifyNativeInput
           WHEN ${input.action === "VERIFY"} AND NOT (attestation ? 'nativeArtifactSha256')
           THEN jsonb_set(attestation,'{nativeArtifactSha256}',
             to_jsonb(${input.evidence.nativeArtifactSha256}::text),true)
-          ELSE attestation END
+          ELSE attestation END || CASE WHEN ${input.action==='VERIFY'} AND ${symbols??null}::text IS NOT NULL
+          THEN jsonb_build_object('embeddedSymbolsRef',${symbols??null}::text) ELSE '{}'::jsonb END
       WHERE id=${id}::uuid
     `;
     const evidence=JSON.stringify({inputSha256:proofSha,reason:input.reason,...input.evidence});

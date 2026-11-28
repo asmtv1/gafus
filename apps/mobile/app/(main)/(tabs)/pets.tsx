@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, InteractionManager, Pressable, ScrollView, View } from "react-native";
 import { Text } from "react-native-paper";
@@ -148,6 +149,8 @@ function ActorPetsTabScreen({actor}: {actor: PetsReadActor}) {
   const pets = verifiedPets ?? [];
   const showPetsError = isPetsError && isCurrentPetsActor(actor);
   const showPetsLoading = !showPetsError && (isPetsPending || verifiedPets === null);
+  useScreenDataReady("SCREEN_PETS_DATA_READY",
+    isCurrentPetsActor(actor) && !showPetsLoading && !showPetsError && verifiedPets !== null);
   const [expandedPetIds, setExpandedPetIds] = useState<string[]>([]);
   const trackPetsClick = useCallback((elementId: string) => {
     trackEvent({

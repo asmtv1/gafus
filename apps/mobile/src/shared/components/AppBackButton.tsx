@@ -33,7 +33,7 @@ export function AppBackButton({
     let active = true;
     void AccessibilityInfo.isReduceMotionEnabled()
       .then((value) => { if (active) setReduceMotion(value); })
-      .catch(() => {});
+      .catch(() => { /* diagnostic: expected Optional accessibility preference may be unavailable on the platform. */ });
     const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
     return () => {
       active = false;

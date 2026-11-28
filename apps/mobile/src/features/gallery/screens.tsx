@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
@@ -38,7 +39,7 @@ const param = (value: string | string[] | undefined) => (Array.isArray(value) ? 
 
 export function GalleryAlbumsScreen() {
   const params = useLocalSearchParams<{ username?: string | string[] }>();
-  const { username } = useGalleryContext();
+  const { username, viewer, actor } = useGalleryContext();
   const owner = param(params.username) ?? username;
   const albums = useAlbums(owner);
   const [creating, setCreating] = useState(false);
@@ -53,6 +54,10 @@ export function GalleryAlbumsScreen() {
     }
   };
   const meta = albums.data?.pages[0];
+  useScreenDataReady("SCREEN_GALLERY_ALBUMS_DATA_READY",
+    !!actor && sameGalleryActor(actor) && !albums.isPending &&
+      (!albums.isError || albums.isFetchNextPageError) && !!meta && meta.enabled === true,
+    JSON.stringify([viewer, owner]));
   const items =
     albums.data?.pages.flatMap((page) => page.items.map((item) => publicGalleryAlbum(item))) ?? [];
   return (
@@ -321,6 +326,10 @@ export function GalleryAlbumScreen() {
     photos.data?.pages.flatMap((p) => p.items.map((item) => publicGalleryPhoto(item))) ?? [];
   const ready = items.filter((p) => p.status === "ready");
   const meta = photos.data?.pages[0];
+  useScreenDataReady("SCREEN_GALLERY_PHOTOS_DATA_READY",
+    !!actor && sameGalleryActor(actor) && foreground && !album.isPending && !album.isError &&
+      !!album.data && !photos.isPending && !photos.isError && meta?.enabled === true,
+    JSON.stringify([viewer, albumId]));
   const more = () => {
     if (photos.hasNextPage && !photos.isFetchingNextPage) void photos.fetchNextPage();
   };

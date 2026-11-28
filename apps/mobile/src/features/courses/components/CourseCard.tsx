@@ -65,7 +65,7 @@ function formatDate(date: Date | string | null): string | null {
     const d = typeof date === "string" ? new Date(date) : date;
     if (isNaN(d.getTime())) return null;
     return d.toLocaleDateString("ru-RU");
-  } catch {
+  } catch { /* diagnostic: expected Invalid optional date is omitted without exposing private values. */
     return null;
   }
   /* eslint-enable @gafus/require-client-catch-tracer */

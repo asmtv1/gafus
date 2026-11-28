@@ -14,7 +14,7 @@ export function pauseVideoPlayerSafely(player: CoordinatedVideoPlayer): boolean 
   try {
     player.pause();
     return true;
-  } catch {
+  } catch { /* diagnostic: expected Disposed native player cannot be paused; best-effort cleanup. */
     return false;
   }
   /* eslint-enable @gafus/require-client-catch-tracer */

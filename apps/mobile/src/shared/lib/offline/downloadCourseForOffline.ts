@@ -27,7 +27,7 @@ function isCdnVideoUrl(url: string): boolean {
       (parsed.hostname === "storage.yandexcloud.net" &&
         parsed.pathname.startsWith("/gafus-media/uploads/trainers/"))
     );
-  } catch {
+  } catch { /* diagnostic: expected Invalid video URL is not an allowed CDN source. */
     return false;
   }
 }
@@ -37,7 +37,7 @@ function getSafeAssetFileName(url: string): string {
   let pathname: string;
   try {
     pathname = new URL(url).pathname;
-  } catch {
+  } catch { /* diagnostic: expected Relative asset paths are supported; fallback removes query string. */
     // Preserve the existing support for relative URLs.
     pathname = url.split("?")[0] ?? "";
   }
@@ -63,7 +63,7 @@ export async function hasEnoughDiskSpace(): Promise<boolean> {
   try {
     const free = await FileSystem.getFreeDiskStorageAsync();
     return free >= MIN_FREE_BYTES;
-  } catch {
+  } catch { /* diagnostic: expected Unverified free space blocks download rather than risking exhaustion. */
     return false;
   }
   /* eslint-enable @gafus/require-client-catch-tracer */
@@ -80,7 +80,7 @@ export async function downloadCourseForOffline(
 ): Promise<{ success: true; version: string } | { success: false; error: string; code?: string }> {
   try {
     assertSafeOfflineSegment(courseType);
-  } catch {
+  } catch { /* diagnostic: expected Invalid course identifier returns validation failure before download. */
     return {
       success: false,
       error: "Недопустимый идентификатор курса",
@@ -229,7 +229,7 @@ async function runDownload(
     try {
       assertSafeOfflineSegment(id);
       return false;
-    } catch {
+    } catch { /* diagnostic: expected Unreadable file status conservatively preserves existing asset. */
       return true;
     }
   });

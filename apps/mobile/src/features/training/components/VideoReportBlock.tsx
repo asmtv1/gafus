@@ -110,7 +110,7 @@ export function VideoReportBlock({ userStepId, stepId }: VideoReportBlockProps) 
       try {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- при unmount нужен актуальный ref камеры
         cameraRef.current?.stopRecording();
-      } catch {
+      } catch { /* diagnostic: expected Stopping an already stopped native recorder is benign cleanup. */
         /* уже остановлена */
       }
     };

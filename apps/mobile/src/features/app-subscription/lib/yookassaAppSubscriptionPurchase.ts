@@ -17,7 +17,7 @@ export async function yookassaAppSubscriptionPurchase(
   const isCurrent = () => {
     try {
       return isCurrentAccount?.() ?? true;
-    } catch {
+    } catch { /* diagnostic: expected Unverifiable owner fails closed without exposing session details. */
       return false;
     }
   };
@@ -28,7 +28,7 @@ export async function yookassaAppSubscriptionPurchase(
     result = isCurrentAccount
       ? await appSubscriptionApi.startYookassa(planCode, promoCode, isCurrentAccount)
       : await appSubscriptionApi.startYookassa(planCode, promoCode);
-  } catch {
+  } catch { /* diagnostic: expected Explicit uncertain result prevents retrying potentially created payment. */
     return {
       ok: false,
       uncertain: true,
@@ -76,7 +76,7 @@ export async function yookassaAppSubscriptionPurchase(
     browserResult = await WebBrowser.openBrowserAsync(confirmationUrl, {
       presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
     });
-  } catch {
+  } catch { /* diagnostic: expected Explicit uncertain result prevents claiming payment success or replay. */
     return {
       ok: false,
       uncertain: true,

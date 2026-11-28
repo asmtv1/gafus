@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { Image } from "expo-image";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -41,12 +42,12 @@ export default function IntroScreen() {
       setReady(true);
       return;
     }
-    void readMobileIntroState().catch(() => ({ index: 0, finished: false })).then((saved) => {
+    void readMobileIntroState().catch(error => {reportClientError(error,{issueKey:"MobileIntroStorageRead",severity:"warning"});return { index: 0, finished: false };}).then((saved) => {
       if (!active) return;
       latestState.current = saved;
       setState(saved);
       setReady(true);
-      if (!saved.finished) void trackMobileIntroEvent("OPENED").catch(() => undefined);
+      if (!saved.finished) void trackMobileIntroEvent("OPENED").catch(() => { /* diagnostic: expected Onboarding analytics is best effort and must not block intro. */ return undefined; });
     });
     return () => { active = false; };
   }, [manual]);
@@ -60,8 +61,8 @@ export default function IntroScreen() {
       else router.replace("/");
       return;
     }
-    await saveMobileIntroState({ ...latestState.current, finished: true }).catch(() => undefined);
-    void trackMobileIntroEvent(event).catch(() => undefined);
+    await saveMobileIntroState({ ...latestState.current, finished: true }).catch(error => reportClientError(error,{issueKey:"MobileIntroStorageWrite",severity:"warning"}));
+    void trackMobileIntroEvent(event).catch(() => { /* diagnostic: expected Onboarding analytics is best effort and must not block slide navigation. */ return undefined; });
     router.replace("/welcome");
   };
   const selectSlide = (index: number) => {
@@ -69,7 +70,7 @@ export default function IntroScreen() {
     const next = { ...latestState.current, index: Math.max(0, Math.min(slides.length - 1, index)) };
     latestState.current = next;
     setState(next);
-    if (!manual) void saveMobileIntroState(next).catch(() => undefined);
+    if (!manual) void saveMobileIntroState(next).catch(error => reportClientError(error,{issueKey:"MobileIntroStorageWrite",severity:"warning"}));
   };
   const handleSwipeEnd = (event: GestureResponderEvent) => {
     if (swipeStartX.current === null || swipeStartY.current === null) return;

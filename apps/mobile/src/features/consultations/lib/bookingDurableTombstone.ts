@@ -64,7 +64,7 @@ export function createBookingTombstoneStore(deps: {
       let parsed: unknown;
       try {
         parsed = JSON.parse(raw);
-      } catch {
+      } catch { /* diagnostic: expected Durable booking read returns UNAVAILABLE, not absence. */
         return { status: "UNAVAILABLE" };
       }
       if (!isValidRecord(parsed, ownerId, epoch)) return { status: "UNAVAILABLE" };
@@ -77,7 +77,7 @@ export function createBookingTombstoneStore(deps: {
         status: now - parsed.createdAt >= RECEIPT_TTL_MS ? "EXPIRED" : "UNKNOWN",
         record: parsed,
       };
-    } catch {
+    } catch { /* diagnostic: expected Invalid durable booking bytes return UNAVAILABLE to prevent duplicate booking. */
       return { status: "UNAVAILABLE" };
     }
   }
@@ -103,7 +103,7 @@ export function createBookingTombstoneStore(deps: {
     if (!Number.isSafeInteger(value.createdAt) || value.createdAt <= 0) return "UNAVAILABLE";
     try {
       await deps.storage.setItem(storageKey(ownerId, epoch), JSON.stringify(value));
-    } catch {
+    } catch { /* diagnostic: expected Failed durable preparation blocks the POST. */
       return "UNAVAILABLE";
     }
     if (!attested(ownerId, epoch)) return "UNAVAILABLE";
@@ -134,7 +134,7 @@ export function createBookingTombstoneStore(deps: {
     const value: BookingTombstone = { ...prior.record, state: "CONFIRMED" };
     try {
       await deps.storage.setItem(storageKey(ownerId, epoch), JSON.stringify(value));
-    } catch {
+    } catch { /* diagnostic: expected Failed confirmation returns false; caller retains pending acknowledgement. */
       return false;
     }
     const check = await read(ownerId, epoch);
@@ -161,7 +161,7 @@ export function createBookingTombstoneStore(deps: {
     const value: BookingTombstone = { ...prior.record, state: "REJECTED" };
     try {
       await deps.storage.setItem(storageKey(ownerId, epoch), JSON.stringify(value));
-    } catch {
+    } catch { /* diagnostic: expected Failed rejection persistence cannot be assumed durable. */
       return false;
     }
     const checked = await read(ownerId, epoch);

@@ -20,7 +20,7 @@ export async function fetchMandatoryOtaCohortDecision(
   session: OtaSession,
 ): Promise<MandatoryOtaCohortDecision> {
   const { userId, isCurrent } = session;
-  if (!userId || !isCurrent()) throw new Error("Сессия изменилась.");
+  if (!isCurrent()) throw new Error("Сессия изменилась.");
   const installationId = await ensureOtaInstallationIdentity();
   const nativeFingerprint = Constants.expoConfig?.extra?.otaNativeFingerprint;
   const runtimeVersion = Updates.runtimeVersion;
@@ -32,7 +32,8 @@ export async function fetchMandatoryOtaCohortDecision(
   }
   if (!isCurrent()) throw new Error("Сессия изменилась.");
   const result = await apiClient<MandatoryOtaCohortDecision>(
-    "/api/v1/mobile-ota-tester/mandatory-policy", {
+    userId ? "/api/v1/mobile-ota-tester/mandatory-policy" : "/api/v1/public/mobile-ota/mandatory-policy", {
+      ...(userId ? {} : { skipAuth: true, skipAuthRefreshReplay: true }),
       method: "POST", timeoutMs: 10_000,
       // Safe to replay after refreshing an expired JWT, but never across account changes.
       requestGuard: isCurrent,
@@ -41,7 +42,7 @@ export async function fetchMandatoryOtaCohortDecision(
     },
   );
   if (!isCurrent()) throw new Error("Сессия изменилась.");
-  if (!result.success && result.code === "SESSION_EXPIRED") {
+  if (userId && !result.success && result.code === "SESSION_EXPIRED") {
     useAuthStore.getState().handleSessionExpired();
   }
   const policy = result.data;

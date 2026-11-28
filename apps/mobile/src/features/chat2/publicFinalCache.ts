@@ -10,5 +10,5 @@ export function isCacheableChat2FinalUrl(raw: string): boolean {
       (url.hostname === "gonomudedoje.begetcdn.cloud" || url.hostname === "cdn.gafus.ru" ||
        url.hostname === "gafus-chat2-media-2026.s3.cloud.ru") &&
       /^\/chat2\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/[0-9a-f-]{36}\/v1\/(?:image\/[sm]\.webp|poster\.webp|video\/(?:360|720|1080)\.mp4)$/i.test(url.pathname);
-  } catch { return false; }
+  } catch { /* diagnostic: expected Invalid URL must not enter public persistent cache. */  return false; }
 }

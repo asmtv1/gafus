@@ -27,7 +27,7 @@ export async function makeFeedVideoPoster(uri: string): Promise<string | undefin
           const image = await ImageManipulator.manipulate(frames[0]).renderAsync();
           const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
           finish(saved.uri);
-        } catch { finish(); }
+        } catch { /* diagnostic: expected Optional poster render failure settles the pending request safely. */  finish(); }
       };
       const onStatus = (status: string) => {
         if (status === "error") return finish();
@@ -41,5 +41,5 @@ export async function makeFeedVideoPoster(uri: string): Promise<string | undefin
       subscription = player.addListener("statusChange", ({ status }) => onStatus(status));
       onStatus(player.status);
     });
-  } catch { return undefined; }
+  } catch { /* diagnostic: expected Optional poster unavailable; caller handles missing preview. */  return undefined; }
 }

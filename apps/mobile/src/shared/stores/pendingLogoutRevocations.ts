@@ -51,7 +51,7 @@ export function retryPendingLogouts(
         await rememberPendingLogout(legacy);
         await serialized(() => SecureStore.deleteItemAsync(LEGACY_SLOT));
       }
-    } catch (error) {
+    } catch (error) { /* diagnostic: expected Failure is forwarded to the explicit onError callback. */
       onError(error);
     }
     // Snapshot before network I/O. A second offline logout queued during a
@@ -61,7 +61,7 @@ export function retryPendingLogouts(
       try {
         const token = await serialized(() => SecureStore.getItemAsync(slot));
         if (token) snapshot.push(token);
-      } catch (error) {
+      } catch (error) { /* diagnostic: expected Failure is forwarded to the explicit onError callback. */
         onError(error);
       }
     }
@@ -69,7 +69,7 @@ export function retryPendingLogouts(
       try {
         const result = await revoke(token);
         if (result.success) await acknowledgePendingLogout(token);
-      } catch (error) {
+      } catch (error) { /* diagnostic: expected Failure is forwarded to the explicit onError callback. */
         onError(error);
       }
     }

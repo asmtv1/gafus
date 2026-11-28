@@ -27,15 +27,10 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught error:", error, errorInfo);
+  componentDidCatch(error: Error) {
     reportClientError(error, {
       issueKey: "ErrorBoundary",
-      keys: {
-        ...(errorInfo.componentStack
-          ? { componentStack: errorInfo.componentStack }
-          : {}),
-      },
+
     });
   }
 

@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Text } from "react-native-paper";
@@ -128,6 +129,8 @@ function ArticleDetailActor({
   // content and its media outside the native tree and WebView entirely.
   const article = current() && !isLoading && !isFetching && !error && res?.success
     ? res.data : null;
+  useScreenDataReady("SCREEN_ARTICLE_DETAIL_DATA_READY",
+    !!article, JSON.stringify([slug, owner, epoch]));
   const canReadArticle = article?.hasAccess === true && article.content !== null;
   const user = useAuthStore((s) => s.user);
   const attemptedViews = useRef(new Set<string>());
@@ -289,7 +292,7 @@ function ArticleDetailActor({
       } else {
         setPayError("Доступ пока не подтверждён. Нового списания не было.");
       }
-    } catch {
+    } catch (diagnosticError) { reportClientError(diagnosticError, {issueKey:"ArticleAccessVerification",keys:{operation:"verify"},severity:"warning"});
       if (current()) setPayError("Не удалось проверить доступ. Нового списания не было.");
     } finally {
       gafusUnlockInFlightRef.current = false;

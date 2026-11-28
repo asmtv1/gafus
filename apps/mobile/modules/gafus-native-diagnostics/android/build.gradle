@@ -1,0 +1,12 @@
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'ru.gafus.diagnostics'
+version = '1.0.0'
+android {
+  namespace "ru.gafus.diagnostics"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}

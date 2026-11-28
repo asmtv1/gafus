@@ -3,12 +3,12 @@
  * Never claims a device test or a distribution test automatically.
  */
 import crypto from 'node:crypto';
-import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {PREVIEW_SIGNING_KEY_ID} from './verify-ota-preview-native-trust.mjs';
 import {PRODUCTION_SIGNING_KEY_ID} from './prepare-self-hosted-native-build.mjs';
+import {readSignedEmbeddedUpdateId} from './native-store-diagnostic-archive.mjs';
 
 const PREVIEW_CERT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),
   '../ota-public-certificates/gafus-preview-20261114.cert.txt');
@@ -41,8 +41,37 @@ export async function hashNativePackage(filename,platform) {
     end.mtimeMs===stat.mtimeMs&&end.ino===stat.ino,'PACKAGE_CHANGED_DURING_HASH');
   return sha.digest('hex');
 }
-export async function prepareNativeVerification({native,evidence,packageFile}) {
-  required(native&&UUID.test(native.id)&& (native.verified===false || (native.verified===true && !native.embeddedUpdateId))&&
+/** Attach only a matching immutable private delivery receipt. The native build
+ * job must provide maps captured from the actual signed artifact's bundle,
+ * not from a fresh independent export. This check validates identity and
+ * receipt integrity; it does not substitute for build provenance. */
+export async function verifyEmbeddedSymbolReceipt(directory,native,embeddedUpdateId,artifactSha256) {
+  const {planPrivateSymbolUpload}=await import('../../../packages/cdn-upload/scripts/upload-mobile-private-symbols.mjs');
+  const plan=planPrivateSymbolUpload(directory);
+  const manifestRecord=plan.records.at(-1);
+  const manifest=JSON.parse(fs.readFileSync(manifestRecord.file,'utf8'));
+  required(manifest.revision===0&&manifest.environment===native.environment&&
+    manifest.platform===native.platform&&manifest.runtimeVersion===native.runtimeVersion&&
+    manifest.sourceSha===native.sourceSha&&manifest.updateId===embeddedUpdateId&&
+    manifest.nativeBuild===native.buildNumber&&manifest.nativeArtifactSha256===artifactSha256,
+    'EMBEDDED_SYMBOL_SCOPE_MISMATCH');
+  const receiptFile=path.join(path.resolve(directory),'private-symbol-delivery-evidence.json');
+  const stat=fs.lstatSync(receiptFile);
+  required(stat.isFile()&&!stat.isSymbolicLink()&&(stat.mode&0o077)===0&&stat.size<100000,
+    'EMBEDDED_SYMBOL_RECEIPT_INSECURE');
+  const receipt=JSON.parse(fs.readFileSync(receiptFile,'utf8'));
+  required(receipt.state==='IMMUTABLE_PRIVATE_SYMBOLS_VERIFIED'&&receipt.environment===manifest.environment&&
+    receipt.platform===manifest.platform&&receipt.runtimeVersion===manifest.runtimeVersion&&
+    receipt.updateId===manifest.updateId&&receipt.sourceSha===manifest.sourceSha&&
+    receipt.manifestSha256===manifestRecord.sha256&&Array.isArray(receipt.report)&&
+    receipt.report.length===plan.records.length&&plan.records.every(record=>
+      receipt.report.filter(item=>item.verified===true&&item.key===record.key&&
+        item.sha256===record.sha256&&item.size===record.size).length===1),
+    'EMBEDDED_SYMBOL_RECEIPT_MISMATCH');
+  return 'symbols-s3:'+manifestRecord.sha256;
+}
+export async function prepareNativeVerification({native,evidence,packageFile,symbolsDirectory}) {
+  required(native&&UUID.test(native.id)&& (native.verified===false || (native.verified===true && (!native.embeddedUpdateId || !!symbolsDirectory)))&&
     ['preview','production'].includes(native.environment)&&
     native.channel===native.environment&&
     ['ios','android'].includes(native.platform)&&
@@ -72,28 +101,30 @@ export async function prepareNativeVerification({native,evidence,packageFile}) {
     'EXPLICIT_HUMAN_QA_EVIDENCE_REQUIRED');
   const hash=await hashNativePackage(packageFile,native.platform);
   let embeddedUpdateId;
-  if(native.environment==='production' && native.platform==='ios' && native.distribution==='app-store'){
-    const archive=path.resolve(packageFile);
-    const entries=execFileSync('unzip',['-Z1',archive],{encoding:'utf8',maxBuffer:8*1024*1024}).split('\n');
-    const entry=entries.find(name=>/^Payload\/[^/]+\.app\/EXUpdates\.bundle\/app\.manifest$/.test(name));
-    required(entry,'EMBEDDED_MANIFEST_REQUIRED');
-    embeddedUpdateId=JSON.parse(execFileSync('unzip',['-p',archive,entry],{encoding:'utf8'})).id;
-    required(UUID.test(embeddedUpdateId),'EMBEDDED_ID_REQUIRED');
+  if(native.environment==='production' && ['app-store','google-play','rustore'].includes(native.distribution)){
+    embeddedUpdateId=readSignedEmbeddedUpdateId(path.resolve(packageFile),native.platform);
+    required(!evidence.embeddedUpdateId||evidence.embeddedUpdateId===embeddedUpdateId,'EMBEDDED_ID_MISMATCH');
   }else if(evidence.embeddedUpdateId){
     required(UUID.test(evidence.embeddedUpdateId),'EMBEDDED_ID_REQUIRED');
     embeddedUpdateId=evidence.embeddedUpdateId;
   }
+  required(!native.embeddedUpdateId||!embeddedUpdateId||native.embeddedUpdateId===embeddedUpdateId,'EMBEDDED_ID_MISMATCH');
+  let embeddedSymbolsRef;
+  if(symbolsDirectory){
+    required(embeddedUpdateId,'EMBEDDED_ID_REQUIRED');
+    embeddedSymbolsRef=await verifyEmbeddedSymbolReceipt(symbolsDirectory,native,embeddedUpdateId,hash);
+  }
   return {operationId:evidence.operationId,action:'VERIFY',reason:evidence.reason.trim(),
-    evidence:{nativeReleaseId:native.id,...(embeddedUpdateId?{embeddedUpdateId}:{}),nativeArtifactSha256:hash,physicalDeviceVerified:true,
+    evidence:{nativeReleaseId:native.id,...(embeddedUpdateId?{embeddedUpdateId}:{}),nativeArtifactSha256:hash,...(embeddedSymbolsRef?{embeddedSymbolsRef}:{}),physicalDeviceVerified:true,
       distributionVerified:true,reference:evidence.reference}};
 }
 async function main(){
-  const [descriptorFile,packageFile,evidenceFile,outputFile]=process.argv.slice(2);
-  if(process.argv.length!==6)
-    throw Error('USAGE: <native-descriptor.json> <verified-IPA-or-APK-or-AAB> <human-qa-evidence.json> <out.json>');
+  const [descriptorFile,packageFile,evidenceFile,outputFile,symbolsDirectory]=process.argv.slice(2);
+  if(![6,7].includes(process.argv.length))
+    throw Error('USAGE: <native-descriptor.json> <verified-IPA-or-APK-or-AAB> <human-qa-evidence.json> <out.json> [private-symbol-directory]');
   const result=await prepareNativeVerification({
     native:JSON.parse(fs.readFileSync(descriptorFile,'utf8')),
-    packageFile,evidence:JSON.parse(fs.readFileSync(evidenceFile,'utf8')),
+    packageFile,evidence:JSON.parse(fs.readFileSync(evidenceFile,'utf8')),symbolsDirectory,
   });
   const output=path.resolve(outputFile);
   required(!fs.existsSync(output),'OUTPUT_ALREADY_EXISTS');

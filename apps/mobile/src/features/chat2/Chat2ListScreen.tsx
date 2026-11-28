@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ScrollView,
@@ -118,10 +119,14 @@ function Chat2ListOwned({ owner, epoch }: { owner: string; epoch: string }) {
     [privateGroup, setPrivateGroup] = useState(false);
   const [loading, setLoading] = useState(false),
     [error, setError] = useState("");
+  const [listLoaded, setListLoaded] = useState(false);
+  useScreenDataReady("SCREEN_CHAT_LIST_DATA_READY",
+    currentActor() && listLoaded && !error && mode === "list");
   const refresh = useCallback(async () => {
     if (!owner) return;
     try {
       setList(await chat2.list());
+      setListLoaded(true);
       setError("");
     } catch (e) {
       reportClientError(new Error("CHAT2_REFRESH_FAILED"), {

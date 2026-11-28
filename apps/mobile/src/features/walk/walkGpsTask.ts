@@ -28,7 +28,7 @@ let gpsOperation: Promise<unknown> = Promise.resolve();
 
 function runGpsOperation<T>(operation: () => Promise<T>): Promise<T> {
   // Foreground restoration, permission completion and widget actions use one native task.
-  const next = gpsOperation.catch(() => undefined).then(operation);
+  const next = gpsOperation.catch(() => { /* diagnostic: expected Previous GPS operation rejection must not poison the serialized chain. */ return undefined; }).then(operation);
   gpsOperation = next;
   return next;
 }

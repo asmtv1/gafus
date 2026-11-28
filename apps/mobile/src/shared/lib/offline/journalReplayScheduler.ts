@@ -26,7 +26,7 @@ export function createJournalReplayScheduler(
     let result: ReplayOutcome;
     try {
       result = await drain();
-    } catch {
+    } catch { /* diagnostic: expected Replay failure is pending/transient and retried with scheduler backoff. */
       result = { pending: true, madeProgress: false, transient: true };
     } finally {
       running = false;

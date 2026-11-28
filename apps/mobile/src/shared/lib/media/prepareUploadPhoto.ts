@@ -18,7 +18,7 @@ export type PreparedUploadPhoto = {
 
 function disposeCopy(uri: string, originalUri: string) {
   if (uri === originalUri) return;
-  try { new File(uri).delete(); } catch { /* Best-effort temporary cache cleanup. */ }
+  try { new File(uri).delete(); } catch { /* diagnostic: expected Temporary file deletion is best effort cleanup. */  /* Best-effort temporary cache cleanup. */ }
 }
 
 export async function prepareUploadPhoto(source: UploadPhotoSource): Promise<PreparedUploadPhoto> {

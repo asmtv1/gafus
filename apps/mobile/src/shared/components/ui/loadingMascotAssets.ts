@@ -28,7 +28,7 @@ export function warmUpLoadingMascot(): Promise<void> {
       void animatedMascotAsset
         .downloadAsync()
         .then((animation) => Image.prefetch(assetUri(animation), { cachePolicy: "memory-disk" }))
-        .catch(() => undefined);
+        .catch(() => { /* diagnostic: expected Optional animated mascot asset preload must not block loading UI. */ return undefined; });
     })
     .catch((error) => {
       warmUpPromise = null;

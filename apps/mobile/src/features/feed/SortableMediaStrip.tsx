@@ -196,7 +196,7 @@ export function SortableMediaStrip({ items, onMove, onRemove, disabled = false }
   const start = useCallback((id: string, index: number) => {
     setActiveId(id);
     setHoverIndex(index);
-    void Haptics.selectionAsync().catch(() => undefined);
+    void Haptics.selectionAsync().catch(() => { /* diagnostic: expected Haptic feedback is optional and must not block media reordering. */ return undefined; });
   }, []);
   const finish = useCallback(() => {
     setActiveId(null);
@@ -206,7 +206,7 @@ export function SortableMediaStrip({ items, onMove, onRemove, disabled = false }
   const drop = useCallback((from: number, to: number) => {
     if (from !== to) {
       onMove(from, to);
-      void Haptics.selectionAsync().catch(() => undefined);
+      void Haptics.selectionAsync().catch(() => { /* diagnostic: expected Haptic feedback is optional and must not block media reordering. */ return undefined; });
     }
   }, [onMove]);
 

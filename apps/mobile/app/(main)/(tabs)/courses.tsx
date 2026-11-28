@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "expo-router";
 import { View, StyleSheet, RefreshControl, Pressable } from "react-native";
@@ -267,6 +268,8 @@ function OwnerFavorites({ ownerId, authEpoch }: FavoriteActor) {
     ),
     [],
   );
+  useScreenDataReady("SCREEN_FAVORITES_DATA_READY",
+    current() && !isPending && !isError && data !== undefined);
   if (isPending) return <Loading fullScreen message="Загрузка избранных курсов..." />;
   return (
     <TexturedSafeAreaView style={styles.container} edges={["top"]}>

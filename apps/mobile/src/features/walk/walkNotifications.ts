@@ -106,7 +106,7 @@ export function syncWalkNotifications(
   nowMs = Date.now(),
 ): Promise<void> {
   const task = notificationsQueue
-    .catch(() => undefined)
+    .catch(() => { /* diagnostic: expected Prior notification chain failure must not poison serialized updates. */ return undefined; })
     .then(async () => {
       await cancelStoredNotifications();
       if (!ownerId || !walk || !permissionGranted || !isWalkRunning(walk)) return;

@@ -2,6 +2,7 @@ import { Redirect, type Href } from "expo-router";
 
 import { useAuthStore } from "@/shared/stores";
 import { readMobileIntroState } from "@/shared/lib/mobile-intro-state";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import * as Application from "expo-application";
 import { useEffect, useState } from "react";
 
@@ -17,12 +18,13 @@ export default function Index() {
     let active = true;
     void Promise.all([
       readMobileIntroState(),
-      Application.getInstallationTimeAsync().catch(() => null),
+      Application.getInstallationTimeAsync().catch(() => { /* diagnostic: expected Native installation time is optional; missing value preserves normal routing. */ return null; }),
     ]).then(([state, installedAt]) => {
       const existingInstall = installedAt
         ? installedAt.getTime() < Date.parse("2026-09-17T00:00:00Z") : true;
       if (active) setIntroFinished(state.finished || existingInstall);
-    }).catch(() => {
+    }).catch(error => {
+      reportClientError(error, {issueKey:"AppIntroStateRead",severity:"warning"});
       // Storage failure must not trap the user on an empty startup screen.
       if (active) setIntroFinished(true);
     });

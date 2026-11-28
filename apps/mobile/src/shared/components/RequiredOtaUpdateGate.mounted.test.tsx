@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
   authenticated: true,
   loading: false,
   appState: "active" as AppStateStatus,
+  platform: "android" as "android" | "ios",
   listeners: new Set<(status: AppStateStatus) => void>(),
   remove: vi.fn(),
   progress: 0.32,
@@ -41,7 +42,7 @@ vi.mock("react-native", async () => {
         return { remove: () => { state.remove(); state.listeners.delete(listener); } };
       },
     },
-    Platform: { OS: "android" },
+    Platform: { get OS() { return state.platform; } },
     StyleSheet: { create: (x: unknown) => x, absoluteFill: {} },
     useWindowDimensions: () => ({ height: 960, width: 430 }),
   };
@@ -132,6 +133,7 @@ beforeEach(() => {
   state.epoch = "epoch-1";
   state.generation = 1;
   state.appState = "active";
+  state.platform = "android";
   state.progress = 0.32;
   state.policy.mockResolvedValue(required);
   state.check.mockResolvedValue({ isAvailable: false });
@@ -176,7 +178,7 @@ describe("OTA checks on app openings", () => {
   it("checks the public rollout when opened signed out without requesting private policy", async () => {
     state.authenticated = false;
     await render("sign-in");
-    expect(state.policy).not.toHaveBeenCalled();
+    expect(state.policy).toHaveBeenCalledWith(expect.objectContaining({userId:null}));
     expect(state.check).toHaveBeenCalledOnce();
   });
 
@@ -205,7 +207,7 @@ describe("OTA checks on app openings", () => {
     expect(state.check).toHaveBeenCalledTimes(2);
   });
 
-  it("waits for initial auth and ignores further auth changes, screen changes, and renders", async () => {
+  it("waits for settled auth, checks a new account once, and ignores ordinary renders", async () => {
     state.loading = true;
     await render();
     expect(state.policy).not.toHaveBeenCalled();
@@ -214,20 +216,18 @@ describe("OTA checks on app openings", () => {
     await render("profile");
     await render("feed");
     expect(screen("feed")).not.toBeNull();
-
     state.authenticated = false;
     await render("sign-in");
+    expect(state.policy).toHaveBeenCalledTimes(2);
     state.authenticated = true;
     state.epoch = "epoch-2";
     state.generation = 2;
     await render("courses");
-    expect(state.policy).toHaveBeenCalledOnce();
-    expect(state.check).toHaveBeenCalledOnce();
+    expect(state.policy).toHaveBeenCalledTimes(3);
+    expect(state.check).toHaveBeenCalledTimes(3);
     expect(state.listeners.size).toBe(1);
-    expect(state.remove).not.toHaveBeenCalled();
-
     await emit("background", "active");
-    expect(state.policy).toHaveBeenCalledTimes(2);
+    expect(state.policy).toHaveBeenCalledTimes(4);
     expect(state.policy.mock.lastCall?.[0]).toMatchObject({ epoch: "epoch-2" });
   });
 
@@ -244,10 +244,10 @@ describe("OTA checks on app openings", () => {
     state.generation = 2;
     state.epoch = "epoch-2";
     await render();
-    expect(state.policy).toHaveBeenCalledOnce();
-    await emit("background", "active");
     expect(state.policy).toHaveBeenCalledTimes(2);
-    expect(state.check).toHaveBeenCalledOnce();
+    await emit("background", "active");
+    expect(state.policy).toHaveBeenCalledTimes(3);
+    expect(state.check).toHaveBeenCalledTimes(2);
   });
 
   it("does not retry a failed availability check until the next opening", async () => {
@@ -384,4 +384,77 @@ describe("mandatory 1.7.5 OTA runtime gate", () => {
     expect(screen("required-ota-screen")).toBeNull();
     expect(state.check).toHaveBeenCalledTimes(2);
   });
+});
+
+describe("OTA startup and interactive login exclusion", () => {
+  it.each(["android","ios"] as const)("hides sign-in on %s during guest policy, mandatory download and reload", async (platform) => {
+    state.platform = platform;
+    state.authenticated = false;
+    state.policy.mockImplementationOnce(() => holdRequest(required));
+    state.check.mockResolvedValue({isAvailable:true,manifest:{id:"public-update"}});
+    state.fetch.mockImplementationOnce(() => holdRequest({}));
+    await render("sign-in");
+    expect(screen("sign-in")).toBeNull();
+    expect(screen("required-ota-screen")).not.toBeNull();
+    await act(async () => { settleRequest?.(); });
+    expect(state.fetch).toHaveBeenCalledOnce();
+    expect(screen("sign-in")).toBeNull();
+    expect(state.reload).not.toHaveBeenCalled();
+    await act(async () => { settleRequest?.(); });
+    expect(state.reload).toHaveBeenCalledOnce();
+    expect(screen("sign-in")).toBeNull();
+  });
+  it("retries a failed public policy instead of exposing a misleading login failure", async () => {
+    state.authenticated=false;
+    state.policy.mockRejectedValueOnce(new Error("Policy offline")).mockResolvedValue(optional);
+    await render("sign-in");
+    expect(screen("sign-in")).toBeNull();
+    expect(state.check).not.toHaveBeenCalled();
+    await act(async () => { host.querySelector("button")?.click(); });
+    expect(state.policy).toHaveBeenCalledTimes(2);
+    expect(screen("sign-in")).not.toBeNull();
+  });
+  it("never starts a background guest check after the sign-in form opens", async () => {
+    state.authenticated=false;
+    state.policy.mockResolvedValue(optional);
+    await render("sign-in");
+    expect(screen("sign-in")).not.toBeNull();
+    await emit("background","active");
+    expect(state.policy).toHaveBeenCalledOnce();
+    expect(state.check).toHaveBeenCalledOnce();
+    expect(state.reload).not.toHaveBeenCalled();
+  });
+  it("shows progress for an optional guest update too", async () => {
+    state.authenticated=false;
+    state.policy.mockResolvedValue(optional);
+    state.check.mockResolvedValue({isAvailable:true,manifest:{id:"optional-update"}});
+    state.fetch.mockImplementationOnce(() => holdRequest({}));
+    await render("sign-in");
+    expect(screen("sign-in")).toBeNull();
+    expect(screen("required-ota-screen")).not.toBeNull();
+    expect(state.reload).not.toHaveBeenCalled();
+    await act(async () => { settleRequest?.(); });
+    expect(state.reload).toHaveBeenCalledOnce();
+    expect(screen("sign-in")).toBeNull();
+  });
+});
+
+it("keeps the guest sign-in hidden until a native download from a stale session has settled", async () => {
+  state.authenticated=false;
+  state.policy.mockResolvedValue(optional);
+  await render("sign-in");
+  expect(screen("sign-in")).not.toBeNull();
+  state.authenticated=true;
+  state.generation=2;
+  state.check.mockResolvedValue({isAvailable:true,manifest:{id:"personal-update"}});
+  state.fetch.mockImplementationOnce(()=>holdRequest({}));
+  await render("courses");
+  expect(state.fetch).toHaveBeenCalledOnce();
+  state.authenticated=false;
+  state.generation=3;
+  await render("sign-in");
+  expect(screen("sign-in")).toBeNull();
+  await act(async()=>{settleRequest?.();});
+  expect(state.reload).not.toHaveBeenCalled();
+  expect(screen("sign-in")).not.toBeNull();
 });

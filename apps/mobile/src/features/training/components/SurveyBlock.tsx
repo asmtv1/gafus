@@ -230,7 +230,7 @@ export function SurveyBlock({
     if (!surveySlug || !stepId || readTerminal || retryReadFlight.current ||
       surveyQuery.isFetching) return;
     retryReadFlight.current = true;
-    void surveyQuery.refetch().catch(() => undefined).finally(() => {
+    void surveyQuery.refetch().catch(() => { /* diagnostic: expected React Query owns retry state and survey read error UI. */ return undefined; }).finally(() => {
       retryReadFlight.current = false;
     });
   };
@@ -382,7 +382,7 @@ export function SurveyBlock({
     // prop has not painted yet or its handler is invoked directly.
     if (submitFlight.current || !canSubmit) return;
     submitFlight.current = true;
-    void submitMutation.mutateAsync().catch(() => undefined).finally(() => {
+    void submitMutation.mutateAsync().catch(() => { /* diagnostic: expected Mutation owns failure through onError and state; avoid duplicate reporting. */ return undefined; }).finally(() => {
       submitFlight.current = false;
     });
   };

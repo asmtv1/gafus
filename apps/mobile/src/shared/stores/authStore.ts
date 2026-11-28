@@ -179,12 +179,12 @@ export const useAuthStore = create<AuthStore>()(
             .then(({ trackMobileIntroAuthOutcome }) =>
               trackMobileIntroAuthOutcome("LOGGED_IN", user.id),
             )
-            .catch(() => undefined);
+            .catch(() => { /* diagnostic: expected Optional onboarding analytics cannot affect successful login. */ return undefined; });
           if (__DEV__) console.log("[authStore] login → isAuthenticated: true");
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthLogin" });
-          console.error("Login error:", error);
+
           const keychainError = (error as { code?: string } | null)?.code === "ERR_KEY_CHAIN" ||
             (error instanceof Error && error.message.includes("KeyChainException"));
           return { success: false, error: keychainError
@@ -246,12 +246,12 @@ export const useAuthStore = create<AuthStore>()(
             .then(({ trackMobileIntroAuthOutcome }) =>
               trackMobileIntroAuthOutcome("REGISTERED", response.data.user.id),
             )
-            .catch(() => undefined);
+            .catch(() => { /* diagnostic: expected Optional onboarding analytics cannot affect successful registration. */ return undefined; });
           if (__DEV__) console.log("[authStore] register success");
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthRegister" });
-          console.error("Register error:", error);
+
           if (__DEV__)
             console.log("[authStore] register catch", {
               error,
@@ -421,7 +421,7 @@ export const useAuthStore = create<AuthStore>()(
               issueKey: "AuthCheck",
               userId: useAuthStore.getState().user?.id,
             });
-            console.error("Auth check error:", error);
+
             set({ isLoading: false });
           }
         };

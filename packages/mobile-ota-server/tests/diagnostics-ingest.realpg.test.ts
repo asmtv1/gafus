@@ -30,6 +30,7 @@ run('SDK57 actual PostgreSQL durable ingest',()=>{
       channel:'preview',nativeFingerprint};
     const service='gafus-mobile-android';
     const day=new Date(new Date().toISOString().slice(0,10)+'T00:00:00.000Z');
+    const baseline=await prisma.mobileTelemetryDailyQuota.findUnique({where:{environment_day:{environment:'preview',day}}});
     try{
       const ingest=createMobileTelemetryIngest(prismaMobileTelemetryRepository,{
         GAFUS_TELEMETRY_INGEST_ENABLED:'true',GAFUS_TELEMETRY_ENVIRONMENT:'preview',
@@ -57,7 +58,7 @@ run('SDK57 actual PostgreSQL durable ingest',()=>{
       const sessions=await digest;
       expect(sessions.some(e=>e.tokenHash===grant.token)).toBe(false);
       const today=await prisma.mobileTelemetryDailyQuota.findUnique({where:{environment_day:{environment:'preview',day}}});
-      expect(today?.acceptedEvents).toBe(1);
+      expect(today?.acceptedEvents).toBe((baseline?.acceptedEvents??0)+1);
       // Exhaust quota and verify rejection atomically rolls back session count.
       await prisma.mobileTelemetryDailyQuota.update({where:{environment_day:{environment:'preview',day}},data:{acceptedEvents:20000}});
       const second={...input(),eventId:two};
@@ -69,7 +70,8 @@ run('SDK57 actual PostgreSQL durable ingest',()=>{
     }finally{
       await prisma.mobileTelemetrySpool.deleteMany({where:{eventId:{in:[one,two]}}});
       await prisma.mobileTelemetryUploadSession.deleteMany({where:{appVersion:'1.8.0',platform:'android',build}});
-      await prisma.mobileTelemetryDailyQuota.deleteMany({where:{environment:'preview',day}});
+      if(baseline)await prisma.mobileTelemetryDailyQuota.update({where:{environment_day:{environment:'preview',day}},data:{acceptedEvents:baseline.acceptedEvents,acceptedBytes:baseline.acceptedBytes}});
+      else await prisma.mobileTelemetryDailyQuota.deleteMany({where:{environment:'preview',day}});
       await prisma.mobileNativeRelease.delete({where:{id:release.id}});
     }
   });

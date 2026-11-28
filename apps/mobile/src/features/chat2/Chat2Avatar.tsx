@@ -13,7 +13,7 @@ function safeChat2AvatarUrl(raw: unknown): string | null {
     const parsed = new URL(raw);
     return ((parsed.protocol === "https:" || parsed.protocol === "http:") &&
       !!parsed.hostname && !parsed.username && !parsed.password) ? parsed.href : null;
-  } catch {
+  } catch { /* diagnostic: expected Malformed avatar URL is rejected without reporting the URL. */
     return null;
   }
 }

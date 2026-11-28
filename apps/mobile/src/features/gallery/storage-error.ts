@@ -5,7 +5,7 @@ export async function galleryUploadRejected(response: Pick<Response, "status" | 
     // S3 errors use XML. Never log or display the raw body: it may contain signed values.
     const body = await response.text();
     code = body.match(/<Code>\s*([A-Za-z][A-Za-z0-9_]{0,63})\s*<\/Code>/)?.[1];
-  } catch {
+  } catch { /* diagnostic: expected Transport detail lookup must not replace the original HTTP failure. */
     // A transport error must not mask the original HTTP failure.
   }
   const status = response.status >= 400 && response.status <= 599

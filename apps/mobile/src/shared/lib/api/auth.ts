@@ -197,9 +197,10 @@ export const authApi = {
         body: JSON.stringify({ promoCode }),
       });
       if (!response.ok) {
+        if (response.status >= 500) reportClientError(new Error("REGISTRATION_PROMO_SERVER_FAILURE"), {issueKey:"AuthRegistrationPromo",keys:{operation:"server"}});
         const errorData = await response
           .json()
-          .catch(() => ({}) as { error?: string; code?: string });
+          .catch(() => { /* diagnostic: expected Malformed error body falls back to HTTP status without exposing the body. */ return ({}) as { error?: string; code?: string }; });
         return {
           success: false,
           error: errorData.error || "Промокод не удалось проверить",
@@ -208,7 +209,8 @@ export const authApi = {
       }
       const result = await response.json();
       return { success: true, data: result.data };
-    } catch {
+    } catch (error) {
+      reportClientError(error,{issueKey:"AuthRegistrationPromo",keys:{operation:"request"},severity:"warning"});
       return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
     }
   },

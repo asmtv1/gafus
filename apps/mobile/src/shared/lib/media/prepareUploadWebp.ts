@@ -50,7 +50,7 @@ export async function prepareUploadWebp(source: UploadPhotoSource, maxEdge: numb
         [{ resize: result.width >= result.height ? { width: maxEdge } : { height: maxEdge } }],
         { format: SaveFormat.WEBP, compress: 0.8 });
     } finally { if (previous !== source.uri) {
-      try { new File(previous).delete(); } catch { /* temporary cache cleanup */ }
+      try { new File(previous).delete(); } catch { /* diagnostic: expected Temporary cache cleanup must not replace the original upload outcome. */  /* temporary cache cleanup */ }
     } }
   }
   // Detailed photos can exceed a signed S3 policy even at quality 0.8.
@@ -66,12 +66,12 @@ export async function prepareUploadWebp(source: UploadPhotoSource, maxEdge: numb
         { format: SaveFormat.WEBP, compress: 0.8 });
     } finally {
       if (previous !== source.uri) {
-        try { new File(previous).delete(); } catch { /* cache file may already be gone */ }
+        try { new File(previous).delete(); } catch { /* diagnostic: expected Temporary cache file may already be absent. */  /* cache file may already be gone */ }
       }
     }
   }
   const dispose = () => { if (result.uri !== source.uri) {
-    try { new File(result.uri).delete(); } catch { /* cache can already be evicted */ }
+    try { new File(result.uri).delete(); } catch { /* diagnostic: expected Temporary cache file may already have been evicted. */  /* cache can already be evicted */ }
   } };
   try {
     const bytes = new File(result.uri).size;

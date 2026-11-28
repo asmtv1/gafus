@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
@@ -78,7 +79,7 @@ function getDeviceTimeZone(): string {
       new Intl.DateTimeFormat("en-US", { timeZone: tz });
       return tz;
     }
-  } catch {
+  } catch { /* diagnostic: expected Timezone lookup falls back to the device/default timezone. */
     /* fallthrough */
   }
   return "Europe/Moscow";
@@ -243,6 +244,9 @@ function RemindersContent({
     retry: false,
   });
 
+  useScreenDataReady("SCREEN_REMINDERS_DATA_READY",
+    !!actor && current(actor) && !remindersQuery.isPending && !remindersQuery.isError &&
+      Array.isArray(remindersQuery.data), JSON.stringify([actor?.ownerId, actor?.authEpoch]));
   const reminders = useMemo(() => remindersQuery.data ?? [], [remindersQuery.data]);
   const activeEdit = editing && current(editing.actor) &&
     reminders.some((row) => row.id === editing.row.id) ? editing : null;
@@ -597,7 +601,7 @@ function RemindersContent({
         try {
           const status = await queryClient.fetchQuery(pushDeviceStatusForActor(actor));
           confirmed = status.determined && status.hasThisDeviceSubscription;
-        } catch {
+        } catch { /* diagnostic: expected Lost status acknowledgement must not be interpreted as enabled delivery. */
           // A lost status ACK is not evidence that delivery has been enabled.
         }
       }

@@ -207,7 +207,7 @@ export async function getCurrentDeviceTokens(): Promise<{ expo?: string }> {
           const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
           if (tokenData.data) tokens.expo = tokenData.data;
         }
-      } catch {
+      } catch { /* diagnostic: expected Missing Expo token must not be represented as a subscribed device. */
         // Expo token unavailable; do not claim this device is subscribed.
       }
     }

@@ -134,8 +134,8 @@ export async function adjustGafusBalanceAdmin(input: {
           throw new Error("REQUEST_CONFLICT");
         return { transactionId: existing.id, balance: existing.balanceAfter, replay: true };
       }
-      const wallet = await tx.walletBalance(input.userId);
-      const before = wallet?.balance ?? 0;
+      const currentWallet = await tx.walletBalance(input.userId);
+      const before = currentWallet?.balance ?? 0;
       if (input.delta < 0 && before < -input.delta)
         throw new GafusError("GAFUS_INSUFFICIENT_BALANCE", "Insufficient funds");
       const transaction = await wallet.changeGafusBalanceTx(tx.rawTx, {
@@ -217,8 +217,8 @@ export async function reviewGafusFraudSignalAdmin(input: {
       const current = await tx.findFraudSignal(input.signalId);
       if (current?.status !== "OPEN") throw new Error("FRAUD_SIGNAL_ALREADY_REVIEWED");
       const requested = input.action === "CONFIRM" ? (input.requestedReversal ?? 0) : 0;
-      const wallet = await tx.walletBalance(signal.userId);
-      const balance = wallet?.balance ?? 0;
+      const currentWallet = await tx.walletBalance(signal.userId);
+      const balance = currentWallet?.balance ?? 0;
       const recovered = Math.min(balance, requested);
       let transactionId: string | null = null;
       if (recovered > 0) {
@@ -229,7 +229,7 @@ export async function reviewGafusFraudSignalAdmin(input: {
           idempotencyKey: `gafus:fraud:${signal.id}`,
         });
         transactionId = spent.transactionId;
-        await tx.annotateTransaction(transactionId, input.actorId, reason);
+        await tx.annotateTransaction(spent.transactionId, input.actorId, reason);
       }
       const nextStatus = input.action === "CONFIRM" ? "RESOLVED" : "DISMISSED";
       const result = await tx.updateOpenFraudSignal(signal.id, nextStatus, input.actorId);

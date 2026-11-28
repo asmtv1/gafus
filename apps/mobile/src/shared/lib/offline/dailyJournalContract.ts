@@ -57,7 +57,7 @@ export function verifyDailyJournalAck(preview: DailyJournalPreview, binding: V2S
   if (!saved || !sameBinding(binding, saved.binding) || !record(response) ||
       response.success !== true || !record(response.ack)) return false;
   let body: DailyBody;
-  try { body = bodyFor(event); } catch { return false; }
+  try { body = bodyFor(event); } catch { /* diagnostic: expected Unverifiable journal acknowledgement cannot authorize removal. */  return false; }
   const ack = response.ack;
   return JSON.stringify(body) === saved.canonical &&
     ack.protocol === 2 && ack.eventId === body.eventId && ack.operation === body.operation &&

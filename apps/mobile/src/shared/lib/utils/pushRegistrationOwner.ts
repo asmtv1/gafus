@@ -30,7 +30,7 @@ export function createPushRegistrationCoordinator() {
           current?.ownerId === actor.ownerId &&
           current.authEpoch === actor.authEpoch
         );
-      } catch {
+      } catch { /* diagnostic: expected Unverified push owner fails closed without exposing token. */
         return false;
       }
     };
@@ -46,7 +46,7 @@ export function createPushRegistrationCoordinator() {
       try {
         const result = await task(actor, isCurrent);
         return isCurrent() && result;
-      } catch {
+      } catch { /* diagnostic: expected SDK token failure returns false; never log raw token data. */
         // SDK errors may embed private token values. Never log the error.
         return false;
       } finally {
@@ -70,7 +70,7 @@ export function createPushRegistrationCoordinator() {
     let saved: boolean;
     try {
       saved = await save(token, isCurrent);
-    } catch {
+    } catch { /* diagnostic: expected Registration failure returns false; cannot claim registration succeeded. */
       return false;
     }
     if (!isCurrent() || !saved) return false;
@@ -101,7 +101,7 @@ export function createPushRegistrationCoordinator() {
       try {
         const now = getCurrentActor();
         return now?.ownerId === actor.ownerId && now.authEpoch === actor.authEpoch;
-      } catch {
+      } catch { /* diagnostic: expected Unverified actor fails closed before push operation. */
         return false;
       }
     };
@@ -121,7 +121,7 @@ export function createPushRegistrationCoordinator() {
         const ack = await task(isCurrent);
         if (ack && currentActor()) invalidateActor(actor);
         return ack && isCurrent();
-      } catch {
+      } catch { /* diagnostic: expected Network ambiguity is not proof of revoked push delivery. */
         return false; // Network ambiguity is never evidence of revoked delivery.
       } finally {
         blocked.delete(key);

@@ -132,14 +132,14 @@ export function normalizeObserveLogs(raw:unknown):NormalizedObserveBatch {
         const eventId=deterministicUUID(originalKey);
         const updateId=attributesToMap(item.resource.attributes)['expo.app.updates.id'] ??
           attributesToMap(item.resource.attributes)['expo.app.update_id'];
-        const safeUpdateId=updateId&&UUID.test(updateId)?updateId:'embedded';
+        const safeUpdateId=updateId&&UUID.test(updateId)?updateId:'unknown';
         try{
           const event=parseMobileTelemetryEvent({
             schemaVersion:1,eventId,platform:scope.platform,
             kind:'native_crash',severity:'FATAL',
             occurredAt,appVersion:scope.appVersion,build:scope.build,
             runtime:scope.runtime,channel:scope.channel,updateId:safeUpdateId,appStartId,
-            ...(stack?{stack}:{}),...(osVersion?{osVersion}:{}),
+            ...(stack?{stack}:{}),stackStatus:stack?'captured':props['exception.stacktrace']?'sanitized_empty':'unavailable',...(osVersion?{osVersion}:{}),
             ...(safeExceptionType(props)?{exceptionType:safeExceptionType(props)}:{}),
             errorCode:'NATIVE_CRASH',
           });

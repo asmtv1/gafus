@@ -153,7 +153,7 @@ export function inspectMp4Upload(reader: Mp4RangeReader, onReject?: (reason: str
     return {videoCodec:'h264',audioCodec:a?'aac':null,width:v.width,height:v.height,
       fpsMax:v.maxFps,fpsAverage:v.samples/seconds,seconds,videoBitrate:v.bytes*8/seconds,
       audioBitrate:a?a.bytes*8/(a.ticks/a.timescale):0,rotated:v.rotated};
-  }catch(error){return reject(error instanceof Error ? error.message : "MP4_PARSE_ERROR");}
+  }catch(error){ /* diagnostic: expected Reject callback forwards the parse failure to the awaiting caller. */ return reject(error instanceof Error ? error.message : "MP4_PARSE_ERROR");}
 }
 
 /** A rotated track matrix is valid iOS MP4 orientation metadata. */

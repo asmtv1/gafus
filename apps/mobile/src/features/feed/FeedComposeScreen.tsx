@@ -125,7 +125,7 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
       }
       setPicked(next);
       assets = []; // Ownership moved into composer state (or the background publication manager).
-    } catch (error) {
+    } catch (error) { /* diagnostic: expected Picker validation includes normal selection limits; visible alert handles rejected input. */
       for (const asset of assets) releaseFeedPickedMedia(asset);
       Alert.alert("Не удалось выбрать файл", errorMessage(error));
     }
@@ -163,7 +163,7 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
         return { ...current, options: current.options.map((option, i) =>
           i === index ? { ...option, imageAsset: photo } : option) };
       });
-    } catch (error) { Alert.alert("Не удалось выбрать фото", errorMessage(error)); }
+    } catch (error) { reportClientError(error, {issueKey:"FeedPollPhotoPicker",keys:{operation:"pick"},severity:"warning"});  Alert.alert("Не удалось выбрать фото", errorMessage(error)); }
   };
   const removePollImage = (index: number) => {
     setPoll(current => {
@@ -207,7 +207,7 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
           } : {}),
         });
         router.replace("/(main)/(tabs)/feed" as Href);
-      } catch (error) {
+      } catch (error) { reportClientError(error, {issueKey:"FeedPublicationEnqueue",keys:{operation:"enqueue"}});
         Alert.alert("Не удалось опубликовать", errorMessage(error));
         setBusy(false);
       }
