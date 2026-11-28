@@ -1,0 +1,38 @@
+diff --git a/ci-cd/scripts/approved-legacy-migration-baseline-20261115.json b/ci-cd/scripts/approved-legacy-migration-baseline-20261115.json
+--- a/ci-cd/scripts/approved-legacy-migration-baseline-20261115.json
++++ b/ci-cd/scripts/approved-legacy-migration-baseline-20261115.json
+@@ -46,7 +46,33 @@
+       "ledgerSha256": "ab671c55b705417f01f8001ed6b50530552853e7a08cacf3d8048ff1851da8dd",
+       "expectedApplied": 186,
+       "expectedRolledBack": 4,
+-      "expectedSources": 186
++      "expectedSources": 186,
++      "approvedPendingMigrations": [
++        {
++          "name": "20261126220000_dog_walk_changes",
++          "sqlSha256": "e168fe3d055c626746d08aeb5ff3082fbb0a604d461b80fd4dd96725e7406c32"
++        },
++        {
++          "name": "20261127090000_consultation_push_receipts",
++          "sqlSha256": "84477c7ddea3bbb19f2cc50b25a0484c4db928d6618cb37535d256172bd4442a"
++        },
++        {
++          "name": "20261127140000_walk_gps_ota_operational_signals",
++          "sqlSha256": "6bf1361b4202e74ca59ade5e7c5883b78bf6291ea30317b90350e08cff1cbc19"
++        },
++        {
++          "name": "20261127150000_yookassa_frozen_checkout_return_url",
++          "sqlSha256": "117798522713ae5d82424270cb68aaece86be0a49cbf0f0390a39e822322a42a"
++        },
++        {
++          "name": "20261127160000_mail_attempt_operational_category",
++          "sqlSha256": "8be82a249ad5fdfa48e3c379a759e60a82deb1a112949f1c40f1725f7da3799f"
++        },
++        {
++          "name": "20261127170000_mail_event_received_at_brin",
++          "sqlSha256": "434c6b0a5a86bb4be31f2eb9fdf2d2bbf958b7c49efb3ab64154d45cea54b034"
++        }
++      ]
+     }
+   },
+   "approvedLegacyChecksumExceptions": {

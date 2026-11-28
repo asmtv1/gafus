@@ -221,7 +221,7 @@ test('four SHA-pinned migrations require exact pre- and post-migration productio
     assert.equal(realAfter.expectedSources,realAfter.expectedApplied);
     assert.equal(realAfter.expectedRolledBack,real.expectedRolledBack);
     assert.equal(realAfter.approvedPendingMigration,undefined);
-    assert.equal(realAfter.approvedPendingMigrations,undefined);
+    // Later reviewed batches may extend this checkpoint; its 186-source baseline remains valid.
     assert.deepEqual(pinned.map(item=>item.name),[
       '20261118160000_version_ota_publication',
       '20261118201500_remove_vk_review_profiles',
@@ -292,6 +292,105 @@ test('four SHA-pinned migrations require exact pre- and post-migration productio
     writeFileSync(manifestPath,JSON.stringify(manifest));
     assert.match(run().stderr,/LEGACY_MANIFEST_PENDING_INVALID/,'duplicate approval must veto');
   } finally { rmSync(root,{recursive:true,force:true}); }
+});
+
+test('six pending SQL proposal is exact and fails closed until separately reviewed',()=>{
+  const root=mkdtempSync(join(tmpdir(),'gafus-six-pending-ledger-'));
+  try {
+    const manifestRel='ci-cd/scripts/approved-legacy-migration-baseline-20261115.json';
+    const proposal='docs/audit/evidence/direct-prod-ledger-20261128/pending-batch.proposal.patch';
+    const manifestPath=join(root,manifestRel);
+    const migrations=join(root,'packages/prisma/migrations');
+    mkdirSync(join(root,'ci-cd/scripts'),{recursive:true});
+    mkdirSync(migrations,{recursive:true});
+    writeFileSync(manifestPath,readFileSync(manifestRel));
+    const patch=readFileSync(proposal);
+    const apply=(args)=>spawnSync('git',['apply',...args],{cwd:root,input:patch,encoding:'utf8'});
+    const fingerprint='eceee5fa0ca9ed7ac3d6dfbc44f30cfd29b772662c534f142e29178ffe12aa42';
+    // Also exercise the same test after a separately authorized application.
+    if(JSON.parse(readFileSync(manifestPath)).schemaCheckpoints[fingerprint].approvedPendingMigrations){
+      const reversed=apply(['--reverse']);
+      assert.equal(reversed.status,0,reversed.stderr);
+    }
+    const original=JSON.parse(readFileSync(manifestPath));
+    const check=apply(['--check']);
+    assert.equal(check.status,0,check.stderr);
+    const applied=apply([]);
+    assert.equal(applied.status,0,applied.stderr);
+    const proposed=JSON.parse(readFileSync(manifestPath));
+    const checkpoint=proposed.schemaCheckpoints[fingerprint];
+    const pinned=checkpoint.approvedPendingMigrations;
+    assert.deepEqual(pinned.map(x=>x.name),[
+      '20261126220000_dog_walk_changes',
+      '20261127090000_consultation_push_receipts',
+      '20261127140000_walk_gps_ota_operational_signals',
+      '20261127150000_yookassa_frozen_checkout_return_url',
+      '20261127160000_mail_attempt_operational_category',
+      '20261127170000_mail_event_received_at_brin',
+    ]);
+    assert.equal(checkpoint.ledgerSha256,'ab671c55b705417f01f8001ed6b50530552853e7a08cacf3d8048ff1851da8dd');
+    assert.equal(checkpoint.expectedApplied,186);
+    assert.equal(checkpoint.expectedRolledBack,4);
+    assert.equal(checkpoint.expectedSources,186);
+    const expected=structuredClone(original);
+    expected.schemaCheckpoints[fingerprint].approvedPendingMigrations=pinned;
+    assert.deepEqual(proposed,expected,'only this pending batch may change');
+    const rows=[];
+    const sourceDir='packages/prisma/migrations';
+    const names=spawnSync('git',['ls-files',sourceDir],{encoding:'utf8'});
+    assert.equal(names.status,0,names.stderr);
+    for(const file of names.stdout.trim().split('\n').filter(f=>f.endsWith('/migration.sql'))){
+      const name=file.split('/').at(-2);
+      const bytes=readFileSync(file);
+      const sha=createHash('sha256').update(bytes).digest('hex');
+      const dir=join(migrations,name);mkdirSync(dir);
+      writeFileSync(join(dir,'migration.sql'),bytes);
+      const pending=pinned.find(x=>x.name===name);
+      if(pending){assert.equal(sha,pending.sqlSha256);continue;}
+      rows.push([name,original.approvedLegacyChecksumExceptions[name]?.recordedProductionChecksum??sha,'applied']);
+    }
+    assert.equal(rows.length,186);
+    for(let i=0;i<4;i++)rows.push([`20270101000000_rolled_back_${i}`,'0'.repeat(64),'rolled_back']);
+    // Synthetic rollback metadata and fingerprint are deliberately NOT a live attestation.
+    const synthetic='a'.repeat(64);
+    const digest=input=>createHash('sha256').update(input.map(row=>row.join('\t')+'\n').sort().join('')).digest('hex');
+    const fixture=structuredClone(proposed);
+    fixture.schemaCheckpoints={[synthetic]:{...checkpoint,ledgerSha256:digest(rows)}};
+    const run=(data=rows,hash=synthetic)=>spawnSync('python3',[program,migrations,hash],{
+      input:data.map(row=>row.join('\t')).join('\n')+'\n',encoding:'utf8',timeout:15_000,
+    });
+    const veto=(result,needle=/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/)=>{
+      assert.equal(result.status,1,result.stderr);
+      assert.match(result.stderr,needle);
+      assert.doesNotMatch(result.stdout,/_PASS:/);
+    };
+    const before=structuredClone(fixture);
+    delete before.schemaCheckpoints[synthetic].approvedPendingMigrations;
+    writeFileSync(manifestPath,JSON.stringify(before));
+    veto(run());
+    writeFileSync(manifestPath,JSON.stringify(fixture));
+    const positive=run();
+    assert.equal(positive.status,0,positive.stderr);
+    assert.match(positive.stdout,/applied=186:pending=6/);
+    assert.match(positive.stdout,/LEGACY_SCHEMA_ATTESTED_EXCEPTIONS:6/);
+    veto(run(rows,'b'.repeat(64)),/MIGRATION_SHA_MISMATCH|NONSTANDARD_MIGRATION_CHECKSUM/);
+    const drift=rows.map((row,i)=>i===rows.length-1?[row[0],'f'.repeat(64),row[2]]:row);
+    veto(run(drift));
+    veto(run(rows.slice(0,-1)));
+    veto(run([...rows,[pinned[0].name,pinned[0].sqlSha256,'applied']]));
+    const sql=join(migrations,pinned[0].name,'migration.sql');
+    const bytes=readFileSync(sql);
+    writeFileSync(sql,Buffer.concat([bytes,Buffer.from('\n-- changed\n')]));
+    veto(run());
+    writeFileSync(sql,bytes);
+    const extra=join(migrations,'20271212000000_unreviewed');
+    mkdirSync(extra);writeFileSync(join(extra,'migration.sql'),'SELECT 1;\n');
+    veto(run());
+    rmSync(extra,{recursive:true});
+    const missing=join(migrations,pinned[1].name);
+    rmSync(missing,{recursive:true});
+    veto(run());
+  } finally {rmSync(root,{recursive:true,force:true});}
 });
 
 test('canonical cutover and reusable workflow require pre-mutation ledger gate',()=>{
