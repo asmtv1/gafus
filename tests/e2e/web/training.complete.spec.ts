@@ -53,6 +53,8 @@ test('learner completes training after fresh session', async ({ page, browser, s
     const tour = target.getByRole('button', { name: 'Пропустить', exact: true });
     if (await tour.waitFor({ state: 'visible', timeout: 1500 }).then(() => true, () => false)) {
       await tour.click();
+      await expect(target).toHaveURL(/\/profile(?:\?|$)/);
+      await target.goto(fixture.training);
     }
     await target.getByRole('button', { name: stepName }).click();
   }
