@@ -81,6 +81,7 @@ function registrationPromoMessage(state: PromoPreviewState): string | null {
 export default function RegisterScreen() {
   const layout = useLayout();
   const pathname = usePathname() ?? "/register";
+  const registrationPromoEnabled = Platform.OS !== "ios";
   const promoCodeParam = useLocalSearchParams<{ promoCode?: string | string[] }>().promoCode;
   const register = useAuthStore((s) => s.register);
 
@@ -91,7 +92,7 @@ export default function RegisterScreen() {
     email: "",
     password: "",
     confirmPassword: "",
-    promoCode: typeof promoCodeParam === "string" ? promoCodeParam : "",
+    promoCode: registrationPromoEnabled && typeof promoCodeParam === "string" ? promoCodeParam : "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -209,6 +210,7 @@ export default function RegisterScreen() {
   };
 
   const applyPromoCode = async () => {
+    if (!registrationPromoEnabled) return;
     const rawCode = form.promoCode.trim();
     if (!rawCode) {
       setPromoPreviewState("idle");
@@ -230,7 +232,7 @@ export default function RegisterScreen() {
     if (submittingRef.current) return;
     applyEmailTypoHint(emailTextRef.current || form.email);
     if (!validateRegisterForm()) return;
-    if (form.promoCode.trim() && promoPreviewState !== "applied") {
+    if (registrationPromoEnabled && form.promoCode.trim() && promoPreviewState !== "applied") {
       const message = "Сначала примените промокод или удалите его.";
       setErrors((previous) => ({ ...previous, api: message }));
       setSnackbar({ visible: true, message });
@@ -269,7 +271,7 @@ export default function RegisterScreen() {
         form.password,
         tempSessionId,
         consentPayload,
-        form.promoCode.trim() || undefined,
+        registrationPromoEnabled ? form.promoCode.trim() || undefined : undefined,
       );
 
       if (__DEV__) console.log("[Register] register result", result);
@@ -392,43 +394,47 @@ export default function RegisterScreen() {
               </View>
             )}
 
-            <TextInput
-              style={[
-                styles.input,
-                { width: formWidth },
-                Platform.OS === "android" && styles.inputAndroid,
-              ]}
-              value={form.promoCode}
-              onChangeText={(v) => updateField("promoCode", v)}
-              placeholder="Промокод (необязательно)"
-              placeholderTextColor={COLORS.placeholder}
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
-            {registrationPromoMessage(promoPreviewState) ? (
-              <Text
-                style={[
-                  styles.promoMessage,
-                  (promoPreviewState === "invalid" || promoPreviewState === "temporary") &&
-                    styles.promoError,
-                ]}
-                accessibilityRole={promoPreviewState === "invalid" ? "alert" : "text"}
-              >
-                {registrationPromoMessage(promoPreviewState)}
-              </Text>
+            {registrationPromoEnabled ? (
+              <>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { width: formWidth },
+                    Platform.OS === "android" && styles.inputAndroid,
+                  ]}
+                  value={form.promoCode}
+                  onChangeText={(v) => updateField("promoCode", v)}
+                  placeholder="Промокод (необязательно)"
+                  placeholderTextColor={COLORS.placeholder}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+                {registrationPromoMessage(promoPreviewState) ? (
+                  <Text
+                    style={[
+                      styles.promoMessage,
+                      (promoPreviewState === "invalid" || promoPreviewState === "temporary") &&
+                        styles.promoError,
+                    ]}
+                    accessibilityRole={promoPreviewState === "invalid" ? "alert" : "text"}
+                  >
+                    {registrationPromoMessage(promoPreviewState)}
+                  </Text>
+                ) : null}
+                <Button
+                  label={promoPreviewState === "checking" ? "Проверяем…" : "Применить промокод"}
+                  onPress={() => void applyPromoCode()}
+                  loading={promoPreviewState === "checking"}
+                  disabled={!form.promoCode.trim() || promoPreviewState === "checking" || isLoading}
+                  height={36}
+                  fontSize={13}
+                  lineHeight={18}
+                  verticalPadding={0}
+                  borderRadius={12}
+                  style={styles.promoApplyButton}
+                />
+              </>
             ) : null}
-            <Button
-              label={promoPreviewState === "checking" ? "Проверяем…" : "Применить промокод"}
-              onPress={() => void applyPromoCode()}
-              loading={promoPreviewState === "checking"}
-              disabled={!form.promoCode.trim() || promoPreviewState === "checking" || isLoading}
-              height={36}
-              fontSize={13}
-              lineHeight={18}
-              verticalPadding={0}
-              borderRadius={12}
-              style={styles.promoApplyButton}
-            />
 
             {/* Password Input */}
             <View style={[styles.passwordInputWrapper, { width: formWidth }]}>
