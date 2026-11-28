@@ -1,3 +1,6 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
+import { reportClientError } from "@/shared/lib/error-reporting";
+import { measureMobileOperation } from "@/shared/lib/telemetry/mobilePerformance";
 import { mobileFeedPublications } from "./publication";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AppState, Text, View, useWindowDimensions } from "react-native";
@@ -36,6 +39,7 @@ export function FeedScreen() {
   const compactControls = screenWidth < 360;
   const [sort, setSort] = useState<FeedSort>("new");
   const userId = useAuthStore(state => state.user?.id);
+  const diagnosticEpoch = useAuthStore(state => state.verifiedSessionEpoch);
   const status = useFeedStatus();
   const feedCache = useQueryClient();
   const publishing = useSyncExternalStore(mobileFeedPublications.subscribe,
@@ -59,7 +63,7 @@ export function FeedScreen() {
       if (value === "new" || value === "popular" || value === "discussed" ||
         (value === "smart" && status.data?.smartEnabled)) setSort(value);
       else setSort(status.data?.smartEnabled ? "smart" : "new");
-    }).catch(() => {});
+    }).catch(error => reportClientError(error,{issueKey:"FeedSortStorageRead",severity:"warning"}));
     return () => { active = false; };
   }, [userId, status.data?.smartEnabled]);
   const appActive = useRef(AppState.currentState === "active");
@@ -74,12 +78,17 @@ export function FeedScreen() {
   }, []));
   const pages = useInfiniteQuery({
     queryKey: ["feed", "posts", userId, sort],
-    queryFn: ({ pageParam }) => feedApi.listPosts({ cursor: pageParam, sort }),
+    queryFn: ({ pageParam }) => measureMobileOperation(pageParam === null ? "FEED_FIRST_PAGE_LOAD" : "FEED_NEXT_PAGE_LOAD",
+      () => feedApi.listPosts({ cursor: pageParam, sort })),
     refetchInterval: 90_000,
     initialPageParam: null as string | null,
     getNextPageParam: value => value.nextCursor,
     enabled: !!userId && status.data?.enabled === true,
   });
+  useScreenDataReady("SCREEN_FEED_DATA_READY",
+    !!userId && status.data?.enabled === true && !status.isError &&
+      !pages.isPending && (!pages.isError || pages.isFetchNextPageError) &&
+      !!pages.data?.pages[0], JSON.stringify([userId, diagnosticEpoch, sort]));
   const posts = useMemo(() => pages.data?.pages.flatMap(page => page.items) ?? [], [pages.data]);
   const pageFlight = useRef<{ ownerId: string | undefined; sort: FeedSort } | null>(null);
   const nextFeedPage = (explicitRetry = false) => {
@@ -165,7 +174,7 @@ export function FeedScreen() {
       }
       if (!item || !isViewable || item.author.id === userId || seen.current.has(item.id)) continue;
       seen.current.add(item.id);
-      void feedApi.recordView(item.id).catch(() => seen.current.delete(item.id));
+      void feedApi.recordView(item.id).catch(() => { /* diagnostic: expected View tracking is best effort; clear seen mark for later retry. */ return seen.current.delete(item.id); });
       const session = smartSession.current;
       const sessionId = item.recommendationSessionId ?? session?.id;
       if (sort === "smart" && session && sessionId && item.recommendationRank !== undefined) {

@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRootNavigationState, useRouter, type Href } from "expo-router";
 import { useAuthStore } from "@/shared/stores";
@@ -70,7 +71,7 @@ export function ChatPushNavigation() {
         cleanup = () => listener.remove();
         consume(await notifications.getLastNotificationResponseAsync());
       })
-      .catch(() => undefined);
+      .catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"ChatPushSetup",keys:{operation:"initialize"},severity:"warning"}); return undefined; });
     return () => {
       alive = false;
       cleanup?.();
@@ -129,7 +130,7 @@ export function ChatPushNavigation() {
       // New messenger uses its own access policy; do not route via legacy Stream.
       void import("@/features/chat2/api").then(({ chat2 }) => chat2.room(conversationId))
         .then(() => { if (alive) { router.push({ pathname: "/(main)/chats/[id]", params: { id: conversationId } } as Href); setPending(null); } })
-        .catch(() => { if (alive) setPending(null); });
+        .catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"ChatPushNavigation",keys:{operation:"verify_room"},severity:"warning"});  if (alive) setPending(null); });
       return () => { alive = false; };
     }
     // Legacy push deep links must never access Stream or treat its IDs as Chat2 IDs.

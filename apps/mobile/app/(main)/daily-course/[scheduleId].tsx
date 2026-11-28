@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { pendingMatchesOccurrence } from "@/shared/lib/offline/pendingOccurrence";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View, Pressable } from "react-native";
@@ -354,6 +355,9 @@ export default function DailyCourseDayScreen() {
     [completeDaily],
   );
 
+  useScreenDataReady("SCREEN_DAILY_COURSE_DATA_READY",
+    !isLoading && !error && data?.success === true && !!dayData && Array.isArray(dayData.steps),
+    JSON.stringify([normalizedScheduleId, principalId, newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch]));
   if (isLoading) {
     return <Loading fullScreen message="Загрузка задания дня..." />;
   }

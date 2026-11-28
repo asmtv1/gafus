@@ -37,8 +37,8 @@ export async function encodeUploadImage(
     // Expo 55 itself releases the context before the image ref. Treat cleanup
     // as best-effort: a stale SharedObject during release must never turn a
     // successfully saved file into an upload failure.
-    try { context.release(); } catch { /* native ref already released */ }
-    try { image?.release(); } catch { /* native ref already released */ }
+    try { context.release(); } catch { /* diagnostic: expected Native image reference may already have been released. */  /* native ref already released */ }
+    try { image?.release(); } catch { /* diagnostic: expected Native image reference may already have been released. */  /* native ref already released */ }
   }
   if (lostNativeRef) return manipulateAsync(uri, actions, options);
   throw new Error("PHOTO_ENCODER_UNEXPECTED_STATE");

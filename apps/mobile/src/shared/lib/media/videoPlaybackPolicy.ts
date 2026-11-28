@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { PixelRatio } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { NetInfoState } from "@react-native-community/netinfo";
@@ -24,7 +25,7 @@ export function loadNativeMp4Mode(): Promise<Mp4Mode> {
       modeLoaded = true;
       return lastMode;
     })
-    .catch(() => { modeLoaded = true; return lastMode; });
+    .catch(() => { /* diagnostic: expected Unreadable preference falls back to in-memory playback mode. */  modeLoaded = true; return lastMode; });
   return loading;
 }
 export function saveNativeMp4Mode(mode: Mp4Mode): void {
@@ -33,9 +34,9 @@ export function saveNativeMp4Mode(mode: Mp4Mode): void {
   modeLoaded = true;
   savedGeneration++;
   // Keep the final choice authoritative even if successive writes finish out of order.
-  pendingWrite = pendingWrite.catch(() => undefined)
+  pendingWrite = pendingWrite.catch(() => { /* diagnostic: expected Previous failed preference write must not block the next write. */ return undefined; })
     .then(() => AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mode)))
-    .catch(() => undefined);
+    .catch(error => reportClientError(error,{issueKey:"VideoPlaybackPreference",keys:{operation:"write"},severity:"warning"}));
 }
 export function useNativeMp4Mode(): [Mp4Mode, (mode: Mp4Mode) => void] {
   const [mode, setMode] = useState<Mp4Mode>(lastMode);

@@ -13,6 +13,9 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
+      "@gafus/consultation-shared/reminder-window": ["../consultation-shared/dist/reminderWindow.d.ts"],
+      "@gafus/subscription-payment-server/transitions": ["../subscription-payment-server/dist/subscriptionTransitions.d.ts"],
+      "@gafus/mobile-ota-server/telemetry": ["../mobile-ota-server/dist/telemetry.d.ts"],
       "@gafus/media-server/purge-repository": [
         "../media-server/dist/mediaCdnPurgeRepository.d.ts"
       ],

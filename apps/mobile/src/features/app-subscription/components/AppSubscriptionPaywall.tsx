@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { appSubscriptionTierIncludesOfflineCourses } from "@gafus/types";
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import {
@@ -339,7 +340,7 @@ export function AppSubscriptionPaywall() {
         setPendingMessage("Покупка подтверждается на сервере. Проверьте статус подписки позднее.");
         await refreshEntitlementQueries();
       }
-    } catch {
+    } catch (diagnosticError) { reportClientError(diagnosticError, {issueKey:"AppleSubscriptionPay",keys:{operation:"reconcile"}});
       if (isOwnerCurrent()) {
         setPendingMessage("Результат покупки неизвестен. Проверьте подписку перед повтором.");
       }
@@ -452,7 +453,7 @@ export function AppSubscriptionPaywall() {
       if (!isOwnerCurrent()) return;
       if (subscriptionResult === "active") return void finishSuccessfulPayment();
       setPendingMessage("Оплата ещё подтверждается. Проверьте статус позднее.");
-    } catch {
+    } catch (diagnosticError) { reportClientError(diagnosticError, {issueKey:"YookassaSubscriptionPay",keys:{operation:"reconcile"}});
       if (isOwnerCurrent())
         setPendingMessage("Результат оплаты неизвестен. Проверьте подписку перед повтором.");
     } finally {

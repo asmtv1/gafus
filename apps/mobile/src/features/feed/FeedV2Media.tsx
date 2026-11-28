@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { MeasuredVideoView } from "@/shared/components/MeasuredVideoView";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Modal, PixelRatio, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
@@ -93,7 +94,7 @@ function ActiveFeedV2Player({ url, publicMedia, onError, onReady, onStarted, ful
             ? Math.min(position, Math.max(0, duration - 0.1)) : position;
         }
         if (resume) player.play();
-      }).catch(() => { if (live) onError(); });
+      }).catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"FeedVideoSource",keys:{operation:"replace"}});  if (live) onError(); });
     return () => { live = false; };
   }, [url, player, publicMedia, onError]);
   useEffect(() => {
@@ -241,14 +242,14 @@ export function FeedV2Video({ postId, media, visible, fullscreen = false }: {
             setUrl(fallback.url);
             return;
           }
-        } catch { /* Only the API may authorize a Cloud.ru fallback. */ }
+        } catch { /* diagnostic: expected Failed fallback authorization cannot permit an alternate CDN. */  /* Only the API may authorize a Cloud.ru fallback. */ }
       }
       if (current !== generation.current) return;
       startup.current = {at:Date.now(), quality:chosen.quality, hints:chosen.hints};
       delivered.current = {source:primary,quality:chosen.quality,mode:preferred,
         hints:chosen.hints,fallback:false,reported:false};
       setUrl(primary);
-    })().catch(() => {
+    })().catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"FeedVideoStartup",keys:{operation:"prepare"},severity:"warning"});
       if (current !== generation.current) return;
       const chosen = chosenUrl(quality);
       if (!chosen.url) { setError("Видео недоступно."); return; }
@@ -300,7 +301,7 @@ export function FeedV2Video({ postId, media, visible, fullscreen = false }: {
       return true;
     })().then(recovered => {
       if (!recovered && current === generation.current) { stop(); setError("Видео недоступно."); }
-    }).catch(() => {
+    }).catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"FeedVideoFallback",keys:{operation:"recover"}});
       if (current === generation.current) { stop(); setError("Видео недоступно."); }
     }).finally(() => {
       if (current === generation.current) recoveryInProgress.current = false;

@@ -1,7 +1,7 @@
 import {previewVersionPublication,publishVersionUpdate,PublicationError} from "@gafus/mobile-ota-server/version-publication";
 import { Hono } from "hono";
 import { listMandatoryOtaControls, updateMandatoryOtaControl, MandatoryControlError } from "@gafus/mobile-ota-server/mandatory-control";
-import { listOtaTelemetrySummaries } from "@gafus/mobile-ota-server/telemetry";
+import { listOtaTelemetrySummaries, listOtaDiagnosticQuality } from "@gafus/mobile-ota-server/telemetry";
 import { listNativeOtaAudit, listNativeOtaReleases, listMobileOtaReleases, listMobileOtaPatchDefinitions, listMobileOtaAudit } from "@gafus/mobile-ota-server/queries";
 import { patchDefinitionSchema, patchApplicationSchema, MobileOtaPatchError,
   registerSourcePatchDefinition, registerSourcePatchApplication,
@@ -112,6 +112,10 @@ adminMobileOtaRoutes.post("/native-releases/:id/verification", async (c) => {
       return c.json({ success: false, code: error.code }, 409);
     return c.json({ success: false, code: "NATIVE_RELEASE_REGISTRY_UNAVAILABLE" }, 503);
   }
+});
+adminMobileOtaRoutes.get("/diagnostic-quality", async(c)=>{
+  try{return c.json({success:true,data:await listOtaDiagnosticQuality()});}
+  catch{return c.json({success:false,code:"OTA_DIAGNOSTIC_QUALITY_UNAVAILABLE"},503);}
 });
 adminMobileOtaRoutes.get("/telemetry", async(c)=>{
   try{return c.json({success:true,data:await listOtaTelemetrySummaries()});}

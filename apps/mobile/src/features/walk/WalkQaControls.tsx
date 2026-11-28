@@ -20,7 +20,7 @@ export function WalkQaControls({ownerId,active,armed,onArmChange,busy}:{ownerId:
       try {
         const row=await getWalkQaCapture(ownerId);
         if(!disposed&&AppState.currentState==="active") setCapture(row);
-      } catch { if(!disposed) setMessage("Не удалось прочитать состояние QA-записи."); }
+      } catch { /* diagnostic: expected QA-only control surfaces unavailable capture, independent of normal walks. */  if(!disposed) setMessage("Не удалось прочитать состояние QA-записи."); }
     };
     void refresh();
     const timer=setInterval(()=>{if(AppState.currentState==="active") void refresh();},5000);
@@ -37,7 +37,7 @@ export function WalkQaControls({ownerId,active,armed,onArmChange,busy}:{ownerId:
         try {
           const data=await exportWalkQaCapture(ownerId,id,isCurrent);
           if(isCurrent()) await Share.share({message:data,title:"GAFUS QA — приватная запись"});
-        } catch {setMessage("Экспорт недоступен: запись удалена, истекла или шифрование не поддерживается.");}
+        } catch { /* diagnostic: expected QA export may be unavailable after expiry/deletion or missing encryption. */ setMessage("Экспорт недоступен: запись удалена, истекла или шифрование не поддерживается.");}
         finally{setWorking(false);}
       })()},
     ]);
@@ -56,7 +56,7 @@ export function WalkQaControls({ownerId,active,armed,onArmChange,busy}:{ownerId:
       <Pressable disabled={working||busy} accessibilityRole="button" onPress={()=>void(async()=>{
         setWorking(true);
         try{await deleteWalkQaCapture(ownerId,capture.walkId);setCapture(null);onArmChange(false);}
-        catch{setMessage("Не удалось удалить QA-запись.");}finally{setWorking(false);}
+        catch{ /* diagnostic: expected QA-only delete reports failure in the local control. */ setMessage("Не удалось удалить QA-запись.");}finally{setWorking(false);}
       })()}><Text style={styles.action}>Удалить запись</Text></Pressable></>:null}
     {message?<Text variant="bodySmall">{message}</Text>:null}
   </View>;

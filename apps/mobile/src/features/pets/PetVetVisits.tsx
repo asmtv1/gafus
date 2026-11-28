@@ -167,7 +167,7 @@ function Attachment({
         Alert.alert("Готово", "Оригинал сохранён в выбранную папку");
       } else await Share.share({ url: temp });
     } finally {
-      await FileSystem.deleteAsync(temp, { idempotent: true }).catch(() => undefined);
+      await FileSystem.deleteAsync(temp, { idempotent: true }).catch(() => { /* diagnostic: expected Temporary file deletion is idempotent best effort cleanup. */ return undefined; });
     }
   }
   return (

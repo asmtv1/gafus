@@ -369,7 +369,7 @@ export const chat2 = {
       });
     } finally { clearTimeout(timer); }
     if (!guard()) throw new Error("Сессия изменилась");
-    const payload = await response.json().catch(() => null) as
+    const payload = await response.json().catch(() => { /* diagnostic: expected Malformed avatar response is handled by explicit failed-upload result. */ return null; }) as
       { success?: boolean; data?: { avatarUrl: string | null }; error?: string } | null;
     if (!response.ok || !payload?.success || !payload.data)
       throw new Error(payload?.error || "Не удалось установить аватарку");

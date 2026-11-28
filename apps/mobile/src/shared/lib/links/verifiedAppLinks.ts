@@ -14,7 +14,7 @@ const trainingPath = new RegExp(`^/training/${id}(?:/${id})?$`);
 
 export function nativePathForVerifiedGafusUrl(value: string): string | null {
   let url: URL;
-  try { url = new URL(value); } catch { return null; } // eslint-disable-line @gafus/require-client-catch-tracer -- malformed external URL is expected untrusted input
+  try { url = new URL(value); } catch { /* diagnostic: expected Unverified external link cannot become an internal route. */  return null; } // eslint-disable-line @gafus/require-client-catch-tracer -- malformed external URL is expected untrusted input
   if (url.protocol !== "https:" || !allowedHosts.has(url.hostname.toLowerCase()) ||
       url.username || url.password || url.port) return null;
   const path = url.pathname;

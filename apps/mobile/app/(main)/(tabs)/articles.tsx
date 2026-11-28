@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, RefreshControl, Pressable, Alert } from "react-native";
 import { FlashList } from "@shopify/flash-list";
@@ -476,6 +477,9 @@ function ArticlesActor({ owner, epoch }: { owner: string | null; epoch: string |
     </View>
   );
 
+  useScreenDataReady("SCREEN_ARTICLES_DATA_READY",
+    current() && !isPending && !isError && data?.success === true,
+    scope);
   if (isPending) return <Loading fullScreen message="Загрузка статей..." />;
   return (
     <TexturedSafeAreaView style={styles.container} edges={[]}>

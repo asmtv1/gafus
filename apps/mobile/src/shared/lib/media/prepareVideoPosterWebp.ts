@@ -53,6 +53,6 @@ export async function prepareVideoPosterWebp(videoUri: string,
   return {
     uri: result.uri, mime: "image/webp" as const, width: result.width,
     height: result.height, bytes,
-    dispose: () => { try { new File(result.uri).delete(); } catch { /* cache */ } },
+    dispose: () => { try { new File(result.uri).delete(); } catch { /* diagnostic: expected Temporary poster cache cleanup is best effort. */  /* cache */ } },
   };
 }

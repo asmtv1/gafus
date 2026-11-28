@@ -143,7 +143,7 @@ function NativeChat2Image({ conversationId, file, images }: {
         if (allowed) { setUsingFallback(true); setUrl(fallbackUrl); }
         else setFailed(true);
       })
-      .catch(() => {
+      .catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"ChatMediaThumbnail",keys:{operation:"fallback"},severity:"warning"});
         if (requestGeneration.current === generation) setFailed(true);
       });
   };
@@ -219,7 +219,7 @@ function NativeChat2Image({ conversationId, file, images }: {
           allowed ? { ...previous, url: backup, triedFallback: true } :
             { ...previous, failed: true });
       })
-      .catch(() => {
+      .catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"ChatMediaFullscreen",keys:{operation:"fallback"},severity:"warning"});
         if (requestGeneration.current !== generation) return;
         setViewer(previous => previous?.url === original
           ? { ...previous, failed: true } : previous);
@@ -369,7 +369,7 @@ function NativeChat2VideoPlayer({
       loadedUrl.current = url;
       replacing.current = false;
       onNativeStatus.current(owned.player.status);
-    }).catch(() => {
+    }).catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"ChatMediaSource",keys:{operation:"replace"}});
       if (mounted.current && requestedUrl.current === url) {
         replacing.current = false;
         latest.current.onError();
@@ -418,7 +418,7 @@ function NativeChat2VideoPlayer({
               latest.current.onThumbnail(loadedUrl.current, frames[0]);
             }
           },
-        ).catch(() => undefined);
+        ).catch(() => { /* diagnostic: expected Optional thumbnail generation cannot interrupt video playback. */ return undefined; });
       }
     };
     onNativeStatus.current = onStatus;
@@ -579,7 +579,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
         setPosterViaS3(true);
         setPlaying(false);
       })
-      .catch(() => {
+      .catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"ChatMediaPlayback",keys:{operation:"fallback"}});
         if (recoveryGeneration.current === generation) fail();
       })
       .finally(() => {
@@ -688,7 +688,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
               .then(allowed => {
                 if (allowed && fallback) setPosterViaS3(true);
                 else setPosterFailed(true);
-              }).catch(() => setPosterFailed(true));
+              }).catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"ChatMediaPoster",keys:{operation:"fallback"},severity:"warning"}); return setPosterFailed(true); });
           }}
           style={{ width: 220, height: previewHeight }} /> :
           thumbnail && <ExpoImage source={thumbnail.frame}

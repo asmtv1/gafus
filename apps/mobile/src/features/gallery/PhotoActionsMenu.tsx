@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useState } from "react";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
@@ -43,7 +44,7 @@ export function PhotoActionsMenu({ photo, album, onDismiss }: {
       await action();
       await cache.invalidateQueries({ queryKey: galleryKeys.owner(viewer, album.ownerUsername) });
       onDismiss();
-    } catch (reason) {
+    } catch (reason) { reportClientError(reason, {issueKey:"GalleryPhotoAction",keys:{operation:"execute"}});
       setError(reason);
     } finally {
       setBusy(false);

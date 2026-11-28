@@ -18,7 +18,7 @@ export function parseMobileIntroState(raw: string | null): MobileIntroState {
         finished: finished === true,
       };
     }
-  } catch { /* A corrupt record starts at the first slide. */ }
+  } catch { /* diagnostic: expected Corrupt onboarding state is reset to the first slide. */  /* A corrupt record starts at the first slide. */ }
   return { index: 0, finished: false };
 }
 
@@ -36,6 +36,6 @@ export function saveMobileIntroState(next: MobileIntroState): Promise<void> {
   const write = writes.then(() => AsyncStorage.setItem(MOBILE_INTRO_STORAGE_KEY, serialized));
   // Keep subsequent writes usable after a storage failure, and keep the session
   // state so a completed intro cannot loop back during this app session.
-  writes = write.catch(() => undefined);
+  writes = write.catch(() => { /* diagnostic: expected Serialization tail recovers; returned write promise retains original failure. */ return undefined; });
   return write;
 }

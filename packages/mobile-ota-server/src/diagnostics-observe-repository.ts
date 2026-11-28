@@ -26,11 +26,18 @@ export async function verifyObserveReleaseScopes(scopes:ObserveReleaseScope[]):P
 
 export const observePreviewRepository:ObservePreviewRepository={
   async store(events,scopes,now=new Date()){
-    if(events.length>50)throw new ObservePreviewStoreError('OBSERVE_TOO_MANY_EVENTS',413);
+    if(events.length>50 && (events.length>64 || events.some(e=>e.kind!=='performance_summary')))throw new ObservePreviewStoreError('OBSERVE_TOO_MANY_EVENTS',413);
     if(!events.length)return 0;
     if(!scopes.length || new Set(scopes.map(s=>s.environment)).size!==1)
       throw new ObservePreviewStoreError('OBSERVE_MIXED_ENVIRONMENTS',403);
     const environment=scopes[0]!.environment;
+    const startupMetrics=events.every(e=>e.kind==='performance_summary');
+    if(!startupMetrics&&events.some(e=>e.kind==='performance_summary'))
+      throw new ObservePreviewStoreError('OBSERVE_MIXED_EVENT_CLASSES',403);
+    // Startup sampling must never exhaust the crash/JS incident quota.
+    const quotaEnvironment=startupMetrics?`${environment}-observe-startup`:environment;
+    const maxRecords=startupMetrics?10000:MAX_DAILY_RECORDS;
+    const maxBytes=startupMetrics?8*1024*1024:MAX_DAILY_BYTES;
     await verifyObserveReleaseScopes(scopes);
     for(const event of events){
       if(!scopes.some(s=>s.platform===event.platform&&s.appVersion===event.appVersion&&
@@ -51,12 +58,12 @@ export const observePreviewRepository:ObservePreviewRepository={
           const reserved=await tx.$executeRaw`
             INSERT INTO "MobileTelemetryDailyQuota"
               ("environment", "day", "acceptedEvents", "acceptedBytes")
-            VALUES (${environment}, ${day}::date, ${unique.length}, ${allocatedBytes})
+            VALUES (${quotaEnvironment}, ${day}::date, ${unique.length}, ${allocatedBytes})
             ON CONFLICT ("environment", "day") DO UPDATE SET
               "acceptedEvents"="MobileTelemetryDailyQuota"."acceptedEvents"+EXCLUDED."acceptedEvents",
               "acceptedBytes"="MobileTelemetryDailyQuota"."acceptedBytes"+EXCLUDED."acceptedBytes"
-            WHERE "MobileTelemetryDailyQuota"."acceptedEvents"+EXCLUDED."acceptedEvents"<=${MAX_DAILY_RECORDS}
-              AND "MobileTelemetryDailyQuota"."acceptedBytes"+EXCLUDED."acceptedBytes"<=${MAX_DAILY_BYTES}
+            WHERE "MobileTelemetryDailyQuota"."acceptedEvents"+EXCLUDED."acceptedEvents"<=${maxRecords}
+              AND "MobileTelemetryDailyQuota"."acceptedBytes"+EXCLUDED."acceptedBytes"<=${maxBytes}
           `;
           if(reserved!==1)throw new ObservePreviewStoreError('OBSERVE_DAILY_QUOTA_EXCEEDED',429);
           const result=await tx.mobileTelemetrySpool.createMany({data:unique.map(e=>({

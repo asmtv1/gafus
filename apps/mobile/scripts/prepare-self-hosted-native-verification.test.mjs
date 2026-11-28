@@ -94,3 +94,35 @@ test('production 1.7.5 Android APK and iOS IPA require real human device attesta
       evidence,packageFile}),/UNTRUSTED_NATIVE_DESCRIPTOR/);
   }
 });
+
+test('embedded symbols receipt must match exact artifact, build, update and immutable delivery records',async()=>{
+  const dir=fs.mkdtempSync(path.join(root,'symbols-'));
+  fs.chmodSync(dir,0o700);
+  const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+  const artifactSha=await hashNativePackage(binary,'ios');
+  const updateId=crypto.randomUUID();
+  const descriptor={...native,buildNumber:'103'};
+  const bytes=Buffer.from(JSON.stringify({version:3,sources:['src/test.ts'],mappings:'AAAA',sourcesContent:[' '.repeat(1500)]}));
+  const mapHash=sha(bytes),filename=mapHash+'.map';
+  fs.writeFileSync(path.join(dir,filename),bytes,{mode:0o600});
+  const manifest={schemaVersion:1,private:true,retentionClass:'release-symbols',environment:'preview',
+    platform:'ios',runtimeVersion:'1.8.0',updateId,sourceSha:descriptor.sourceSha,revision:0,
+    nativeBuild:'103',nativeArtifactSha256:artifactSha,
+    maps:[{filename,sha256:mapHash,sizeBytes:bytes.length,logicalBundle:'main.hbc'}]};
+  const manifestBytes=Buffer.from(JSON.stringify(manifest));
+  fs.writeFileSync(path.join(dir,'private-symbol-manifest.json'),manifestBytes,{mode:0o600});
+  const prefix='symbols/preview/gafus/1.8.0/ios/embedded/103/'+updateId;
+  const receipt={state:'IMMUTABLE_PRIVATE_SYMBOLS_VERIFIED',environment:'preview',platform:'ios',
+    runtimeVersion:'1.8.0',updateId,sourceSha:descriptor.sourceSha,manifestSha256:sha(manifestBytes),
+    report:[{key:prefix+'/'+filename,sha256:mapHash,size:bytes.length,verified:true},
+      {key:prefix+'/private-symbol-manifest.json',sha256:sha(manifestBytes),size:manifestBytes.length,verified:true}]};
+  const receiptFile=path.join(dir,'private-symbol-delivery-evidence.json');
+  fs.writeFileSync(receiptFile,JSON.stringify(receipt),{mode:0o600});
+  const input={native:descriptor,packageFile:binary,evidence:{...evidence,embeddedUpdateId:updateId},symbolsDirectory:dir};
+  const result=await prepareNativeVerification(input);
+  assert.equal(result.evidence.embeddedSymbolsRef,'symbols-s3:'+sha(manifestBytes));
+  await assert.rejects(()=>prepareNativeVerification({...input,native:{...descriptor,buildNumber:'104'}}),/EMBEDDED_SYMBOL_SCOPE_MISMATCH/);
+  await assert.rejects(()=>prepareNativeVerification({...input,evidence:{...input.evidence,embeddedUpdateId:crypto.randomUUID()}}),/EMBEDDED_SYMBOL_SCOPE_MISMATCH/);
+  fs.writeFileSync(receiptFile,JSON.stringify({...receipt,report:receipt.report.map(r=>({...r,verified:false}))}));
+  await assert.rejects(()=>prepareNativeVerification(input),/EMBEDDED_SYMBOL_RECEIPT_MISMATCH/);
+});

@@ -79,7 +79,7 @@ export async function recoverIncompleteOfflineCourse(courseType: string, scope: 
       const marker = JSON.parse(await FileSystem.readAsStringAsync(intentUri));
       provenIncomplete = marker?.schemaVersion === 1 && marker.ownerId === scope.principalId &&
         marker.courseType === courseType;
-    } catch {
+    } catch { /* diagnostic: expected Incomplete recovery returns false rather than claiming success. */
       return false;
     }
   }
@@ -156,7 +156,7 @@ export async function getOfflineCourseTypes(scope = captureOfflineCourseScope())
     for (const name of names) {
       try {
         assertSafeOfflineSegment(name);
-      } catch {
+      } catch { /* diagnostic: expected Malformed directory entry is skipped while valid courses remain. */
         continue;
       }
       const itemInfo = await FileSystem.getInfoAsync(`${baseUri}${name}`);
@@ -199,7 +199,7 @@ export async function getLocalVideoManifestPath(
   try {
     assertSafeOfflineSegment(courseType);
     assertSafeOfflineSegment(videoId);
-  } catch {
+  } catch { /* diagnostic: expected Unknown local manifest is unavailable; caller uses fallback. */
     return null;
   }
   if (!await getCourseMeta(courseType, scope)) return null;
@@ -267,7 +267,7 @@ export async function getOfflineVideoPosterUri(
   try {
     assertSafeOfflineSegment(courseType);
     assertSafeOfflineSegment(videoId);
-  } catch {
+  } catch { /* diagnostic: expected Unknown local poster is unavailable; caller uses fallback. */
     return null;
   }
   const scope = captureOfflineCourseScope();

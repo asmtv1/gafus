@@ -31,11 +31,13 @@ export function planPrivateSymbolUpload(directory){
   let m;try{m=JSON.parse(bytes.toString('utf8'));}catch{fail('MANIFEST_INVALID_JSON');}
   if(m.schemaVersion!==1||m.private!==true||m.retentionClass!=='release-symbols'||
      !['preview','production'].includes(m.environment)||!['ios','android'].includes(m.platform)||
-     (m.environment==='production' ? m.runtimeVersion!=='1.7.5' : m.runtimeVersion!=='1.8.0')||
+     (m.revision===0 ? (!/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(m.runtimeVersion??'')||m.runtimeVersion==='1.7.4') :
+       (m.environment==='production' ? m.runtimeVersion!=='1.7.5' : m.runtimeVersion!=='1.8.0'))||
      !UUID.test(m.updateId)||!SOURCE.test(m.sourceSha)||
-     !Number.isSafeInteger(m.revision)||m.revision<1||
+     !Number.isSafeInteger(m.revision)||m.revision<0||
+     (m.revision===0&&(!/^\d{1,20}$/.test(m.nativeBuild??'')||!/^[a-f0-9]{64}$/.test(m.nativeArtifactSha256??'')))||
      !Array.isArray(m.maps)||m.maps.length<1||m.maps.length>8)fail('IDENTITY_INVALID');
-  const prefix=`symbols/${m.environment}/gafus/${m.runtimeVersion}/${m.platform}/${m.updateId}`;
+  const prefix=`symbols/${m.environment}/gafus/${m.runtimeVersion}/${m.platform}/${m.revision===0?'embedded/'+m.nativeBuild+'/':''}${m.updateId}`;
   const records=[];
   const used=new Set();
   for(const item of m.maps){

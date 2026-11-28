@@ -119,3 +119,78 @@ export async function readOtaOperationalTelemetry() {
     GROUP BY platform, event
   `;
 }
+
+/** 24-hour observed JS cohorts only. Native crashes cannot be reliably joined
+ * to the JS session ID and therefore must not enter a crash-free denominator.
+ * Pseudonyms remain inside SQL; the admin receives only aggregate counts. */
+export async function listOtaDiagnosticQuality() {
+  return prisma.$queryRaw<{
+    platform:string; runtimeVersion:string; revision:number; updateId:string;
+    build:string; nativeReleaseId:string; sessions:number; installations:number; errorSessions:number;
+    fatalEvents:number; errors:number; launchedInstallations:number; otaFailureInstallations:number;
+    downloadedInstallations:number; launchedAfterDownload:number;
+  }[]>`
+    WITH observed AS (
+      SELECT s.platform,s."updateId",s."eventKind",s.severity,
+        s.payload->>'appStartId' AS session_id,
+        s.payload->>'installationId' AS installation_id,
+        CASE WHEN (s.payload->>'occurrences') ~ '^[1-9][0-9]{0,3}$'
+          THEN LEAST(1000,(s.payload->>'occurrences')::int) ELSE 1 END AS occurrences
+      FROM "MobileTelemetrySpool" s
+      JOIN "MobileOtaRelease" r ON r."updateId"::text=s."updateId" AND r.platform=s.platform
+        AND r.environment=s.environment AND r."runtimeVersion"=s."runtimeVersion"
+      JOIN "MobileNativeRelease" n ON n.id=r."nativeReleaseId" AND n.verified=true
+        AND n."appVersion"=s."appVersion" AND n."buildNumber"=s.payload->>'build'
+        AND n.channel=s.payload->>'channel'
+      WHERE s.environment='production' AND s.platform IN ('ios','android')
+        AND s."createdAt">timezone('UTC', now())-INTERVAL '24 hours'
+        AND s."retentionUntil">timezone('UTC', now())
+    ), sessions AS (
+      SELECT "updateId",platform,COUNT(DISTINCT session_id)::int AS sessions,
+        COUNT(DISTINCT installation_id)::int AS installations
+      FROM observed WHERE "eventKind"='session_start' AND session_id IS NOT NULL
+      GROUP BY "updateId",platform
+    ), failures AS (
+      SELECT o."updateId",o.platform,
+        COUNT(DISTINCT o.session_id) FILTER (WHERE o.severity IN ('ERROR','FATAL') AND EXISTS (
+          SELECT 1 FROM observed start
+          WHERE start."eventKind"='session_start' AND start.session_id=o.session_id
+            AND start."updateId"=o."updateId" AND start.platform=o.platform
+        ))::int AS "errorSessions",
+        COALESCE(SUM(o.occurrences) FILTER (WHERE o.severity='FATAL'),0)::int AS "fatalEvents",
+        COALESCE(SUM(o.occurrences) FILTER (WHERE o.severity IN ('ERROR','FATAL')),0)::int AS errors
+      FROM observed o GROUP BY o."updateId",o.platform
+    ), ota_installation AS (
+      SELECT "updateId",platform,"installationHash",
+        MIN("createdAt") FILTER (WHERE event='DOWNLOADED') AS download_at,
+        MAX("createdAt") FILTER (WHERE event='LAUNCHED') AS launch_at,
+        BOOL_OR(event IN ('UPDATE_ERROR','SIGNATURE_REJECTED','MANDATORY_INCOMPLETE')) AS failed
+      FROM "MobileOtaTelemetryEvent"
+      WHERE environment='production' AND "createdAt">timezone('UTC', now())-INTERVAL '24 hours'
+        AND "updateId" IS NOT NULL
+      GROUP BY "updateId",platform,"installationHash"
+    ), lifecycle AS (
+      SELECT "updateId",platform,
+        COUNT(*) FILTER (WHERE launch_at IS NOT NULL)::int AS "launchedInstallations",
+        COUNT(*) FILTER (WHERE failed)::int AS "otaFailureInstallations",
+        COUNT(*) FILTER (WHERE download_at IS NOT NULL)::int AS "downloadedInstallations",
+        COUNT(*) FILTER (WHERE download_at IS NOT NULL AND launch_at>=download_at)::int AS "launchedAfterDownload"
+      FROM ota_installation
+      GROUP BY "updateId",platform
+    )
+    SELECT r.platform,r."runtimeVersion",r.revision,r."updateId",n."buildNumber" AS build,n.id AS "nativeReleaseId",
+      COALESCE(s.sessions,0)::int AS sessions,COALESCE(s.installations,0)::int AS installations,
+      COALESCE(f."errorSessions",0)::int AS "errorSessions",
+      COALESCE(f."fatalEvents",0)::int AS "fatalEvents",COALESCE(f.errors,0)::int AS errors,
+      COALESCE(l."launchedInstallations",0)::int AS "launchedInstallations",
+      COALESCE(l."otaFailureInstallations",0)::int AS "otaFailureInstallations",
+      COALESCE(l."downloadedInstallations",0)::int AS "downloadedInstallations",
+      COALESCE(l."launchedAfterDownload",0)::int AS "launchedAfterDownload"
+    FROM "MobileOtaRelease" r JOIN "MobileNativeRelease" n ON n.id=r."nativeReleaseId"
+    LEFT JOIN sessions s ON s."updateId"=r."updateId"::text AND s.platform=r.platform
+    LEFT JOIN failures f ON f."updateId"=r."updateId"::text AND f.platform=r.platform
+    LEFT JOIN lifecycle l ON l."updateId"=r."updateId" AND l.platform=r.platform
+    WHERE r.environment='production' AND r."appId"='gafus' AND r.state='READY' AND n.verified=true
+    ORDER BY r."createdAt" DESC LIMIT 100
+  `;
+}

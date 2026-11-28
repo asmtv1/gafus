@@ -27,10 +27,10 @@ export async function syntheticG05Create(
       },
       body: JSON.stringify(body),
     });
-  } catch {
+  } catch { /* diagnostic: expected Synthetic QA adapter returns uncertain transport outcome rather than success. */
     return { status: 0, replayed: false, uncertain: true };
   }
-  const raw = (await response.json().catch(() => null)) as {
+  const raw = (await response.json().catch(() => { /* diagnostic: expected Synthetic QA adapter handles malformed response through typed result. */ return null; })) as {
     data?: { id?: string; ownerId?: string };
     code?: string;
   } | null;

@@ -106,7 +106,7 @@ export async function showYandexRewardedAd(
   const recordFailedAndRethrow = async (code: string, error: unknown): Promise<never> => {
     try {
       await recordFailedOnce(code, error);
-    } catch (recordError) {
+    } catch (recordError) { /* diagnostic: expected Failure reporting must not replace original exception that is rethrown. */
       logRewardedDebug("FAILED event record failed", {
         sessionId: session.sessionId,
         error: formatError(recordError),
@@ -119,10 +119,10 @@ export async function showYandexRewardedAd(
   // loading; see warmUpYandexMobileAds for why the callback is not reliable as
   // a gate for the user-initiated flow.
   void warmUpYandexMobileAds().catch((error) =>
-    recordFailedOnce("REWARDED_AD_INITIALIZE_FAILED", error),
+    { /* diagnostic: expected Ad initialization failure is forwarded to existing recordFailedOnce. */ return recordFailedOnce("REWARDED_AD_INITIALIZE_FAILED", error); },
   );
   logRewardedDebug("creating rewarded loader", getNativeYandexModulesSnapshot());
-  const loader = await RewardedAdLoader.create().catch((error) => {
+  const loader = await RewardedAdLoader.create().catch((error) => { /* diagnostic: expected Loader failure is forwarded to existing recordFailedAndRethrow. */
     logRewardedDebug("rewarded loader create failed", {
       ...getNativeYandexModulesSnapshot(),
       error: formatError(error),
@@ -151,7 +151,7 @@ export async function showYandexRewardedAd(
     .finally(() => {
       if (loadTimeout) clearTimeout(loadTimeout);
     })
-    .catch((error) => {
+    .catch((error) => { /* diagnostic: expected Ad load timeout/failure is forwarded to recordFailedAndRethrow. */
       logRewardedDebug("rewarded ad load failed", {
         sessionId: session.sessionId,
         placementId: session.placementId,
@@ -284,7 +284,7 @@ export async function showYandexRewardedAd(
       grantResult = result;
       grantSettled = true;
       finishAfterDismissal();
-    })().catch((error) => {
+    })().catch((error) => { /* diagnostic: expected Grant error is retained and settled by reward completion flow. */
       logRewardedDebug("rewarded grant flow failed", {
         sessionId: session.sessionId,
         error: formatError(error),
@@ -314,7 +314,7 @@ export async function showYandexRewardedAd(
     .then(() => {
       logRewardedDebug("ad.show resolved, waiting for callbacks", { sessionId: session.sessionId });
     })
-    .catch(async (error) => {
+    .catch(async (error) => { /* diagnostic: expected Ad show failure is handled by recordFailedOnce and completion logic. */
       if (finished) {
         logRewardedDebug("ad.show failed after rewarded flow finished", {
           sessionId: session.sessionId,
@@ -324,7 +324,7 @@ export async function showYandexRewardedAd(
       }
       try {
         await recordFailedOnce("REWARDED_AD_SHOW_FAILED", error);
-      } catch (recordError) {
+      } catch (recordError) { /* diagnostic: expected Failure to record failure must not replace original ad failure. */
         logRewardedDebug("FAILED event record failed", {
           sessionId: session.sessionId,
           error: formatError(recordError),

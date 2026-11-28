@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, View, Text, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
@@ -69,6 +70,8 @@ function ActorMiniGuides({ owner, epoch }: { owner: string; epoch: string }) {
     queryFn: gafusApi.miniGuides,
     staleTime: 15_000,
   });
+  useScreenDataReady("SCREEN_GUIDES_DATA_READY",
+    current() && !guides.isPending && !guides.isError && Array.isArray(guides.data));
   const retryList = async () => {
     if (!current() || retryInFlight.current) return;
     retryInFlight.current = true;

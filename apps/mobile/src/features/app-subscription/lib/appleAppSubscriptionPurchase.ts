@@ -31,7 +31,7 @@ export async function runAppleAppSubscriptionPurchase(
   const isCurrent = () => {
     try {
       return options?.isCurrentAccount?.() ?? true;
-    } catch {
+    } catch { /* diagnostic: expected Unverifiable owner fails closed without disclosing binding details. */
       return false;
     }
   };

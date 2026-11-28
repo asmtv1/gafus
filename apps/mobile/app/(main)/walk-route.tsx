@@ -62,7 +62,7 @@ export default function WalkRouteScreen() {
               });
               void syncDogWalkHistory(ownerId).catch(reportWalkSyncIssue);
               router.back();
-            })().catch(() => {
+            })().catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"WalkRouteDelete",keys:{operation:"delete"}});
               setDeleting(false);
               Alert.alert(
                 "Не удалось удалить",

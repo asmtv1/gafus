@@ -10,7 +10,7 @@ export function createNativeFrameObservation(now: () => number, report: (event: 
     const elapsedMs = Math.round(now() - started);
     const event: NativeFrameOutcome = rendered && Number.isSafeInteger(elapsedMs) && elapsedMs >= 0 && elapsedMs <= 120_000
       ? { outcome: "rendered", elapsedMs } : { outcome: "abandoned" };
-    try { report(event); } catch { /* telemetry cannot affect playback */ }
+    try { report(event); } catch { /* diagnostic: expected Optional playback telemetry must never affect actual playback. */  /* telemetry cannot affect playback */ }
   };
   return { firstFrame: () => finish(true), dispose: () => finish(false) };
 }

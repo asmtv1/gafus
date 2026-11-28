@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
@@ -213,6 +214,9 @@ export function CoursesScreenContent({ showFavoritesUI = false }:
   const { data, isLoading, error, refetch } = useQuery(coursesCatalogQueryOptions);
   const { data: dailyCourseData, refetch: refetchDailyCourse } = useTodayDailyCourse();
 
+  useScreenDataReady("SCREEN_CATALOG_DATA_READY",
+    !isLoading && !error && data !== undefined && dailyCourseData?.success === true,
+    actorKey);
   const catalogReady = !isLoading && !error;
   usePrefetchOtherTabsAfterCourses({ catalogReady });
 

@@ -87,7 +87,7 @@ export function Chat2SettingsSheet({
         .then((rows) => {
           if (live) setPeople(rows.filter((x) => !room.members.some((m) => m.userId === x.id)));
         })
-        .catch(() => {
+        .catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"ChatMemberSearch",keys:{operation:"search"},severity:"warning"});
           if (live) setPeople([]);
         });
     }, 250);

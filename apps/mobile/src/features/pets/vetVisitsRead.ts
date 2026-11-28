@@ -306,7 +306,7 @@ export function signedVetMediaUrl(value: unknown, now = Date.now()): string | nu
       started + seconds * 1000 - now > 5_000
       ? value
       : null;
-  } catch {
+  } catch { /* diagnostic: expected Invalid signed veterinary URL must not render or enter diagnostics. */
     return null;
   }
 }

@@ -32,7 +32,7 @@ function bodyFor(event: V2PendingEvent): VideoJournalBody {
 export function prepareVideoJournal(binding: V2SessionBinding, event: V2PendingEvent): VideoJournalPreview | null {
   if (event.kind !== "saveVideoProgress" || !binding.principalId || !binding.authEpoch) return null;
   let body: VideoJournalBody;
-  try { body = bodyFor(event); } catch { return null; }
+  try { body = bodyFor(event); } catch { /* diagnostic: expected Invalid video journal cannot be prepared for replay. */  return null; }
   const preview: VideoJournalPreview = Object.freeze({ post: Object.freeze({
     path: "/api/v1/offline/mutations", method: "POST",
     headers: Object.freeze({ "X-Gafus-Sync-Protocol": "2", "Idempotency-Key": body.eventId }), body,
@@ -46,7 +46,7 @@ export function verifyVideoAck(preview: VideoJournalPreview, binding: V2SessionB
   if (!snapshot || snapshot.binding.principalId !== binding.principalId || snapshot.binding.authEpoch !== binding.authEpoch ||
       !record(response) || response.success !== true || !record(response.ack)) return null;
   let body: VideoJournalBody;
-  try { body = bodyFor(event); } catch { return null; }
+  try { body = bodyFor(event); } catch { /* diagnostic: expected Unverified video acknowledgement cannot clear pending data. */  return null; }
   const ack = response.ack;
   if (JSON.stringify(body) !== snapshot.body || ack.protocol !== 2 || ack.eventId !== body.eventId ||
       ack.operation !== body.operation || ack.state !== "COMMITTED" || typeof ack.replayed !== "boolean" ||

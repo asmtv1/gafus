@@ -32,5 +32,5 @@ export function reportNativeVideoStarted(playback: Playback): void {
   };
   void apiClient("/api/v1/video-quality/start", {
     method: "POST", body: event, skipAuthRefreshReplay: true,
-  }).catch(() => undefined);
+  }).catch(() => { /* diagnostic: expected Playback analytics must not interrupt actual video playback. */ return undefined; });
 }

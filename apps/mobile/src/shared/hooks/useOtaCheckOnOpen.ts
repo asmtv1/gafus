@@ -8,10 +8,16 @@ export function useOtaCheckOnOpen(
 ) {
   const active = useRef(false);
   const pending = useRef(true);
+  const previousScope = useRef<string | null>(null);
   const checkIfReady = useRef<() => void>(() => undefined);
 
   useEffect(() => {
-    // Auth and rendering can only complete an opening already waiting for its first check.
+    // A newly verified account needs its own tester policy. A guest transition
+    // also lets the gate settle before showing a newly mounted sign-in screen.
+    if (authScope !== null && authScope !== previousScope.current) {
+      pending.current = true;
+      previousScope.current = authScope;
+    }
     checkIfReady.current = () => {
       if (enabled && active.current && pending.current && authScope !== null && check()) {
         pending.current = false;

@@ -18,7 +18,7 @@ async function rejected(response: Response): Promise<Chat2S3UploadError> {
     // Only an allowlisted XML Code, never S3's raw body or signature, is safe to display.
     const xml = await response.text();
     code = xml.match(/<Code>\s*([A-Za-z][A-Za-z0-9_]{0,63})\s*<\/Code>/)?.[1] ?? null;
-  } catch { /* The HTTP status still identifies the failure. */ }
+  } catch { /* diagnostic: expected Failure response parsing is optional; HTTP status remains authoritative. */  /* The HTTP status still identifies the failure. */ }
   const suffix = code ? `HTTP ${response.status}, ${code}` : `HTTP ${response.status}`;
   return new Chat2S3UploadError(
     response.status, code,

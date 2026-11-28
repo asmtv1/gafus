@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 /**
  * iOS Premium paywall. This platform entrypoint must not import the Android/Web
  * checkout, YooKassa start, promo preview, or feature-flagged payment UI.
@@ -118,7 +119,7 @@ export function AppSubscriptionPaywall() {
     setBusy(true);
     setPendingMessage(null);
     try { await action(); }
-    catch {
+    catch (diagnosticError) { reportClientError(diagnosticError, {issueKey:"AppleSubscriptionOperation",keys:{operation:"execute"}});
       if (sameOwner()) setPendingMessage("Не удалось завершить операцию. Проверьте статус подписки.");
     } finally {
       if (id === attempt.current) {

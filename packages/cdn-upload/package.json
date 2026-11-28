@@ -9,6 +9,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./mobile-private-symbols": {
+      "types": "./dist/mobilePrivateSymbols.d.ts",
+      "default": "./dist/mobilePrivateSymbols.js"
+    },
     "./utils": {
       "types": "./dist/utils.d.ts",
       "default": "./dist/utils.js"
@@ -26,7 +30,8 @@
     "*": {
       "utils": [
         "dist/utils.d.ts"
-      ]
+      ],
+      "mobile-private-symbols": ["dist/mobilePrivateSymbols.d.ts"]
     }
   },
   "scripts": {

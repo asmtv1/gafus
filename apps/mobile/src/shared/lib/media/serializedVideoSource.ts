@@ -27,7 +27,7 @@ export class SerializedVideoSource<TSource> {
       if (!this.closed && request === this.wanted) onReady();
     });
     // A rejected replacement must not block later user quality selections.
-    this.tail = operation.catch(() => undefined);
+    this.tail = operation.catch(() => { /* diagnostic: expected Serialization tail absorbs failure; original operation retains rejection. */ return undefined; });
     return operation;
   }
 
@@ -40,7 +40,7 @@ export class SerializedVideoSource<TSource> {
       const result = await operation();
       if (!this.closed) onReady(result);
     });
-    this.tail = job.catch(() => undefined);
+    this.tail = job.catch(() => { /* diagnostic: expected Serialization tail absorbs failure; original job retains rejection. */ return undefined; });
     return job;
   }
 
@@ -53,7 +53,7 @@ export class SerializedVideoSource<TSource> {
     void this.tail.then(() => {
       if (this.released) return;
       this.released = true;
-      try { this.player.pause(); } catch { /* already stopped */ }
+      try { this.player.pause(); } catch { /* diagnostic: expected Stopping an already stopped player is benign cleanup. */  /* already stopped */ }
       this.player.release();
     });
   }

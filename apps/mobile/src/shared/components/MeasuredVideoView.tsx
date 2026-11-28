@@ -1,3 +1,4 @@
+import { mobilePerformance } from "@/shared/lib/telemetry/mobilePerformance";
 import { forwardRef, useLayoutEffect, useMemo, useRef, type ComponentRef } from "react";
 import { VideoView, type VideoViewProps } from "expo-video";
 import { Platform } from "react-native";
@@ -16,10 +17,11 @@ export const MeasuredVideoView = forwardRef<ComponentRef<typeof VideoView>, Prop
     if (!player || (Platform.OS !== "ios" && Platform.OS !== "android")) return;
     const platform = Platform.OS;
     const current = createNativeFrameObservation(() => performance.now(), event => {
+      if(event.outcome==="rendered")mobilePerformance.record(frameSurface==="chat"?"CHAT_FIRST_FRAME":frameSurface==="training"?"TRAINING_FIRST_FRAME":frameSurface==="moments"?"MOMENTS_FIRST_FRAME":"VIDEO_FIRST_FRAME",event.elapsedMs);
       void apiClient("/api/v1/video-quality/first-frame", {
         method: "POST", body: { platform, surface: frameSurface, ...event },
         skipAuthRefreshReplay: true,
-      }).catch(() => undefined);
+      }).catch(() => { /* diagnostic: expected First-frame analytics never affect actual playback. */ return undefined; });
     });
     observation.current = { attachment, current };
     return () => {

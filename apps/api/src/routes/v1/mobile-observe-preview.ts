@@ -6,7 +6,7 @@ import { decodeBoundedJson } from './mobile-telemetry.js';
 import { normalizeObserveLogs, InvalidObservePayload } from '../../modules/mobile-telemetry/observe-normalizer.js';
 import { observePreviewRepository, ObservePreviewStoreError, verifyObserveReleaseScopes, reserveObserveMetricsDailyQuota,
   type ObservePreviewRepository } from '../../modules/mobile-telemetry/observe-repository.js';
-import {normalizeObserveMetrics,exportObserveMetrics,
+import {normalizeObserveMetrics,exportObserveMetrics,nativeStartupEvents,
   type SanitizedObserveMetrics, type MetricsExportResult} from '../../modules/mobile-telemetry/observe-metrics.js';
 import type {ObserveReleaseScope} from '@gafus/mobile-ota-server/diagnostics-contracts';
 import { TelemetryIngressRateGate } from '../../modules/mobile-telemetry/ingest.js';
@@ -67,8 +67,8 @@ export function createObservePreviewRoutes(options:{
     }
   });
   // Expo Observe sends startup metrics as well as native crashes. This
-  // route discards production metrics after strict shape/release checks,
-  // leaving Alloy as the sole metrics producer. The preview metric canary
+  // Production startup metrics enter the durable spool so Alloy remains
+  // the sole metrics producer. The preview metric canary
   // keeps its existing private upstream-ACK and quota requirements.
   app.post('/:projectId/v1/metrics',async c=>{
     if(!allowed(c.req.param('projectId')))return c.json({error:'OBSERVE_NATIVE_DISABLED'},503);
@@ -78,12 +78,15 @@ export function createObservePreviewRoutes(options:{
     if(!ingress.consume(null))return c.json({error:'OBSERVE_RATE_LIMIT'},429);
     try{
       const raw=await decodeBoundedJson(c.req.raw,64*1024);
-      const normalized=normalizeObserveMetrics(raw);
+      const normalized=normalizeObserveMetrics(raw,Date.now(),{nativeStartupOnly:env.GAFUS_TELEMETRY_ENVIRONMENT==='production'});
       if(normalized.scopes.some(scope=>scope.environment!==env.GAFUS_TELEMETRY_ENVIRONMENT))
         return c.json({error:'OBSERVE_ENVIRONMENT_MISMATCH'},403);
       await verify(normalized.scopes);
-      if(env.GAFUS_TELEMETRY_ENVIRONMENT==='production')
-        return c.json({},200); // Explicitly discard redundant startup metrics.
+      if(env.GAFUS_TELEMETRY_ENVIRONMENT==='production'){
+        const startup=nativeStartupEvents(raw,normalized);
+        if(startup.length)await repo.store(startup,normalized.scopes);
+        return c.json({},200);
+      }
       await reserveMetricQuota(normalized.metricPoints,Buffer.byteLength(JSON.stringify(normalized.payload)));
       const sent=await sendMetrics(normalized);
       if(!sent.ok)return c.json({error:sent.errorCode??'OBSERVE_METRICS_UPSTREAM_FAILURE'},503);

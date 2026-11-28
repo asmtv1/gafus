@@ -63,7 +63,7 @@ export function WalkWidgetSessionSync() {
           (auth.isAuthenticated ? auth.user?.id ?? null : null) === ownerId;
       };
       if (!isCurrent()) return;
-      try { await purgeWalkQa(ownerId,isCurrent); } catch { /* QA cleanup is retried without logging private data. */ }
+      try { await purgeWalkQa(ownerId,isCurrent); } catch { /* diagnostic: expected Optional QA cleanup is retried and must not expose private data. */  /* QA cleanup is retried without logging private data. */ }
       if (!isCurrent()) return;
       // OS location task must not keep recording a signed-out or switched account.
       try {

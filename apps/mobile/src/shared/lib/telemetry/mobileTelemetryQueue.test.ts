@@ -9,7 +9,7 @@ const now = Date.now();
 const uuid=(i:number)=>`a0e85460-2534-4e2b-a70a-${i.toString(16).padStart(12,'0')}`;
 const event=(i:number,severity:MobileTelemetryEventV1['severity']='ERROR'):MobileTelemetryEventV1 => ({
   schemaVersion:1,eventId:uuid(i),appStartId:uuid(100000),platform:'ios',kind:'js_handled',severity,
-  occurredAt:new Date(now).toISOString(),appVersion:'1.8.0',build:'25',runtime:'1.8.0',channel:'preview',updateId:'embedded',
+  stack:`at test (bundle:1:${i})`,occurredAt:new Date(now).toISOString(),appVersion:'1.8.0',build:'25',runtime:'1.8.0',channel:'preview',updateId:'embedded',
 });
 describe('durable telemetry queue policy',()=>{
   it('is idempotent, durable ACK removes only accepted events',()=>{

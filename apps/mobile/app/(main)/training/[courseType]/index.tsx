@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { appSubscriptionTierIncludesOfflineCourses } from "@gafus/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -479,6 +480,12 @@ export default function TrainingDaysScreen() {
     [courseData, courseType, stepStates, handleDayPress],
   );
 
+  useScreenDataReady("SCREEN_COURSE_DAYS_DATA_READY",
+    !isLoading && !error && !isAccessDenied && !!courseData && !previewAuthLoading &&
+      (!previewAuthenticated || !!previewEpoch), previewScope);
+  useScreenDataReady("SCREEN_COURSE_PREVIEW_DATA_READY",
+    !isLoading && !!isAccessDenied && !!coursePreview && previewIsReady &&
+      !previewAuthLoading && (!previewAuthenticated || !!previewEpoch), previewScope);
   if (isLoading) {
     return <Loading fullScreen message="Загрузка тренировок..." />;
   }

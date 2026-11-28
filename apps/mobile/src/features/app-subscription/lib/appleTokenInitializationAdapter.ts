@@ -56,7 +56,7 @@ export function createAppleTokenInitializationAdapter<T>(deps: {
       let offer: AppleReadOnlyOfferSnapshot;
       try {
         offer = await deps.fetchSnapshot();
-      } catch {
+      } catch { /* diagnostic: expected Typed SNAPSHOT_UNAVAILABLE is returned to purchase orchestration. */
         return { ok: false, reason: "SNAPSHOT_UNAVAILABLE" };
       }
       if (!sameActor(actor)) return { ok: false, reason: "SESSION_CHANGED" };
@@ -73,7 +73,7 @@ export function createAppleTokenInitializationAdapter<T>(deps: {
         let initialized: AppleTokenInitializationResponse;
         try {
           initialized = await deps.initializeToken();
-        } catch {
+        } catch { /* diagnostic: expected Typed INITIALIZATION_FAILED is returned without retrying purchase. */
           return { ok: false, reason: "INITIALIZATION_FAILED" };
         }
         if (!sameActor(actor)) return { ok: false, reason: "SESSION_CHANGED" };
@@ -85,7 +85,7 @@ export function createAppleTokenInitializationAdapter<T>(deps: {
         let confirmed: AppleReadOnlyOfferSnapshot;
         try {
           confirmed = await deps.fetchSnapshot();
-        } catch {
+        } catch { /* diagnostic: expected Typed READBACK_UNVERIFIED prevents false confirmation. */
           return { ok: false, reason: "READBACK_UNVERIFIED" };
         }
         if (!sameActor(actor)) return { ok: false, reason: "SESSION_CHANGED" };
@@ -107,7 +107,7 @@ export function createAppleTokenInitializationAdapter<T>(deps: {
         });
         if (!sameActor(actor)) return { ok: false, reason: "SESSION_CHANGED" };
         return { ok: true, value, source };
-      } catch {
+      } catch { /* diagnostic: expected Typed PURCHASE_UNKNOWN prevents automatic purchase replay. */
         return { ok: false, reason: "PURCHASE_UNKNOWN" };
       }
     } finally {

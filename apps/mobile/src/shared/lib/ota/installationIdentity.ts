@@ -64,7 +64,7 @@ export async function refreshOtaTesterGrant(
     await Updates.setExtraParamAsync("gafus-tester-grant", response.data.token);
     // If logout raced with native parameter persistence, clear it again.
     if (!session.isCurrent()) await Updates.setExtraParamAsync("gafus-tester-grant", null);
-  } catch {
+  } catch { /* diagnostic: expected Tester identity lookup fails closed; stable rollout remains available. */
     // The stable OTA rollout remains available; no tester grant on failure.
   }
 }

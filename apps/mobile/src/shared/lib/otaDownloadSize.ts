@@ -25,7 +25,7 @@ export async function getOtaMainBundleBytes(
     !("url" in asset) || typeof asset.url !== "string") return null;
 
   let url: URL;
-  try { url = new URL(asset.url); } catch { return null; }
+  try { url = new URL(asset.url); } catch { /* diagnostic: expected Unreadable bundle size is unknown rather than fabricated. */  return null; }
   if (url.protocol !== "https:") return null;
 
   const controller = new AbortController();
@@ -40,7 +40,7 @@ export async function getOtaMainBundleBytes(
     if (!header || !/^[1-9]\d*$/.test(header)) return null;
     const bytes = Number(header);
     return Number.isSafeInteger(bytes) && bytes < 500_000_000 ? bytes : null;
-  } catch {
+  } catch { /* diagnostic: expected Unreadable bundle size is unknown rather than fabricated. */
     return null;
   } finally {
     clearTimeout(timer);

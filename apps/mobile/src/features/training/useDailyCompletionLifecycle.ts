@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 /** Actual DailyCourseDayScreen Phase1 completion/pending lifecycle. No replay/network. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
@@ -91,7 +92,7 @@ export function useDailyCompletionLifecycle(
         setSnapshot({ ...meta, items });
         setReadState({ ...meta, status: "READY" });
       }
-    } catch {
+    } catch (diagnosticError) { reportClientError(diagnosticError, {issueKey:"DailyCompletionJournal",keys:{operation:"read"},severity:"warning"});
       if (attested(ticket, expectedOwner, binding.authEpoch)) {
         setSnapshot(null);
         setReadState({ ...meta, status: "UNAVAILABLE" });
@@ -130,7 +131,7 @@ export function useDailyCompletionLifecycle(
         // The mutation itself performs exact durable eventId readback on offline writes.
         onCompleted(stepIndex, result.code === "OFFLINE_QUEUED");
         if (result.code === "OFFLINE_QUEUED") void refreshPending();
-      } catch (e) {
+      } catch (e) { reportClientError(e, {issueKey:"DailyCompletionJournal",keys:{operation:"readback"},severity:"warning"});
         if (
           attested(ticket, expectedOwner, binding.authEpoch) &&
           occurrenceAt(stepIndex) === occurrence

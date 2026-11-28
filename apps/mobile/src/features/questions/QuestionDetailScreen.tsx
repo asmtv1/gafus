@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -220,6 +221,9 @@ function QuestionDetailActorScreen({
     }
   };
   const question = query.data?.pages[0];
+  useScreenDataReady("SCREEN_QUESTION_DETAIL_DATA_READY",
+    current() && !query.isPending && (!query.isError || query.isFetchNextPageError) && !!question,
+    JSON.stringify([id, sort]));
   const { answersById, rootAnswers, childrenByRoot, loadedReplyCountByRoot } = useMemo(() => {
     const answersById = new Map<string, QuestionAnswerDto>();
     for (const page of query.data?.pages ?? []) {
@@ -440,7 +444,7 @@ function QuestionDetailActorScreen({
       icon: "share-variant-outline",
       onPress: () => {
         if (!current()) return;
-        void Share.share({ message: `https://gafus.ru/questions/${id}` }).catch(() => {
+        void Share.share({ message: `https://gafus.ru/questions/${id}` }).catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"QuestionShare",keys:{operation:"share"},severity:"warning"});
           if (current()) setError("Не удалось поделиться вопросом");
         });
       },

@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { pendingMatchesOccurrence } from "@/shared/lib/offline/pendingOccurrence";
 import { useCallback, useMemo, useEffect, useRef } from "react";
 import { View, StyleSheet, ScrollView, RefreshControl, Pressable, Linking } from "react-native";
@@ -133,8 +134,11 @@ export default function TrainingDayScreen() {
         return;
       timerBinding.current = { owner: ownerId, epoch: before.authEpoch };
       setPendingTimers(timers);
-    } catch {
-      if (generation === timerGeneration.current) setPendingTimers([]);
+    } catch (error) {
+      if (generation === timerGeneration.current) {
+        reportClientError(error, {issueKey:"TrainingPendingTimers",keys:{operation:"read"},severity:"warning"});
+        setPendingTimers([]);
+      }
     }
   }, [ownerId, courseId, dayId]);
   useFocusEffect(
@@ -578,6 +582,9 @@ export default function TrainingDayScreen() {
     router.replace(`/training/${courseType}?personalize=1`);
   }, [courseType, isPersonalizationRequired, router]);
 
+  useScreenDataReady("SCREEN_COURSE_STEPS_DATA_READY",
+    !isLoading && !error && data?.success === true && !!dayData && Array.isArray(dayData.steps),
+    JSON.stringify([courseType, dayId, ownerId, newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch]));
   if (isLoading) {
     return <Loading fullScreen message="Загрузка шагов..." />;
   }

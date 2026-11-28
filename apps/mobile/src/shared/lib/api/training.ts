@@ -1,4 +1,5 @@
 import { apiClient, type ApiResponse } from "./client";
+import { measureMobileOperation } from "@/shared/lib/telemetry/mobilePerformance";
 import { reportClientError } from "@/shared/lib/error-reporting";
 import type {
   DiaryEntryWire,
@@ -221,9 +222,9 @@ export const trainingApi = {
   getDays: async (courseType: string): Promise<ApiResponse<TrainingDaysResponse>> => {
     // Viewing the day list must never launch the global subscription modal.
     // A 402/403 is handled by the screen's public paid-course outline instead.
-    return apiClient<TrainingDaysResponse>(`/api/v1/training/days?type=${courseType}`, {
+    return measureMobileOperation("TRAINING_DAYS_LOAD", () => apiClient<TrainingDaysResponse>(`/api/v1/training/days?type=${courseType}`, {
       suppressSubscriptionPaywall: true,
-    });
+    }));
   },
 
   /**
@@ -239,9 +240,9 @@ export const trainingApi = {
       dayOnCourseId,
       createIfMissing: String(createIfMissing),
     });
-    return apiClient<TrainingDayResponse>(`/api/v1/training/day?${params}`, {
+    return measureMobileOperation("TRAINING_STEPS_LOAD", () => apiClient<TrainingDayResponse>(`/api/v1/training/day?${params}`, {
       suppressSubscriptionPaywall: true,
-    });
+    }));
   },
 
   /**

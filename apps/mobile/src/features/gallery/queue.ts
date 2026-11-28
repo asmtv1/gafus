@@ -432,7 +432,7 @@ export async function runUpload(
           updateTask(id, uploadPatch(safeUpload(authoritative)), fence);
           return;
         }
-      } catch {
+      } catch { /* diagnostic: expected Failed readback is inconclusive; do not replay the upload on that basis. */
         // Missing readback is inconclusive, not permission to upload twice.
       }
       if (taskAt(id, fence) && current()) {

@@ -1,3 +1,4 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { API_BASE_URL } from "@/shared/config";
 import type { ApiResponse } from "./client";
 import { getMobileClientHeaders } from "./client-context";
@@ -13,6 +14,7 @@ export async function previewRegistrationPromoCode(
       body: JSON.stringify({ promoCode }),
     });
     if (!response.ok) {
+      if (response.status >= 500) reportClientError(new Error("REGISTRATION_PROMO_SERVER_FAILURE"), { issueKey: "AuthRegistrationPromo", keys: { operation: "server" } });
       const errorData = await response
         .json()
         .catch(() => ({}) as { error?: string; code?: string });
@@ -24,7 +26,8 @@ export async function previewRegistrationPromoCode(
     }
     const result = await response.json();
     return { success: true, data: result.data };
-  } catch {
+  } catch (error) {
+    reportClientError(error, { issueKey: "AuthRegistrationPromo", keys: { operation: "request" }, severity: "warning" });
     return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
   }
 }

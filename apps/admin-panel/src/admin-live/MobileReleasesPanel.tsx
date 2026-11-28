@@ -1,3 +1,4 @@
+import { MobileDiagnosticQuality, useMobileDiagnosticQuality } from "./MobileDiagnosticQuality";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {VersionPublicationForm} from "./VersionPublicationForm";
 import { requestAdmin } from "./api";
@@ -59,6 +60,7 @@ function shortSha(value: string | null | undefined) {
 }
 export function MobileReleasesPanel({ source }: { source: unknown }) {
   const [tab, setTab] = useState<Tab>("deployments");
+  const quality=useMobileDiagnosticQuality(tab==="telemetry");
   const [rows, setRows] = useState<unknown[]>(Array.isArray(source) ? source : []);
   const [releases, setReleases] = useState<OtaRelease[]>([]);
   const [nativeReleases, setNativeReleases] = useState<NativeRelease[]>([]);
@@ -474,6 +476,7 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
           <p className="note">Это история исходных изменений. Пока нет отдельного подтверждённого native+review релиза, восстановление недоступно пользователям.</p>
         </div>
       ))}
+      {tab === "telemetry" && <MobileDiagnosticQuality {...quality}/>}
       {tab === "telemetry" && (
         <p className="note">События, сообщённые устройствами за 30 дней. Не являются подтверждённой сервером статистикой установок. Личные данные и полные тексты ошибок не сохраняются.</p>
       )}

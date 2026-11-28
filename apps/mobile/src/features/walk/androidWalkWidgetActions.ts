@@ -40,7 +40,7 @@ let actions: Promise<void> = Promise.resolve();
 /** Serialize repeated taps within the same JS runtime and persist before starting the sensor. */
 export function handleAndroidWalkWidgetClick(action: unknown): Promise<void> {
   if (!isAction(action)) return Promise.resolve();
-  const task = actions.catch(() => undefined).then(() => perform(action));
+  const task = actions.catch(() => { /* diagnostic: expected Previous action failure must not poison the serialized action chain. */ return undefined; }).then(() => perform(action));
   actions = task;
   return task;
 }
@@ -76,7 +76,7 @@ async function perform(action: WidgetWalkAction): Promise<void> {
       try {
         const sensor = await getAndroidWalkStepAvailability();
         incompleteSteps = sensor !== "counter" && sensor !== "detector";
-      } catch {
+      } catch { /* diagnostic: expected Pedometer failure marks incomplete steps instead of inventing data. */
         incompleteSteps = true;
       }
       journal.active = {
@@ -145,7 +145,7 @@ async function perform(action: WidgetWalkAction): Promise<void> {
     // A headless widget may not have a hydrated auth store.
     await reportCompletedWalkGps(ownerId, completed, async () =>
       (await AsyncStorage.getItem(WALK_WIDGET_OWNER_KEY)) === ownerId,
-    ).catch(() => undefined);
+    ).catch(() => { /* diagnostic: expected Diagnostic report must not prevent widget stop completion. */ return undefined; });
   }
   await publishWalkWidgetSnapshot(
     journal.active ?? journal.completed[0] ?? null,

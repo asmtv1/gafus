@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { loadRegisteredTarget } from "./native-release-target.mjs";
+import {beginNativeDiagnosticCapture,endNativeDiagnosticCapture,finalizeNativeDiagnosticCapture} from "./native-store-diagnostic-archive.mjs";
 const require = createRequire(import.meta.url);
 
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -102,6 +103,8 @@ if (mode === "--verify-cli") {
   if (version.error) throw version.error;
   if (version.status !== 0 || String(JSON.parse(version.stdout).versionCode) !== target.buildNumber)
     throw Error("MOBILE_ANDROID_STORE_REMOTE_BUILD_NUMBER_MISMATCH");
+  const diagnosticCapture=beginNativeDiagnosticCapture(env);
+  try {
   const buildStartedAt = Date.now();
   const result = spawnSync(
     "npx",
@@ -115,10 +118,10 @@ if (mode === "--verify-cli") {
       "--non-interactive",
       ...forwarded,
     ],
-    { cwd: mobileRoot, env, stdio: "inherit" },
+    { cwd: mobileRoot, env:diagnosticCapture.env, stdio: "inherit" },
   );
   if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  if (result.status !== 0) throw Error("MOBILE_ANDROID_STORE_BUILD_FAILED");
   // Validate the NEW AAB, not an older cached build. Google Play requires
   // 16KiB-capable ELF LOAD segments in 64-bit native libraries. Other checks
   // (bundletool ZIP alignment + device smoke) remain separate release gates.
@@ -164,5 +167,7 @@ if (mode === "--verify-cli") {
     { cwd: repoRoot, stdio: "inherit" });
   if (signingAssociation.error) throw signingAssociation.error;
   if (signingAssociation.status !== 0) throw Error("MOBILE_ANDROID_ASSETLINKS_SIGNER_MISMATCH");
-  console.log("MOBILE_STORE_ANDROID_NATIVE_AAB_VERIFIED");
+  const diagnostics=finalizeNativeDiagnosticCapture(diagnosticCapture,candidates[0],target);
+  console.log(JSON.stringify({state:"MOBILE_STORE_ANDROID_NATIVE_AAB_VERIFIED",diagnostics}));
+  } finally { endNativeDiagnosticCapture(diagnosticCapture); }
 }

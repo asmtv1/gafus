@@ -280,7 +280,7 @@ export function evaluatePreventionJournalContract(
     current = getBody(currentEvent);
     // Private untrusted legacy payload validation errors are not telemetry inputs.
     // eslint-disable-next-line @gafus/require-client-catch-tracer
-  } catch {
+  } catch { /* diagnostic: expected Changed prevention payload stays pending without exposing queued content. */
     return pending;
   }
   if (current.eventId !== context.eventId || fingerprint(current).parent !== context.fingerprint)

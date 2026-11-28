@@ -137,7 +137,7 @@ async function purgeQaRows(db:SQLite.SQLiteDatabase, rows:QaCapture[]) {
     await db.runAsync("DELETE FROM walk_qa_batches WHERE captureId=?",row.captureId);
     await db.runAsync("DELETE FROM walk_qa_shadow WHERE captureId=?",row.captureId);
     try { await crypto.deleteQaKey(row.captureId); }
-    catch { continue; }
+    catch { /* diagnostic: expected Unreadable QA cleanup entry does not block remaining cleanup. */  continue; }
     await db.runAsync("DELETE FROM walk_qa_capture WHERE captureId=?",row.captureId);
   }
 }
@@ -171,7 +171,7 @@ export async function beginWalkQaCapture(ownerId:string,walkId:string,captureId:
     try {
       await tx.runAsync("INSERT INTO walk_qa_capture(ownerId,walkId,captureId,startedAt,expiresAt,profile) VALUES(?,?,?,?,?,?)",ownerId,walkId,captureId,now,now+QA_TTL_MS,profile);
     } catch(error) {
-      try { await crypto.deleteQaKey(captureId); } catch { /* no ciphertext was written */ }
+      try { await crypto.deleteQaKey(captureId); } catch { /* diagnostic: expected No ciphertext was written; cleanup remains safe. */  /* no ciphertext was written */ }
       throw error;
     }
   });
@@ -246,7 +246,7 @@ async function appendQaBoundary(db:SQLite.SQLiteDatabase,ownerId:string,walkId:s
     const sealed=await crypto.sealQaBatch(row.captureId,qaAad(row,seq),{kind,generation,at});
     await db.runAsync("INSERT INTO walk_qa_batches(captureId,seq,sealed) VALUES(?,?,?)",row.captureId,seq,sealed);
     if(kind==="close") await finishQaShadow(db,row,generation,at);
-  } catch {
+  } catch { /* diagnostic: expected QA write failure marks capture truncated; normal tracking is independent. */
     await db.runAsync("UPDATE walk_qa_capture SET truncated=1 WHERE captureId=?",row.captureId);
   }
 }
@@ -371,13 +371,13 @@ function activeJournalId(document: string | null): string | null {
   try {
     const active = JSON.parse(document ?? "null")?.active;
     return active?.finishedAtMs === null ? journalWalkId(active) : null;
-  } catch { return null; }
+  } catch { /* diagnostic: expected Unreadable active journal cannot authorize tracking. */  return null; }
 }
 function completedJournalHas(document: string | null, walkId: string): boolean {
   try {
     const completed: unknown = JSON.parse(document ?? "null")?.completed;
     return Array.isArray(completed) && completed.some(walk => walk && walk.finishedAtMs != null && journalWalkId(walk) === walkId);
-  } catch { return false; }
+  } catch { /* diagnostic: expected Unverifiable completed journal is not proof of completion. */  return false; }
 }
 
 function isUnsupportedCodec(error: unknown): boolean {
@@ -393,7 +393,7 @@ async function readCheckpoint(db: SQLite.SQLiteDatabase, ownerId: string, walkId
     // A future format is not corrupt data. Never run destructive recovery on it.
     if (row.mode !== "v2" && row.mode !== "shadow") throw new Error("WALK_TRACKING_CODEC_UNSUPPORTED");
     let header: {version?: number; configVersion?: number} | null = null;
-    try { header = JSON.parse(row.document); } catch { /* damaged known codec */ }
+    try { header = JSON.parse(row.document); } catch { /* diagnostic: expected Damaged known checkpoint codec falls through to safe recovery. */  /* damaged known codec */ }
     if (header && ((Number.isInteger(header.version) && header.version! !== 2) ||
       (Number.isInteger(header.configVersion) && header.configVersion !== 1 && header.configVersion !== 2))) {
       throw new Error("WALK_TRACKING_CODEC_UNSUPPORTED");
@@ -443,7 +443,7 @@ function decodeCheckpoint(row: CheckpointRow): (TrackingCheckpoint & { configVer
       !validFix(s.lastGood) || !validFix(s.anchor) || !validFix(s.lastOutput) ||
       !validFix(s.previousCanonical) || !validFix(s.pendingCanonical)) return null;
     return s as TrackingCheckpoint & { configVersion: 1 | 2 };
-  } catch { return null; }
+  } catch { /* diagnostic: expected Invalid checkpoint is rejected rather than used for GPS reconstruction. */  return null; }
 }
 
 async function writeCheckpoint(db: SQLite.SQLiteDatabase, ownerId: string, walkId: string, mode: TrackingMode, state: TrackingCheckpoint) {
@@ -519,7 +519,7 @@ async function readTrackingTail(db: SQLite.SQLiteDatabase, session: GpsSession, 
     }
     // Never use a stale/corrupt undo log to overwrite a committed prefix.
     return JSON.stringify(replayed) === JSON.stringify(state) ? tail : null;
-  } catch { return null; }
+  } catch { /* diagnostic: expected Unreadable tracking tail is unavailable; no coordinates logged. */  return null; }
 }
 
 async function saveTrackingTail(db: SQLite.SQLiteDatabase, session: GpsSession, tail: TrackingTail) {
@@ -636,7 +636,7 @@ function journalAllowsGps(document:string|null,walkId:string):boolean {
   try {
     const active=JSON.parse(document).active;
     return activeJournalId(document)===walkId && active?.runningSinceMs!==null;
-  } catch { return false; }
+  } catch { /* diagnostic: expected Unverifiable journal does not authorize GPS collection. */  return false; }
 }
 async function trimLegacyBoundary(db:SQLite.SQLiteDatabase,session:GpsSession,epoch:SessionEpoch,at:number) {
   const first=await db.getFirstAsync<{seq:number|null}>("SELECT MIN(seq) AS seq FROM gps_points WHERE ownerId=? AND walkId=? AND seq>? AND timestamp>=?",
@@ -877,9 +877,10 @@ export async function persistGpsBatch(samples: WalkFix[], receivedAt = Date.now(
   const scope=capture as {ownerId:string;walkId:string;generation:number}|null;
   if(scope) {
     try { await captureQaBatch(scope.ownerId,scope.walkId,samples,receivedAt,scope.generation); }
-    catch {
+    catch { /* diagnostic: expected QA write is isolated from production GPS writer and marks truncation. */
       // Mark an incomplete QA trace, without exposing coordinates or breaking the writer.
       try { await db.runAsync("UPDATE walk_qa_capture SET truncated=1 WHERE ownerId=? AND walkId=?",scope.ownerId,scope.walkId); } catch {
+        /* diagnostic: expected Failure to mark optional QA truncation cannot stop GPS writer. */
         console.warn("WALK_QA_CAPTURE_TRUNCATION_MARK_FAILED");
       }
     }
@@ -1064,7 +1065,7 @@ export async function getOrFinalizeGpsDisplay(ownerId:string,walkId:string):Prom
       const parsed=JSON.parse(cached.document) as WalkGeoJson;
       const current=await input(db);
       if(current?.seq===before.seq&&current.revision===before.revision&&parsed.type==="FeatureCollection"&&Array.isArray(parsed.features)) return parsed;
-    } catch { /* recreate derivative */ }
+    } catch { /* diagnostic: expected Corrupt derivative can be regenerated from authoritative journal. */  /* recreate derivative */ }
   }
   const points=await allGpsPoints(ownerId,walkId);
   const display=finalizeWalkDisplay(points);
@@ -1184,7 +1185,7 @@ export async function readGpsMotionPolicy(
       Number.isFinite(state.candidateSinceMs)
       ? state
       : DEFAULT_WALK_GPS_POLICY;
-  } catch {
+  } catch { /* diagnostic: expected Unavailable optional motion policy uses established safe default. */
     return DEFAULT_WALK_GPS_POLICY;
   }
 }

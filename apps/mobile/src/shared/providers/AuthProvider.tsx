@@ -41,7 +41,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     if (isLoading || isOffline || (isAuthenticated && !verifiedEpoch)) return;
     const retry = () => {
-      void flushMobileIntroEvents(isAuthenticated ? userId : undefined).catch(() => undefined);
+      void flushMobileIntroEvents(isAuthenticated ? userId : undefined).catch(() => { /* diagnostic: expected Best effort onboarding analytics flush must not block auth provider. */ return undefined; });
     };
     retry();
     const subscription = AppState.addEventListener("change", (state) => {

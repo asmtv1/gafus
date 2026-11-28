@@ -1,0 +1,208 @@
+# Import into GAFUS Production (9378). Alerts deliberately paused until real OTA data.
+schema: v2
+name: 'GAFUS: Mobile Health'
+description: 'Observed JS cohorts, error occurrences, OTA lifecycle, sampled performance and durable telemetry.'
+tags: [prom, app, logs]
+version: v26.11.27
+setup_link: https://uptrace.dev/ingest/prometheus
+min_interval: 1m
+grid_sections:
+  - title: Observed mobile health (24h)
+    items:
+      - title: Observed JS runtime sessions
+        metrics:
+          - gafus_mobile_telemetry_js_sessions_24h as $sessions
+        query:
+          - max($sessions{environment="production"}) as sessions group by platform
+      - title: JS sessions with errors
+        metrics:
+          - gafus_mobile_telemetry_js_error_sessions_24h as $errors
+        query:
+          - max($errors{environment="production"}) as error_sessions group by platform
+      - title: Observed installation pseudonyms (not users)
+        metrics:
+          - gafus_mobile_telemetry_installations_24h as $installs
+        query:
+          - max($installs{environment="production"}) as installations group by platform
+      - title: Error occurrences and fatal events (not crash-free rate)
+        metrics:
+          - gafus_mobile_telemetry_error_occurrences_24h as $errors
+          - gafus_mobile_telemetry_fatal_events_24h as $fatal
+        query:
+          - max($errors{environment="production"}) as errors group by platform
+          - max($fatal{environment="production"}) as fatal group by platform
+  - title: Functional failures by diagnostic domain
+    items:
+      - title: Exported application error occurrences per minute
+        metrics:
+          - gafus_mobile_diagnostic_failure_occurrences_total as $failures
+        query:
+          - perMin(sum($failures{environment="production"})) as failures group by platform, domain
+  - title: OTA lifecycle
+    items:
+      - title: Device-reported OTA events (1h)
+        metrics:
+          - gafus_mobile_telemetry_ota_reported_events_1h as $ota
+        query:
+          - max($ota) as events group by platform, event
+  - title: Sampled mobile performance
+    items:
+      - title: Client operations p50, p95, p99 (milliseconds)
+        metrics:
+          - gafus_mobile_performance_duration_ms as $duration
+        query:
+          - p50($duration) as p50 group by platform, operation
+          - p95($duration) as p95 group by platform, operation
+          - p99($duration) as p99 group by platform, operation
+      - title: Sample count by operation
+        metrics:
+          - gafus_mobile_performance_duration_ms as $duration
+        query:
+          - histogram_count($duration) as samples group by platform, operation
+  - title: Diagnostic quality
+    items:
+      - title: Missing stacks, unknown sources and release resolution
+        metrics:
+          - gafus_mobile_telemetry_quality_total as $quality
+        query:
+          - perMin(sum($quality)) as events_per_min group by platform, outcome
+      - title: Client queue losses and storage or delivery failures
+        metrics:
+          - gafus_mobile_telemetry_client_health_total as $health
+        query:
+          - perMin(sum($health)) as events_per_min group by platform, outcome
+  - title: Durable delivery
+    items:
+      - title: Pending, leased and dead events
+        metrics:
+          - gafus_mobile_telemetry_service_spool_entries as $spool
+        query:
+          - sum($spool{environment="production"}) as events group by service, status
+      - title: Age of oldest unexported event (seconds)
+        metrics:
+          - gafus_mobile_telemetry_oldest_age_seconds as $age
+        query:
+          - max($age{environment="production"}) as oldest_seconds
+      - title: Export outcomes
+        metrics:
+          - gafus_mobile_telemetry_service_export_total as $export
+        query:
+          - perMin(sum($export{environment="production"})) as events_per_min group by service, outcome
+metric_monitors:
+  - key: mobile_export_backlog_age
+    name: 'Mobile telemetry backlog exceeds 15 minutes'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_mobile_telemetry_oldest_age_seconds as $age
+    query:
+      - max($age{environment="production"}) as oldest_seconds
+    max_value: 900
+    num_eval_points: 3
+    absent_points: ignore
+  - key: mobile_export_auth_blocked
+    name: 'Mobile telemetry exporter authentication blocked'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_mobile_telemetry_auth_suspended as $auth
+    query:
+      - max($auth{environment="production"}) as suspended
+    max_value: 0
+    num_eval_points: 2
+    absent_points: ignore
+  - key: mobile_fatal_growth
+    name: 'Mobile fatal events exceed ten in observed 24h window'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_mobile_telemetry_fatal_events_24h as $fatal
+    query:
+      - max($fatal{environment="production"}) as fatal group by platform
+    max_value: 10
+    num_eval_points: 3
+    absent_points: ignore
+
+  - key: mobile_startup_failures
+    name: 'Startup failures (candidate)'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_mobile_diagnostic_failure_occurrences_total as $failures
+    query:
+      - perMin(sum($failures{environment="production",domain="startup"})) as failures group by platform, domain
+    max_value: 3
+    num_eval_points: 3
+    absent_points: ignore
+
+  - key: mobile_auth_failures
+    name: 'Authentication failure surge (candidate)'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_mobile_diagnostic_failure_occurrences_total as $failures
+    query:
+      - perMin(sum($failures{environment="production",domain="auth"})) as failures group by platform, domain
+    max_value: 5
+    num_eval_points: 3
+    absent_points: ignore
+
+  - key: mobile_training_failures
+    name: 'Course and step failure surge (candidate)'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_mobile_diagnostic_failure_occurrences_total as $failures
+    query:
+      - perMin(sum($failures{environment="production",domain="training"})) as failures group by platform, domain
+    max_value: 5
+    num_eval_points: 3
+    absent_points: ignore
+
+  - key: mobile_ota_failures
+    name: 'OTA failure surge (candidate)'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_mobile_diagnostic_failure_occurrences_total as $failures
+    query:
+      - perMin(sum($failures{environment="production",domain="ota"})) as failures group by platform, domain
+    max_value: 3
+    num_eval_points: 3
+    absent_points: ignore
+
+  - key: mobile_domain_failures
+    name: 'Functional failure surge by domain (candidate)'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_mobile_diagnostic_failure_occurrences_total as $failures
+    query:
+      - perMin(sum($failures{environment="production"})) as failures group by platform, domain
+    max_value: 10
+    num_eval_points: 3
+    absent_points: ignore
+
+  - key: mobile_mandatory_ota_incomplete
+    name: 'Mandatory OTA incomplete reports (candidate)'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_mobile_telemetry_ota_reported_events_1h as $ota
+    query:
+      - max($ota{event="MANDATORY_INCOMPLETE"}) as reports group by platform
+    max_value: 3
+    num_eval_points: 3
+    absent_points: ignore
+
+  - key: mobile_native_failures
+    name: 'Native crash or termination reports (candidate)'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_mobile_diagnostic_failure_occurrences_total as $failures
+    query:
+      - perMin(sum($failures{environment="production",domain="native"})) as failures group by platform, domain
+    max_value: 3
+    num_eval_points: 3
+    absent_points: ignore

@@ -6,6 +6,7 @@ import {spawnSync} from 'node:child_process';
 import {mobileRoot,loadRegisteredTarget,validateRegisteredTarget} from './native-release-target.mjs';
 import {assertGeneratedNativeOta} from './native-generated-config.mjs';
 import {verifyIpa} from './native-ios-store-artifact.mjs';
+import {beginNativeDiagnosticCapture,endNativeDiagnosticCapture,finalizeNativeDiagnosticCapture} from './native-store-diagnostic-archive.mjs';
 const [action,arg,...rest]=process.argv.slice(2);
 if(rest.length||!['check','build','verify-ipa'].includes(action)||(action==='verify-ipa')!==Boolean(arg))
   throw Error('USAGE: native-ios-store.mjs check|build|verify-ipa <ipa>');
@@ -31,7 +32,9 @@ if(action==='verify-ipa'){
   console.log(JSON.stringify({state:'NATIVE_STORE_PREFLIGHT_PASS',appVersion:target.appVersion,
     buildNumber:target.buildNumber,nativeReleaseId:target.id,nativeFingerprint:target.nativeFingerprint}));
   if(action==='build'){
-    const buildEnv={...target.buildEnv,...profile.env,EXPO_PUBLIC_APP_VERSION:target.appVersion};
+    const diagnosticCapture=beginNativeDiagnosticCapture({...target.buildEnv,...profile.env,EXPO_PUBLIC_APP_VERSION:target.appVersion});
+    try {
+    const buildEnv=diagnosticCapture.env;
     const run=(cmd,args,capture=false)=>{
       const result=spawnSync(cmd,args,{cwd:mobileRoot,env:buildEnv,encoding:capture?'utf8':undefined,
         stdio:capture?['ignore','pipe','inherit']:'inherit'});
@@ -48,6 +51,9 @@ if(action==='verify-ipa'){
     const output=path.join(mobileRoot,'gafus-'+target.appVersion+'-'+target.buildNumber+'-self-hosted-store.ipa');
     if(fs.existsSync(output))throw Error('NATIVE_IOS_STORE_OUTPUT_ALREADY_EXISTS');
     run('npx',[...cli,'build',...profileArgs,'--local','--clear-cache','--output',output,'--non-interactive']);
-    console.log(JSON.stringify({state:'NATIVE_STORE_IPA_VERIFIED_NOT_SUBMITTED',...verifyIpa(output,target)},null,2));
+    const verified=verifyIpa(output,target);
+    const diagnostics=finalizeNativeDiagnosticCapture(diagnosticCapture,output,target);
+    console.log(JSON.stringify({state:'NATIVE_STORE_IPA_VERIFIED_NOT_SUBMITTED',...verified,diagnostics},null,2));
+    } finally { endNativeDiagnosticCapture(diagnosticCapture); }
   }
 }

@@ -14,8 +14,8 @@ export function nativeCrashCaptureOptions(input:{
     environment:input.nativeEnvironment==='preview'?'preview':'production',
     // Installed Expo Observe 57.0.28 does NOT expose errorSampleRate; using
     // sampleRate=0 would silently discard native crashes, too. Its extra
-    // startup metrics are explicitly discarded by the GAFUS API after release
-    // validation, while native.exception logs are stored and exported.
+    // startup metrics are normalized into bounded histograms by the GAFUS API;
+    // native.exception logs are stored and exported independently.
     sampleRate:1,
     dispatchingEnabled:active,
     dispatchInDebug:false,
@@ -36,7 +36,7 @@ export function startNativeCrashCapture():void {
     // separately require expo-observe >=57.0.21 + the custom native endpoint.
     const {Observe}=require('expo-observe') as typeof import('expo-observe');
     Observe.configure(options);
-  } catch {
+  } catch { /* diagnostic: expected Missing native crash module uses dedicated startup event or dev warning. */
     if(__DEV__) {
       console.warn('[GAFUS] native crash capture requires a custom Expo development build');
     } else if(options.dispatchingEnabled) {
@@ -45,7 +45,7 @@ export function startNativeCrashCapture():void {
       // never forward the underlying native-loader error/message to Uptrace.
       void enqueueMobileTelemetryError(new Error('NativeCrashCaptureUnavailable'),{
         kind:'startup_failure',errorCode:'NATIVE_CRASH_CAPTURE_UNAVAILABLE',
-      }).catch(()=>undefined);
+      }).catch(()=>{ /* diagnostic: expected Failure of crash diagnostic transport cannot recurse. */ return undefined; });
     }
   }
 }

@@ -1,3 +1,5 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
+import { measureMobileOperation, mobilePerformance } from "@/shared/lib/telemetry/mobilePerformance";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, FlatList, ScrollView, KeyboardAvoidingView, Platform, Pressable, Image, Text, View, ActivityIndicator, Alert, Modal } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -107,9 +109,12 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       bound.authEpoch === epoch
     );
   }, [owner, epoch]);
+  useScreenDataReady("SCREEN_CHAT_ROOM_DATA_READY",
+    current() && !loading && !!room && !error && initialHistorySeen.current,
+    id);
   const refresh = useCallback(async () => {
     try {
-      const [info, history] = await Promise.all([chat2.room(id), chat2.messages(id)]);
+      const [info, history] = await measureMobileOperation("CHAT_ROOM_SYNC", () => Promise.all([chat2.room(id), chat2.messages(id)]));
       if (!mounted.current || !current()) return;
       setRoom(info);
       if (!initialHistorySeen.current) {
@@ -119,7 +124,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       setMessages((previous) => mergeHistory(previous, history));
       setError("");
     } catch (e) {
-      reportClientError(new Error("CHAT2_REFRESH_FAILED"), {
+      reportClientError(e, {
         issueKey: "Chat2Room",
         keys: { operation: "refresh" },
       });
@@ -173,7 +178,9 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
     async function connect() {
       if (!live || AppState.currentState !== "active") return;
       try {
-        const connection = await chat2.connect();
+        const subscriptionStarted = mobilePerformance.enabled ? performance.now() : undefined;
+        let subscriptionMeasured = false;
+        const connection = await measureMobileOperation("CHAT_CONNECT_GRANT", () => chat2.connect());
         if (!live) return;
         const subscription = await chat2SubscriptionForConnection(connection, id);
         if (!live) return;
@@ -196,7 +203,13 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
         const sub = client.newSubscription(subscription.channel,
           chat2SubscriptionTransportOptions(subscription));
         sub.on("subscribed", () => {
-          if (live) setConnection("online");
+          if (live) {
+            if (!subscriptionMeasured && subscriptionStarted !== undefined) {
+              subscriptionMeasured = true;
+              mobilePerformance.record("CHAT_SUBSCRIPTION_READY", performance.now() - subscriptionStarted);
+            }
+            setConnection("online");
+          }
         });
         sub.on("unsubscribed", () => {
           if (live) setConnection("fallback");
@@ -209,8 +222,8 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
         });
         sub.subscribe();
         client.connect();
-      } catch {
-        reportClientError(new Error("CHAT2_REALTIME_CONNECT_FAILED"), {
+      } catch (error) {
+        reportClientError(error, {
           issueKey: "Chat2Room",
           keys: { operation: "realtime" },
         });
@@ -460,7 +473,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
     if (file.attachment)
       void chat2
         .discard(id, file.attachment.id)
-        .catch(() => setError("Не удалось отменить вложение"));
+        .catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"ChatAttachmentDiscard",keys:{operation:"discard"},severity:"warning"}); return setError("Не удалось отменить вложение"); });
   }
   async function send() {
     const submittedDraft = draftState.getSnapshot();
@@ -535,7 +548,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
           () => Crypto.randomUUID(),
         );
         retry.current = attempt;
-        await chat2.send(id, value, attempt.clientMessageId, reply?.id, attachmentIds);
+        await measureMobileOperation("CHAT_SEND", () => chat2.send(id, value, attempt.clientMessageId, reply?.id, attachmentIds));
       }
       retry.current = null;
       if (draftState.getSnapshot() === submittedDraft) draftState.set("");
@@ -554,7 +567,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       await refresh();
       listRef.current?.scrollToEnd({ animated: true });
     } catch (e) {
-      reportClientError(new Error("CHAT2_SEND_FAILED"), {
+      reportClientError(e, {
         issueKey: "Chat2Room", keys: { operation: "send" },
       });
       setError(e instanceof Error ? e.message : "Сообщение не отправлено. Повторите.");
@@ -608,8 +621,8 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
     Alert.alert("Удалить сообщение?", "", [
       { text: "Отмена", style: "cancel" },
       { text: "Удалить", style: "destructive", onPress: () =>
-        void chat2.remove(id, message.id).then(refresh).catch(() =>
-          setError("Не удалось удалить сообщение")),
+        void chat2.remove(id, message.id).then(refresh).catch((diagnosticError) =>
+          { reportClientError(diagnosticError, {issueKey:"ChatMessageDelete",keys:{operation:"delete"}}); return setError("Не удалось удалить сообщение"); }),
       },
     ]);
   }

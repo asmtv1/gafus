@@ -33,7 +33,7 @@ async function hasQueuedVideoProgress(videoId: string): Promise<boolean> {
     return events.some(
       (event) => event.kind === "saveVideoProgress" && event.payload.videoId === videoId,
     );
-  } catch {
+  } catch { /* diagnostic: expected Unreadable offline queue conservatively counts as pending. */
     return true;
   }
 }

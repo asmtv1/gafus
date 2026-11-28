@@ -55,7 +55,7 @@ const safeUrl = (url: unknown): string | null => {
     )
       return null;
     return url;
-  } catch {
+  } catch { /* diagnostic: expected Malformed signed private URL is rejected without exposing it. */
     return null;
   }
 };

@@ -185,7 +185,7 @@ export default function DogWalkScreen() {
       journalRef.current = next;
       setJournal(next);
       saves.current = saves.current
-        .catch(() => undefined)
+        .catch(() => { /* diagnostic: expected Prior rejected persistence promise must not poison the serialized save chain. */ return undefined; })
         .then(async () => {
           try {
             await saveWalkJournal(actor, next);
@@ -542,7 +542,7 @@ export default function DogWalkScreen() {
           if(!current&&qaArmed&&walk.clientId&&walkQaEnabled()) {
             setQaArmed(false);
             try { await beginWalkQaCapture(owner,walk.clientId,Crypto.randomUUID(),isCurrent); }
-            catch { if(isCurrent()) setNotice("QA-запись недоступна. Обычная прогулка продолжится без диагностики."); }
+            catch { /* diagnostic: expected Optional QA capture must not stop a normal walk. */  if(isCurrent()) setNotice("QA-запись недоступна. Обычная прогулка продолжится без диагностики."); }
           }
           if(!isCurrent()) return;
           // Android permission activities temporarily background the app, even
@@ -651,7 +651,7 @@ export default function DogWalkScreen() {
                 const auth = useAuthStore.getState();
                 return ownerRef.current === owner && auth.user?.id === owner &&
                   auth.verifiedSessionEpoch === sessionEpoch;
-              }).catch(() => undefined); },
+              }).catch(() => { /* diagnostic: expected Completed-walk diagnostic reporting cannot change a saved walk. */ return undefined; }); },
             );
           }
           await notify(owner, null, false);

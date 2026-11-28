@@ -1,3 +1,4 @@
+import { mobilePerformance } from "@/shared/lib/telemetry/mobilePerformance";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Application from "expo-application";
@@ -29,13 +30,14 @@ const TRIED_PREFIX = "@gafus/forced-ota-attempt-v1:";
  * Same uncropped poster as StartupLoader. Its lettering stays visible above
  * the lower-positioned card on different screen aspect ratios.
  */
-function ForceOtaScreen({ version, phase, error, progress, mainBundleBytes, retry }: {
+function ForceOtaScreen({ version, phase, error, progress, mainBundleBytes, retry, mandatory }: {
   version: string;
   phase: Phase;
   error: string | null;
   progress?: number;
   mainBundleBytes: number | null | undefined;
   retry: () => void;
+  mandatory: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -66,7 +68,7 @@ function ForceOtaScreen({ version, phase, error, progress, mainBundleBytes, retr
       >
         <View style={styles.card}>
           <View style={styles.versionPill}>
-            <Text style={styles.versionPillText}>{phase === "checking" ? "ПРОВЕРКА ОБНОВЛЕНИЙ" : "ОБЯЗАТЕЛЬНОЕ ОБНОВЛЕНИЕ"} {version}</Text>
+            <Text style={styles.versionPillText}>{phase === "checking" ? "ПРОВЕРКА ОБНОВЛЕНИЙ" : mandatory ? "ОБЯЗАТЕЛЬНОЕ ОБНОВЛЕНИЕ" : "ОБНОВЛЕНИЕ"} {version}</Text>
           </View>
           <Text style={styles.title}>Гафус становится лучше!</Text>
           <Text style={styles.description}>
@@ -249,7 +251,7 @@ const styles = StyleSheet.create({
   },
 });
 
-type ConfirmedOta = { userId: string; epoch: string; generation: number; version: string };
+type ConfirmedOta = { userId: string | null; epoch: string | null; generation: number; version: string };
 
 let inFlight: { session: OtaSession; promise: Promise<void> } | undefined;
 
@@ -276,8 +278,12 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
     if (!s.isAuthenticated) return "guest";
     return s.verifiedSessionEpoch;
   });
-  const userId = useAuthStore(s => s.isAuthenticated ? s.user?.id : null);
+  const userId = useAuthStore(s => s.isAuthenticated ? s.user?.id ?? null : null);
   const epoch = useAuthStore(s => s.verifiedSessionEpoch);
+  const guestReadyRef = useRef(false);
+  const [guestReady, setGuestReady] = useState(false);
+  const [visibleScope, setVisibleScope] = useState<string | null>(null);
+  const [nativeBusy, setNativeBusy] = useState(false);
   const [confirmed, setConfirmed] = useState<ConfirmedOta | null>(null);
   const [phase, setPhase] = useState<Phase>("checking");
   const [error, setError] = useState<string | null>(null);
@@ -300,7 +306,11 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
     const confirmedVersion = confirmed && confirmed.userId === session.userId &&
       confirmed.epoch === session.epoch && confirmed.generation === session.generation
       ? confirmed.version : null;
-    if (manual && !confirmedVersion) return false;
+    // Never start a new guest download while the sign-in form is already usable.
+    // Authenticated checks can resume on foreground or a new verified account.
+    if (!session.userId && guestReadyRef.current && !confirmedVersion) return true;
+    if (manual && !confirmedVersion && session.userId) return false;
+    const scope = session.userId ? session.epoch : "guest";
 
     void runOtaCheck(session, async () => {
       if (!isCurrent()) return;
@@ -313,6 +323,8 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
       let requiredTarget = confirmedVersion;
       let updateId: string | undefined;
       let finished = false;
+      let policyVerified = false;
+      let reloadRequested = false;
       let failure: "CHECK_FAILED" | "FETCH_FAILED" | "RELOAD_FAILED" = "CHECK_FAILED";
       let nativeCheckStartedAt: number | undefined;
       let mandatoryMonitor: ReturnType<typeof createMandatoryOtaAttemptMonitor> | undefined;
@@ -330,10 +342,11 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
         });
       };
       try {
-        if (!manual && session.userId && session.epoch &&
+        if ((!manual || !confirmedVersion) &&
             Updates.channel === "production" && selfHostedOtaActive()) {
           const policy = await fetchMandatoryOtaCohortDecision(session);
           if (!isCurrent()) return;
+          policyVerified = true;
           const revision = requiredOtaRevision({
             required: policy.required, version: policy.version,
             platform: Platform.OS === "ios" ? "ios" : "android", channel: "production",
@@ -379,8 +392,10 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
         if (!isCurrent()) return;
         await refreshOtaTesterGrant(session);
         if (!isCurrent()) return;
+        setNativeBusy(true);
         nativeCheckStartedAt = Date.now();
-        const result = await Updates.checkForUpdateAsync();
+        const checkStarted=Date.now();
+        const result = await Updates.checkForUpdateAsync().finally(()=>mobilePerformance.record("OTA_CHECK",Date.now()-checkStarted));
         if (!isCurrent()) return;
         void trackOtaEvent("CHECKED");
         if (!result.isAvailable) {
@@ -390,7 +405,8 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
         }
 
         updateId = result.manifest?.id;
-        if (key) {
+        setVisibleScope(scope);
+        {
           // HEAD is optional; never wait for it before starting the OTA download.
           void getOtaMainBundleBytes(result.manifest).then(bytes => {
             if (!finished && isCurrent()) setMainBundleBytes(bytes);
@@ -398,23 +414,27 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
           setPhase("downloading");
         }
         failure = "FETCH_FAILED";
-        await Updates.fetchUpdateAsync();
+        const fetchStarted=Date.now();
+        await Updates.fetchUpdateAsync().finally(()=>mobilePerformance.record("OTA_FETCH",Date.now()-fetchStarted));
         if (!isCurrent()) return;
         await trackOtaEvent("DOWNLOADED", updateId, undefined, true);
         if (!isCurrent()) return;
         if (key) {
           await AsyncStorage.setItem(key, "reloaded");
           if (!isCurrent()) return;
-          setPhase("installing");
         }
+        setPhase("installing");
         failure = "RELOAD_FAILED";
         await Updates.reloadAsync();
+        reloadRequested = true;
       } catch (cause) {
         if (!isCurrent()) return;
         const problem = cause instanceof Error ? cause : new Error(String(cause));
-        if (requiredTarget) {
+        if (requiredTarget || (!session.userId && !policyVerified)) {
           setPhase("error");
-          setError(cause instanceof Error ? cause.message : "Не удалось скачать обновление. Проверьте интернет и повторите.");
+          setError(!requiredTarget && !policyVerified
+            ? "Не удалось проверить обновления. Проверьте подключение к интернету и повторите."
+            : cause instanceof Error ? cause.message : "Не удалось скачать обновление. Проверьте интернет и повторите.");
         }
         mandatoryMonitor?.incomplete();
         // A reload/marker/policy error is not evidence of a native signature failure.
@@ -427,6 +447,19 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
       } finally {
         mandatoryMonitor?.dispose();
         finished = true;
+        if (mounted.current && !reloadRequested) {
+          setVisibleScope(null);
+          setNativeBusy(false);
+        }
+        if (isCurrent() && !reloadRequested) {
+          // Confirmed mandatory updates cannot be bypassed. A failed public
+          // policy must be retried before the first interactive sign-in.
+          if (!session.userId && !requiredTarget &&
+              (policyVerified || Updates.channel !== "production" || !selfHostedOtaActive())) {
+            guestReadyRef.current = true;
+            setGuestReady(true);
+          }
+        }
       }
     });
 
@@ -435,13 +468,19 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
 
   useOtaCheckOnOpen(enabled, authScope, requestCheck);
 
-  if (!target) return children;
+  const guestStartup = enabled && !userId && !guestReady;
+  // A sign-out/account switch can invalidate the session, but cannot cancel
+  // Expo's native download. Keep the login form hidden until it really settles.
+  const visibleDownload = visibleScope !== null;
+  const guestWaitingForNative = enabled && !userId && nativeBusy;
+  if (!target && !guestStartup && !visibleDownload && !guestWaitingForNative) return children;
   return (
     <ForceOtaScreen
-      version={target} phase={phase} error={error}
+      version={target ?? ""} phase={phase} error={error}
       progress={updatesState.downloadProgress}
       mainBundleBytes={mainBundleBytes}
       retry={() => { requestCheck(true); }}
+      mandatory={!!target}
     />
   );
 }

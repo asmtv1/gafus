@@ -58,7 +58,7 @@ export function usePetCreateMockIntent(transport: MockPetCreateTransport = mockT
           return;
         }
         setStatus("UNCERTAIN");
-      } catch {
+      } catch { /* diagnostic: expected QA intent exposes ERROR and preserves actor fencing; synthetic input is not production failure. */
         const current = newOnlyV2NativeQueues.getVerifiedBinding();
         if (
           !current ||

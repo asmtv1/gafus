@@ -10,7 +10,7 @@ function load(name) {
  assert.equal(doc.errors.length,0);
  return doc.toJS();
 }
-const files=['gafus-nonprod-telemetry.v2.yml','gafus-production-operations.v2.yml'];
+const files=['gafus-nonprod-telemetry.v2.yml','gafus-production-operations.v2.yml','gafus-mobile-health.v2.yml'];
 const safeMetric=/^[a-zA-Z_][a-zA-Z0-9_]{2,95}$/;
 const safeAlias=/^[a-z][a-z0-9_]{1,55}$/;
 for(const file of files) {

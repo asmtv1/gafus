@@ -444,6 +444,7 @@
       "./plugins/withDogWalkChronometer",
       "./plugins/withStartupWindowBackground",
       "./plugins/withNativeAndroidStartup",
+      "./plugins/withNativeDiagnosticSymbols",
       "./plugins/withIosStoreKitOnlyPodfile"
     ],
     "experiments": {

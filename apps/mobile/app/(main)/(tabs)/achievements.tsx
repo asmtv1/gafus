@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from "react-native";
 import { Text, Button } from "react-native-paper";
@@ -142,6 +143,9 @@ export default function AchievementsScreen() {
     achievementsCoursesForActor(actor, proven && status === "granted"),
   );
 
+  useScreenDataReady("SCREEN_ACHIEVEMENTS_DATA_READY",
+    !!actor && sameAchievementActor(actor) && status === "granted" && !!data,
+    actorKey ?? "");
   const byCategory = useMemo(() => {
     if (!achievements) return {};
     return achievements.reduce<Record<string, AchievementWire[]>>((acc, a) => {

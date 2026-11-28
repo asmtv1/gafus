@@ -48,7 +48,7 @@ function context() {
       !runtimeVersion || !/^[A-Za-z0-9_.+-]{1,100}$/.test(runtimeVersion)) return null;
     return {url:`${parsed.origin}/ota/telemetry`,fingerprint:fingerprint.toLowerCase(),
       channel,runtimeVersion,platform:Platform.OS as "ios"|"android"};
-  } catch {return null;}
+  } catch { /* diagnostic: expected Missing OTA diagnostic context disables transport only. */ return null;}
 }
 async function readQueue():Promise<Payload[]> {
   const raw=await AsyncStorage.getItem(QUEUE_KEY);
@@ -56,7 +56,7 @@ async function readQueue():Promise<Payload[]> {
   try {
     const parsed:unknown=JSON.parse(raw);
     return Array.isArray(parsed)?parsed.slice(-MAX_QUEUE).filter(item=>item && typeof item==="object") as Payload[]:[];
-  }catch{return [];}
+  }catch{ /* diagnostic: expected Unreadable OTA diagnostic queue is unavailable; update remains independent. */ return [];}
 }
 async function flush(url:string) {
   const queued=await withQueue(readQueue);
@@ -76,7 +76,7 @@ async function flush(url:string) {
       // Discard only unsupported extensions, not transient errors or legacy events.
       if(result.status!==202 && !(additive && result.status===400)) break;
       accepted++;
-    } catch { break; }
+    } catch { /* diagnostic: expected OTA transport failure stops drain and retains retry behavior. */  break; }
     finally {clearTimeout(timeout);}
   }
   if(accepted) {
@@ -88,7 +88,7 @@ async function flush(url:string) {
   }
 }
 function scheduleFlush(url:string):Promise<void> {
-  transportProgress=transportProgress.then(()=>flush(url)).catch(()=>undefined);
+  transportProgress=transportProgress.then(()=>flush(url)).catch(()=>{ /* diagnostic: expected Background diagnostic flush cannot block update processing. */ return undefined; });
   return transportProgress;
 }
 /** Called only while holding the local queue serialization lock. */
@@ -110,7 +110,7 @@ async function enqueueDirect(event:OtaEventName, updateId?:string, failureCode?:
 export function trackOtaEvent(event:OtaEventName, updateId?:string,
   failureCode?:OtaFailure, queueOnly=false):Promise<void> {
   return withQueue(()=>enqueueDirect(event,updateId,failureCode))
-    .then(url=>url&&!queueOnly?scheduleFlush(url):undefined).catch(()=>undefined);
+    .then(url=>url&&!queueOnly?scheduleFlush(url):undefined).catch(()=>{ /* diagnostic: expected Operational event tracking is isolated from OTA user actions. */ return undefined; });
 }
 let launchTracked=false;
 export function trackOtaLaunch():Promise<void> {
@@ -124,11 +124,11 @@ export function trackOtaLaunch():Promise<void> {
     const commit=Updates.createdAt?.getTime() ?? null;
     const previousRaw=await AsyncStorage.getItem(LAUNCH_KEY);
     let previous: {runtime:string;commit:number}|null=null;
-    try {previous=previousRaw?JSON.parse(previousRaw):null;}catch{previous=null;}
+    try {previous=previousRaw?JSON.parse(previousRaw):null;}catch{ /* diagnostic: expected Unreadable previous launch marker is unknown, not verified rollback. */ previous=null;}
     if(previous && previous.runtime===ctx.runtimeVersion &&
       Number.isFinite(previous.commit) && commit!==null && commit<previous.commit)
       await enqueueDirect("ROLLBACK_DETECTED",id??undefined);
     await AsyncStorage.setItem(LAUNCH_KEY,JSON.stringify({runtime:ctx.runtimeVersion,commit}));
     return enqueueDirect("LAUNCHED",id??undefined);
-  }).then(url=>url?scheduleFlush(url):undefined).catch(()=>undefined);
+  }).then(url=>url?scheduleFlush(url):undefined).catch(()=>{ /* diagnostic: expected OTA launch diagnostics are isolated from successful app startup. */ return undefined; });
 }

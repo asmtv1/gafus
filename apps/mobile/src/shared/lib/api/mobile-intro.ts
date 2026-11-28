@@ -19,7 +19,7 @@ let flushing: Promise<void> | null = null;
 // Serialize local read-modify-write operations, without holding a lock during HTTP.
 function serialized<T>(operation: () => Promise<T>): Promise<T> {
   const result = updates.then(operation);
-  updates = result.catch(() => undefined);
+  updates = result.catch(() => { /* diagnostic: expected Prior journal operation failure cannot poison serialization chain. */ return undefined; });
   return result;
 }
 async function readJournal(): Promise<Journal | null> {
@@ -29,7 +29,7 @@ async function readJournal(): Promise<Journal | null> {
     const value = JSON.parse(raw) as Journal;
     if (!value || !Number.isFinite(Date.parse(value.openedAt)) || !Array.isArray(value.events)) return null;
     return value;
-  } catch { return null; }
+  } catch { /* diagnostic: expected Invalid onboarding journal is unavailable; analytics only. */  return null; }
 }
 async function writeJournal(value: Journal) {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(value));

@@ -140,7 +140,7 @@ function selectedWeightTokenMatchesActor(token: string | null | undefined, owner
     const value: unknown = JSON.parse(json);
     return !!value && typeof value === "object" && !Array.isArray(value) &&
       (value as { sub?: unknown }).sub === ownerId;
-  } catch {
+  } catch { /* diagnostic: expected Unverifiable private payload must fail closed without exposing credentials. */
     // Fail closed without logging token content.
     return false;
   }

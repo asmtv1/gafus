@@ -100,7 +100,7 @@ export function WalkRouteMap({
           onGpsMeters?.(walkId, snapshot.meters);
           if (rebuilt||oldLength !== collected.length) {setPoints([...collected]);setTrack(geometry.snapshot());}
           if(!live&&process.env.EXPO_PUBLIC_WALK_FINAL_DISPLAY==="1") {
-            const derived=await getOrFinalizeGpsDisplay(ownerId,walkId).catch(()=>null);
+            const derived=await getOrFinalizeGpsDisplay(ownerId,walkId).catch((diagnosticError)=>{ reportClientError(diagnosticError, {issueKey:"WalkRouteDisplay",keys:{operation:"read"},severity:"warning"}); return null; });
             if(cancelled) return;
             if(derived) setTrack(derived);
           }

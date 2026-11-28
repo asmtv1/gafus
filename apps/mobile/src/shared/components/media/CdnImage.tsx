@@ -1,5 +1,7 @@
+import { reportClientError } from "@/shared/lib/error-reporting";
 /* eslint-disable @gafus/require-client-catch-tracer -- expected signed-CDN fallback errors must never leak URL query tokens. */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { mobilePerformance } from "@/shared/lib/telemetry/mobilePerformance";
 import { Image, type ImageProps } from "expo-image";
 import {
   mediaCdnKindFromSignedUrl,
@@ -18,13 +20,14 @@ export function isSignedCloudruFallback(raw: string): boolean {
       /^\/gafus-(?:gallery|feed)-private\/[A-Za-z0-9_\/.-]+$/.test(value.pathname) &&
       !value.pathname.includes("..") && !value.pathname.includes("//") &&
       Boolean(value.searchParams.get("X-Amz-Signature"));
-  } catch { return false; }
+  } catch { /* diagnostic: expected Invalid CDN fallback URL is rejected without logging URL parameters. */  return false; }
 }
 /** Shared mobile transport; source authorization belongs exclusively to core on API. */
 export function CdnImage({
   cdnUrl,
   requestFallback,
   onError,
+  onLoad,
   privateMemoryOnly = false,
   ...props
 }: Omit<ImageProps, "source" | "cachePolicy"> & {
@@ -59,12 +62,15 @@ export function CdnImage({
     return () => clearTimeout(timer);
   }, [cdnUrl]);
   const tried = useRef(false);
+  const loadStart=useRef(Date.now());
+  const measured=useRef(false);
   const generation = useRef(0);
   const fallbackRef = useRef(requestFallback);
   fallbackRef.current = requestFallback;
   useEffect(() => {
     const current = ++generation.current;
     tried.current = false;
+    measured.current=false;loadStart.current=Date.now();
     // Defer the very first CDN request until the short-lived server health
     // snapshot is known; only server-confirmed health can preselect Cloud.ru.
     // A different media object's local 504 must not bypass this one's 403/404.
@@ -81,12 +87,13 @@ export function CdnImage({
       tried.current = true;
       setUrl(undefined);
       try {
-        const fallback = await fallbackRef.current();
+        const fallbackStarted=Date.now();
+        const fallback = await fallbackRef.current().finally(()=>mobilePerformance.record("IMAGE_CDN_FALLBACK",Date.now()-fallbackStarted));
         if (generation.current !== current) return;
         if (!isSignedCloudruFallback(fallback.url))
           throw new Error("INVALID_STORAGE_URL");
         setUrl(fallback.url);
-      } catch {
+      } catch (diagnosticError) { reportClientError(diagnosticError, {issueKey:"CdnImageFallback",keys:{operation:"resolve"},severity:"warning"});
         if (generation.current === current) {
           tried.current = false;
           setUrl(cdnUrl);
@@ -107,7 +114,7 @@ export function CdnImage({
       // for signed-token expiry checks rather than the beginning of the slot.
       void cacheSlot;
       cacheKey = scopedMediaCacheKey(url, viewer, Date.now());
-    } catch {
+    } catch { /* diagnostic: expected Unrecognized URL must never enter persistent private media cache. */
       /* Unrecognized URL is never written to the persistent private cache. */
     }
   }
@@ -116,6 +123,7 @@ export function CdnImage({
       {...props}
       source={url ? { uri: url, ...(cacheKey ? { cacheKey } : {}) } : undefined}
       cachePolicy={!privateMemoryOnly && cacheKey ? "memory-disk" : "memory"}
+      onLoad={(event)=>{if(!measured.current){measured.current=true;mobilePerformance.record("IMAGE_LOAD",Date.now()-loadStart.current);}onLoad?.(event);}}
       onError={(event) => {
         if (tried.current || url !== cdnUrl || !cdnUrl ||
             mediaCdnKindFromSignedUrl(cdnUrl) === null) {
@@ -129,7 +137,8 @@ export function CdnImage({
             !(await probeCdnOutage(cdnUrl, { nativeNetwork: true, timeoutMs: 8500 }))
           )
             return false;
-          const fallback = await requestFallback();
+          const fallbackStarted=Date.now();
+          const fallback = await requestFallback().finally(()=>mobilePerformance.record("IMAGE_CDN_FALLBACK",Date.now()-fallbackStarted));
           if (expected !== generation.current || !isSignedCloudruFallback(fallback.url))
             return false;
           setUrl(fallback.url);
@@ -138,7 +147,7 @@ export function CdnImage({
           .then((recovered) => {
             if (!recovered && expected === generation.current) onError?.(event);
           })
-          .catch(() => {
+          .catch((diagnosticError) => { reportClientError(diagnosticError, {issueKey:"CdnImageFallback",keys:{operation:"recover"},severity:"warning"});
             if (expected === generation.current) onError?.(event);
           });
       }}

@@ -1,3 +1,4 @@
+import { useScreenDataReady } from "@/shared/lib/telemetry/useScreenDataReady";
 import { useEffect, useRef, useState } from "react";
 import {
   Keyboard,
@@ -134,6 +135,9 @@ function QuestionsActorScreen({ owner, epoch }: { owner: string; epoch: string }
     }
   };
   const access = query.data?.pages[0];
+  useScreenDataReady("SCREEN_QUESTIONS_DATA_READY",
+    isCurrent() && !query.isPending && (!query.isError || query.isFetchNextPageError) && !!access,
+    JSON.stringify([owner, epoch, category, status, sort]));
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   const activeFilterCount = Number(!!category) + Number(!!status) + Number(sort !== "new");
   const sortLabel = sort === "new" ? "Новые" : sort === "active" ? "Активные" : "Без ответа";
