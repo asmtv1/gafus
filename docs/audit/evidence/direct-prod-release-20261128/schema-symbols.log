@@ -1,0 +1,110 @@
+87f6d70ef8648b684160bf22067a56126085d9e7
+v22.23.5
+TAP version 13
+# Subtest: full synthetic 163-migration ledger matches all local SHA256, pending allowed
+ok 1 - full synthetic 163-migration ledger matches all local SHA256, pending allowed
+  ---
+  duration_ms: 150.98175
+  type: 'test'
+  ...
+# Subtest: fail closed on checksum mismatch, manual checksum, duplicate, remote-only, failed, truncated ledger
+ok 2 - fail closed on checksum mismatch, manual checksum, duplicate, remote-only, failed, truncated ledger
+  ---
+  duration_ms: 223.141875
+  type: 'test'
+  ...
+# Subtest: approved legacy checksum exceptions need exact schema, all six historical rows and unmodified SQL
+ok 3 - approved legacy checksum exceptions need exact schema, all six historical rows and unmodified SQL
+  ---
+  duration_ms: 354.1555
+  type: 'test'
+  ...
+# Subtest: new mandatory OTA migration is pinned at the pre-schema and exact post-schema checkpoint
+ok 4 - new mandatory OTA migration is pinned at the pre-schema and exact post-schema checkpoint
+  ---
+  duration_ms: 362.466084
+  type: 'test'
+  ...
+# Subtest: four SHA-pinned migrations require exact pre- and post-migration production checkpoints
+ok 5 - four SHA-pinned migrations require exact pre- and post-migration production checkpoints
+  ---
+  duration_ms: 416.146291
+  type: 'test'
+  ...
+# Subtest: canonical cutover and reusable workflow require pre-mutation ledger gate
+ok 6 - canonical cutover and reusable workflow require pre-mutation ledger gate
+  ---
+  duration_ms: 3.035417
+  type: 'test'
+  ...
+# Subtest: no connection capabilities in verifier; synthetic resource cleanup
+ok 7 - no connection capabilities in verifier; synthetic resource cleanup
+  ---
+  duration_ms: 23.79825
+  type: 'test'
+  ...
+# Subtest: seal private v3 map and remove public source map only after hash check
+ok 8 - seal private v3 map and remove public source map only after hash check
+  ---
+  duration_ms: 17.370208
+  type: 'test'
+  ...
+# Subtest: invalid map/header refuses publication without deleting original map
+ok 9 - invalid map/header refuses publication without deleting original map
+  ---
+  duration_ms: 4.090708
+  type: 'test'
+  ...
+# Subtest: manifest checks release IDs, private directory permissions and map SHA
+ok 10 - manifest checks release IDs, private directory permissions and map SHA
+  ---
+  duration_ms: 12.012792
+  type: 'test'
+  ...
+# Subtest: malicious traversal and public-bucket config fail before ANY network
+ok 11 - malicious traversal and public-bucket config fail before ANY network
+  ---
+  duration_ms: 3.658667
+  type: 'test'
+  ...
+# PRIVATE_WEB_SYMBOLS_RETRY: SYMBOLS_S3_PUT_TIMEOUT (attempt 1/3)
+# Subtest: upload is immutable and verifies both HEAD and GET of each object
+ok 12 - upload is immutable and verifies both HEAD and GET of each object
+  ---
+  duration_ms: 508.026166
+  type: 'test'
+  ...
+# PRIVATE_WEB_SYMBOLS_RETRY: SYMBOLS_S3_GET_HTTP_503 (attempt 1/3)
+# PRIVATE_WEB_SYMBOLS_RETRY: SYMBOLS_S3_GET_HTTP_503 (attempt 2/3)
+# Subtest: a failed object readback reports a safe reason and leaves the manifest unpublished
+ok 13 - a failed object readback reports a safe reason and leaves the manifest unpublished
+  ---
+  duration_ms: 1517.275333
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2433.266875
+node_exit=0
+PRODUCTION_MIGRATION_LEDGER_PASS:applied=163:pending=0
+PRODUCTION_MIGRATION_LEDGER_PASS:applied=163:pending=0
+PASS: legacy rollback target lacking preflight still uses verified control snapshot.
+PASS: ledger mismatch veto before maintenance and writers; valid ledger passes.
+PRODUCTION_MIGRATION_LEDGER_PASS:applied=163:pending=0
+HTTPS maintenance 503 verified; draining existing work...
+Writer-free PostgreSQL backup created; pg_restore TOC verified.
+All pending Prisma migrations succeeded; old image rollback forbidden.
+All new application containers healthy while ingress remains gated.
+Maintenance removed after successful schema migration and container health checks.
+PASS: gated 503 -> stop writers -> backup -> migrate -> healthy new apps -> open.
+PRODUCTION_MIGRATION_LEDGER_PASS:applied=163:pending=0
+HTTPS maintenance 503 verified; draining existing work...
+Writer-free PostgreSQL backup created; pg_restore TOC verified.
+PASS: injected Prisma failure keeps maintenance enabled, no old processes restarted.
+cutover_exit=0

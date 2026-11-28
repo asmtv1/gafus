@@ -1,0 +1,12 @@
+component=web
+exit_code=0
+component=api
+exit_code=0
+component=admin-panel
+exit_code=0
+component=trainer-panel
+exit_code=0
+component=worker
+
+job=50216114447b11fafeccc00ccf9926a8837c14c328b3599d timed_out=true signal=SIGTERM duration_ms=90042
+Completed four components without matches; worker incomplete; bull-board and prisma not reached.

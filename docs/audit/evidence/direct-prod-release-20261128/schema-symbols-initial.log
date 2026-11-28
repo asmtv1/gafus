@@ -1,0 +1,110 @@
+87f6d70ef8648b684160bf22067a56126085d9e7
+v22.23.5
+TAP version 13
+# Subtest: full synthetic 163-migration ledger matches all local SHA256, pending allowed
+ok 1 - full synthetic 163-migration ledger matches all local SHA256, pending allowed
+  ---
+  duration_ms: 150.851291
+  type: 'test'
+  ...
+# Subtest: fail closed on checksum mismatch, manual checksum, duplicate, remote-only, failed, truncated ledger
+ok 2 - fail closed on checksum mismatch, manual checksum, duplicate, remote-only, failed, truncated ledger
+  ---
+  duration_ms: 221.658167
+  type: 'test'
+  ...
+# Subtest: approved legacy checksum exceptions need exact schema, all six historical rows and unmodified SQL
+ok 3 - approved legacy checksum exceptions need exact schema, all six historical rows and unmodified SQL
+  ---
+  duration_ms: 394.146667
+  type: 'test'
+  ...
+# Subtest: new mandatory OTA migration is pinned at the pre-schema and exact post-schema checkpoint
+ok 4 - new mandatory OTA migration is pinned at the pre-schema and exact post-schema checkpoint
+  ---
+  duration_ms: 362.18025
+  type: 'test'
+  ...
+# Subtest: four SHA-pinned migrations require exact pre- and post-migration production checkpoints
+ok 5 - four SHA-pinned migrations require exact pre- and post-migration production checkpoints
+  ---
+  duration_ms: 424.272333
+  type: 'test'
+  ...
+# Subtest: canonical cutover and reusable workflow require pre-mutation ledger gate
+ok 6 - canonical cutover and reusable workflow require pre-mutation ledger gate
+  ---
+  duration_ms: 4.12025
+  type: 'test'
+  ...
+# Subtest: no connection capabilities in verifier; synthetic resource cleanup
+ok 7 - no connection capabilities in verifier; synthetic resource cleanup
+  ---
+  duration_ms: 26.812959
+  type: 'test'
+  ...
+# Subtest: seal private v3 map and remove public source map only after hash check
+ok 8 - seal private v3 map and remove public source map only after hash check
+  ---
+  duration_ms: 11.306125
+  type: 'test'
+  ...
+# Subtest: invalid map/header refuses publication without deleting original map
+ok 9 - invalid map/header refuses publication without deleting original map
+  ---
+  duration_ms: 3.237958
+  type: 'test'
+  ...
+# node:internal/modules/package_json_reader:314
+#   throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+#         ^
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@aws-sdk/client-s3' imported from /Users/asmtv1/Desktop/gafus-qa-direct-prod-20261128/scripts/observability/upload-private-web-sourcemaps.test.mjs
+#     at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+#     at packageResolve (node:internal/modules/esm/resolve:772:81)
+#     at moduleResolve (node:internal/modules/esm/resolve:859:18)
+#     at defaultResolve (node:internal/modules/esm/resolve:989:11)
+#     at \#cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+#     at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
+#     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
+#     at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+#   code: 'ERR_MODULE_NOT_FOUND'
+# }
+# Node.js v22.23.5
+# Subtest: scripts/observability/upload-private-web-sourcemaps.test.mjs
+not ok 3 - scripts/observability/upload-private-web-sourcemaps.test.mjs
+  ---
+  duration_ms: 82.777542
+  type: 'test'
+  location: '/Users/asmtv1/Desktop/gafus-qa-direct-prod-20261128/scripts/observability/upload-private-web-sourcemaps.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 9
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1729.344167
+node_exit=1
+PRODUCTION_MIGRATION_LEDGER_PASS:applied=163:pending=0
+PRODUCTION_MIGRATION_LEDGER_PASS:applied=163:pending=0
+PASS: legacy rollback target lacking preflight still uses verified control snapshot.
+PASS: ledger mismatch veto before maintenance and writers; valid ledger passes.
+PRODUCTION_MIGRATION_LEDGER_PASS:applied=163:pending=0
+HTTPS maintenance 503 verified; draining existing work...
+Writer-free PostgreSQL backup created; pg_restore TOC verified.
+All pending Prisma migrations succeeded; old image rollback forbidden.
+All new application containers healthy while ingress remains gated.
+Maintenance removed after successful schema migration and container health checks.
+PASS: gated 503 -> stop writers -> backup -> migrate -> healthy new apps -> open.
+PRODUCTION_MIGRATION_LEDGER_PASS:applied=163:pending=0
+HTTPS maintenance 503 verified; draining existing work...
+Writer-free PostgreSQL backup created; pg_restore TOC verified.
+PASS: injected Prisma failure keeps maintenance enabled, no old processes restarted.
+cutover_exit=0
