@@ -192,6 +192,21 @@ test('runtime image validation keeps 9/48 active baseline and separately verifie
   }
   assert.doesNotMatch(read('.dockerignore'),/!apps\/web-vite\/dist/, 'root .dockerignore must be unchanged by this packet');
 });
+test('Bull Board context excludes tests from the production TypeScript build',()=>{
+  const source=read('ci-cd/docker/Dockerfile-bull-board-optimized.dockerignore');
+  const rules=source.split(/\r?\n/).map(line=>line.trim()).filter(line=>line && !line.startsWith('#'));
+  const exclusions=['**/*.test.*','**/*.spec.*','**/__tests__','**/__tests__/**','**/tests','**/tests/**'];
+  assert.equal(rules[0],'**','default deny');
+  assert.deepEqual(rules.filter(rule=>rule.startsWith('!')), [
+    '!package.json','!pnpm-lock.yaml','!pnpm-workspace.yaml','!turbo.json','!tsconfig.base.json',
+    '!patches','!patches/**','!packages','!packages/**','!apps','!apps/bull-board','!apps/bull-board/**',
+  ], 'only the existing Bull Board build inputs are allowed');
+  const lastAllow=rules.findLastIndex(rule=>rule.startsWith('!'));
+  for(const rule of [...exclusions,'**/.env','**/.env.*','**/.secrets','**/node_modules','**/node_modules/**']){
+    assert.ok(rules.lastIndexOf(rule)>lastAllow, `${rule} must exclude files after the allowlist`);
+  }
+});
+
 // Verify fixture mutation would be rejected; gate must be unconditional.
 test('negative fixtures: missing and non-blocking boundary step are rejected',()=>{
   const yaml=parse(read(workflows[0]));
