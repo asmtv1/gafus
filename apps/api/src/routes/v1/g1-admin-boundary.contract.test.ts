@@ -54,7 +54,7 @@ describe("G1 Hono Gafus admin route contract (Core mocked)", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({ success: true, data: { wallets: { count: 0 } } });
-    expect(fakes.dashboard).toHaveBeenCalledWith("actor-from-jwt");
+    expect(fakes.dashboard).toHaveBeenCalledWith("actor-from-jwt", expect.objectContaining({ withTransaction: expect.any(Function) }));
   });
 
   it("maps a Core FORBIDDEN decision to 403 (role must be checked in Core)", async () => {
@@ -63,7 +63,7 @@ describe("G1 Hono Gafus admin route contract (Core mocked)", () => {
     const response = await req("/dashboard", "GET");
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ success: false, code: "FORBIDDEN" });
-    expect(fakes.dashboard).toHaveBeenCalledWith("user-from-jwt");
+    expect(fakes.dashboard).toHaveBeenCalledWith("user-from-jwt", expect.objectContaining({ withTransaction: expect.any(Function) }));
   });
 
   it("rejects browser cookie mutation from untrusted Origin before Core", async () => {
@@ -91,7 +91,7 @@ describe("G1 Hono Gafus admin route contract (Core mocked)", () => {
     expect(response.status).toBe(200);
     expect(fakes.settings).toHaveBeenCalledWith({
       actorId: "actor-from-jwt", expectedRevision: 4, reason: "Regular audit", patch: { earningEnabled: false },
-    });
+    }, expect.objectContaining({ withTransaction: expect.any(Function) }));
   });
 
   it("maps optimistic revision conflicts to 409", async () => {
@@ -118,7 +118,7 @@ describe("G1 Hono Gafus admin route contract (Core mocked)", () => {
     expect(fakes.adjust).toHaveBeenCalledWith({
       actorId: "actor-from-jwt", userId: "target-user", delta: 10,
       requestId: "request-123456", reason: "Manual review",
-    });
+    }, expect.objectContaining({ changeGafusBalanceTx: expect.any(Function) }), expect.objectContaining({ lockGafusUser: expect.any(Function) }), expect.objectContaining({ withTransaction: expect.any(Function) }));
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
@@ -130,3 +130,7 @@ describe("G1 Hono Gafus admin route contract (Core mocked)", () => {
     expect(fakes.adjust).not.toHaveBeenCalled();
   });
 });
+
+vi.mock("../../modules/gafus/composition/wallet-instance.js", () => ({ gafusWallet: { listGafusTransactions: vi.fn(), changeGafusBalanceTx: vi.fn(), ensureGafusWalletTx: vi.fn() } }));
+vi.mock("../../modules/gafus/composition/wallet-lock-instance.js", () => ({ gafusLock: { lockGafusUser: vi.fn() } }));
+vi.mock("../../modules/content-access/composition/transactional-policy-instance.js", () => ({ transactionalContentPolicy: {} }));

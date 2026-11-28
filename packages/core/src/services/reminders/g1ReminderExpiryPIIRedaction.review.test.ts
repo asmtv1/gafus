@@ -102,10 +102,10 @@ import { redactExpiredReminderReceiptPII } from "@gafus/notifications-server/rem
 import { createReminderAG4, lookupReminderAG4, ReminderUnknownError } from "./g1ReminderMutationReceiptAG4.review";
 // Source-review-only SQL composition for mock transaction fixtures; this
 // is not a production route activation or a DB schema migration.
-import { registerReminderAG4ReviewRowsPort } from "./reminderAG4ReviewPort";
+
 import * as rows from "@gafus/identity-write-server/reminder-review-rows";
 const asTx = (opaque: unknown): rows.ReminderReviewTx => opaque as rows.ReminderReviewTx;
-registerReminderAG4ReviewRowsPort({
+const fixtureReminderAG4ReviewRowsPort = {
   withAG4ReminderCreateTx: (fn) => rows.withAG4ReminderCreateTx(tx => fn(tx)),
   lockAG4ReminderOwner: (tx, owner) => rows.lockAG4ReminderOwner(asTx(tx), owner),
   readAG4ReminderReceipt: (tx, owner, key) => rows.readAG4ReminderReceipt(asTx(tx), owner, key),
@@ -116,7 +116,7 @@ registerReminderAG4ReviewRowsPort({
   commitAG4ReminderReceipt: (tx, owner, key, reminder, response) => rows.commitAG4ReminderReceipt(asTx(tx), owner, key, reminder, response),
   readAG4ReminderReceiptForLookup: rows.readAG4ReminderReceiptForLookup,
   isReminderUniqueConstraintError: rows.isReminderUniqueConstraintError,
-});
+};
 
 
 function seed(n: number, options: {
@@ -270,9 +270,9 @@ describe("AG1 expired receipt PII redaction source/mock contract", () => {
     const reminderCount = db.reminders.size;
     expect(await redactExpiredReminderReceiptPII()).toBe(1);
     const input = { name: "Original", reminderTime: "09:00" };
-    await expect(createReminderAG4(r.ownerUserId, input, r.operationKey))
+    await expect(createReminderAG4(r.ownerUserId, input, r.operationKey, fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderUnknownError);
-    await expect(createReminderAG4(r.ownerUserId, { ...input, name: "DIFFERENT" }, r.operationKey))
+    await expect(createReminderAG4(r.ownerUserId, { ...input, name: "DIFFERENT" }, r.operationKey, fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderUnknownError);
     expect(db.reminders.size).toBe(reminderCount);
     expect(db.receipts.size).toBe(1);
@@ -284,14 +284,14 @@ describe("AG1 expired receipt PII redaction source/mock contract", () => {
     for (const [owner, lookup] of [
       [r.ownerUserId, r.operationKey], ["foreign", r.operationKey], [r.ownerUserId, key(999)],
     ]) {
-      await expect(lookupReminderAG4(owner, lookup)).rejects.toBeInstanceOf(ReminderUnknownError);
+      await expect(lookupReminderAG4(owner, lookup, fixtureReminderAG4ReviewRowsPort)).rejects.toBeInstanceOf(ReminderUnknownError);
     }
   });
 
   it("E17 active COMMITTED receipt remains readable before redaction window", async () => {
     const r = seed(43, { expired: false });
     expect(await redactExpiredReminderReceiptPII()).toBe(0);
-    const readback = await lookupReminderAG4(r.ownerUserId, r.operationKey);
+    const readback = await lookupReminderAG4(r.ownerUserId, r.operationKey, fixtureReminderAG4ReviewRowsPort);
     expect(readback.status).toBe("COMMITTED");
     expect(readback.reminder.id).toBe(r.reminderId);
   });
@@ -299,9 +299,9 @@ describe("AG1 expired receipt PII redaction source/mock contract", () => {
   it("E18 same owner/key across sessions A→B→A stays spent after expiry", async () => {
     const r = seed(44);
     expect(await redactExpiredReminderReceiptPII()).toBe(1);
-    await expect(lookupReminderAG4("other-owner", r.operationKey))
+    await expect(lookupReminderAG4("other-owner", r.operationKey, fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderUnknownError);
-    await expect(createReminderAG4(r.ownerUserId, { name: "Return A", reminderTime: "09:00" }, r.operationKey))
+    await expect(createReminderAG4(r.ownerUserId, { name: "Return A", reminderTime: "09:00" }, r.operationKey, fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderUnknownError);
   });
 

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { hasActiveGafusCourseStepAccess } from "./index";
-import { registerCourseOccurrenceReadsPort } from "./index";
+import { hasActiveGafusCourseStepAccess as coreActiveGrant } from "./index";
 import { readActiveCourseStepGafusGrant, readAllowedVideoCourseStepAccess } from "@gafus/entitlements-server";
-registerCourseOccurrenceReadsPort({ readActiveCourseStepGafusGrant, readAllowedVideoCourseStepAccess });
+const occurrenceReadPort = { readActiveCourseStepGafusGrant, readAllowedVideoCourseStepAccess };
+const hasActiveGafusCourseStepAccess = (input: Parameters<typeof coreActiveGrant>[0]) => coreActiveGrant(input, occurrenceReadPort);
 
 
 const lookupDay = vi.fn();

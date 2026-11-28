@@ -128,6 +128,7 @@ function errorCodeFromException(error: unknown): string {
 export interface MailOutboxRunOptions {
   batchSize?: number;
   now?: Date;
+  canDispatchConsultationMail?: (key: string, recipient: string | string[]) => Promise<boolean>;
   onTerminalCommitted?: (key: string) => Promise<void>;
 }
 export async function processDueTransactionalMailOutbox(params: MailOutboxRunOptions = {}) {
@@ -205,6 +206,15 @@ export async function processDueTransactionalMailOutbox(params: MailOutboxRunOpt
       const payload = decryptMailPayload({
         ciphertext: row.ciphertext, nonce: row.nonce, authTag: row.authTag,
       }, row.id);
+      if (row.id.startsWith("consultation-") && params.canDispatchConsultationMail &&
+          !(await params.canDispatchConsultationMail(row.id, payload.to))) {
+        if (await finish({ status: "EXPIRED", ciphertext: null, nonce: null, authTag: null,
+            lastErrorCode: "CONSULTATION_MAIL_NO_LONGER_CURRENT" })) {
+          expired++;
+          await terminal(row.id);
+        }
+        continue;
+      }
       await sendResendMail(deserialize(payload), mailerEnvFromProcess());
     } catch (error) {
       const attempt = row.id.startsWith("consultation-")

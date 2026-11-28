@@ -33,8 +33,14 @@ let albumList:unknown[],photoList:unknown[];
 let deepStatus:number;
 const tick=async()=>act(async()=>{await new Promise(done=>setTimeout(done,30));});
 async function waitForLoadedText(value:string){
-  for(let index=0;index<30&&!host.textContent?.includes(value);index++)await tick();
+  const deadline=Date.now()+20000;
+  while(Date.now()<deadline&&!host.textContent?.includes(value))await tick();
   expect(host.textContent).toContain(value);
+}
+async function waitForViewerImage(){
+  const deadline=Date.now()+20000;
+  while(Date.now()<deadline&&!host.querySelector('[role="dialog"] img'))await tick();
+  expect(host.querySelector('[role="dialog"] img')).not.toBeNull();
 }
 async function mount(path:string){
   window.history.replaceState(null,"",path);
@@ -111,6 +117,7 @@ describe("Next public foreign gallery original Hono ACL projection",()=>{
       'button[aria-label="Открыть фотографию На прогулке"]');
     await act(async()=>trigger?.click());
     const dialog=host.querySelector<HTMLElement>('[role="dialog"]');
+    await waitForViewerImage();
     await act(async()=>dialog?.querySelector("img")?.dispatchEvent(
       new MouseEvent("click",{bubbles:true})));
     expect(host.querySelector('[role="dialog"]')).not.toBeNull();
@@ -128,6 +135,7 @@ describe("Next public foreign gallery original Hono ACL projection",()=>{
     const trigger=host.querySelector<HTMLButtonElement>(
       'button[aria-label="Открыть фотографию На прогулке"]');
     await act(async()=>trigger?.click());
+    await waitForViewerImage();
     const inner=host.querySelector<HTMLElement>(".gallery-image-viewer-inner")!;
     const touch=(kind:string,x:number,y:number)=>{
       const event=new Event(kind,{bubbles:true,cancelable:true});
@@ -168,6 +176,7 @@ describe("Next public foreign gallery original Hono ACL projection",()=>{
     const refreshed=foreignPhoto({fullUrl:"https://cdn.example.test/refreshed.jpg?sig=OK"});
     fetcher.mockImplementation(async(url:string,opts:RequestInit)=>
       url==="/api/v1/gallery/photos/photo_F"?ok(refreshed):original!(url,opts));
+    await waitForViewerImage();
     await act(async()=>host.querySelector('[role="dialog"] img')?.dispatchEvent(
       new Event("error",{bubbles:true})));
     await tick();
@@ -186,6 +195,7 @@ describe("Next public foreign gallery original Hono ACL projection",()=>{
       ((url:string,opts:RequestInit)=>Promise<Response>)|undefined;
     fetcher.mockImplementation(async(url:string,opts:RequestInit)=>
       url==="/api/v1/gallery/photos/photo_F"?ok({},404):original!(url,opts));
+    await waitForViewerImage();
     await act(async()=>host.querySelector('[role="dialog"] img')?.dispatchEvent(
       new Event("error",{bubbles:true})));
     await tick();
@@ -197,6 +207,7 @@ describe("Next public foreign gallery original Hono ACL projection",()=>{
   });
   it("Next public photo viewer traps keyboard focus and restores the original trigger",async()=>{
     await mount("/profile/albums/album_F?username=foreign");
+    await waitForLoadedText("На прогулке");
     const trigger=host.querySelector<HTMLButtonElement>(
       'button[aria-label="Открыть фотографию На прогулке"]');
     expect(trigger).not.toBeNull();

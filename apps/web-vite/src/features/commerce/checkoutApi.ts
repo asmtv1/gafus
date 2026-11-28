@@ -1,9 +1,10 @@
 import { resolveAppSubscriptionTier } from "@gafus/types";
 import { apiRequest, ApiError } from "../../shared/api/client";
-import type { AppSubscriptionOfferDto, AppSubscriptionPlanOfferDto, AppSubscriptionStatusDto } from "../../../../../packages/core/src/services/appSubscription/types";
+import type { AppSubscriptionOfferDto, AppSubscriptionPlanOfferDto, AppSubscriptionStatusDto } from "@gafus/types";
 
 export type CheckoutPlan = AppSubscriptionPlanOfferDto & {code:"TWO_WEEKS"|"MONTHLY"|"THREE_MONTHS"};
-export type PromoPreview = {code:string;revision:number;planCode:"MONTHLY"|"THREE_MONTHS";discountPercent:number;originalPriceRub:number;discountedPriceRub:number;renewalPriceRub:number;intervalDays:number;currency:"RUB"};
+export type { AppSubscriptionPromoCodePreviewDto as PromoPreview } from "@gafus/types";
+import type { AppSubscriptionPromoCodePreviewDto as PromoPreview } from "@gafus/types";
 const planCodes = ["TWO_WEEKS", "MONTHLY", "THREE_MONTHS"];
 export function validatedCheckoutPlans(offer:AppSubscriptionOfferDto):CheckoutPlan[] {
   if(!offer||typeof offer!=="object"||!Array.isArray(offer.yookassaPlans))

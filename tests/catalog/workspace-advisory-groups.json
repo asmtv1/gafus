@@ -86,14 +86,6 @@
       ]
     },
     {
-      "name": "@gafus/react-query",
-      "kind": "vitest",
-      "minCases": 1,
-      "files": [
-        "packages/react-query/src/constants.test.ts"
-      ]
-    },
-    {
       "name": "@gafus/ui-components",
       "kind": "vitest",
       "minCases": 3,

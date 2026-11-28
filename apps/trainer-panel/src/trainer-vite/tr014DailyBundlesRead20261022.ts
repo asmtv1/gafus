@@ -3,7 +3,7 @@ import { z } from "zod/v3";
 import type {
   TrainerDailyBundleItem,
   TrainerDailyBundlesRead,
-} from "../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 const id = z.string().min(1);
 export const bundleSchema = z
   .object({

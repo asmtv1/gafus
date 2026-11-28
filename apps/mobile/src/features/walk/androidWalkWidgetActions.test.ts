@@ -26,12 +26,12 @@ vi.mock("expo-crypto", () => ({ randomUUID: () => "00000000-0000-4000-8000-00000
 vi.mock("expo-notifications", () => ({
   getPermissionsAsync: vi.fn(async () => ({ granted: true })),
 }));
-vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn(), reportClientErrorAndWait: vi.fn(async () => undefined) }));
 vi.mock("./walkGpsTask", () => ({
   startWalkGps: (...args: unknown[]) => mock.gpsStart(...args),
   stopWalkGps: vi.fn(async () => {}),
 }));
-vi.mock("./walkGpsStorage", () => ({ gpsWalkMeters: vi.fn(async () => null) }));
+vi.mock("./walkGpsStorage", () => ({ gpsWalkMeters: vi.fn(async () => null), hasStoredGpsPoint: vi.fn(async () => false) }));
 vi.mock("./walkStorage", () => ({
   loadWalkJournal: vi.fn(async () => structuredClone(mock.journal)),
   saveWalkJournal: vi.fn(async (_owner: string, data: typeof mock.journal) => {

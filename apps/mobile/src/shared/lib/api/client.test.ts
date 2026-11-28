@@ -35,7 +35,7 @@ vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: reportClientErrorMock,
 }));
 
-import { apiClient } from "./client";
+import { apiClient, apiClientMultipart } from "./client";
 
 function makeResponse(status: number, body: unknown = { success: false }): Response {
   return {
@@ -502,5 +502,49 @@ describe("AG3 V45 private vet endpoint telemetry redaction", () => {
     expect(JSON.stringify(reportClientErrorMock.mock.calls)).not.toContain("petPRIVATE");
     expect(JSON.stringify(reportClientErrorMock.mock.calls)).not.toContain("visitPRIVATE");
     expect(JSON.stringify(response)).not.toContain("PRIVATE_DIAGNOSIS_TOKEN");
+  });
+});
+
+describe("guarded multipart owner scope", () => {
+  it("does not send a file when the selected token belongs to a changed session", async () => {
+    vi.clearAllMocks();
+    getItemAsyncMock.mockResolvedValue("new-account");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(apiClientMultipart("/api/v1/pets/pet-1/photo", () => new FormData(),
+      token => token === "old-account")).resolves.toMatchObject({ success:false, code:"G05_SESSION_CHANGED" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it.each([200,401])("discards an old upload response %s and never refreshes the new account", async status => {
+    vi.clearAllMocks();
+    getItemAsyncMock.mockResolvedValue("old-account");
+    let current = true;
+    const fetchMock = vi.fn(async () => {
+      current = false;
+      return makeResponse(status,{success:true,data:{photoUrl:"private"}});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(apiClientMultipart("/api/v1/pets/pet-1/photo", () => new FormData(),
+      () => current)).resolves.toMatchObject({ success:false, code:"G05_SESSION_CHANGED" });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(setItemAsyncMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("guarded JSON responses", () => {
+  it.each([200, 403, 401])("discards response %s received after owner or epoch change", async status => {
+    vi.clearAllMocks();
+    getItemAsyncMock.mockResolvedValue("old-account");
+    let current = true;
+    const fetchMock = vi.fn(async () => {
+      current = false;
+      return makeResponse(status, { success: true, data: { private: "old-owner" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(apiClient("/api/v1/pets/pet-1/documents", {
+      requestGuard: () => current,
+    })).resolves.toMatchObject({ success: false, code: "G05_SESSION_CHANGED" });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(setItemAsyncMock).not.toHaveBeenCalled();
   });
 });

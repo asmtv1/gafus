@@ -8,6 +8,9 @@ const mocked = vi.hoisted(() => ({
   load: vi.fn(),
   save: vi.fn(),
   api: vi.fn(),
+  cursor: null as string | null,
+  confirmed: {} as Record<string, string>,
+  markers: new Set<string>(),
 }));
 vi.mock("@/shared/lib/api/client", () => ({ apiClient: mocked.api }));
 vi.mock("@/shared/stores/authStore", () => ({
@@ -21,8 +24,23 @@ vi.mock("@/shared/stores/authStore", () => ({
   },
 }));
 vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
-vi.mock("./walkStorage", () => ({ loadWalkJournal: mocked.load, saveWalkJournal: mocked.save }));
+vi.mock("./walkStorage", async original => ({
+  ...await original<typeof import("./walkStorage")>(), loadWalkJournal: mocked.load,
+}));
 vi.mock('./walkGpsStorage',()=>({
+  readWalkSyncCheckpoint: async () => ({cursor: mocked.cursor, confirmed: mocked.confirmed}),
+  commitWalkSyncPage: async (owner: string, _previous: unknown, cursor: string | null, current: () => boolean,
+    merge: (doc: string, deleted: Set<string>) => { document: string; confirmed: Record<string,string>; result: unknown }) => {
+    if (!current()) throw new Error("WALK_SYNC_ACTOR_CHANGED");
+    const update = merge(JSON.stringify(await mocked.load(owner)), mocked.markers);
+    const journal = JSON.parse(update.document);
+    mocked.save(owner, journal);
+    mocked.load.mockResolvedValue(journal);
+    mocked.cursor = cursor;
+    mocked.confirmed = update.confirmed;
+    return update.result;
+  },
+  listPendingGpsWalks: vi.fn(async () => [id1]),
   getGpsSyncCursor:vi.fn(async()=>0),
   markGpsSynced:vi.fn(async()=>{}),
   readGpsPoints:vi.fn(async()=>[]),
@@ -55,6 +73,9 @@ const conflicting = { ...toRemoteWalk(local)!, steps: 1, estimatedMeters: 1 };
 
 beforeEach(() => {
   mocked.user = { id: "owner", username: "asmtv1", role: "USER" };
+  mocked.cursor = null;
+  mocked.confirmed = {};
+  mocked.markers.clear();
   mocked.epoch = "epoch-a";
   mocked.authenticated = true;
   mocked.isLoading = false;
@@ -65,7 +86,7 @@ beforeEach(() => {
   });
   mocked.save.mockReset().mockResolvedValue(undefined);
   vi.mocked(getGpsDeletedWalks).mockReset().mockResolvedValue([]);
-  vi.mocked(markGpsWalkDeleted).mockReset().mockResolvedValue(undefined);
+  vi.mocked(markGpsWalkDeleted).mockReset().mockImplementation(async (_owner,id) => { mocked.markers.add(id); });
   vi.mocked(readGpsPoints).mockReset().mockResolvedValue([]);
   vi.mocked(markGpsSynced).mockReset().mockResolvedValue(undefined);
   mocked.api.mockReset().mockImplementation(async(path:string)=>({
@@ -93,7 +114,7 @@ describe("phone-first dog walk synchronization", () => {
   it("uploads the local completed walk and saves the merge", async () => {
     const merged = await syncDogWalkHistory("owner");
     expect(mocked.api).toHaveBeenCalledWith(
-      "/api/v1/walks/sync",
+      "/api/v1/walks/sync?response=ack",
       expect.objectContaining({
         method: "PUT",
         body: { walks: [toRemoteWalk(local)] },
@@ -105,11 +126,29 @@ describe("phone-first dog walk synchronization", () => {
     expect(mocked.save).toHaveBeenCalledWith("owner", merged);
   });
 
+  it("migrates existing walks once, then reads just the next delta", async () => {
+    mocked.api.mockImplementation(async (path: string) => {
+      if (path.includes("/sync?")) return {success: true, data: {accepted: [id1]}};
+      if (path.includes("after=14")) return {success: true, data: {
+        walks: [], deleted: [id2], reset: false, cursor: "15", more: false,
+      }};
+      return {success: true, data: {
+        walks: [toRemoteWalk(local), remoteOnly], deleted: [], reset: true, cursor: "14", more: false,
+      }};
+    });
+    await syncDogWalkHistory("owner");
+    mocked.api.mockClear();
+    const result = await syncDogWalkHistory("owner");
+    expect(mocked.api.mock.calls.map(([path]) => path)).toEqual(["/api/v1/walks?view=changes&after=14"]);
+    expect(result.completed.map(row => row.clientId)).toEqual([id1]);
+    expect(mocked.cursor).toBe("15");
+  });
+
   it("allows ordinary accounts to sync their own history", async () => {
     mocked.user = { id: "owner", username: "other", role: "USER" };
     await expect(syncDogWalkHistory("owner")).resolves.toBeDefined();
     expect(mocked.api).toHaveBeenCalledWith(
-      "/api/v1/walks/sync",
+      "/api/v1/walks/sync?response=ack",
       expect.objectContaining({ method: "PUT" }),
     );
   });
@@ -133,6 +172,7 @@ describe("phone-first dog walk synchronization", () => {
 
 describe('deleted walk tombstones and route sync',()=>{
  it('uploads a local deletion before other walks and never resurrects the removed route',async()=>{
+  mocked.markers.add(id1);
   vi.mocked(getGpsDeletedWalks).mockResolvedValue([{walkId:id1,pending:true}]);
   mocked.api.mockImplementation(async(path:string)=>({
     success:true,data:path==='/api/v1/walks/deleted' ? [] :
@@ -141,7 +181,7 @@ describe('deleted walk tombstones and route sync',()=>{
   const journal=await syncDogWalkHistory('owner');
   expect(mocked.api).toHaveBeenCalledWith(`/api/v1/walks/${id1}`,
     expect.objectContaining({method:'DELETE'}));
-  expect(mocked.api).not.toHaveBeenCalledWith('/api/v1/walks/sync',expect.anything());
+  expect(mocked.api).not.toHaveBeenCalledWith('/api/v1/walks/sync?response=ack',expect.anything());
   expect(journal.completed.some(w=>w.clientId===id1)).toBe(false);
  });
  it('removes a server-deleted walk from the local history on the next sync',async()=>{

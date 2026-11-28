@@ -40,7 +40,7 @@ vi.mock("@gafus/prisma", () => {
   return { prisma: db };
 });
 vi.mock("./locking", () => ({ lockGafusUser: vi.fn(async () => {}) }));
-vi.mock("./walletService", () => ({
+const wallet = ({
   changeGafusBalanceTx: vi.fn(async (_tx: unknown, input: {
     userId: string; amount: number; idempotencyKey: string; kind: string;
   }) => {
@@ -50,7 +50,7 @@ vi.mock("./walletService", () => ({
       kind: input.kind, delta: input.amount, balanceAfter: state.balance });
     return { transactionId: id, balance: state.balance, replay: false };
   }),
-}));
+});
 
 import {
   getLegacyGafusImportPreflight as corePreflight,
@@ -68,7 +68,7 @@ const ports: LegacyGafusImportPorts = {
   runOneTransaction: runOneLegacyImportTransaction,
 };
 const getLegacyGafusImportPreflight = (actorId: string) => corePreflight(actorId,ports);
-const importLegacyRewardedBatch = (input: Parameters<typeof coreImport>[0]) => coreImport(input,ports);
+const importLegacyRewardedBatch = (input: Parameters<typeof coreImport>[0]) => coreImport(input,ports,wallet.changeGafusBalanceTx as Parameters<typeof coreImport>[2]);
 
 
 describe("one-time legacy rewarded-credit import", () => {

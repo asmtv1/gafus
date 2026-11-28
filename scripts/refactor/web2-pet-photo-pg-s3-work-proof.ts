@@ -1,3 +1,4 @@
+import { petRows } from "../../apps/api/src/modules/pets/composition/pet-rows-instance.js";
 /** Guarded WORK PostgreSQL 18 + physical project-local MinIO pet-photo proof.
  * Owner and foreign synthetic identities are unique per run. No existing
  * rows or objects are read by this test; cleanup is explicit and scoped.
@@ -55,18 +56,18 @@ async function run(){
       {id:owner,username:`web2_photo_${suffix}_a`,password:"isolated-only"},
       {id:foreign,username:`web2_photo_${suffix}_b`,password:"isolated-only"},
     ]});
-    const pet=await createPet(owner,{
+    const pet=await createPet(petRows, owner,{
       name:petName,type:"DOG",breed:"Метис",birthDate:"2021-05-17",
     });
     petId=pet.id;
     let foreignDenied=false;
-    try{await updatePetPhoto(petId,foreign,picture());}
+    try{await updatePetPhoto(petRows, petId,foreign,picture());}
     catch(error){foreignDenied=error instanceof Error&&
       error.message.includes("не принадлежит пользователю");}
     if(!foreignDenied)throw Error("WEB2_FOREIGN_OWNER_NOT_DENIED");
     if((await prisma.pet.findUnique({where:{id:petId},select:{photoUrl:true}}))?.photoUrl)
       throw Error("WEB2_FOREIGN_MUTATED_SQL");
-    const one=await updatePetPhoto(petId,owner,picture());touched.push(one);
+    const one=await updatePetPhoto(petRows, petId,owner,picture());touched.push(one);
     if(!one.startsWith("isodev-avatar:documents/uploads/users/"+owner+"/pets/"+petId+"/"))
       throw Error("WEB2_FIRST_STORAGE_PATH_DENIED");
     if((await prisma.pet.findUnique({where:{id:petId},select:{photoUrl:true}}))?.photoUrl!==one)
@@ -75,7 +76,7 @@ async function run(){
     const content=await fetch(signed,{cache:"no-store"});
     if(content.status!==200||!(await content.arrayBuffer()).byteLength)
       throw Error("WEB2_FIRST_SIGNED_GET_FAILED");
-    const two=await updatePetPhoto(petId,owner,picture());touched.push(two);
+    const two=await updatePetPhoto(petRows, petId,owner,picture());touched.push(two);
     if(two===one||(await prisma.pet.findUnique({where:{id:petId},select:{photoUrl:true}}))?.photoUrl!==two)
       throw Error("WEB2_REPLACEMENT_PG_READBACK_FAILED");
     if((await fetch(await getSignedDownloadUrl(one,300),{cache:"no-store"})).status!==404)

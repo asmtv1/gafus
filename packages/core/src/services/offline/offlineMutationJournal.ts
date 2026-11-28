@@ -7,19 +7,23 @@
  * monotonic revision + persisted response are ONE actual Prisma transaction.
  */
 import { createHash, randomUUID } from "node:crypto";
-import * as legacyRows from "./offlineMutationRowsPort";
-import type { OfflineMutationRowsPort } from "./offlineMutationRowsPort";
+import { requireOfflineMutationRowsPort, type OfflineMutationRowsPort } from "./offlineMutationRowsPort";
+import type { StepOccurrenceBinding, StepOperation } from "../training/trainingServiceContract";
 import type { PreventionRowsPort } from "../petPrevention/preventionRowsPort";
 import { batchRequestSchema, type BatchEntryInput } from "../petPrevention/schemas";
 
-export type JournalOperation = "training.complete.practice";
+export type JournalOperation = "training.complete.practice" | "training.complete.theory";
 export type NewOfflinePracticeMutation = {
   ownerId: string;
   eventId: string;
-  operation: "training.complete.practice";
+  operation: JournalOperation;
   courseId: string;
   dayOnCourseId: string;
   stepIndex: number;
+  expectedStepOnDayId?: string;
+  expectedStepId?: string;
+  expectedVersion?: string;
+  previousEventId?: string;
 };
 export type JournalAck = {
   protocol: 2;
@@ -28,7 +32,7 @@ export type JournalAck = {
   replayed: boolean;
   operation: JournalOperation;
   serverRevision: string;
-  result: { courseId: string; allCompleted: boolean; stepJustCompleted: boolean };
+  result: { courseId: string; allCompleted: boolean; stepJustCompleted: boolean; progressVersion?: string };
 };
 export type JournalResponse = { success: true; ack: JournalAck };
 
@@ -51,10 +55,11 @@ type Receipt = {
   resourceKey: string;
   payloadHash: string;
   state: string;
-  responseBody: JournalResponse | PreventionJournalResponse | null;
+  responseBody: JournalResponse | PreventionJournalResponse | DailyJournalResponse | TimerJournalResponse | VideoJournalResponse | null;
 };
 const operationResource = (input: NewOfflinePracticeMutation) =>
-  `training:${input.dayOnCourseId}:step:${input.stepIndex}`;
+  input.expectedStepOnDayId ? `training:${input.dayOnCourseId}:occurrence:${input.expectedStepOnDayId}` :
+    `training:${input.dayOnCourseId}:step:${input.stepIndex}`;
 // No raw user-controlled JSON hash: canonical scalar validated fields only.
 const mutationHash = (input: NewOfflinePracticeMutation) =>
   createHash("sha256")
@@ -65,9 +70,45 @@ const mutationHash = (input: NewOfflinePracticeMutation) =>
         courseId: input.courseId,
         dayOnCourseId: input.dayOnCourseId,
         stepIndex: input.stepIndex,
+        ...(input.expectedStepOnDayId && input.expectedStepId ? {
+          expectedStepOnDayId: input.expectedStepOnDayId, expectedStepId: input.expectedStepId,
+        } : {}),
+        ...versionFields(input),
       }),
     )
     .digest("hex");
+
+type JournalVersionBase = { expectedVersion?: string; previousEventId?: string };
+function versionFields(input: JournalVersionBase): JournalVersionBase {
+  return {
+    ...(input.expectedVersion !== undefined ? { expectedVersion: input.expectedVersion } : {}),
+    ...(input.previousEventId !== undefined ? { previousEventId: input.previousEventId } : {}),
+  };
+}
+const validVersion = (value: unknown): value is string =>
+  typeof value === "string" && /^(?:none|[0-9a-f]{64})$/.test(value);
+
+async function resolveJournalVersion(
+  rows: Readonly<OfflineMutationRowsPort>, tx: unknown, ownerId: string,
+  resource: string, eventId: string, base: JournalVersionBase,
+): Promise<string | undefined> {
+  if (base.expectedVersion !== undefined && base.previousEventId !== undefined)
+    throw new Error("STALE_PROGRESS_VERSION");
+  if (base.expectedVersion !== undefined) {
+    if (!validVersion(base.expectedVersion)) throw new Error("STALE_PROGRESS_VERSION");
+    return base.expectedVersion;
+  }
+  if (base.previousEventId === undefined) return undefined;
+  if (base.previousEventId === eventId) throw new Error("STALE_PROGRESS_VERSION");
+  const [previous] = await rows.findPracticeReceipt<Receipt>(tx, ownerId, base.previousEventId);
+  const ack = previous?.responseBody?.ack;
+  const result = ack && "result" in ack ? ack.result : null;
+  if (previous?.method !== "POST" || previous.resourceKey !== resource ||
+      previous.state !== "COMMITTED" || ack?.state !== "COMMITTED" ||
+      ack.eventId !== base.previousEventId || !result || !("progressVersion" in result) ||
+      !validVersion(result.progressVersion)) throw new Error("STALE_PROGRESS_VERSION");
+  return result.progressVersion;
+}
 
 function isTableAbsent(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -101,18 +142,24 @@ function parseCommittedReceipt(row: Receipt, input: NewOfflinePracticeMutation):
   return { success: true, ack: { ...(row.responseBody.ack as JournalAck), replayed: true } };
 }
 
-/** The supplied training port is used by the API-owned offline route.
- * The legacy one-argument entrypoint remains for existing callers until the
- * remainder of the Core composition registrars have been migrated. */
+/** The mounted API passes its authorized occurrence through to the same
+ * transaction that commits the receipt. Historical v2 request hashes remain
+ * unchanged. Source-only SQL fixtures may exercise the legacy index contract. */
 export async function submitNewOfflinePracticeMutation(
   input: NewOfflinePracticeMutation,
   training?: Pick<import("../training/trainingServiceContract").TrainingServiceApi, "applyStepDayAndCourseTx">,
   rowsPort?: OfflineMutationRowsPort,
+  binding?: StepOccurrenceBinding,
 ): Promise<JournalResponse> {
-  // Production supplies a per-API-instance SQL adapter; the compatibility
-  // default is only for historic test/old entrypoints until they migrate.
+  if ((input.operation === "training.complete.theory" || input.expectedStepOnDayId || input.expectedStepId) &&
+      (!input.expectedStepOnDayId || !input.expectedStepId ||
+       binding?.expectedCourseId !== input.courseId ||
+       binding.expectedStepOnDayId !== input.expectedStepOnDayId ||
+       binding.expectedStepId !== input.expectedStepId)) {
+    throw new Error("STALE_STEP_BINDING");
+  }
   const { withOfflineMutationTx, claimPracticeReceipt, findPracticeReceipt,
-    incrementPracticeRevision, commitPracticeReceipt } = rowsPort ?? legacyRows;
+    incrementPracticeRevision, commitPracticeReceipt } = requireOfflineMutationRowsPort(rowsPort);
   const fingerprint = mutationHash(input);
   const resource = operationResource(input);
   try {
@@ -133,17 +180,24 @@ export async function submitNewOfflinePracticeMutation(
         return parseCommittedReceipt(existing[0], input);
       }
 
-      // Defer trainingService evaluation until after the offline/core import graph
-      // is initialized. The static dependency participates in Core's existing
-      // offline->course->training ESM cycle under real runtime, not only Vitest.
-      // The shared atomic use case runs inside THIS tx; no nested SQL transaction.
-      const mutation = training ?? await import("../training/trainingService");
+      // The shared atomic use case runs inside THIS transaction.
+      if (!training) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+      const mutation = training;
+      const expectedVersion = await resolveJournalVersion(requireOfflineMutationRowsPort(rowsPort),
+        tx, input.ownerId, resource, input.eventId, input);
+      if (expectedVersion !== undefined && !binding) throw new Error("STALE_STEP_BINDING");
       const progress = await mutation.applyStepDayAndCourseTx(
         tx,
         input.ownerId,
         input.dayOnCourseId,
         input.stepIndex,
         { type: "complete" },
+        binding ? {
+          ...binding,
+          allowedStepTypes: input.operation === "training.complete.theory"
+            ? ["THEORY", "DIARY"] : ["TRAINING", "PRACTICE", "BREAK"],
+          journal: { expectedVersion },
+        } : undefined,
       );
       if (progress.courseId !== input.courseId) throw new Error("COURSE_DAY_MISMATCH");
 
@@ -180,12 +234,245 @@ export async function submitNewOfflinePracticeMutation(
   }
 }
 
+export type NewOfflineDailyCompletion = {
+  ownerId: string;
+  eventId: string;
+  operation: "daily.complete";
+  scheduleId: string;
+  stepIndex: number;
+  expectedBundleStepId: string;
+  expectedStepId: string;
+  expectedVersion?: string;
+  previousEventId?: string;
+};
+export type DailyJournalResponse = {
+  success: true;
+  ack: {
+    protocol: 2;
+    eventId: string;
+    operation: "daily.complete";
+    state: "COMMITTED";
+    replayed: boolean;
+    serverRevision: string;
+    result: { scheduleId: string; allCompleted: boolean; stepJustCompleted: boolean; progressVersion?: string };
+  };
+};
+export type DailyJournalPort = (
+  tx: unknown, ownerId: string, scheduleId: string, stepIndex: number,
+  operation: StepOperation,
+  binding: { expectedBundleStepId: string; expectedStepId: string; journal?: { expectedVersion?: string; recordedAt?: number } },
+) => Promise<{ allCompleted: boolean; stepJustCompleted: boolean; progressVersion?: string }>;
+
+export async function submitNewOfflineDailyCompletion(
+  input: NewOfflineDailyCompletion, apply: DailyJournalPort | undefined,
+  rowsPort?: OfflineMutationRowsPort,
+): Promise<DailyJournalResponse> {
+  if (!apply) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+  const rows = requireOfflineMutationRowsPort(rowsPort);
+  const resource = `daily:${input.scheduleId}:occurrence:${input.expectedBundleStepId}`;
+  const fingerprint = createHash("sha256").update(JSON.stringify({
+    method: "POST", operation: input.operation, scheduleId: input.scheduleId,
+    stepIndex: input.stepIndex, expectedBundleStepId: input.expectedBundleStepId,
+    expectedStepId: input.expectedStepId,
+    ...versionFields(input),
+  })).digest("hex");
+  try {
+    return await rows.withOfflineMutationTx(async tx => {
+      const claim = await rows.claimPracticeReceipt(tx, input.ownerId, input.eventId, input.operation, resource, fingerprint);
+      if (!claim[0]) {
+        const [stored] = await rows.findPracticeReceipt<Receipt>(tx, input.ownerId, input.eventId);
+        if (!stored) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+        if (stored.method !== "POST" || stored.operation !== input.operation ||
+            stored.resourceKey !== resource || stored.payloadHash !== fingerprint)
+          throw new OfflineMutationJournalError("IDEMPOTENCY_KEY_CONFLICT");
+        const ack = stored.responseBody?.ack;
+        if (stored.state !== "COMMITTED" || ack?.operation !== input.operation ||
+            ack.state !== "COMMITTED" || ack.eventId !== input.eventId ||
+            ack.result.scheduleId !== input.scheduleId)
+          throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+        return { success: true, ack: { ...ack, replayed: true } };
+      }
+      const expectedVersion = await resolveJournalVersion(rows, tx, input.ownerId, resource, input.eventId, input);
+      const progress = await apply(tx, input.ownerId, input.scheduleId, input.stepIndex, { type: "complete" }, {
+        expectedBundleStepId: input.expectedBundleStepId, expectedStepId: input.expectedStepId, journal: { expectedVersion },
+      });
+      const [revision] = await rows.incrementPracticeRevision(tx, input.ownerId, resource);
+      if (!revision) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+      const response: DailyJournalResponse = {
+        success: true, ack: { protocol: 2, eventId: input.eventId, operation: input.operation,
+          state: "COMMITTED", replayed: false, serverRevision: String(revision.revision),
+          result: { scheduleId: input.scheduleId, ...progress } },
+      };
+      if (await rows.commitPracticeReceipt(tx, revision.revision, response, claim[0].id, input.ownerId) !== 1)
+        throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+      return response;
+    });
+  } catch (error) {
+    if (error instanceof OfflineMutationJournalError) throw error;
+    if (isTableAbsent(error) || isRetryableSql(error)) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+    throw error;
+  }
+}
+
+type TimerCommon = JournalVersionBase & {
+  ownerId: string; eventId: string; stepIndex: number;
+  expectedStepId: string; action: "start" | "pause" | "resume" | "reset";
+  remainingSec?: number; recordedAt: number;
+};
+export type NewOfflineTimerMutation = TimerCommon & (
+  | { operation: "training.timer"; courseId: string; dayOnCourseId: string; expectedStepOnDayId: string }
+  | { operation: "daily.timer"; scheduleId: string; expectedBundleStepId: string }
+);
+export type TimerJournalResponse = {
+  success: true;
+  ack: {
+    protocol: 2; eventId: string; operation: NewOfflineTimerMutation["operation"];
+    state: "COMMITTED"; replayed: boolean; serverRevision: string;
+    result: { courseId?: string; scheduleId?: string; progressVersion: string; allCompleted: boolean; stepJustCompleted: boolean };
+  };
+};
+export async function submitNewOfflineTimerMutation(
+  input: NewOfflineTimerMutation,
+  training: Pick<import("../training/trainingServiceContract").TrainingServiceApi, "applyStepDayAndCourseTx">,
+  daily: DailyJournalPort | undefined,
+  rowsPort: OfflineMutationRowsPort | undefined,
+  binding?: StepOccurrenceBinding,
+): Promise<TimerJournalResponse> {
+  const needsTime = input.action === "start" || input.action === "pause";
+  if (!Number.isSafeInteger(input.recordedAt) || input.recordedAt <= 0 ||
+      input.recordedAt > Date.now() + 5 * 60_000 ||
+      (needsTime ? !Number.isSafeInteger(input.remainingSec) || input.remainingSec! < 0 || input.remainingSec! > 86400
+        : input.remainingSec !== undefined) ||
+      Boolean(input.expectedVersion) === Boolean(input.previousEventId))
+    throw new Error("INVALID_STATE: invalid offline timer");
+  if (input.operation === "training.timer" &&
+      (!binding || binding.expectedCourseId !== input.courseId ||
+        binding.expectedStepOnDayId !== input.expectedStepOnDayId || binding.expectedStepId !== input.expectedStepId))
+    throw new Error("STALE_STEP_BINDING");
+  if (input.operation === "daily.timer" && !daily)
+    throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+  const rows = requireOfflineMutationRowsPort(rowsPort);
+  const scope = input.operation === "training.timer"
+    ? { courseId: input.courseId, dayOnCourseId: input.dayOnCourseId, expectedStepOnDayId: input.expectedStepOnDayId }
+    : { scheduleId: input.scheduleId, expectedBundleStepId: input.expectedBundleStepId };
+  const resource = input.operation === "training.timer"
+    ? `training:${input.dayOnCourseId}:occurrence:${input.expectedStepOnDayId}`
+    : `daily:${input.scheduleId}:occurrence:${input.expectedBundleStepId}`;
+  const fingerprint = createHash("sha256").update(JSON.stringify({
+    method: "POST", operation: input.operation, ...scope, stepIndex: input.stepIndex,
+    expectedStepId: input.expectedStepId, action: input.action, recordedAt: input.recordedAt,
+    ...(needsTime ? { remainingSec: input.remainingSec } : {}), ...versionFields(input),
+  })).digest("hex");
+  try {
+    return await rows.withOfflineMutationTx(async tx => {
+      const claim = await rows.claimPracticeReceipt(tx, input.ownerId, input.eventId, input.operation, resource, fingerprint);
+      if (!claim[0]) {
+        const [stored] = await rows.findPracticeReceipt<Receipt>(tx, input.ownerId, input.eventId);
+        if (!stored) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+        if (stored.method !== "POST" || stored.operation !== input.operation ||
+            stored.resourceKey !== resource || stored.payloadHash !== fingerprint)
+          throw new OfflineMutationJournalError("IDEMPOTENCY_KEY_CONFLICT");
+        const ack = stored.responseBody?.ack;
+        if (stored.state !== "COMMITTED" || ack?.operation !== input.operation ||
+            ack.state !== "COMMITTED" || ack.eventId !== input.eventId || !validVersion(ack.result.progressVersion))
+          throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+        return { success: true, ack: { ...ack, replayed: true } };
+      }
+      const expectedVersion = await resolveJournalVersion(rows, tx, input.ownerId, resource, input.eventId, input);
+      if (expectedVersion === undefined) throw new Error("STALE_PROGRESS_VERSION");
+      const journal = { expectedVersion, recordedAt: input.recordedAt };
+      const operation: StepOperation = input.action === "start" || input.action === "pause"
+        ? { type: input.action, remainingSec: input.remainingSec! }
+        : { type: input.action };
+      const progress = input.operation === "training.timer"
+        ? await training.applyStepDayAndCourseTx(tx, input.ownerId, input.dayOnCourseId, input.stepIndex, operation, {
+            ...binding!, allowedStepTypes: ["TRAINING", "PRACTICE", "BREAK"], journal,
+          })
+        : await daily!(tx, input.ownerId, input.scheduleId, input.stepIndex, operation, {
+            expectedBundleStepId: input.expectedBundleStepId, expectedStepId: input.expectedStepId, journal,
+          });
+      if (!validVersion(progress.progressVersion)) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+      const [revision] = await rows.incrementPracticeRevision(tx, input.ownerId, resource);
+      if (!revision) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+      const result: TimerJournalResponse = { success: true, ack: {
+        protocol: 2, eventId: input.eventId, operation: input.operation, state: "COMMITTED", replayed: false,
+        serverRevision: String(revision.revision),
+        result: { ...(input.operation === "training.timer" ? { courseId: input.courseId } : { scheduleId: input.scheduleId }),
+          allCompleted: progress.allCompleted, stepJustCompleted: progress.stepJustCompleted, progressVersion: progress.progressVersion },
+      } };
+      if (await rows.commitPracticeReceipt(tx, revision.revision, result, claim[0].id, input.ownerId) !== 1)
+        throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+      return result;
+    });
+  } catch (error) {
+    if (error instanceof OfflineMutationJournalError) throw error;
+    if (isTableAbsent(error) || isRetryableSql(error)) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+    throw error;
+  }
+}
+
+export type NewOfflineVideoProgress = JournalVersionBase & {
+  ownerId:string; eventId:string; operation:"video.progress"; videoId:string; positionSec:number;
+};
+export type VideoJournalResult = { videoId:string; lastPositionSec:number; progressVersion:string };
+export type VideoJournalPort = (tx:unknown,ownerId:string,videoId:string,positionSec:number,expectedVersion:string)=>Promise<VideoJournalResult>;
+export type VideoJournalResponse = {
+  success:true;
+  ack:{protocol:2;eventId:string;operation:"video.progress";state:"COMMITTED";replayed:boolean;serverRevision:string;result:VideoJournalResult};
+};
+
+export async function submitNewOfflineVideoProgress(
+  input:NewOfflineVideoProgress, apply:VideoJournalPort|undefined, rowsPort?:OfflineMutationRowsPort,
+):Promise<VideoJournalResponse>{
+  if (!apply) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(input.videoId) || !Number.isSafeInteger(input.positionSec) ||
+      input.positionSec<0 || input.positionSec>2073600 ||
+      Boolean(input.expectedVersion)===Boolean(input.previousEventId)) throw new Error("INVALID_STATE: invalid video position");
+  const rows=requireOfflineMutationRowsPort(rowsPort);
+  const resource="video:"+input.videoId;
+  const fingerprint=createHash("sha256").update(JSON.stringify({
+    method:"POST",operation:input.operation,videoId:input.videoId,positionSec:input.positionSec,...versionFields(input),
+  })).digest("hex");
+  try{
+    return await rows.withOfflineMutationTx(async tx=>{
+      const [claim]=await rows.claimPracticeReceipt(tx,input.ownerId,input.eventId,input.operation,resource,fingerprint);
+      if(!claim){
+        const [stored]=await rows.findPracticeReceipt<Receipt>(tx,input.ownerId,input.eventId);
+        if(!stored)throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+        if(stored.method!=="POST"||stored.operation!==input.operation||stored.resourceKey!==resource||stored.payloadHash!==fingerprint)
+          throw new OfflineMutationJournalError("IDEMPOTENCY_KEY_CONFLICT");
+        const ack=stored.responseBody?.ack;
+        if(stored.state!=="COMMITTED"||ack?.operation!==input.operation||ack.state!=="COMMITTED"||
+          ack.eventId!==input.eventId||ack.result.videoId!==input.videoId||!validVersion(ack.result.progressVersion))
+          throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+        return {success:true,ack:{...ack,replayed:true}};
+      }
+      const expected=await resolveJournalVersion(rows,tx,input.ownerId,resource,input.eventId,input);
+      if(!expected)throw new Error("STALE_PROGRESS_VERSION");
+      const result=await apply(tx,input.ownerId,input.videoId,input.positionSec,expected);
+      if(result.videoId!==input.videoId||result.lastPositionSec!==input.positionSec||!validVersion(result.progressVersion))
+        throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+      const [revision]=await rows.incrementPracticeRevision(tx,input.ownerId,resource);
+      if(!revision)throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+      const response:VideoJournalResponse={success:true,ack:{protocol:2,eventId:input.eventId,operation:input.operation,
+        state:"COMMITTED",replayed:false,serverRevision:String(revision.revision),result}};
+      if(await rows.commitPracticeReceipt(tx,revision.revision,response,claim.id,input.ownerId)!==1)
+        throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+      return response;
+    });
+  }catch(error){
+    if(error instanceof OfflineMutationJournalError)throw error;
+    if(isTableAbsent(error)||isRetryableSql(error))throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
+    throw error;
+  }
+}
+
 export async function findNewOfflineMutationReceipt(
   ownerId: string,
   eventId: string,
   rowsPort?: OfflineMutationRowsPort,
-): Promise<JournalResponse | PreventionJournalResponse | null> {
-  const { lookupOfflineMutationReceipt } = rowsPort ?? legacyRows;
+): Promise<JournalResponse | PreventionJournalResponse | DailyJournalResponse | TimerJournalResponse | VideoJournalResponse | null> {
+  const { lookupOfflineMutationReceipt } = requireOfflineMutationRowsPort(rowsPort);
   try {
     const rows = await lookupOfflineMutationReceipt<Pick<Receipt, "state" | "responseBody">>(
       ownerId,
@@ -205,6 +492,13 @@ export async function findNewOfflineMutationReceipt(
         ack: { ...row.responseBody.ack, replayed: true },
       } as PreventionJournalResponse;
     }
+    if (row.responseBody.ack.operation === "daily.complete") {
+      return { success: true, ack: { ...row.responseBody.ack, replayed: true } } as DailyJournalResponse;
+    }
+    if (row.responseBody.ack.operation === "training.timer" || row.responseBody.ack.operation === "daily.timer")
+      return { success: true, ack: { ...row.responseBody.ack, replayed: true } } as TimerJournalResponse;
+    if (row.responseBody.ack.operation === "video.progress")
+      return { success: true, ack: { ...row.responseBody.ack, replayed: true } } as VideoJournalResponse;
     return { success: true, ack: { ...row.responseBody.ack, replayed: true } } as JournalResponse;
   } catch (error) {
     if (error instanceof OfflineMutationJournalError) throw error;
@@ -288,7 +582,7 @@ export async function submitNewOfflinePreventionBatch(
   const { withOfflineMutationTx, lockOwnedPreventionPet, claimPreventionReceipt,
     findPreventionReceipt, findPreventionBoundClient, readPreventionClientRow,
     persistPreventionClientBinding, incrementPreventionRevision,
-    commitPreventionReceipt } = rowsPort ?? legacyRows;
+    commitPreventionReceipt } = requireOfflineMutationRowsPort(rowsPort);
   const seenClient = new Set<string>();
   const seenItemEvent = new Set<string>();
   if (

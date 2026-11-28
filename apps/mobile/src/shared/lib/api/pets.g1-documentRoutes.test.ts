@@ -124,3 +124,21 @@ describe("AG3-PROFILE-031 pet document ID route boundaries", () => {
     expect(mocks.regular).toHaveBeenCalledOnce();
   });
 });
+
+describe("document and prevention journal owner fencing", () => {
+  it("passes the same actor guard to reads and each private mutation", async () => {
+    vi.clearAllMocks();
+    mocks.regular.mockResolvedValue({ success: true, data: [] });
+    const guard = () => true;
+    const payload = { type: "VACCINATION" as const, performedAt: "2026-11-27", reminderEnabled: false };
+    await petsApi.getDocuments("pet-1", guard);
+    await petsApi.deleteDocument("pet-1", "doc-1", guard);
+    await petsApi.renameDocument("pet-1", "doc-1", "Запись", guard);
+    await petsApi.getPreventionEntries("pet-1", guard);
+    await petsApi.addPreventionEntry("pet-1", payload, guard);
+    await petsApi.updatePreventionEntry("pet-1", "entry-1", payload, guard);
+    await petsApi.deletePreventionEntry("pet-1", "entry-1", guard);
+    expect(mocks.regular).toHaveBeenCalledTimes(7);
+    for (const [, options] of mocks.regular.mock.calls) expect(options.requestGuard).toBe(guard);
+  });
+});

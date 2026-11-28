@@ -74,3 +74,7 @@ describe("Gafus protected reaction-progress owner/HTTP boundary", () => {
     expect(await response.text()).not.toContain("PRIVATE_DB_URL_AND_OWNER_TOKEN");
   });
 });
+
+vi.mock("../../modules/gafus/composition/wallet-instance.js", () => ({ gafusWallet: { listGafusTransactions: vi.fn(), changeGafusBalanceTx: vi.fn(), ensureGafusWalletTx: vi.fn() } }));
+vi.mock("../../modules/gafus/composition/wallet-lock-instance.js", () => ({ gafusLock: { lockGafusUser: vi.fn() } }));
+vi.mock("../../modules/content-access/composition/transactional-policy-instance.js", () => ({ transactionalContentPolicy: {} }));

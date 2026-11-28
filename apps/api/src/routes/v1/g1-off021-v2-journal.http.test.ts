@@ -1,3 +1,5 @@
+import { offlineMutationRows } from "../../modules/offline/composition/offline-mutation-rows-instance.js";
+import { preventionRows } from "../../modules/pet-prevention/composition/prevention-rows-instance.js";
 /** AG1 OFF021 v2-only HTTP validation/ownership/error method proof.
  * Real Hono+Zod, injected verified principal, access and journal service.
  * No signed JWT, PG, migrated schema, native queue, or historical replay.
@@ -26,10 +28,11 @@ vi.mock("@gafus/core/services/offline", () => ({
     }
   },
 }));
-vi.mock("@gafus/core/services/training", () => ({
+vi.mock("../../modules/training/composition/sql-training-instance.js", () => ({ sqlTraining: {
   getTrainingDays: vi.fn(),
   requireCourseStepOperationAccess: m.access,
-}));
+  applyStepDayAndCourseTx: vi.fn()
+} }));
 // Offline v2 reuses the REAL canonical batch schema, not the side-effectful
 // reminder-delivery index imported by the compiled public Core barrel.
 vi.mock("@gafus/core/services/petPrevention", async () => {
@@ -135,7 +138,7 @@ function post(body: unknown = BODY, headers: Record<string, string> = {}) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
-  m.access.mockResolvedValue({ courseId: BODY.courseId, courseType: "synthetic" });
+  m.access.mockResolvedValue({ courseId: BODY.courseId, courseType: "synthetic", binding: { expectedCourseId: BODY.courseId, expectedStepOnDayId: "authorized-link", expectedStepId: "authorized-step" } });
   m.send.mockResolvedValue(ACK);
   m.prevention.mockResolvedValue(PREVENTION_ACK);
   m.lookup.mockResolvedValue(ACK);
@@ -152,8 +155,15 @@ describe("OFF021 NEW-only v2 safe Hono adapter current implementation", () => {
     expect(m.send).toHaveBeenCalledWith(
       expect.objectContaining({ ownerId: "A", eventId: EVENT }),
       expect.objectContaining({ applyStepDayAndCourseTx: expect.any(Function) }),
-      undefined, // legacy compatibility router; production injects the SQL journal port
+      expect.anything(),
+      expect.objectContaining({ expectedStepOnDayId: "authorized-link", expectedStepId: "authorized-step" }),
     );
+  });
+  it("fails closed when authorization cannot bind an exact occurrence", async () => {
+    m.access.mockResolvedValueOnce({ courseId: BODY.courseId, courseType: "synthetic" });
+    const r = await post();
+    expect(r.status).toBe(503);
+    expect(m.send).not.toHaveBeenCalled();
   });
   it("two independent offline routers pass distinct persisted journal ports without global registrars", async () => {
     const rowsA = { marker: "A" } as never;
@@ -249,7 +259,7 @@ describe("OFF021 NEW-only v2 safe Hono adapter current implementation", () => {
     const r = await request("GET", `/mutations/${EVENT}`, undefined, { "x-synthetic-owner": "B" });
     expect(r.status).toBe(200);
     expect(r.body).toEqual(ACK);
-    expect(m.lookup).toHaveBeenCalledWith("B", EVENT, undefined);
+    expect(m.lookup).toHaveBeenCalledWith("B", EVENT, expect.anything());
   });
   it("V2H11 GET wrong event/missing protocol/unknown ID 400/400/404 and no-store", async () => {
     const a = await request("GET", "/mutations/wrong");
@@ -295,8 +305,8 @@ describe("OFF021 NEW-only v2 safe Hono adapter current implementation", () => {
           }),
         ]),
       }),
-      undefined,
-      undefined,
+      offlineMutationRows,
+      preventionRows,
     );
     expect(m.send).not.toHaveBeenCalled();
   });

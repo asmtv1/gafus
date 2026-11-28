@@ -2,13 +2,15 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fake = vi.hoisted(() => ({
-  verify: vi.fn(), registration: vi.fn(), list: vi.fn(), detail: vi.fn(), mark: vi.fn(),
+  verify: vi.fn(), registration: vi.fn(), page:vi.fn(), list:vi.fn(), detail: vi.fn(), detailPage:vi.fn(), mark: vi.fn(),
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fake.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fake.registration }));
 vi.mock("@gafus/subscription-write-server", () => ({
   listPartnerAdminBalances: fake.list,
+  listPartnerAdminBalancePage: fake.page,
   getPartnerAdminBalanceDetail: fake.detail,
+  getPartnerAdminBalanceDetailPage:fake.detailPage,
   markPartnerBalancePaidAdmin: fake.mark,
 }));
 import { authMiddleware } from "../../middleware/auth";
@@ -108,4 +110,14 @@ describe("Hono admin partner parity with Next Core actions", () => {
     const response = await request();
     expect(response.status).toBe(403);
   });
+});
+
+it("validates paged partner list and retains authenticated owner",async()=>{
+  const pagination={page:2,pageSize:25,search:"dog",total:51};
+  fake.page.mockResolvedValueOnce({items:[],pagination});
+  const response=await request("?page=2&pageSize=25&search=dog&actorId=forged");
+  expect(response.status).toBe(200);
+  expect(fake.page).toHaveBeenCalledWith("actor-from-jwt",{page:2,pageSize:25,search:"dog"});
+  expect(fake.list).not.toHaveBeenCalled();
+  expect((await request("?page=1&pageSize=1000")).status).toBe(400);
 });

@@ -65,7 +65,7 @@ afterEach(()=>vi.unstubAllEnvs());
 describe("WEB2 before-PUT document outbox intent producer",()=>{
   it("reserves unique qualified candidate before PUT and consumes under document DB commit",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
-    const result=await uploadPetDocument("pet_A","owner_A",pdf());
+    const result=await uploadPetDocument(petRows, "pet_A","owner_A",pdf());
     const location=String(result.url);
     const raw=location.replace("cloudru:documents:documents/uploads/","");
     expect(m.events).toEqual([
@@ -82,7 +82,7 @@ describe("WEB2 before-PUT document outbox intent producer",()=>{
       await transaction(callback);
       throw Error("DB_COMMIT_ACK_LOST");
     });
-    await expect(uploadPetDocument("pet_A","owner_A",pdf()))
+    await expect(uploadPetDocument(petRows, "pet_A","owner_A",pdf()))
       .rejects.toThrow("DB_COMMIT_ACK_LOST");
     expect(m.events.filter((event:string)=>event.startsWith("INTENT:"))).toHaveLength(1);
     expect(m.events.some((event:string)=>event.startsWith("PUT:"))).toBe(true);
@@ -91,7 +91,7 @@ describe("WEB2 before-PUT document outbox intent producer",()=>{
   it("candidate-reservation SQL failure prevents any S3 PUT",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
     m.intent.mockRejectedValueOnce(Error("OUTBOX_SQL_UNAVAILABLE"));
-    await expect(uploadPetDocument("pet_A","owner_A",pdf()))
+    await expect(uploadPetDocument(petRows, "pet_A","owner_A",pdf()))
       .rejects.toThrow("OUTBOX_SQL_UNAVAILABLE");
     expect(m.upload).not.toHaveBeenCalled();
     expect(m.remove).not.toHaveBeenCalled();
@@ -100,7 +100,7 @@ describe("WEB2 before-PUT document outbox intent producer",()=>{
   it("foreign pet denied before S3 or outbox intent",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
     m.getPet.mockResolvedValueOnce(null);
-    await expect(uploadPetDocument("pet_A","foreign",pdf())).rejects.toThrow("не найден");
+    await expect(uploadPetDocument(petRows, "pet_A","foreign",pdf())).rejects.toThrow("не найден");
     expect(m.intent).not.toHaveBeenCalled();
     expect(m.upload).not.toHaveBeenCalled();
   });
@@ -108,6 +108,6 @@ describe("WEB2 before-PUT document outbox intent producer",()=>{
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
+import type { PetRowsPort } from "./petRowsPort";
 import * as originalMediaOutboxAdapter from "@gafus/pets-server/pet-media-deletion-sql";
-registerPetRowsPort({ ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort);
+const petRows = { ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort;

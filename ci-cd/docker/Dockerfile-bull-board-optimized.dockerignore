@@ -19,6 +19,13 @@
 **/node_modules/**
 **/dist
 **/dist/**
+# Tests run in CI before image packaging; they must not enter TypeScript release builds.
+**/*.test.*
+**/*.spec.*
+**/__tests__
+**/__tests__/**
+**/tests
+**/tests/**
 **/.git
 **/.local-pg-scratch
 **/*.log

@@ -15,6 +15,23 @@ export default defineConfig(({ command, isPreview }) => {
   )) throw new Error("Trainer live browser needs explicitly isolated Hono 127.0.0.1:3001");
   return {
     root: import.meta.dirname,
+    plugins: [{
+      name: "trainer-production-boundary",
+      apply: "build",
+      generateBundle(_options, bundle) {
+        for (const chunk of Object.values(bundle)) {
+          if (chunk.type !== "chunk") continue;
+          for (const moduleId of Object.keys(chunk.modules)) {
+            const id = moduleId.replaceAll("\\", "/");
+            if (/\/(?:__fixtures__|__tests__)\//.test(id) ||
+                /\/packages\/(?:core|prisma|course-progress-server)\//.test(id) ||
+                /\/node_modules\/(?:@prisma\/client|\.prisma\/client|@gafus\/(?:core|prisma|course-progress-server))\//.test(id)) {
+              this.error("Server/test-only module in Trainer browser bundle: " + moduleId);
+            }
+          }
+        }
+      },
+    }],
     oxc: { jsx: { runtime: "automatic" } },
     build: { outDir: "dist", emptyOutDir: true,
       sourcemap: process.env.GAFUS_PRIVATE_MAPS_ENABLED === "true" ? "hidden" : false },

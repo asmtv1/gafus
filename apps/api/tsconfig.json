@@ -35,18 +35,11 @@
       "@gafus/core/services/user": [
         "../../packages/core/src/services/user/index.ts"
       ],
-      "@gafus/core/services/exam": [
-        "../../packages/core/src/services/exam/index.ts"
-      ],
+
       "@gafus/core/services/offline": [
         "../../packages/core/src/services/offline/index.ts"
       ],
-      "@gafus/core/services/achievements": [
-        "../../packages/core/src/services/achievements/index.ts"
-      ],
-      "@gafus/core/services/notifications": [
-        "../../packages/core/src/services/notifications/index.ts"
-      ],
+
       "@gafus/core/services/appSubscription": [
         "../../packages/core/src/services/appSubscription/index.ts"
       ],

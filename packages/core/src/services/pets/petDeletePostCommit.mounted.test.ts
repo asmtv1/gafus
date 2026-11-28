@@ -1,3 +1,4 @@
+import type { VetVisitRowsPort } from "./vetVisitRowsPort";
 /** Actual Core pet deletion with synthetic Prisma transaction + CDN.
  * A rollback must never remove a still-referenced photo or document.
  */
@@ -49,7 +50,7 @@ beforeEach(()=>{
 });
 describe("SQL-first pet deletion, scoped attachment cleanup",()=>{
   it("deletes only after owner-locked commit, then purges own photo and documents",async()=>{
-    expect(await deletePet("pet_A","owner")).toBe(true);
+    expect(await deletePet(petRows, vetRows, "pet_A","owner")).toBe(true);
     expect(m.find).toHaveBeenCalledWith({
       where:{id:"pet_A",ownerId:"owner"},select:{photoUrl:true},
     });
@@ -65,19 +66,19 @@ describe("SQL-first pet deletion, scoped attachment cleanup",()=>{
   });
   it("foreign pet is not found, no SQL mutation or media deletes",async()=>{
     m.find.mockResolvedValueOnce(null);
-    expect(await deletePet("pet_A","foreign")).toBe(false);
+    expect(await deletePet(petRows, vetRows, "pet_A","foreign")).toBe(false);
     expect(m.petDelete).not.toHaveBeenCalled();
     expect(m.mediaDelete).not.toHaveBeenCalled();
   });
   it("SQL rollback preserves previous S3 photo and documents",async()=>{
     m.petDelete.mockRejectedValueOnce(Error("PG_ROLLBACK"));
-    await expect(deletePet("pet_A","owner")).rejects.toThrow("Не удалось удалить");
+    await expect(deletePet(petRows, vetRows, "pet_A","owner")).rejects.toThrow("Не удалось удалить");
     expect(m.sequence).not.toContain("SQL_COMMIT");
     expect(m.mediaDelete).not.toHaveBeenCalled();
   });
   it("opt-in Pet cascade atomically persists separate photo/document intents before SQL commit",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
-    expect(await deletePet("pet_A","owner")).toBe(true);
+    expect(await deletePet(petRows, vetRows, "pet_A","owner")).toBe(true);
     expect(m.sequence).toEqual([
       "INTENT:pet-delete:"+photo,
       "INTENT:pet-delete:"+medical,
@@ -90,34 +91,34 @@ describe("SQL-first pet deletion, scoped attachment cleanup",()=>{
   it("opt-in Pet cascade rolls back atomically when enqueue fails",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
     m.mediaIntent.mockRejectedValueOnce(Error("OUTBOX_INSERT_FAILED"));
-    await expect(deletePet("pet_A","owner")).rejects.toThrow("Не удалось удалить питомца");
+    await expect(deletePet(petRows, vetRows, "pet_A","owner")).rejects.toThrow("Не удалось удалить питомца");
     expect(m.petDelete).not.toHaveBeenCalled();
     expect(m.mediaDelete).not.toHaveBeenCalled();
     expect(m.sequence).not.toContain("SQL_COMMIT");
   });
   it("opt-in document deletion queues intent before SQL delete; foreign document writes nothing",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
-    expect(await deletePetDocument("doc_1","owner","pet_A")).toBe(true);
+    expect(await deletePetDocument(petRows, "doc_1","owner","pet_A")).toBe(true);
     expect(m.sequence).toEqual([
       "INTENT:document-delete:"+medical,"SQL_DOCUMENT_DELETE","SQL_COMMIT",
     ]);
     expect(m.mediaDelete).not.toHaveBeenCalled();
     m.sequence.length=0;m.docFind.mockResolvedValueOnce(null);
-    expect(await deletePetDocument("doc_2","foreign","pet_A")).toBe(false);
+    expect(await deletePetDocument(petRows, "doc_2","foreign","pet_A")).toBe(false);
     expect(m.sequence).toEqual(["SQL_COMMIT"]);
     expect(m.mediaDelete).not.toHaveBeenCalled();
   });
   it("opt-in document DB rollback never performs physical deletion",async()=>{
     vi.stubEnv("PET_MEDIA_DELETION_OUTBOX_ENABLED","true");
     m.docDelete.mockRejectedValueOnce(Error("PG_ROLLBACK"));
-    await expect(deletePetDocument("doc_1","owner","pet_A"))
+    await expect(deletePetDocument(petRows, "doc_1","owner","pet_A"))
       .rejects.toThrow("PG_ROLLBACK");
     expect(m.sequence).not.toContain("SQL_COMMIT");
     expect(m.mediaDelete).not.toHaveBeenCalled();
   });
   it("media failure after commit never pretends SQL was rolled back",async()=>{
     m.mediaDelete.mockRejectedValueOnce(Error("S3_FAILURE"));
-    expect(await deletePet("pet_A","owner")).toBe(true);
+    expect(await deletePet(petRows, vetRows, "pet_A","owner")).toBe(true);
     expect(m.petDelete).toHaveBeenCalledOnce();
     expect(m.logs).toHaveBeenCalledWith("PET_MEDIA_POSTCOMMIT_CLEANUP_FAILED",
       expect.any(Error));
@@ -127,6 +128,9 @@ describe("SQL-first pet deletion, scoped attachment cleanup",()=>{
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
+import type { PetRowsPort } from "./petRowsPort";
 import * as originalMediaOutboxAdapter from "@gafus/pets-server/pet-media-deletion-sql";
-registerPetRowsPort({ ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort);
+const petRows = { ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort;
+
+// Vet operations in this test are mocked; no SQL adapter is called.
+const vetRows = {} as VetVisitRowsPort;

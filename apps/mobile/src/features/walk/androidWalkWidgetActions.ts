@@ -23,6 +23,7 @@ import { syncWalkNotifications } from "./walkNotifications";
 import { syncDogWalkHistory, reportWalkSyncIssue } from "./walkSync";
 import { startWalkGps, stopWalkGps } from "./walkGpsTask";
 import { gpsWalkMeters } from "./walkGpsStorage";
+import { reportCompletedWalkGps } from "./walkGpsCompletionDiagnostics";
 
 /**
  * Only the verified and allowed account can bind home-screen controls.
@@ -139,6 +140,13 @@ async function perform(action: WidgetWalkAction): Promise<void> {
   // Discard callbacks belonging to a previous logged-out session.
   if ((await AsyncStorage.getItem(WALK_WIDGET_OWNER_KEY)) !== ownerId) return;
   await saveWalkJournal(ownerId, journal);
+  if (action === "finish" && journal.completed[0]) {
+    const completed = journal.completed[0];
+    // A headless widget may not have a hydrated auth store.
+    await reportCompletedWalkGps(ownerId, completed, async () =>
+      (await AsyncStorage.getItem(WALK_WIDGET_OWNER_KEY)) === ownerId,
+    ).catch(() => undefined);
+  }
   await publishWalkWidgetSnapshot(
     journal.active ?? journal.completed[0] ?? null,
     Date.now(),

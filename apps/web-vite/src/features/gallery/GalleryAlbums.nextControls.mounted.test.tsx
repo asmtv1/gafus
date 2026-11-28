@@ -3,7 +3,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
-import { GalleryAlbums, nextMediaRefresh } from "./GalleryAlbums";
+import { GalleryAlbums } from "./GalleryAlbums";
+import { nextMediaRefresh } from "./galleryPresentation";
 import type { AlbumSummary, AlbumPhoto, GalleryPage, GalleryAlbumCommands } from "./galleryApi";
 
 const future = "2099-12-31T12:00:00.000Z";

@@ -22,6 +22,7 @@ const m = vi.hoisted(() => ({
   alert: vi.fn(),
   trace: vi.fn(),
 }));
+// Telemetry is a network boundary; mounted tests use the native view with a local ACK.
 vi.mock("@/shared/stores", () => {
   const state = () => ({
     user: m.authed ? { id: m.owner } : null,
@@ -87,7 +88,7 @@ vi.mock("@/shared/components", async () => {
     TexturedSafeAreaView: Box,
   };
 });
-vi.mock("./screens", () => ({ FeedPostCard: () => null }));
+vi.mock("./FeedPostCard", () => ({ FeedPostCard: () => null }));
 vi.mock("./FeedSectionShortcuts", () => ({ FeedSectionShortcuts: () => null }));
 vi.mock("react-native", async () => {
   const R = await import("react");

@@ -1,3 +1,4 @@
+import { trainingDayRows } from "../../modules/trainer-days/composition/training-day-rows-instance.js";
 /**
  * AG4 frozen existing getVisibleDays READ — registered trainer panel GET only.
  * Delegates author/elevated visibility to actual existing Core. All ORM
@@ -5,13 +6,13 @@
  */
 import { Hono } from "hono";
 import type { TrainerVisibleDaysRead } from
-  "../../../../../packages/types/src/data/trainer-read-contracts";
-import { readVisibleDaysApplication as legacyReadVisibleDaysApplication, createReadVisibleDaysApplicationForRows } from "../../modules/trainer-days/composition/read-visible-days.js";
+  "@gafus/types/trainer-read-contracts";
+import { createReadVisibleDaysApplicationForRows } from "../../modules/trainer-days/composition/read-visible-days.js";
 import type { TrainingDayRowsPort } from "@gafus/core/services/trainingDay";
 export type { VisibleDayDto } from "../../modules/trainer-days/application/read-visible-days.js";
 
-export function createTrainerDaysRoutes(rowsPort?: TrainingDayRowsPort) {
-  const readVisibleDaysApplication = rowsPort ? createReadVisibleDaysApplicationForRows(rowsPort) : legacyReadVisibleDaysApplication;
+export function createTrainerDaysRoutes(rowsPort: TrainingDayRowsPort) {
+  const readVisibleDaysApplication = createReadVisibleDaysApplicationForRows(rowsPort);
   const trainerDaysRoutes = new Hono();
 
 trainerDaysRoutes.get("/", async c => {
@@ -45,4 +46,4 @@ trainerDaysRoutes.get("/", async c => {
   return trainerDaysRoutes;
 }
 // Legacy tests keep their existing import; production supplies rows explicitly.
-export const trainerDaysRoutes = createTrainerDaysRoutes();
+export const trainerDaysRoutes = createTrainerDaysRoutes(trainingDayRows);

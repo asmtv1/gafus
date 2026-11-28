@@ -1,21 +1,13 @@
 #!/usr/bin/env node
-/** Mobile may import only explicitly client-safe core entry points. */
+/** The mobile runtime must use core-client, never server Core. */
 import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { fileURLToPath } from "node:url";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const mobileRoot = path.join(root, "apps/mobile/src");
-const allowed = new Set([
-  "@gafus/core/utils",
-  "@gafus/core/utils/training",
-  "@gafus/core/validation/pet",
-  "@gafus/core/services/feed/publication-client",
-  // Pure fetch/URL-only CDN outage policy shared with Web; no server dependencies.
-  "@gafus/core/services/mediaDelivery",
-  "@gafus/core/services/auth/vkAuthConstants",
-]);
+const mobileRoots = ["apps/mobile/src", "apps/mobile/app"].map(dir => path.join(root, dir));
+const serverCoreRoot = path.join(root, "packages/core");
 const violations = [];
 let inspected = 0;
 
@@ -30,32 +22,51 @@ function visitDir(dir) {
     inspected++;
     const source = ts.createSourceFile(full, fs.readFileSync(full, "utf8"),
       ts.ScriptTarget.Latest, true, item.name.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-    function walk(node) {
-      let specifier;
-      if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
-        if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-          specifier = node.moduleSpecifier.text;
-        }
-      }
-      if (ts.isCallExpression(node) && node.arguments.length === 1
-          && ts.isStringLiteral(node.arguments[0])
-          && ((ts.isIdentifier(node.expression) && node.expression.text === "require")
-            || node.expression.kind === ts.SyntaxKind.ImportKeyword)) {
-        specifier = node.arguments[0].text;
-      }
-      if (specifier && (specifier === "@gafus/core" || specifier.startsWith("@gafus/core/"))
-          && !allowed.has(specifier)) {
-        violations.push(`${path.relative(root, full)}: ${specifier}`);
-      }
-      ts.forEachChild(node, walk);
+    for (const specifier of findForbiddenCoreImports(source, full)) {
+      violations.push(`${path.relative(root, full)}: ${specifier}`);
     }
-    walk(source);
   }
 }
 
-visitDir(mobileRoot);
-if (violations.length) {
-  console.error("Mobile imported server-only or unreviewed core entry points:\n"+violations.join("\n"));
-  process.exit(1);
+/** Also catch relative source imports, TypeScript import-equals/types and
+ * dynamic imports with attributes. Server integration tests live outside
+ * these two runtime roots and may keep their explicit dev dependency. */
+export function findForbiddenCoreImports(source, full) {
+  const result = [];
+  const inspect = (specifier) => {
+    if (!specifier) return;
+    const isCore = specifier === "@gafus/core" || specifier.startsWith("@gafus/core/");
+    const resolved = specifier.startsWith(".") ? path.resolve(path.dirname(full), specifier) : null;
+    if (isCore || resolved === serverCoreRoot || resolved?.startsWith(serverCoreRoot + path.sep)) {
+      result.push(specifier);
+    }
+  };
+  const walk = node => {
+    let literal;
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) literal = node.moduleSpecifier;
+    else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference))
+      literal = node.moduleReference.expression;
+    else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) literal = node.argument.literal;
+    else if (ts.isCallExpression(node)) {
+      const expr = node.expression;
+      if (expr.kind === ts.SyntaxKind.ImportKeyword ||
+          (ts.isIdentifier(expr) && expr.text === "require") ||
+          (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.expression) &&
+            expr.expression.text === "require" && expr.name.text === "resolve"))
+        literal = node.arguments[0];
+    }
+    if (literal && ts.isStringLiteralLike(literal)) inspect(literal.text);
+    ts.forEachChild(node, walk);
+  };
+  walk(source);
+  return result;
 }
-console.log(`Mobile core boundary PASS: ${inspected} files, ${allowed.size} approved pure entry points`);
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  for (const dir of mobileRoots) visitDir(dir);
+  if (violations.length) {
+    console.error("Mobile imported server Core:\n" + violations.join("\n"));
+    process.exit(1);
+  }
+  console.log(`Mobile core boundary PASS: ${inspected} files, 0 approved Core runtime entry points`);
+}

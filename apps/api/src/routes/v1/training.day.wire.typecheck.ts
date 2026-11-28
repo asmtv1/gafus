@@ -1,12 +1,12 @@
 /** AG1-002: type-only full Core TrainingDetail -> Hono JSON wire conformance. */
 import type { JSONParsed } from "hono/utils/types";
 import type { TrainingDetail, TrainingStep } from "@gafus/types";
-import type { TrainingStatus } from "../../../../../packages/types/src/utils/training-status";
+import type { TrainingStatus } from "@gafus/types/training-status";
 import type {
   TrainingDayRead,
   TrainingDayStepWire,
   TrainingDayWire,
-} from "../../../../../packages/types/src/data/training";
+} from "@gafus/types/training";
 import type { ReadTrainingDayResult } from "../../modules/training/application/read-training-day";
 
 type Same<A, B> =

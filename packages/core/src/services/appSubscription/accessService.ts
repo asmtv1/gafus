@@ -1,9 +1,8 @@
 /**
  * Core subscription access policy port. The authoritative query, role lookup,
  * payment history and current-period checks live in subscription-read-server.
- * A process composition root binds the port before any route is served.
+ * Each invocation receives the authoritative adapter explicitly.
  * A missing port must never mint entitlement: throw and fail closed.
- * This compatibility port is transitional; new use cases use constructor DI.
  */
 import type { AppSubscriptionStatusDto } from "@gafus/types";
 
@@ -17,28 +16,19 @@ export interface SubscriptionAccessPorts {
   getCynologistEntitlements(userId: string, now?: Date): Promise<CynologistEntitlements>;
 }
 
-let installedAccessPort: Readonly<SubscriptionAccessPorts> | null = null;
-
-export function registerSubscriptionAccessPort(port: SubscriptionAccessPorts): void {
-  if (installedAccessPort !== null && installedAccessPort !== port) {
-    throw new Error("SUBSCRIPTION_ACCESS_PORT_ALREADY_BOUND");
-  }
-  installedAccessPort = port;
-}
-
-function requireAccessPort(): Readonly<SubscriptionAccessPorts> {
-  if (!installedAccessPort) throw new Error("SUBSCRIPTION_ACCESS_PORT_UNBOUND");
-  return installedAccessPort;
+function requireAccessPort(port: SubscriptionAccessPorts): SubscriptionAccessPorts {
+  if (!port) throw new Error("SUBSCRIPTION_ACCESS_PORT_UNBOUND");
+  return port;
 }
 
 export async function getAppSubscriptionAccess(
-  userId: string, now: Date = new Date(), ports?: SubscriptionAccessPorts,
+  userId: string, now: Date = new Date(), ports: SubscriptionAccessPorts,
 ): Promise<AppSubscriptionStatusDto> {
-  return (ports ?? requireAccessPort()).getAppSubscriptionAccess(userId, now);
+  return (requireAccessPort(ports)).getAppSubscriptionAccess(userId, now);
 }
 
 export async function getCynologistEntitlements(
-  userId: string, now: Date = new Date(), ports?: SubscriptionAccessPorts,
+  userId: string, now: Date = new Date(), ports: SubscriptionAccessPorts,
 ): Promise<CynologistEntitlements> {
-  return (ports ?? requireAccessPort()).getCynologistEntitlements(userId, now);
+  return (requireAccessPort(ports)).getCynologistEntitlements(userId, now);
 }

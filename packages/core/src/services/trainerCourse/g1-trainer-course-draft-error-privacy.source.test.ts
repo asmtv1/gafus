@@ -7,9 +7,6 @@ const m = vi.hoisted(() => ({
   find: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(),
   write: vi.fn(), logError: vi.fn(),
 }));
-vi.mock("./trainerCourseRowsPort", () => ({
-  readCourseDraftRow: (id: string) => m.find({ where: { id } }),
-}));
 vi.mock("@gafus/prisma", () => ({
   prisma: {
     course: {
@@ -31,6 +28,13 @@ vi.mock("../training/trainingContentRevision", () => ({
   publishCourseContentChange: vi.fn(),
 }));
 import { getCourseDraftWithRelations } from "./trainerCourseService";
+import type { TrainerCourseRowsPort } from "./trainerCourseRowsPort";
+const rows: TrainerCourseRowsPort = {
+  readDraft: (id) => m.find({ where: { id } }),
+  createRow: m.create, updateRows: m.update, deleteDependencies: m.remove,
+  readLogo: vi.fn(), readAuthor: vi.fn(), readVisibleAfterStale: vi.fn(),
+  isVersionMismatch: () => false,
+};
 
 const secret = "PRIVATE_COURSE_DB_RECEIPT_STUDENT_EMAIL_AND_TOKEN";
 beforeEach(() => vi.resetAllMocks());
@@ -41,7 +45,7 @@ describe("TR012 real Core source read exception redaction", () => {
     m.find.mockRejectedValueOnce(failure);
     expect(await getCourseDraftWithRelations("course_A", "trainer_A", {
       allowAdmin: false,
-    })).toBeNull();
+    }, rows)).toBeNull();
     expect(m.logError).toHaveBeenCalledExactlyOnceWith(
       "TRAINER_COURSE_DRAFT_READ_FAILED",
     );
@@ -58,7 +62,7 @@ describe("TR012 real Core source read exception redaction", () => {
   });
   it("missing row stays null without error log or writes", async () => {
     m.find.mockResolvedValueOnce(null);
-    expect(await getCourseDraftWithRelations("missing", "trainer_A")).toBeNull();
+    expect(await getCourseDraftWithRelations("missing", "trainer_A", undefined, rows)).toBeNull();
     expect(m.logError).not.toHaveBeenCalled();
     expect(m.write).not.toHaveBeenCalled();
   });

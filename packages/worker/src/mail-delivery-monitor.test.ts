@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  attemptCount: vi.fn(),
+  attemptQuery: vi.fn(),
   eventCount: vi.fn(),
   outboxCount: vi.fn(),
   warn: vi.fn(),
 }));
 vi.mock("@gafus/prisma", () => ({
   prisma: {
-    transactionalMailAttempt: { count: mocks.attemptCount },
+    $queryRaw: mocks.attemptQuery,
     transactionalMailEvent: { count: mocks.eventCount },
     transactionalMailOutbox: { count: mocks.outboxCount },
   },
@@ -23,9 +23,12 @@ import {
   renderMailDeliveryMetricsPrometheus,
 } from "./mail-delivery-monitor";
 
+const zero = { stalledPending: 0, unresolvedUnknown: 0, expiredUnknown: 0, recentFailed: 0,
+  resetAttemptEligible: 0, resetAttemptStalled: 0 };
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.attemptCount.mockResolvedValue(0);
+  mocks.attemptQuery.mockResolvedValue([zero]);
   mocks.eventCount.mockResolvedValue(0);
   mocks.outboxCount.mockResolvedValue(0);
 });
@@ -33,27 +36,43 @@ beforeEach(() => {
 describe("mail delivery monitoring", () => {
   it("counts actionable attempts and delivery failures using safe time windows", async () => {
     const now = new Date("2026-10-14T13:40:00.000Z");
-    mocks.attemptCount.mockResolvedValueOnce(2).mockResolvedValueOnce(3)
-      .mockResolvedValueOnce(1).mockResolvedValueOnce(4);
+    mocks.attemptQuery.mockResolvedValueOnce([{ stalledPending: 2, unresolvedUnknown: 3,
+      expiredUnknown: 1, recentFailed: 4, resetAttemptEligible: 9, resetAttemptStalled: 2 }]);
     mocks.eventCount.mockResolvedValueOnce(5);
-    mocks.outboxCount.mockResolvedValueOnce(6).mockResolvedValueOnce(7).mockResolvedValueOnce(8);
+    mocks.outboxCount.mockResolvedValueOnce(6).mockResolvedValueOnce(7).mockResolvedValueOnce(8).mockResolvedValueOnce(1);
     expect(await getMailDeliveryHealth(now)).toEqual({
       stalledPending: 2, unresolvedUnknown: 3, expiredUnknown: 1,
       recentFailed: 4, deliveryFailures24h: 5,
       queueFailed: 6, queueExpired: 7, queueStalled: 8,
+      resetAttemptEligible: 9, resetAttemptStalled: 2, resetQueueStalled: 1,
     });
-    const where = mocks.attemptCount.mock.calls.map(([arg]) => arg.where);
-    expect(where[0]).toEqual({ status: "PENDING", createdAt: { lt: new Date("2026-10-14T13:35:00.000Z") } });
-    expect(where[1]).toEqual({ status: "UNKNOWN", createdAt: { lt: new Date("2026-10-14T13:35:00.000Z") } });
-    expect(where[2]).toEqual({ status: "UNKNOWN", createdAt: { lt: new Date("2026-10-13T14:40:00.000Z") } });
-    expect(where[3]).toEqual({ status: "FAILED", createdAt: { gte: new Date("2026-10-13T13:40:00.000Z") } });
+    expect(mocks.attemptQuery).toHaveBeenCalledOnce();
+    const [parts, ...params] = mocks.attemptQuery.mock.calls[0];
+    const sql = parts.join("?");
+    expect(sql).toContain("status = 'PENDING' AND \"createdAt\" < ?");
+    expect(sql).toContain("status = 'UNKNOWN' AND \"createdAt\" < ?");
+    expect(sql).toContain("status = 'FAILED' AND \"createdAt\" >= ?");
+    expect(sql).toContain("category = 'password_reset'");
+    expect(sql).toContain('AS "resetAttemptEligible"');
+    expect(sql).toContain('AS "resetAttemptStalled"');
+    expect(params).toEqual([
+      new Date("2026-10-14T13:35:00.000Z"), new Date("2026-10-14T13:35:00.000Z"),
+      new Date("2026-10-13T14:40:00.000Z"), new Date("2026-10-13T13:40:00.000Z"),
+      new Date("2026-10-14T12:40:00.000Z"), new Date("2026-10-14T13:35:00.000Z"),
+      new Date("2026-10-14T12:40:00.000Z"), new Date("2026-10-14T13:35:00.000Z"),
+      new Date("2026-10-14T13:35:00.000Z"), new Date("2026-10-13T13:40:00.000Z"),
+      new Date("2026-10-14T12:40:00.000Z"), new Date("2026-10-14T13:35:00.000Z"),
+    ]);
+    expect(mocks.outboxCount.mock.calls[3][0].where).toMatchObject({
+      category: "password_reset", expiresAt: { gt: now },
+    });
     expect(mocks.eventCount.mock.calls[0][0].where.type.in).toContain("email.bounced");
   });
 
   it("warns with counts only when there is an actionable problem", async () => {
     await monitorMailDelivery();
     expect(mocks.warn).not.toHaveBeenCalled();
-    mocks.attemptCount.mockResolvedValue(0);
+    mocks.attemptQuery.mockResolvedValue([zero]);
     mocks.eventCount.mockResolvedValue(2);
     await monitorMailDelivery();
     expect(mocks.warn).toHaveBeenCalledWith(
@@ -64,11 +83,14 @@ describe("mail delivery monitoring", () => {
   });
 
   it("exports Prometheus gauges for mail alerts", async () => {
-    mocks.attemptCount.mockResolvedValue(3);
+    mocks.attemptQuery.mockResolvedValue([{ ...zero, unresolvedUnknown: 3, expiredUnknown: 3,
+      resetAttemptEligible: 4, resetAttemptStalled: 1 }]);
     const metrics = await renderMailDeliveryMetricsPrometheus();
     expect(metrics).toContain("gafus_mail_unresolved_unknown 3");
     expect(metrics).toContain("gafus_mail_expired_unknown 3");
     expect(metrics).toContain("gafus_mail_delivery_failures_24h 0");
     expect(metrics).toContain("gafus_mail_queue_failed 0");
+    expect(metrics).toContain("gafus_mail_reset_attempt_eligible_1h 4");
+    expect(metrics).toContain("gafus_mail_reset_attempt_stalled_1h 1");
   });
 });

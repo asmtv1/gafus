@@ -1,3 +1,4 @@
+import { authRows } from "../../modules/auth/composition/auth-rows-instance.js";
 /** AG1 G03 privacy/error PATCH DELTA based on original 28-case suite. Not AG4 frozen.
  * In-process real Hono/Auth/Origin/Zod; mocked JWT verification/Core/Prisma.
  * Each case records observed PATCHED source behavior; a PASS of a known
@@ -123,11 +124,11 @@ beforeEach(() => {
       : null,
   );
   m.reg.mockImplementation(async (id: string) => id !== "pending");
-  m.availability.mockImplementation(async (value: string, id: string) =>
+  m.availability.mockImplementation(async (_rows: unknown, value: string, id: string) =>
     id === "A" ? value.toLowerCase() !== "claimed" : "false" !== value.toLowerCase(),
   );
   m.change.mockResolvedValue(undefined);
-  m.authRead.mockImplementation(async (id: string) => ({
+  m.authRead.mockImplementation(async (_rows: unknown, id: string) => ({
     id,
     username: "newusername",
     role: "USER",
@@ -172,7 +173,7 @@ const asJson = (x: { data: unknown }) =>
       const x = await send("GET", "NewUsername");
       expect(x.status).toBe(200);
       expect(asJson(x).data).toEqual({ available: true });
-      expect(m.availability).toHaveBeenCalledWith("NewUsername", "A");
+      expect(m.availability).toHaveBeenCalledWith(authRows, "NewUsername", "A");
     });
     it("G03-02 GET invalid empty/overlength/nonascii rejects 400 before Core", async () => {
       for (const s of ["", "ab", "x".repeat(51), "имя"]) {
@@ -195,7 +196,7 @@ const asJson = (x: { data: unknown }) =>
       expect(b.status).toBe(200);
       expect(asJson(a).data).toEqual({ available: false });
       expect(Object.keys(asJson(b).data ?? {})).toEqual(["available"]);
-      expect(m.availability).toHaveBeenCalledWith("claimed", "B");
+      expect(m.availability).toHaveBeenCalledWith(authRows, "claimed", "B");
     });
     it("G03-05 GET Core unavailable current generic 500 no raw error", async () => {
       m.availability.mockRejectedValueOnce(Error("SYNTHETIC_SQL_SECRET"));
@@ -213,14 +214,14 @@ const asJson = (x: { data: unknown }) =>
       const x = await send("POST", { newUsername: "NewUsername" });
       expect(x.status).toBe(200);
       expect(asJson(x).data?.user).toEqual({ id: "A", username: "newusername", role: "USER" });
-      expect(m.change).toHaveBeenCalledWith("A", "NewUsername");
-      expect(m.authRead).toHaveBeenCalledWith("A");
+      expect(m.change).toHaveBeenCalledWith(authRows, "A", "NewUsername");
+      expect(m.authRead).toHaveBeenCalledWith(authRows, "A");
     });
     it("G03-10 POST supplied body userId cannot override current identity (Zod strips unknown)", async () => {
       const x = await send("POST", { newUsername: "newusername", userId: "B" });
       expect(x.status).toBe(200);
-      expect(m.change).toHaveBeenCalledWith("A", "newusername");
-      expect(m.authRead).toHaveBeenCalledWith("A");
+      expect(m.change).toHaveBeenCalledWith(authRows, "A", "newusername");
+      expect(m.authRead).toHaveBeenCalledWith(authRows, "A");
     });
     it("G03-11 POST bad validation 400 and >1024 payload bounded, no valid Core dispatch", async () => {
       for (const body of [
@@ -272,7 +273,7 @@ const asJson = (x: { data: unknown }) =>
     it("G03-16 POST actor B body owner A cannot mutate actor A", async () => {
       const x = await send("POST", { newUsername: "newusername", userId: "A" }, "B");
       expect(x.status).toBe(200);
-      expect(m.change).toHaveBeenCalledWith("B", "newusername");
+      expect(m.change).toHaveBeenCalledWith(authRows, "B", "newusername");
       expect(asJson(x).data?.user?.id).toBe("B");
     });
     it.skip("G03-17 CLIENT_ONLY rapid double click local UI guard and server race separate", () =>
@@ -324,7 +325,7 @@ const asJson = (x: { data: unknown }) =>
       expect(x.status).toBe(500);
       expect(asJson(x).code).toBe("USERNAME_RESULT_UNCONFIRMED");
       expect(asJson(x).data?.user).toBeUndefined();
-      expect(m.change).toHaveBeenCalledWith("A", "newusername");
+      expect(m.change).toHaveBeenCalledWith(authRows, "A", "newusername");
       expect(x.cache).toBe("private, no-store");
     });
     it("G03-D02 GET exception sanitized in JSON and logger; no query token cache", async () => {
@@ -343,3 +344,5 @@ const asJson = (x: { data: unknown }) =>
       undefined);
   },
 );
+
+vi.mock("../../modules/auth/composition/auth-rows-instance.js", () => ({ authRows: {} }));

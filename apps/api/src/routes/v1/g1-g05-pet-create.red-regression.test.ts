@@ -1,3 +1,4 @@
+import { petRows } from "../../modules/pets/composition/pet-rows-instance.js";
 /** G05 expected server safety baseline. Expected RED until AG4 policy is accepted. */
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
@@ -58,8 +59,7 @@ describe("G05 RED regression: invalid date/weight must fail before Core", () => 
   it("G05-G05 approved leap day and min weight", async () => {
     const response = await post({ birthDate: "2020-02-29", weightKg: 0.1 });
     expect(response.status).toBe(201);
-    expect(fixture.create).toHaveBeenCalledWith(
-      "A",
+    expect(fixture.create).toHaveBeenCalledWith(petRows, "A",
       expect.objectContaining({ birthDate: "2020-02-29", weightKg: 0.1 }),
     );
   });
@@ -82,8 +82,7 @@ describe("G05 RED regression: invalid date/weight must fail before Core", () => 
   });
   it("G05-G11 retains 0.123456 precision without rounding", async () => {
     expect((await post({ weightKg: 0.123456 })).status).toBe(201);
-    expect(fixture.create).toHaveBeenCalledWith(
-      "A",
+    expect(fixture.create).toHaveBeenCalledWith(petRows, "A",
       expect.objectContaining({ weightKg: 0.123456 }),
     );
   });
@@ -96,7 +95,7 @@ describe("G05 RED regression: invalid date/weight must fail before Core", () => 
   });
   it("G05-G14 forged ownerId stripped from parsed payload", async () => {
     expect((await post({ ownerId: "B", userId: "B" })).status).toBe(201);
-    expect(fixture.create).toHaveBeenCalledWith("A", expect.not.objectContaining({ ownerId: "B" }));
+    expect(fixture.create).toHaveBeenCalledWith(petRows, "A", expect.not.objectContaining({ ownerId: "B" }));
   });
   it("G05-G15 negative centimeters rejected for create only", async () => {
     for (const key of ["heightCm", "neckGirthCm", "muzzleGirthCm", "bellyGirthCm"]) {
@@ -104,3 +103,5 @@ describe("G05 RED regression: invalid date/weight must fail before Core", () => 
     }
   });
 });
+
+vi.mock("../../modules/pets/composition/pet-rows-instance.js", () => ({ petRows: {} }));

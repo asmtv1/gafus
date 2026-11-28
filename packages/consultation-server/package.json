@@ -43,6 +43,7 @@
   },
   "dependencies": {
     "@gafus/prisma": "workspace:*",
+    "@gafus/subscription-read-server": "workspace:*",
     "@gafus/consultation-shared": "workspace:*",
     "@gafus/core": "workspace:*",
     "@gafus/consultation-query-server": "workspace:*",

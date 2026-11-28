@@ -8,7 +8,6 @@ export * from "./settingsService";
 // Core keeps domain policy; API/Worker compose provider and SQL transitions.
 export * from "./promoCode";
 export * from "./promoCodeService";
-export { registerSubscriptionPromoPort } from "./promoCodePort";
 export type { SubscriptionPromoPort } from "./promoCodePort";
 
 

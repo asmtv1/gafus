@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import {prisma} from "@gafus/prisma";
 import {readLocalFinancePayment} from "@gafus/subscription-finance-server/payment-finance";
-import {enrichPaymentFinance,recordFinanceRefund} from "../../packages/core/src/services/appSubscription/paymentFinanceService.js";
+import {enrichPaymentFinance,recordFinanceRefund} from "@gafus/subscription-payment-server/payment-finance";
 const db=new URL(process.env.DATABASE_URL??"http://invalid");
 if(process.env.GAFUS_LOCAL_ISOLATED_API!=="1" || process.env.GAFUS_SUBSCRIPTION_FINANCE_REAL_PG!=="1" ||
  db.protocol!=="postgresql:" || db.hostname!=="127.0.0.1" ||

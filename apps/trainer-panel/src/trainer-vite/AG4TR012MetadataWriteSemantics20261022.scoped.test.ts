@@ -29,18 +29,17 @@ vi.mock("../../../../packages/core/src/services/training/trainingContentRevision
 }));
 // Core no longer reads Prisma directly. Mock the SQL adapter boundary only;
 // leave real Core owner/ADMIN decisions, DTO projection and fail-closed writes intact.
-vi.mock("../../../../packages/core/src/services/trainerCourse/trainerCourseRowsPort", async (original) => ({
- ...(await original<Record<string, unknown>>()),
- readCourseRowAuthor: (id: string) => m.find({where:{id}}),
- readCourseDraftRow: (id: string) => m.find({where:{id}}),
-}));
+
 const core="../../../../packages/core/src/services/trainerCourse/trainerCourseService";
-const {updateCourse,trainerCanEditCourse,getCourseDraftWithRelations}=
+const {updateCourse,trainerCanEditCourse:canEdit,getCourseDraftWithRelations:readDraft}=
  await vi.importActual<{
   updateCourse:(input:Record<string,unknown>)=>Promise<{success:boolean;error?:string}>;
-  trainerCanEditCourse:(id:string,actor:string,opts?:{allowAdmin?:boolean})=>Promise<boolean>;
-  getCourseDraftWithRelations:(id:string,actor:string)=>Promise<Record<string,unknown>|null>;
+  trainerCanEditCourse:(id:string,actor:string,opts?:{allowAdmin?:boolean},rows?:unknown)=>Promise<boolean>;
+  getCourseDraftWithRelations:(id:string,actor:string,opts?:{allowAdmin?:boolean},rows?:unknown)=>Promise<Record<string,unknown>|null>;
  }>(core);
+const rows={readAuthor:(id:string)=>m.find({where:{id}}),readDraft:(id:string)=>m.find({where:{id}})};
+const trainerCanEditCourse=(id:string,actor:string,opts?:{allowAdmin?:boolean})=>canEdit(id,actor,opts,rows);
+const getCourseDraftWithRelations=(id:string,actor:string)=>readDraft(id,actor,undefined,rows);
 const {updateTrainerCourseSchema}=await vi.importActual<{
  updateTrainerCourseSchema:{safeParse:(x:unknown)=>{success:boolean}},
 }>("../../../../packages/core/src/services/trainerCourse/schemas");

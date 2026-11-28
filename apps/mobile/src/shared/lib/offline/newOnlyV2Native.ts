@@ -1,6 +1,6 @@
 /**
- * Native dependencies for the NEW-only v2 queue. No old persist stores,
- * offline file paths, API calls or ACK/dequeue operations are imported.
+ * Native storage dependencies for the owner-scoped v2 journal.
+ * Legacy stores and ownerless files are deliberately not imported.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authTokenStorage as SecureStore } from "@/shared/lib/authTokenStorage";
@@ -12,6 +12,8 @@ export const newOnlyV2NativeQueues = createNewOnlyV2Queues({
   storage: {
     getItem: (key) => AsyncStorage.getItem(key),
     setItem: (key, value) => AsyncStorage.setItem(key, value),
+    getAllKeys: () => AsyncStorage.getAllKeys(),
+    removeItem: key => AsyncStorage.removeItem(key),
   },
   secure: {
     getItemAsync: (key) => SecureStore.getItemAsync(key),

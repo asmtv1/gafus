@@ -23,6 +23,8 @@ const mock = vi.hoisted(() => ({
   seek: vi.fn(),
   player: null as any,
 }));
+// Telemetry is a network boundary; mounted tests use the native view with a local ACK.
+vi.mock("@/shared/lib/api/client", () => ({ apiClient: vi.fn(async () => ({ success: true })) }));
 vi.mock("@/shared/stores/authStore", async () => {
   const { create } = await import("zustand");
   return { useAuthStore: create<{ user: { id: string } | null }>(() => ({ user: { id: "A" } })) };
@@ -113,10 +115,14 @@ vi.mock("expo-file-system/legacy", () => ({
   // The actual offline resolver must find a known downloaded manifest.
   // Only the synthetic QA file exists; no native device/network access.
   getInfoAsync: vi.fn(async (uri: string) => ({
-    exists: uri === "file:///offline-test-device/offline/qa-course/videos/videoA/manifest.m3u8",
+    exists: [
+      "file:///offline-test-device/offline-v2/A/qa-course/videos/videoA/manifest.m3u8",
+      "file:///offline-test-device/offline-v2/A/qa-course/meta.json",
+    ].includes(uri),
     isDirectory: false,
   })),
-  readAsStringAsync: vi.fn().mockResolvedValue(""),
+  readAsStringAsync: vi.fn(async (uri: string) => uri.endsWith("/meta.json")
+    ? JSON.stringify({ ownerId: "A", schemaVersion: 2, course: {}, trainingDays: [], version: "qa" }) : ""),
   makeDirectoryAsync: vi.fn().mockResolvedValue(undefined),
   writeAsStringAsync: vi.fn().mockResolvedValue(undefined),
   deleteAsync: vi.fn().mockResolvedValue(undefined),
@@ -196,6 +202,7 @@ import { useAuthStore } from "@/shared/stores/authStore";
 import { useVideoProgress } from "@/shared/hooks/useVideoProgress";
 import { VideoPlayer } from "@/shared/components/VideoPlayer";
 import { CourseDescription } from "./CourseDescription";
+import { setOfflineCoursePrincipal } from "@/shared/lib/offline/offlineCourseSession";
 const now = 1792252800000;
 function deferred() {
   let go!: () => void;
@@ -347,6 +354,7 @@ describe("OFF022 actual native-mocked VideoPlayer → progress hook → v2 journ
     env = fixture();
     mock.q = env.q;
     await env.q.beginVerifiedLogin("A");
+    setOfflineCoursePrincipal("A", true);
     useAuthStore.setState({ user: { id: "A" } as never });
     mock.player = {
       duration: 120,
@@ -377,6 +385,7 @@ describe("OFF022 actual native-mocked VideoPlayer → progress hook → v2 journ
   });
   afterEach(async () => {
     await act(async () => root.unmount());
+    setOfflineCoursePrincipal(null);
     node.remove();
     vi.useRealTimers();
   });

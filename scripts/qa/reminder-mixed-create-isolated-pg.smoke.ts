@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@gafus/prisma";
 import { createReminder } from "../../packages/notifications-server/src/training-reminder-application.js";
 import { createReminderAG4, lookupReminderAG4 } from "../../packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.js";
+import {reminderRows} from "../../apps/api/src/modules/reminders/composition/reminder-rows.js";
 const db=new URL(process.env.DATABASE_URL??"http://invalid");
 if(process.env.GAFUS_LOCAL_ISOLATED_API!=="1"||process.env.GAFUS_REMINDER_MIXED_REAL_PG!=="1"||
  db.protocol!=="postgresql:"||db.hostname!=="127.0.0.1"||db.pathname!=="/gafus_refactor_reminder_mixed")
@@ -22,7 +23,7 @@ async function ownerWithFour(label:string){
 async function verify(keyedFirst:boolean){
  const owner=await ownerWithFour(keyedFirst?"keyed_first":"keyless_first");
  const operationKey=randomUUID();
- const keyed=()=>createReminderAG4(owner,{name:"Synthetic keyed",reminderTime:"09:30"},operationKey);
+ const keyed=()=>createReminderAG4(owner,{name:"Synthetic keyed",reminderTime:"09:30"},operationKey,reminderRows);
  const keyless=()=>createReminder(owner,"Synthetic keyless","09:30");
  const promises=keyedFirst?[keyed(),keyless()]:[keyless(),keyed()];
  const results=await Promise.allSettled(promises);
@@ -36,9 +37,9 @@ async function verify(keyedFirst:boolean){
  assert.ok(receipts.length<=1,"keyless requests never write idempotency receipts");
  if(receipts.length===1){
   assert.equal(receipts[0].state,"COMMITTED","keyed transaction includes the receipt atomically");
-  const previous=await lookupReminderAG4(owner,operationKey);
+  const previous=await lookupReminderAG4(owner,operationKey,reminderRows);
   assert.equal(previous.reminder.id,receipts[0].reminderId);
-  const replay=await createReminderAG4(owner,{name:"Synthetic keyed",reminderTime:"09:30"},operationKey);
+  const replay=await createReminderAG4(owner,{name:"Synthetic keyed",reminderTime:"09:30"},operationKey,reminderRows);
   assert.equal(replay.kind,"idempotent_replay");
   assert.equal(replay.reminder.id,previous.reminder.id);
   assert.equal(await prisma.reminder.count({where:{userId:owner,type:"training"}}),5);

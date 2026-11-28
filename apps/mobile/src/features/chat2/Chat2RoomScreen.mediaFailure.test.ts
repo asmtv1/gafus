@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const code = readFileSync(new URL("./Chat2RoomScreen.tsx", import.meta.url), "utf8");
+const code = ["Chat2RoomScreen.tsx", "Chat2RoomComposer.tsx", "chat2RoomStyles.ts", "Chat2RoomMedia.tsx"].map(file => readFileSync(new URL("./" + file, import.meta.url), "utf8")).join("\n");
 
 describe("Chat2 attached video retry layout", () => {
   it("keeps a failed video actionable and displays the complete error below its filename", () => {

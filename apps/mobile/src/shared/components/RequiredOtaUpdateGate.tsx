@@ -15,6 +15,7 @@ import { refreshOtaTesterGrant, selfHostedOtaActive } from "@/shared/lib/ota/ins
 import { fetchMandatoryOtaCohortDecision } from "@/shared/lib/ota/mandatoryPolicyQuery";
 import { captureOtaSession, type OtaSession } from "@/shared/lib/ota/session";
 import { trackOtaEvent, trackOtaLaunch } from "@/shared/lib/ota/telemetry";
+import { createMandatoryOtaAttemptMonitor, detectOtaSignatureRejection, retireMandatoryOtaAttemptMarker } from "@/shared/lib/ota/operationalSignals";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { activeOtaRevision, requiredOtaRevision } from "@/shared/lib/otaPolicy";
 import { reportClientError } from "@/shared/lib/error-reporting";
@@ -313,6 +314,21 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
       let updateId: string | undefined;
       let finished = false;
       let failure: "CHECK_FAILED" | "FETCH_FAILED" | "RELOAD_FAILED" = "CHECK_FAILED";
+      let nativeCheckStartedAt: number | undefined;
+      let mandatoryMonitor: ReturnType<typeof createMandatoryOtaAttemptMonitor> | undefined;
+      const diagnosticKey = "@gafus/forced-ota-diagnostic-v1:" + Platform.OS + ":" + (Updates.runtimeVersion ?? "unknown");
+      const reportSignature = () => {
+        if (nativeCheckStartedAt === undefined) return;
+        void detectOtaSignatureRejection({
+          startedAt: nativeCheckStartedAt, endedAt: Date.now(), updateId, isCurrent,
+          readLogs: age => Updates.readLogEntriesAsync(age),
+          report: () => {
+            // A rejected manifest ID is not trusted; bind the event only to the verified native release.
+            void trackOtaEvent("SIGNATURE_REJECTED");
+            reportClientError(new Error("OTA_SIGNATURE_REJECTED"), { issueKey: "OtaSignatureRejected" });
+          },
+        });
+      };
       try {
         if (!manual && session.userId && session.epoch &&
             Updates.channel === "production" && selfHostedOtaActive()) {
@@ -334,9 +350,27 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
             userId: session.userId, epoch: session.epoch,
             generation: session.generation, version: requiredTarget,
           } : null);
+          if (!requiredTarget) {
+            // A verified policy no longer blocks this build. Do not later
+            // misclassify a successfully installed or superseded attempt.
+            await retireMandatoryOtaAttemptMarker(AsyncStorage, diagnosticKey, isCurrent);
+            if (!isCurrent()) return;
+          }
         }
 
         const key = requiredTarget ? `${TRIED_PREFIX}${Platform.OS}:${requiredTarget}` : null;
+        if (key && requiredTarget) {
+          mandatoryMonitor = createMandatoryOtaAttemptMonitor({
+            key: diagnosticKey, target: requiredTarget,
+            storage: AsyncStorage, isCurrent,
+            emit: event => { void trackOtaEvent(event, undefined, undefined, event === "MANDATORY_ATTEMPT"); },
+            reportIncomplete: () => reportClientError(new Error("OTA_MANDATORY_INCOMPLETE"), {
+              issueKey: "OtaMandatoryIncomplete",
+            }),
+          });
+          await mandatoryMonitor.start();
+          if (!isCurrent()) return;
+        }
         // Avoid a reload loop if the bundle remains below the required revision.
         if (key && !manual && await AsyncStorage.getItem(key) === "reloaded") {
           throw new Error("Загруженная версия не соответствует требуемой. Попробуйте повторить позже.");
@@ -345,11 +379,13 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
         if (!isCurrent()) return;
         await refreshOtaTesterGrant(session);
         if (!isCurrent()) return;
+        nativeCheckStartedAt = Date.now();
         const result = await Updates.checkForUpdateAsync();
         if (!isCurrent()) return;
         void trackOtaEvent("CHECKED");
         if (!result.isAvailable) {
           if (key) throw new Error("Обновление пока недоступно для устройства. Проверьте интернет или обратитесь в поддержку.");
+          reportSignature();
           return;
         }
 
@@ -380,12 +416,16 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
           setPhase("error");
           setError(cause instanceof Error ? cause.message : "Не удалось скачать обновление. Проверьте интернет и повторите.");
         }
+        mandatoryMonitor?.incomplete();
+        // A reload/marker/policy error is not evidence of a native signature failure.
+        if (failure !== "RELOAD_FAILED") reportSignature();
         void trackOtaEvent("UPDATE_ERROR", updateId, failure);
         reportClientError(problem, {
           issueKey: requiredTarget ? "ForcedOTA" : "OTAUpdate",
           keys: { operation: "check_fetch_reload", source: manual ? "manual" : "app_open" },
         });
       } finally {
+        mandatoryMonitor?.dispose();
         finished = true;
       }
     });

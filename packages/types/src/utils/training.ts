@@ -11,6 +11,9 @@ export interface TrainingDayUtil {
 
 /** Тип шага тренировки с прогрессом пользователя */
 export interface TrainingStep {
+  /** Stable occurrence within the day (not the reusable original Step.id). */
+  stepOnDayId?: string;
+  offlineProgressVersion?: string;
   id: string;
   videoUrl: string | null;
   videoUrls?: string[];

@@ -1,3 +1,4 @@
+import { advanceGafusReactionMilestonesTx } from "./gafus-reward-instance.js";
 import { ensureFeedPublishingAllowed } from "./preferenceRows.js";
 import { randomUUID } from "node:crypto";
 import type {
@@ -28,7 +29,6 @@ import {
 import { feedReactionToKind } from "@gafus/core/services/feed";
 import {
   lockGafusPostReactionTx,
-  advanceGafusReactionMilestonesTx,
   type GafusTx,
 } from "@gafus/core/services/gafus";
 import type { FeedDb, FeedTx } from "@gafus/media-shared/media-db-ports";

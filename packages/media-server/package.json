@@ -46,6 +46,14 @@
     "./question-photo-presenter": {
       "types": "./dist/questionPhotoPresenter.d.ts",
       "default": "./dist/questionPhotoPresenter.js"
+    },
+    "./chat2-video-recovery": {
+      "types": "./dist/chat2VideoRecoveryRows.d.ts",
+      "default": "./dist/chat2VideoRecoveryRows.js"
+    },
+    "./chat2-deletion-rows": {
+      "types": "./dist/chat2DeletionRows.d.ts",
+      "default": "./dist/chat2DeletionRows.js"
     }
   },
   "scripts": {

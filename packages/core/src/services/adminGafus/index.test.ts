@@ -40,8 +40,8 @@ vi.mock("./adminRowsPort", () => ({
     return server.withGafusAdminRows(action as never, options as never);
   },
 }));
-vi.mock("../gafus/locking", () => ({ lockGafusUser: vi.fn(async () => {}) }));
-vi.mock("../gafus/walletService", () => ({
+const lock = { lockGafusUser: vi.fn(async () => {}) };
+const wallet = ({
   changeGafusBalanceTx: vi.fn(async (_tx: unknown, input: {
     amount: number; kind: string; idempotencyKey: string;
   }) => {
@@ -49,12 +49,12 @@ vi.mock("../gafus/walletService", () => ({
     mocks.balance += input.amount;
     return { transactionId: "tx-1", balance: mocks.balance, replay: false };
   }),
-}));
+});
 vi.mock("../gafus/settingsService", () => ({
   DEFAULT_GAFUS_SETTINGS: {}, getGafusSettingsTx: vi.fn(),
 }));
 
-import { reviewGafusFraudSignalAdmin } from "./index";
+import { reviewGafusFraudSignalAdmin as corereviewGafusFraudSignalAdmin } from "./index";
 
 describe("Gafus fraud manual review", () => {
   beforeEach(() => {
@@ -110,3 +110,5 @@ describe("Gafus fraud manual review", () => {
     expect(mocks.audits).toHaveLength(1);
   });
 });
+
+function reviewGafusFraudSignalAdmin(input: Parameters<typeof corereviewGafusFraudSignalAdmin>[0]) { return corereviewGafusFraudSignalAdmin(input, wallet as Parameters<typeof corereviewGafusFraudSignalAdmin>[1], lock); }

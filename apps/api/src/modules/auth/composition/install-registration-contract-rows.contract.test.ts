@@ -15,9 +15,9 @@ vi.mock("@gafus/identity-write-server/registration-contract-rows", () => ({
 describe("API registration-contract SQL port composition", () => {
   it("preserves one transactional boundary for password registration promo validation", async () => {
     const auth = await import("@gafus/core/services/auth");
-    await import("./install-registration-contract-rows");
-    await expect(m.transact((tx: unknown) =>
-      auth.resolveRegistrationPromoCodeInTransaction(tx, undefined),
+    const { registrationContractRows } = await import("./registration-contract-rows-instance");
+    await expect(registrationContractRows.withRegistrationTransaction((tx: unknown) =>
+      auth.resolveRegistrationPromoCodeInTransaction(tx, undefined, registrationContractRows),
     )).resolves.toBeNull();
     expect(m.transact).toHaveBeenCalledTimes(1);
   });

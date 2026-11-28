@@ -54,7 +54,7 @@ export interface FeedPollReadOperations {
     actorId: string,
   ): Promise<{
     myOptionIds: string[];
-    counts: Array<{ optionId: string; count: number }>;
+    counts: { optionId: string; count: number }[];
     total: number;
   }>;
 }

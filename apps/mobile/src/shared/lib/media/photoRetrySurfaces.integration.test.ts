@@ -4,7 +4,7 @@ const read=(path:string)=>readFileSync(new URL(path,import.meta.url),'utf8');
 
 describe('Mobile photo retry remains per-file and entirely client-side',()=>{
   it('Chat2 retains the original picker source and only retries the failed local chip',()=>{
-    const source=read('../../../features/chat2/Chat2RoomScreen.tsx');
+    const source=["../../../features/chat2/Chat2RoomScreen.tsx", "../../../features/chat2/Chat2RoomComposer.tsx", "../../../features/chat2/chat2RoomStyles.ts", "../../../features/chat2/Chat2RoomMedia.tsx"].map(read).join("\n");
     expect(source).toContain('sourcePhoto: photo, uploading: true');
     expect(source).toContain('uri: photo.uri');
     expect(source).toContain('async function prepareOnePhoto(localId: string, source: ImagePicker.ImagePickerAsset)');
@@ -39,7 +39,7 @@ describe('Mobile photo retry remains per-file and entirely client-side',()=>{
     expect(source).toContain('task.status === "unknown" || task.status === "cancelling"');
   });
   it('Moments and their comments only retry the selected failed photo',()=>{
-    const screens=read('../../../features/feed/screens.tsx');
+    const screens=['FeedPublicationQueue.tsx','FeedDetailScreen.tsx'].map(name=>read('../../../features/feed/'+name)).join('\n');
     const queue=read('../../../../../../packages/core-client/src/feed/publication-client.ts');
     expect(screens).toContain('file.kind === "video" || file.kind === "photo"');
     expect(screens).toContain('mobileFeedPublications.retryFile(item.id, file.requestId)');

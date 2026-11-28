@@ -8,19 +8,6 @@ export interface ContentPolicyReadPort {
   hasAssignedPrivateCourse(userId: string, courseId: string): Promise<boolean>;
   hasActiveGafusArticleAccess(userId: string, articleId: string, now: Date): Promise<boolean>;
 }
-let contentPolicyReader: Readonly<ContentPolicyReadPort> | null = null;
-export function registerContentPolicyReadPort(port: ContentPolicyReadPort): void {
-  if (contentPolicyReader !== null && contentPolicyReader !== port) {
-    throw new Error("CONTENT_POLICY_READ_PORT_ALREADY_BOUND");
-  }
-  contentPolicyReader = port;
-}
-function requireContentPolicyReadPort(): Readonly<ContentPolicyReadPort> {
-  if (!contentPolicyReader) throw new Error("CONTENT_POLICY_READ_PORT_UNBOUND");
-  return contentPolicyReader;
-}
-import { APP_FEATURE_APP_SUBSCRIPTION_GATING, getAppFeatureFlagEnabled } from "../appFeatureFlags";
-
 export type CoursePolicy = { id: string; isPrivate: boolean; isPaid: boolean };
 export type ContentAccessDecision = {
   allowed: boolean;
@@ -28,50 +15,88 @@ export type ContentAccessDecision = {
 };
 const denied: ContentAccessDecision = { allowed: false, source: "DENIED" };
 
-/** Role is read from PostgreSQL; an expired subscription never grants access. */
-async function premiumAccess(userId: string, now: Date): Promise<ContentAccessDecision> {
-  const role = await requireContentPolicyReadPort().readAccessActorRole(userId);
-  if (!role) return denied;
-  if (role === "ADMIN" || role === "PARTNER" || role === "TRAINER")
-    return { allowed: true, source: "ROLE" };
-  return await requireContentPolicyReadPort().hasCurrentPaidSubscription(userId, now)
-    ? { allowed: true, source: "SUBSCRIPTION" } : denied;
-}
+/** The caller supplies authoritative owner-scoped reads and the gating policy.
+ * Separate instances can coexist without mutating any process-wide state. */
+export function createContentPolicy(
+  rows: ContentPolicyReadPort,
+  readGatingEnabled: () => Promise<boolean>,
+) {
+  if (!rows || typeof readGatingEnabled !== "function") throw new Error("CONTENT_POLICY_DEPENDENCIES_REQUIRED");
+  /** Role is read from PostgreSQL; an expired subscription never grants access. */
+  async function premiumAccess(userId: string, now: Date): Promise<ContentAccessDecision> {
+    const role = await rows.readAccessActorRole(userId);
+    if (!role) return denied;
+    if (role === "ADMIN" || role === "PARTNER" || role === "TRAINER")
+      return { allowed: true, source: "ROLE" };
+    return await rows.hasCurrentPaidSubscription(userId, now)
+      ? { allowed: true, source: "SUBSCRIPTION" } : denied;
+  }
 
-export async function resolveCourseEntitlement(
-  course: CoursePolicy | null,
-  userId?: string,
-  now = new Date(),
-): Promise<ContentAccessDecision> {
-  if (!course) return denied;
-  if (course.isPrivate) {
-    if (!userId) return denied;
-    return await requireContentPolicyReadPort().hasAssignedPrivateCourse(userId, course.id)
+  async function resolveCourseEntitlement(
+    course: CoursePolicy | null,
+    userId?: string,
+    now = new Date(),
+  ): Promise<ContentAccessDecision> {
+    return decideCourseEntitlement(course,
+      id => userId ? rows.hasAssignedPrivateCourse(userId, id) : false,
+      () => publicPaidAccess(userId, now));
+  }
+
+  async function decideCourseEntitlement(
+    course: CoursePolicy | null,
+    assigned: (courseId: string) => boolean | Promise<boolean>,
+    paid: () => Promise<ContentAccessDecision>,
+  ): Promise<ContentAccessDecision> {
+    if (!course) return denied;
+    if (course.isPrivate) return await assigned(course.id)
       ? { allowed: true, source: "PRIVATE_ASSIGNMENT" } : denied;
+    return course.isPaid ? paid() : { allowed: true, source: "FREE" };
   }
-  if (!course.isPaid) return { allowed: true, source: "FREE" };
-  if (!await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true))
-    return { allowed: true, source: "GATING_DISABLED" };
-  if (!userId) return denied;
-  return premiumAccess(userId, now);
+
+  /** The projection supplies only this viewer's assignments. Premium status is shared
+   * within this read and is re-evaluated on the next request. */
+  async function allowedCourseIds(
+    courses: readonly (CoursePolicy & { access: readonly { userId: string }[] })[],
+    userId: string,
+  ): Promise<Set<string>> {
+    const now = new Date();
+    let premium: Promise<ContentAccessDecision> | undefined;
+    const paid = () => premium ??= publicPaidAccess(userId, now);
+    const allowed = new Set<string>();
+    await Promise.all(courses.map(async course => {
+      const decision = await decideCourseEntitlement(course, () => course.access.some(row => row.userId === userId), paid);
+      if (decision.allowed) allowed.add(course.id);
+    }));
+    return allowed;
+  }
+
+  async function publicPaidAccess(userId: string | undefined, now: Date): Promise<ContentAccessDecision> {
+    if (!await readGatingEnabled())
+      return { allowed: true, source: "GATING_DISABLED" };
+    if (!userId) return denied;
+    return premiumAccess(userId, now);
+  }
+
+  /** Paid article HTML is unlocked by subscription or one article-specific
+   * seven-day Gafus entitlement on Web, Android and iOS alike. */
+  async function resolveArticleEntitlement(
+    articleId: string,
+    userId?: string,
+    platform?: "ANDROID" | "IOS" | "WEB_DESKTOP" | "WEB_TOUCH",
+    now = new Date(),
+  ): Promise<ContentAccessDecision> {
+    if (!await readGatingEnabled())
+      return { allowed: true, source: "GATING_DISABLED" };
+    if (!userId) return denied;
+    const premium = await premiumAccess(userId, now);
+    if (premium.allowed) return premium;
+    if (articleId) {
+      if (await rows.hasActiveGafusArticleAccess(userId, articleId, now))
+        return { allowed: true, source: "GAFUS" };
+    }
+    return denied;
+  }
+  return { resolveCourseEntitlement, allowedCourseIds, resolveArticleEntitlement };
 }
 
-/** Paid article HTML is unlocked by subscription or one article-specific
- * seven-day Gafus entitlement on Web, Android and iOS alike. */
-export async function resolveArticleEntitlement(
-  articleId: string,
-  userId?: string,
-  platform?: "ANDROID" | "IOS" | "WEB_DESKTOP" | "WEB_TOUCH",
-  now = new Date(),
-): Promise<ContentAccessDecision> {
-  if (!await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true))
-    return { allowed: true, source: "GATING_DISABLED" };
-  if (!userId) return denied;
-  const premium = await premiumAccess(userId, now);
-  if (premium.allowed) return premium;
-  if (articleId) {
-    if (await requireContentPolicyReadPort().hasActiveGafusArticleAccess(userId, articleId, now))
-      return { allowed: true, source: "GAFUS" };
-  }
-  return denied;
-}
+export type ContentPolicy = ReturnType<typeof createContentPolicy>;

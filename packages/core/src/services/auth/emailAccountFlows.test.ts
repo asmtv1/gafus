@@ -14,7 +14,8 @@ vi.mock("@gafus/prisma", () => ({
     user: { findUnique: mocks.findUser },
     $transaction: async (callback: (tx: unknown) => Promise<void>) =>
       callback({
-        passwordResetToken: { deleteMany: mocks.deleteTokens, create: mocks.createToken },
+        $queryRaw: vi.fn(async () => [{id:"user-1"}]),
+        passwordResetToken: { deleteMany: mocks.deleteTokens, create: mocks.createToken, findUnique: vi.fn(async () => ({userId:"user-1",createdAt:new Date()})) },
         user: { updateMany: mocks.updateUser },
       }),
   },
@@ -30,7 +31,7 @@ vi.mock("./transactionalAuthMail", () => ({
 }));
 
 import { sendPasswordResetRequestByEmail } from "./emailAccountFlows";
-import { registerEmailAccountRowsPort } from "./emailAccountFlows";
+
 import {
   readPasswordResetRequestUser,
   claimPasswordResetEmailToken,
@@ -43,7 +44,7 @@ import {
   retireOlderEmailChangeTokens,
   consumeEmailChangeConfirmation,
 } from "@gafus/identity-write-server/email-account-rows";
-registerEmailAccountRowsPort({
+const fixtureEmailAccountRowsPort = {
   readPasswordResetRequestUser,
   claimPasswordResetEmailToken,
   rollbackFailedPasswordResetEmailToken,
@@ -54,7 +55,7 @@ registerEmailAccountRowsPort({
   rollbackUndeliveredEmailChange,
   retireOlderEmailChangeTokens,
   consumeEmailChangeConfirmation,
-});
+};
 
 
 describe("sendPasswordResetRequestByEmail", () => {
@@ -70,7 +71,7 @@ describe("sendPasswordResetRequestByEmail", () => {
   });
 
   it("хранит только хеш и отправляет исходный одноразовый токен в письме", async () => {
-    await sendPasswordResetRequestByEmail("test@example.com");
+    await sendPasswordResetRequestByEmail("test@example.com", fixtureEmailAccountRowsPort);
 
     const resetUrl = mocks.sendEmail.mock.calls[0][1] as string;
     const rawToken = new URL(resetUrl).searchParams.get("token");
@@ -80,6 +81,7 @@ describe("sendPasswordResetRequestByEmail", () => {
         userId: "user-1",
         token: `sha256:${createHash("sha256").update(rawToken!).digest("hex")}`,
         expiresAt: expect.any(Date),
+        createdAt: expect.any(Date),
       },
     });
     expect(mocks.createToken.mock.calls[0][0].data.token).not.toBe(rawToken);
@@ -87,14 +89,14 @@ describe("sendPasswordResetRequestByEmail", () => {
 
   it("durable enqueue preserves the previous usable reset link", async () => {
     mocks.sendEmail.mockResolvedValueOnce("queued");
-    await sendPasswordResetRequestByEmail("test@example.com");
+    await sendPasswordResetRequestByEmail("test@example.com", fixtureEmailAccountRowsPort);
     expect(mocks.createToken).toHaveBeenCalledOnce();
     expect(mocks.deleteTokens).not.toHaveBeenCalled();
   });
 
   it("failed email leaves old token valid and reopens the throttle for retry", async () => {
     mocks.sendEmail.mockRejectedValueOnce(new Error("SYNTHETIC_PROVIDER_OUTAGE"));
-    await expect(sendPasswordResetRequestByEmail("test@example.com"))
+    await expect(sendPasswordResetRequestByEmail("test@example.com", fixtureEmailAccountRowsPort))
       .rejects.toThrow("SYNTHETIC_PROVIDER_OUTAGE");
     // Cleanup can delete ONLY the new token, never a previously delivered link.
     const staged = mocks.createToken.mock.calls[0][0].data.token as string;
@@ -116,7 +118,7 @@ describe("sendPasswordResetRequestByEmail", () => {
       passwordResetRequestedAt: new Date(),
     });
 
-    await sendPasswordResetRequestByEmail("test@example.com");
+    await sendPasswordResetRequestByEmail("test@example.com", fixtureEmailAccountRowsPort);
 
     expect(mocks.deleteTokens).not.toHaveBeenCalled();
     expect(mocks.createToken).not.toHaveBeenCalled();

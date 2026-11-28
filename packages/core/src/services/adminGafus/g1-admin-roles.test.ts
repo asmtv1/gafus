@@ -19,15 +19,15 @@ vi.mock("./adminRowsPort", () => ({
     return server.withGafusAdminRows(action as never, options as never);
   },
 }));
-vi.mock("../gafus/locking", () => ({ lockGafusUser: db.locking }));
-vi.mock("../gafus/walletService", () => ({ changeGafusBalanceTx: db.changeBalance }));
+const lock = { lockGafusUser: db.locking };
+const wallet = { changeGafusBalanceTx: db.changeBalance };
 vi.mock("../gafus/settingsService", () => ({
   DEFAULT_GAFUS_SETTINGS: { economyEnabled: true, earningEnabled: true, spendingEnabled: true },
   getGafusSettingsTx: vi.fn(async () => ({ revision: 3 })),
 }));
 
 import {
-  adjustGafusBalanceAdmin, getGafusAdminDashboard, updateGafusSettingsAdmin,
+  adjustGafusBalanceAdmin as coreadjustGafusBalanceAdmin, getGafusAdminDashboard, updateGafusSettingsAdmin,
 } from "./index";
 
 const tx = {
@@ -124,3 +124,5 @@ describe("G1 admin permission and idempotency: actual Core + mocked Prisma Tx", 
     expect(db.walletAudit).toHaveBeenCalledOnce();
   });
 });
+
+function adjustGafusBalanceAdmin(input: Parameters<typeof coreadjustGafusBalanceAdmin>[0]) { return coreadjustGafusBalanceAdmin(input, wallet as Parameters<typeof coreadjustGafusBalanceAdmin>[1], lock); }

@@ -60,7 +60,7 @@ test('poll migration remains additive and polls use Feed availability without a 
   assert.match(sql, /CREATE TABLE "FeedPollVoteSelection"/);
   assert.doesNotMatch(sql, /\bDROP (TABLE|COLUMN|INDEX)\b/i);
   const web = read('../../apps/web-vite/src/features/moments/MomentsCatalog.tsx');
-  const mobile = read('../../apps/mobile/src/features/feed/screens.tsx');
+  const mobile = ['FeedScreen.tsx','FeedComposeScreen.tsx','FeedDetailScreen.tsx','FeedPostCard.tsx','FeedCommentRow.tsx'].map(name=>read('../../apps/mobile/src/features/feed/'+name)).join('\n');
   const http = read('../../packages/feed-server/src/index.ts');
   for (const source of [runtime, publish, dto, web, mobile, http]) {
     assert.doesNotMatch(source, /FEED_POLLS_ENABLED|pollsEnabled/);

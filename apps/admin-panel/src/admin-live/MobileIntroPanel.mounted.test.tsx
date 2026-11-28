@@ -2,7 +2,8 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MobileIntroPanel, type MobileDateFilter } from "./MobileIntroPanel";
+import { MobileIntroPanel } from "./MobileIntroPanel";
+import type { MobileDateFilter } from "./mobileIntroNavigation";
 
 let root: ReturnType<typeof createRoot>;
 let host: HTMLElement;

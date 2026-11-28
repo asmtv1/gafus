@@ -5,7 +5,7 @@ type VisibleStepsReader = typeof getVisibleSteps;
 
 type ObjectRecord = Record<string, unknown>;
 import type { TrainerVisibleStepItem } from
-  "../../../../../../packages/types/src/data/trainer-read-contracts";
+  "@gafus/types/trainer-read-contracts";
 
 function invalid(): never {
   // Internal fixed signal only. No exception from Prisma or DTO source.

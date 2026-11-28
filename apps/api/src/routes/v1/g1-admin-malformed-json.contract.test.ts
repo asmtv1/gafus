@@ -1,3 +1,4 @@
+import { adminRows } from "../../modules/gafus/composition/admin-rows-instance.js";
 /** G1 JSON parse failure must be client 400, not a leaked Core failure. Core is mocked. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -72,7 +73,7 @@ describe("G1 staff admin malformed JSON source contract (real Hono, mock Core)",
       expectedRevision: 1,
       reason: "Audit update",
       patch: { earningEnabled: false },
-    });
+    }, adminRows);
   });
   it("AJ05 Core SyntaxError is an internal error 500 and never reclassified as JSON 400", async () => {
     f.settings.mockRejectedValueOnce(new SyntaxError("PRIVATE_CORE_SYNTAX_FAILURE"));
@@ -89,3 +90,7 @@ describe("G1 staff admin malformed JSON source contract (real Hono, mock Core)",
     expect(await res.json()).toEqual({ success: false, code: "GAFUS_INTERNAL_ERROR" });
   });
 });
+
+vi.mock("../../modules/gafus/composition/wallet-instance.js", () => ({ gafusWallet: { listGafusTransactions: vi.fn(), changeGafusBalanceTx: vi.fn(), ensureGafusWalletTx: vi.fn() } }));
+vi.mock("../../modules/gafus/composition/wallet-lock-instance.js", () => ({ gafusLock: { lockGafusUser: vi.fn() } }));
+vi.mock("../../modules/content-access/composition/transactional-policy-instance.js", () => ({ transactionalContentPolicy: {} }));

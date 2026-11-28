@@ -1,26 +1,30 @@
+import { gafusWallet as wallet } from "../../../../../apps/api/src/modules/gafus/composition/wallet-instance";
+import { gafusLock as lock } from "../../../../../apps/api/src/modules/gafus/composition/wallet-lock-instance";
 /** Strictly opt-in isolated local PostgreSQL18 acceptance: never a shared DB. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@gafus/prisma";
 import {
-  updateGafusSettingsAdmin,
-  adjustGafusBalanceAdmin,
-  getGafusAdminDashboard,
-  reviewGafusFraudSignalAdmin,
+  updateGafusSettingsAdmin as coreUpdateGafusSettingsAdmin,
+  adjustGafusBalanceAdmin as coreadjustGafusBalanceAdmin,
+  getGafusAdminDashboard as coreGetGafusAdminDashboard,
+  reviewGafusFraudSignalAdmin as corereviewGafusFraudSignalAdmin,
 } from "./index";
 import { withGafusAdminRows } from "@gafus/gafus-server/admin-rows";
-import { registerGafusAdminRowsPort } from "./adminRowsPort";
+import type { GafusAdminRowsPort } from "./adminRowsPort";
 
+const adminRows: GafusAdminRowsPort = {
+  withTransaction(operation, options) {
+    return withGafusAdminRows((rows) => operation(rows), options);
+  },
+};
+const updateGafusSettingsAdmin = (input: Parameters<typeof coreUpdateGafusSettingsAdmin>[0]) => coreUpdateGafusSettingsAdmin(input, adminRows);
+const getGafusAdminDashboard = (id: string) => coreGetGafusAdminDashboard(id, adminRows);
 const qa = describe.runIf(process.env.GAFUS_ADMIN_ROWS_REAL_PG === "enabled");
 const adminId = "admin-rows-qa-administrator";
 const viewerId = "admin-rows-qa-viewer";
 
 qa("admin Gafus ORM boundaries, RBAC, idempotency, fraud CAS on PostgreSQL 18", () => {
   beforeAll(async () => {
-    registerGafusAdminRowsPort({
-      withTransaction(operation, options) {
-        return withGafusAdminRows((rows) => operation(rows), options);
-      },
-    });
     const url = new URL(process.env.DATABASE_URL ?? "");
     expect(url.protocol).toBe("postgresql:");
     expect(url.hostname).toBe("127.0.0.1");
@@ -163,3 +167,7 @@ qa("admin Gafus ORM boundaries, RBAC, idempotency, fraud CAS on PostgreSQL 18", 
     expect(await prisma.gafusSettingsRevision.count()).toBe(1);
   });
 });
+
+function adjustGafusBalanceAdmin(input: Parameters<typeof coreadjustGafusBalanceAdmin>[0]) { return coreadjustGafusBalanceAdmin(input, wallet as Parameters<typeof coreadjustGafusBalanceAdmin>[1], lock, adminRows); }
+
+function reviewGafusFraudSignalAdmin(input: Parameters<typeof corereviewGafusFraudSignalAdmin>[0]) { return corereviewGafusFraudSignalAdmin(input, wallet as Parameters<typeof corereviewGafusFraudSignalAdmin>[1], lock, adminRows); }

@@ -11,8 +11,14 @@ vi.mock("../training/trainingContentRevision",()=>({
  publishCourseContentChange:vi.fn(),
 }));
 import {
- updateCourseLogoUrl,deleteCourseLogoFromRecord,
+ updateCourseLogoUrl as updateLogo,deleteCourseLogoFromRecord as deleteLogo,
 } from "./courseService";
+import { readCourseVersionRows, writeCourseNameVersionRows, setCourseLogoVersionRows } from "@gafus/course-progress-server/course-version-rows";
+const versionRows = { readCourseVersionRows, writeCourseNameVersionRows, setCourseLogoVersionRows };
+const updateCourseLogoUrl = (courseId: string, url: string, version: number, actor: Parameters<typeof updateLogo>[3]) =>
+  updateLogo(courseId, url, version, actor, versionRows);
+const deleteCourseLogoFromRecord = (courseId: string, version: number, actor: Parameters<typeof deleteLogo>[2]) =>
+  deleteLogo(courseId, version, actor, versionRows);
 const OWNER={id:"ag1_owner",role:"TRAINER"} as const;
 const FOREIGN={id:"ag1_foreign",role:"TRAINER"} as const;
 const ADMIN={id:"ag1_admin",role:"ADMIN"} as const;

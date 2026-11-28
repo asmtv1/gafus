@@ -69,7 +69,7 @@ beforeEach(() => {
 describe("AG1 G1 private document authorization in real Core", () => {
   it("requires owner-scoped pet existence before listing documents", async () => {
     m.petFindFirst.mockResolvedValueOnce(null);
-    await expect(listPetDocuments("pet-A", "user-B")).rejects.toThrow("Питомец не найден");
+    await expect(listPetDocuments(petRows, "pet-A", "user-B")).rejects.toThrow("Питомец не найден");
     expect(m.petFindFirst).toHaveBeenCalledWith({
       where: { id: "pet-A", ownerId: "user-B" }, select: { id: true },
     });
@@ -78,7 +78,7 @@ describe("AG1 G1 private document authorization in real Core", () => {
   });
 
   it("lists only scoped documents, signing private URL after owner lookup", async () => {
-    const data = await listPetDocuments("pet-A", "owner-A");
+    const data = await listPetDocuments(petRows, "pet-A", "owner-A");
     expect(m.documentsFindMany).toHaveBeenCalledWith({
       where: { petId: "pet-A", ownerId: "owner-A" },
       orderBy: [{ createdAt: "desc" }],
@@ -89,14 +89,14 @@ describe("AG1 G1 private document authorization in real Core", () => {
 
   it("does not sign a foreign document for a direct lookup", async () => {
     m.documentFindFirst.mockResolvedValueOnce(null);
-    expect(await getPetDocumentById("doc-A", "user-B", "pet-A")).toBeNull();
+    expect(await getPetDocumentById(petRows, "doc-A", "user-B", "pet-A")).toBeNull();
     expect(m.documentFindFirst).toHaveBeenCalledWith({ where: scoped("user-B") });
     expect(m.signer).not.toHaveBeenCalled();
   });
 
   it("cannot return a private download URL for a foreign document", async () => {
     m.documentFindFirst.mockResolvedValueOnce(null);
-    const payload = await preparePetDocumentDownload("doc-A", "user-B", "pet-A");
+    const payload = await preparePetDocumentDownload(petRows, "doc-A", "user-B", "pet-A");
     expect(payload).toBeNull();
     expect(m.documentFindFirst).toHaveBeenCalledWith({
       where: scoped("user-B"),
@@ -106,7 +106,7 @@ describe("AG1 G1 private document authorization in real Core", () => {
   });
 
   it("signs authorized download for 120 seconds without exposing storage marker", async () => {
-    const payload = await preparePetDocumentDownload("doc-A", "owner-A", "pet-A");
+    const payload = await preparePetDocumentDownload(petRows, "doc-A", "owner-A", "pet-A");
     expect(payload).toEqual({
       documentId: "doc-A", fileName: "health.pdf", mimeType: "application/pdf",
       sizeBytes: 100, downloadUrl: "https://signed.invalid/owner-A",
@@ -116,7 +116,7 @@ describe("AG1 G1 private document authorization in real Core", () => {
 
   it("foreign rename cannot update metadata or create a signed URL", async () => {
     m.documentFindFirst.mockResolvedValueOnce(null);
-    const result = await renamePetDocument("doc-A", "user-B", "my document", "pet-A");
+    const result = await renamePetDocument(petRows, "doc-A", "user-B", "my document", "pet-A");
     expect(result).toBeNull();
     expect(m.documentFindFirst).toHaveBeenCalledWith({ where: scoped("user-B") });
     expect(m.documentUpdate).not.toHaveBeenCalled();
@@ -124,7 +124,7 @@ describe("AG1 G1 private document authorization in real Core", () => {
   });
 
   it("authorized rename preserves original extension and owner-scoped lookup", async () => {
-    const renamed = await renamePetDocument("doc-A", "owner-A", "medical 2026", "pet-A");
+    const renamed = await renamePetDocument(petRows, "doc-A", "owner-A", "medical 2026", "pet-A");
     expect(renamed).not.toBeNull();
     expect(m.documentFindFirst).toHaveBeenCalledWith({ where: scoped("owner-A") });
     expect(m.documentUpdate).toHaveBeenCalledWith({
@@ -134,7 +134,7 @@ describe("AG1 G1 private document authorization in real Core", () => {
 
   it("foreign delete cannot remove CDN object or database locator", async () => {
     m.documentFindFirst.mockResolvedValueOnce(null);
-    const result = await deletePetDocument("doc-A", "user-B", "pet-A");
+    const result = await deletePetDocument(petRows, "doc-A", "user-B", "pet-A");
     expect(result).toBe(false);
     expect(m.documentFindFirst).toHaveBeenCalledWith({ where: scoped("user-B") });
     expect(m.cdnDelete).not.toHaveBeenCalled();
@@ -143,13 +143,13 @@ describe("AG1 G1 private document authorization in real Core", () => {
 
   it("refuses to remove private locator when private CDN deletion fails", async () => {
     m.cdnDelete.mockRejectedValueOnce(new Error("TEST_CDN_TIMEOUT"));
-    await expect(deletePetDocument("doc-A", "owner-A", "pet-A"))
+    await expect(deletePetDocument(petRows, "doc-A", "owner-A", "pet-A"))
       .rejects.toThrow("TEST_CDN_TIMEOUT");
     expect(m.documentDelete).not.toHaveBeenCalled();
   });
 
   it("authorized delete removes owner-scoped document only after CDN delete succeeds", async () => {
-    const result = await deletePetDocument("doc-A", "owner-A", "pet-A");
+    const result = await deletePetDocument(petRows, "doc-A", "owner-A", "pet-A");
     expect(result).toBe(true);
     expect(m.cdnDelete).toHaveBeenCalledWith(privatePath);
     expect(m.documentDelete).toHaveBeenCalledWith({ where: { id: "doc-A" } });
@@ -160,5 +160,5 @@ describe("AG1 G1 private document authorization in real Core", () => {
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
-registerPetRowsPort(originalPetRowsPort as PetRowsPort);
+import type { PetRowsPort } from "./petRowsPort";
+const petRows = originalPetRowsPort as PetRowsPort;

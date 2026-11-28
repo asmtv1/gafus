@@ -34,10 +34,10 @@ describe("Core registration row port preserves SQL transaction and email idempot
   it("holds the advisory lock before reading, and creates a single idempotency receipt", async () => {
     const c = await import("./registrationContracts");
     const { p, sameTx } = port();
-    c.registerRegistrationContractRowsPort(p as RegistrationContractRowsPort);
+    const fixtureRegistrationContractRowsPort = p as RegistrationContractRowsPort;
     const created = await c.getOrCreateRegistrationEmailAttemptInTransaction(sameTx, {
       tempSessionId: "session-1", dataFingerprint: "fp-1",
-    });
+    }, fixtureRegistrationContractRowsPort);
     expect(created.id).toBe("attempt-1");
     expect(p.lockRegistrationEmailAttemptTx).toHaveBeenCalledExactlyOnceWith(sameTx, "session-1");
     expect(p.readRegistrationEmailAttemptTx).toHaveBeenCalledExactlyOnceWith(sameTx, "session-1");
@@ -51,14 +51,14 @@ describe("Core registration row port preserves SQL transaction and email idempot
   it("rejects idempotency replay with changed input fingerprint", async () => {
     const c = await import("./registrationContracts");
     const { p, sameTx } = port();
-    c.registerRegistrationContractRowsPort(p as RegistrationContractRowsPort);
+    const fixtureRegistrationContractRowsPort = p as RegistrationContractRowsPort;
     p.readRegistrationEmailAttemptTx.mockResolvedValueOnce({
       id: "attempt-1", userId: null, tempSessionId: "session-1", dataFingerprint: "original",
       completedAt: null, result: null,
     });
     await expect(c.getOrCreateRegistrationEmailAttemptInTransaction(sameTx, {
       tempSessionId: "session-1", dataFingerprint: "changed",
-    })).rejects.toMatchObject({ code: "REGISTRATION_ATTEMPT_FINGERPRINT_MISMATCH" });
+    }, fixtureRegistrationContractRowsPort)).rejects.toMatchObject({ code: "REGISTRATION_ATTEMPT_FINGERPRINT_MISMATCH" });
     expect(p.insertRegistrationEmailAttemptTx).not.toHaveBeenCalled();
   });
 
@@ -77,12 +77,5 @@ describe("Core registration row port preserves SQL transaction and email idempot
       .rejects.toThrow("REGISTRATION_CONTRACT_ROWS_PORT_UNBOUND");
   });
 
-  it("cannot hot-replace a running SQL port", async () => {
-    const c = await import("./registrationContracts");
-    const { p } = port();
-    c.registerRegistrationContractRowsPort(p as RegistrationContractRowsPort);
-    c.registerRegistrationContractRowsPort(p as RegistrationContractRowsPort);
-    expect(() => c.registerRegistrationContractRowsPort(port().p as RegistrationContractRowsPort))
-      .toThrow("REGISTRATION_CONTRACT_ROWS_PORT_ALREADY_BOUND");
-  });
+
 });

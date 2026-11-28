@@ -1,3 +1,4 @@
+import { authRows } from "../../modules/auth/composition/auth-rows-instance.js";
 import { Hono, type Context, type Next } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseUsernameAvailabilitySuccess } from "@gafus/types";
@@ -34,7 +35,7 @@ describe("username availability Hono -> shared DTO", () => {
     expect(parseUsernameAvailabilitySuccess(await response.json())).toEqual({
       success: true, data: { available },
     });
-    expect(service).toHaveBeenCalledExactlyOnceWith("User_1", "owner-1");
+    expect(service).toHaveBeenCalledExactlyOnceWith(authRows, "User_1", "owner-1");
   });
   it.each(["ab", "a!", "x".repeat(51), "имя"])(
     "rejects malformed username before service: %s", async username => {
@@ -62,7 +63,7 @@ describe("username availability Hono -> shared DTO", () => {
       const body = await response.json() as {success?: unknown};
       expect(body.success).not.toBe(true);
     } else {
-      expect(service).toHaveBeenCalledExactlyOnceWith(normalized, "owner-1");
+      expect(service).toHaveBeenCalledExactlyOnceWith(authRows, normalized, "owner-1");
       expect(parseUsernameAvailabilitySuccess(await response.json()))
         .toEqual({success:true,data:{available:true}});
     }
@@ -134,3 +135,5 @@ describe("username HTTP400 missing-key Zod diagnostics", () => {
     expect(await response.json()).toEqual({success:false,error:{issues:result.error.issues,name:"ZodError"}});
   });
 });
+
+vi.mock("../../modules/auth/composition/auth-rows-instance.js", () => ({ authRows: {} }));

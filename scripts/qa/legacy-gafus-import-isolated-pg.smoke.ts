@@ -7,7 +7,8 @@ import {
  importLegacyRewardedBatch as coreImport,
  type LegacyGafusImportPorts,
 } from "../../packages/core/src/services/gafus/legacyImportService.js";
-import {changeGafusBalanceTx} from "../../packages/core/src/services/gafus/walletService.js";
+import {gafusWallet} from "../../apps/api/src/modules/gafus/composition/wallet-instance.js";
+const {changeGafusBalanceTx}=gafusWallet;
 import {
  readLegacyImportActorRole,readLegacyImportPreflightRows,
  readLegacyImportCandidates,runOneLegacyImportTransaction,
@@ -17,7 +18,7 @@ const ports: LegacyGafusImportPorts={
  readCandidates:readLegacyImportCandidates,runOneTransaction:runOneLegacyImportTransaction,
 };
 const getLegacyGafusImportPreflight=(actorId:string)=>corePreflight(actorId,ports);
-const importLegacyRewardedBatch=(input:Parameters<typeof coreImport>[0])=>coreImport(input,ports);
+const importLegacyRewardedBatch=(input:Parameters<typeof coreImport>[0])=>coreImport(input,ports,changeGafusBalanceTx);
 
 const url=new URL(process.env.DATABASE_URL??"http://invalid");
 if(process.env.GAFUS_LOCAL_ISOLATED_API!=="1"||process.env.GAFUS_LEGACY_IMPORT_REAL_PG!=="1"||

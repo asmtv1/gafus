@@ -2,7 +2,7 @@ import { apiClient, type ApiResponse } from "./client";
 import type {
   StudentNoteEntryWire,
   StudentNoteWire,
-} from "../../../../../../packages/types/src/data/notes";
+} from "@gafus/types/notes";
 
 /** Existing Mobile text-only subset of the canonical student-notes JSON wire. */
 export type StudentNoteEntry = Pick<StudentNoteEntryWire, "id" | "content" | "createdAt">;

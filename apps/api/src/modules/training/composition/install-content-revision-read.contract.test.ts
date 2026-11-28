@@ -3,12 +3,13 @@ const query=vi.hoisted(()=>({ durable:vi.fn(async()=>"875") }));
 vi.mock("@gafus/course-read-server/content-revision",()=>({
   readDurableCourseContentRevision:query.durable,
 }));
+vi.mock("@gafus/course-read-server",()=>({readTrainingDayContent:vi.fn(async()=>null)}));
 describe("API authoritative course revision composition",()=>{
   it("reads PostgreSQL on every verification without Redis or fallback to revision zero",async()=>{
     const core=await import("@gafus/core/services/training");
-    await import("./install-content-revision-read");
-    await expect(core.getVerifiedCourseContentRevision()).resolves.toBe("875");
-    await expect(core.getVerifiedCourseContentRevision()).resolves.toBe("875");
+    const { contentRevisionReadPort } = await import("./training-content-rows-instance");
+    await expect(core.getVerifiedCourseContentRevision(contentRevisionReadPort)).resolves.toBe("875");
+    await expect(core.getVerifiedCourseContentRevision(contentRevisionReadPort)).resolves.toBe("875");
     expect(query.durable).toHaveBeenCalledTimes(2);
   });
 });

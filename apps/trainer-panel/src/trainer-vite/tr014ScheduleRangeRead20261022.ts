@@ -2,7 +2,7 @@ import { z } from "zod/v3";
 import type {
   TrainerDailyScheduleItem,
   TrainerDailyScheduleRangeRead,
-} from "../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 export const PATH = "/api/v1/trainer/daily-course/schedule-range";
 const key = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const scheduleDto = z

@@ -118,6 +118,8 @@ export function mapMetaToTrainingDayResponse(
     return {
       id: step.id,
       stepId: step.id,
+      ...(step.stepOnDayId ? { stepOnDayId: step.stepOnDayId } : {}),
+      ...(step.offlineProgressVersion ? { offlineProgressVersion: step.offlineProgressVersion } : {}),
       stepIndex,
       status: (local?.status ?? "NOT_STARTED") as UserStep["status"],
       remainingSec: local?.remainingSec ?? null,

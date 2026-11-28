@@ -8,10 +8,10 @@ import {redactExpiredReminderReceiptPII} from "@gafus/notifications-server/remin
 import {claimNpdReceiptOperation,persistNpdIssuedReceipt,persistNpdCanceledReceipt,markNpdReceiptReconciliation} from "@gafus/subscription-finance-server/npd-operation-persistence";
 import {deleteVersionedCourseRows} from "@gafus/course-server/course-delete-versioned";
 import {readRewardedAdSettingsRow,writeRewardedAdSettingsRow} from "@gafus/gafus-server/rewarded-settings";
-import {getRewardedAdSettings,updateRewardedAdSettings,registerRewardedSettingsPort} from "../../packages/core/src/services/rewardedCredits/settingsService.js";
+import {createRewardedSettingsService} from "../../packages/core/src/services/rewardedCredits/settingsService.js";
 // Isolated smoke runs without the Hono composition root. Wire the exact real
 // server persistence port explicitly, never a fake default or raw Core Prisma.
-registerRewardedSettingsPort({readRewardedAdSettingsRow,writeRewardedAdSettingsRow});
+const {getRewardedAdSettings,updateRewardedAdSettings}=createRewardedSettingsService({readRewardedAdSettingsRow,writeRewardedAdSettingsRow},async()=>false);
 const url=new URL(process.env.DATABASE_URL??"http://invalid");
 if(process.env.GAFUS_LOCAL_ISOLATED_API!=="1"||process.env.GAFUS_ARCH_PHASE_F_REAL_PG!=="1"||
  url.protocol!=="postgresql:"||url.hostname!=="127.0.0.1"||url.pathname!=="/gafus_refactor_arch_phase_f")

@@ -1,3 +1,4 @@
+import { trainerCourseRows } from "../../modules/trainer-courses/composition/trainer-course-rows-instance.js";
 import type { TrainerCourseRowsPort } from "@gafus/core/services/trainerCourse";
 /**
  * Registered full trainer course editor. Uses the existing atomic Core CAS
@@ -38,22 +39,17 @@ export interface TrainerFullCoursePorts {
   ) => Promise<{ success?: boolean; id?: string }>;
   remove: typeof deleteCourseVersioned;
 }
-const production: TrainerFullCoursePorts = {
-  snapshot: getCourseEditorSnapshot,
-  update: updateCourse,
-  create: createCourse,
-  remove: deleteCourseVersioned,
-  countUsers: countExistingCourseUsers,
-  countDays: countEditableCourseDays,
-};
-/** Inject the same SQL transaction/owner-CAS port for all full-form writes. */
 export function createProductionTrainerFullCoursePorts(rowsPort: TrainerCourseRowsPort): TrainerFullCoursePorts {
   return {
-    ...production,
+    snapshot: getCourseEditorSnapshot,
     update: (input, actor) => updateCourse(input, actor, rowsPort),
     create: (input, authorId) => createCourse(input, authorId, rowsPort),
+    remove: deleteCourseVersioned,
+    countUsers: countExistingCourseUsers,
+    countDays: countEditableCourseDays,
   };
 }
+const production = createProductionTrainerFullCoursePorts(trainerCourseRows);
 const BAD = { success: false, code: "BAD_INPUT", error: "Некорректные данные курса" } as const;
 const DENIED = { success: false, code: "FORBIDDEN", error: "Недостаточно прав" } as const;
 const MISSING = { success: false, code: "NOT_FOUND", error: "Курс не найден" } as const;

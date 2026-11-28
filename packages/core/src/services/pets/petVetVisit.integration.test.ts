@@ -27,17 +27,37 @@ vi.mock("@gafus/cdn-upload", async (original) => ({
   vetVisitMediaUrl: vi.fn(async (key) => `https://private.example/${key}?signed=yes`),
 }));
 import {
-  addPetVetAttachment,
-  deletePetVetAttachment,
-  deletePetVetVisit,
-  enqueuePetVetCleanup,
-  getPetVetMedia,
-  listPetVetVisits,
+  addPetVetAttachment as addPetVetAttachmentImpl,
+  deletePetVetAttachment as deletePetVetAttachmentImpl,
+  deletePetVetVisit as deletePetVetVisitImpl,
+  enqueuePetVetCleanup as enqueuePetVetCleanupImpl,
+  getPetVetMedia as getPetVetMediaImpl,
+  listPetVetVisits as listPetVetVisitsImpl,
   petVetVisitSchema,
-  savePetVetVisit,
+  savePetVetVisit as savePetVetVisitImpl,
 } from "./petVetVisitService";
-import { handlePetVetVisitRequest } from "./petVetVisitHttp";
+import { handlePetVetVisitRequest as handlePetVetVisitRequestImpl } from "./petVetVisitHttp";
 import { enqueueGalleryAccountCleanup } from "../gallery/accountCleanup";
+import { vetVisitRows } from "../../../../../apps/api/src/modules/pets/composition/vet-visit-rows-instance";
+import { getOwnVetVisitDetail } from "../../../../../apps/api/src/modules/pets/composition/vet-visit-read";
+
+const savePetVetVisit = (petId: string, ownerId: string, input: unknown, id?: string) =>
+  savePetVetVisitImpl(petId, ownerId, input, id, vetVisitRows);
+const listPetVetVisits = (petId: string, ownerId: string) =>
+  listPetVetVisitsImpl(petId, ownerId, vetVisitRows);
+const deletePetVetVisit = (petId: string, ownerId: string, id: string) =>
+  deletePetVetVisitImpl(petId, ownerId, id, vetVisitRows);
+const addPetVetAttachment = (petId: string, ownerId: string, visitId: string, file: File) =>
+  addPetVetAttachmentImpl(petId, ownerId, visitId, file, vetVisitRows);
+const deletePetVetAttachment = (petId: string, ownerId: string, visitId: string, id: string) =>
+  deletePetVetAttachmentImpl(petId, ownerId, visitId, id, vetVisitRows);
+const getPetVetMedia = (petId: string, ownerId: string, visitId: string, id: string, variant: string) =>
+  getPetVetMediaImpl(petId, ownerId, visitId, id, variant, vetVisitRows);
+const enqueuePetVetCleanup = (tx: Parameters<typeof enqueuePetVetCleanupImpl>[0], petId: string, ownerId: string) =>
+  enqueuePetVetCleanupImpl(tx, petId, ownerId, vetVisitRows);
+const handlePetVetVisitRequest = (req: Request, petId: string, ownerId: string, parts: string[]) =>
+  handlePetVetVisitRequestImpl(req, petId, ownerId, parts, getOwnVetVisitDetail, vetVisitRows);
+
 
 const url = process.env.VET_VISIT_TEST_DATABASE_URL;
 if (url) {

@@ -7,7 +7,7 @@ import {
   removeFavoriteCourse,
   toggleFavoriteCourse,
 } from "./favoriteService";
-import {resolveCourseEntitlement} from "@gafus/core/services/contentAccess";
+import {resolveCourseEntitlement} from "../../../apps/api/src/modules/content-access/composition/content-policy-instance";
 const paidAccessForActor=async(userId:string)=>(await resolveCourseEntitlement({id:"",isPrivate:false,isPaid:true},userId)).allowed;
 import { createWriteFavoriteApplication } from "../../../apps/api/src/modules/courses/application/write-favorite";
 

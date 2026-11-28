@@ -1,3 +1,4 @@
+import { setOfflineCoursePrincipal } from "./offlineCourseSession";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fsMock = vi.hoisted(() => ({
@@ -21,6 +22,8 @@ import { downloadHLSForOffline } from "./downloadHLSForOffline";
 
 describe("AG3 G1 native HLS writer path confinement", () => {
   beforeEach(() => {
+    setOfflineCoursePrincipal(null);
+    setOfflineCoursePrincipal("owner-A", true);
     vi.clearAllMocks();
     fsMock.downloadAsync.mockReset().mockResolvedValue({ status: 200 });
     getVideoUrlMock.mockResolvedValue({
@@ -60,10 +63,10 @@ describe("AG3 G1 native HLS writer path confinement", () => {
     await expect(downloadHLSForOffline("https://fixture.invalid/video.mp4", "base", "clip-1")).resolves.toBeUndefined();
     expect(fsMock.downloadAsync).toHaveBeenCalledWith(
       "https://fixture.invalid/hls/0001.ts?sig=demo-only",
-      "file:///ag3-native-fixture/offline/base/videos/clip-1/0001.ts",
+      "file:///ag3-native-fixture/offline-v2/owner-A/base/videos/clip-1/0001.ts",
     );
     expect(fsMock.writeAsStringAsync).toHaveBeenCalledWith(
-      "file:///ag3-native-fixture/offline/base/videos/clip-1/manifest.m3u8",
+      "file:///ag3-native-fixture/offline-v2/owner-A/base/videos/clip-1/manifest.m3u8",
       "#EXTM3U\n#EXTINF:4,\n0001.ts",
     );
   });
@@ -87,7 +90,7 @@ describe("AG3 G1 native HLS writer path confinement", () => {
     const destinations = transfers.map(({ destination }) => destination);
     expect(new Set(destinations).size).toBe(2);
     expect(destinations.every((dest) =>
-      dest.startsWith("file:///ag3-native-fixture/offline/base/videos/clip-1/"),
+      dest.startsWith("file:///ag3-native-fixture/offline-v2/owner-A/base/videos/clip-1/"),
     )).toBe(true);
     const manifest = fsMock.writeAsStringAsync.mock.calls.at(-1)?.[1] as string;
     const localReferences = manifest.split("\n").filter((line) => line.endsWith(".ts"));
@@ -95,7 +98,7 @@ describe("AG3 G1 native HLS writer path confinement", () => {
     expect(new Set(localReferences).size).toBe(2);
     for (let i = 0; i < destinations.length; i++) {
       expect(destinations[i]).toBe(
-        "file:///ag3-native-fixture/offline/base/videos/clip-1/" + localReferences[i],
+        "file:///ag3-native-fixture/offline-v2/owner-A/base/videos/clip-1/" + localReferences[i],
       );
     }
   });
@@ -116,8 +119,8 @@ describe("AG3 G1 native HLS writer path confinement", () => {
     await downloadHLSForOffline("https://fixture.invalid/video.mp4", "base", "clip-1");
 
     const transfers = fsMock.downloadAsync.mock.calls.map(([, destination]) => String(destination));
-    const manifestPath = "file:///ag3-native-fixture/offline/base/videos/clip-1/manifest.m3u8";
-    const posterPath = "file:///ag3-native-fixture/offline/base/videos/clip-1/poster.jpg";
+    const manifestPath = "file:///ag3-native-fixture/offline-v2/owner-A/base/videos/clip-1/manifest.m3u8";
+    const posterPath = "file:///ag3-native-fixture/offline-v2/owner-A/base/videos/clip-1/poster.jpg";
     expect(transfers.filter((path) => path === manifestPath)).toHaveLength(0);
     expect(transfers.filter((path) => path === posterPath)).toHaveLength(1);
     const rewritten = String(fsMock.writeAsStringAsync.mock.calls.at(-1)?.[1]);
@@ -188,10 +191,10 @@ describe("AG3 G1 native HLS writer path confinement", () => {
     await expect(downloadHLSForOffline("https://fixture.invalid/video.mp4", "base", "clip-1")).resolves.toBeUndefined();
     expect(fsMock.downloadAsync).toHaveBeenCalledWith(
       "https://fixture.invalid/hls/0001.ts",
-      "file:///ag3-native-fixture/offline/base/videos/clip-1/0001.ts",
+      "file:///ag3-native-fixture/offline-v2/owner-A/base/videos/clip-1/0001.ts",
     );
     expect(fsMock.writeAsStringAsync).toHaveBeenCalledWith(
-      "file:///ag3-native-fixture/offline/base/videos/clip-1/manifest.m3u8",
+      "file:///ag3-native-fixture/offline-v2/owner-A/base/videos/clip-1/manifest.m3u8",
       expect.stringContaining("0001.ts"),
     );
   });

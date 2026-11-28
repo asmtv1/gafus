@@ -32,3 +32,26 @@ jobs:
           script: bash /root/gafus/ci-cd/scripts/backup-to-yandex.sh
         env:
           YANDEX_DISK_TOKEN: ${{ secrets.YANDEX_DISK_TOKEN }}
+
+  # Activate only after provisioning a dedicated, non-root backup runner,
+  # read-only database role, independent archive and approved retention.
+  # The existing database-only backup is intentionally not a dependency.
+  external-backup:
+    if: github.ref == 'refs/heads/main' && vars.GAFUS_EXTERNAL_BACKUP_ENABLED == 'true'
+    runs-on: [self-hosted, linux, gafus-backup]
+    timeout-minutes: 180
+    environment: external-backup
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Capture encrypted DB and S3 snapshot in independent storage
+        env:
+          GAFUS_EXTERNAL_BACKUP_CAPTURE_APPROVED: encrypted-independent-archive
+          GAFUS_EXTERNAL_BACKUP_CONFIG: /var/lib/gafus-backup/config.json
+          GAFUS_EXTERNAL_BACKUP_KEY_FILE: /var/lib/gafus-backup/key.bin
+          GAFUS_EXTERNAL_BACKUP_SCRATCH: /var/lib/gafus-backup/scratch
+          GAFUS_EXTERNAL_BACKUP_PG_BIN: /opt/gafus-backup/pg/bin
+          GAFUS_EXTERNAL_BACKUP_PG_SERVICE_FILE: /var/lib/gafus-backup/pg_service.conf
+          GAFUS_EXTERNAL_BACKUP_PG_PASS_FILE: /var/lib/gafus-backup/pgpass
+        run: bash ci-cd/scripts/external-backup/scheduled-capture.sh

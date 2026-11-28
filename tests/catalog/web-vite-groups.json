@@ -2,7 +2,7 @@
   "schema": 1,
   "source": "apps/web-vite/src/**/*.{test,spec}.{js,jsx,ts,tsx,cjs,mjs,cts,mts}",
   "legacyCommand": "node --test vite.config.test.mjs && vitest run src --maxWorkers=1",
-  "groupFingerprint": "efd7e3a0adf2f1b6bf7d7536cc4859275157d8ace117d3f5e0856b2d80b6befe",
+  "groupFingerprint": "519be9df8d6098b30447dc3112c3570b775e33bfcc83618f4ccef1166c95a925",
   "groups": [
     {
       "id": "vite-config",
@@ -82,6 +82,7 @@
         "src/features/chats/Chat2Messenger.layout.mounted.test.tsx",
         "src/features/chats/Chat2Messenger.lightbox-close.test.ts",
         "src/features/chats/Chat2Messenger.palette.test.ts",
+        "src/features/chats/Chat2Messenger.stage11.mounted.test.tsx",
         "src/features/chats/Chat2Messenger.viewport.test.ts",
         "src/features/chats/Chat2StaffQueue.test.tsx",
         "src/features/chats/chat2-attachment-upload.test.ts",
@@ -508,6 +509,7 @@
       "mode": "vitest",
       "files": [
         "src/shared/media/browserVideoPoster.test.ts",
+        "src/shared/media/observeFirstVideoFrame.test.ts",
         "src/shared/media/photoRetryMessage.test.ts",
         "src/shared/media/videoPlaybackPolicy.test.ts",
         "src/shared/media/videoQualityTelemetry.test.ts",
@@ -517,14 +519,15 @@
         "src/shared/router/legacy-inventory.test.tsx",
         "src/shared/router/legacy-route-compat.test.tsx",
         "src/shared/router/location.test.tsx",
-        "src/shared/ui/BackButton.test.tsx",
-        "src/shared/ui/Buttons.test.tsx"
+        "src/shared/router/routeAccess.test.ts"
       ]
     },
     {
       "id": "shared-03",
       "mode": "vitest",
       "files": [
+        "src/shared/ui/BackButton.test.tsx",
+        "src/shared/ui/Buttons.test.tsx",
         "src/shared/ui/Loading.test.tsx",
         "src/shared/ui/SelectChevron.test.tsx"
       ]

@@ -1,3 +1,4 @@
+import { readAdminUserPage } from "@gafus/identity-write-server/admin-user-reads";
 import { getFreePartnerPromoCodesForAdminPanel } from "@gafus/subscription-write-server";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -24,6 +25,14 @@ import { requireRole } from "../../middleware/auth.js";
 /** Next users/page.tsx read parity: registered staff DB role + user list + free partner promos. */
 export const adminUsersRoutes = new Hono();
 
+const pageQuery = z.object({
+  page: z.coerce.number().int().min(1).max(10000).default(1),
+  pageSize: z.coerce.number().int().refine(v => v === 10 || v === 25 || v === 50).default(25),
+  search: z.string().trim().max(128).default(""),
+  sort: z.enum(["createdAt","username","role","email","registrationChannel","promoCode","notifications"]).default("createdAt"),
+  direction: z.enum(["asc","desc"]).default("desc"),
+});
+
 adminUsersRoutes.get("/", requireRole("ADMIN", "MODERATOR"), async (c) => {
   c.header("Cache-Control", "private, no-store");
   c.header("Referrer-Policy", "no-referrer");
@@ -31,6 +40,16 @@ adminUsersRoutes.get("/", requireRole("ADMIN", "MODERATOR"), async (c) => {
     const actorId = c.get("user").id;
     // Revalidate CURRENT DB role before accessing the PII-containing user list.
     const freePartnerPromoCodes = await getFreePartnerPromoCodesForAdminPanel(actorId);
+    if (c.req.query("page") !== undefined) {
+      const parsed = pageQuery.safeParse(c.req.query());
+      if (!parsed.success) return c.json({ success: false, code: "INVALID_PAGE" }, 400);
+      const page = await readAdminUserPage({
+        ...parsed.data, pageSize: parsed.data.pageSize as 10 | 25 | 50,
+      });
+      return c.json({ success: true, data: { ...page, freePartnerPromoCodes } });
+    }
+    // Compatibility for an already-open old Admin bundle; the new panel
+    // always requests the bounded protocol.
     const result = await getAllUsers();
     if (!result.success) return c.json({ success: false, code: "ADMIN_USERS_UNAVAILABLE" }, 503);
     return c.json({ success: true, data: { users: result.data, freePartnerPromoCodes } });

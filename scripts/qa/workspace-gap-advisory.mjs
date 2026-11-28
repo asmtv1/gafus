@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Opt-in, network-blocked inventory-gap smoke pilot.
- * Called by 13 package test:unit scripts, excluded from turbo test and CI/full.
+ * Called by 12 package test:unit scripts, excluded from turbo test and CI/full.
  * A passing group proves only the listed existing test files, not the package.
  */
 import assert from 'node:assert/strict';
@@ -24,8 +24,9 @@ function checkedInventory(){
   assert.equal(inventory.schema,1,'INVENTORY_SCHEMA');
   const byName=new Map(inventory.workspaces.map(w=>[w.name,w]));
   const routed=inventory.workspaces.filter(w=>w.advisoryUnitOnly===true);
-  assert.equal(routed.length,13,'REVIEWED_13_ADVISORY_ROUTES_CHANGED');
-  assert.equal(groups.length,13,'ALL_THIRTEEN_EXPECTED_PARTIAL_ROUTES');
+  assert.equal(routed.length,12,'REVIEWED_12_ADVISORY_ROUTES_CHANGED');
+  assert.equal(groups.length,12,'ALL_TWELVE_EXPECTED_PARTIAL_ROUTES');
+  assert.deepEqual(groups.map(g=>g.name).sort(),routed.map(w=>w.name).sort(),'ADVISORY_ROUTE_MEMBERSHIP_CHANGED');
   for(const g of groups){
     const ws=byName.get(g.name);
     const expected='node ../../scripts/qa/workspace-gap-advisory.mjs --run --package '+g.name;

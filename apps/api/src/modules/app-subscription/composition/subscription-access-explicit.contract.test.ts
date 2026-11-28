@@ -22,6 +22,6 @@ describe("explicit premium read-only SQL port", () => {
     expect(denied.getAppSubscriptionAccess).toHaveBeenCalledExactlyOnceWith("owner-B", now);
     expect(paid.getCynologistEntitlements).toHaveBeenCalledExactlyOnceWith("owner-A", now);
     expect(denied.getCynologistEntitlements).toHaveBeenCalledExactlyOnceWith("owner-B", now);
-    await expect(core.getAppSubscriptionAccess("owner-C")).rejects.toThrow("SUBSCRIPTION_ACCESS_PORT_UNBOUND");
+    await expect(core.getAppSubscriptionAccess("owner-C", now, undefined as unknown as SubscriptionAccessPorts)).rejects.toThrow("SUBSCRIPTION_ACCESS_PORT_UNBOUND");
   });
 });

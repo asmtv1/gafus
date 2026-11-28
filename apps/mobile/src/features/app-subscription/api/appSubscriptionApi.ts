@@ -1,89 +1,18 @@
-import type { AppSubscriptionTier } from "@gafus/types";
+import type { AppSubscriptionPlanCode as CanonicalAppSubscriptionPlanCode, AppSubscriptionStatusDto as CanonicalStatus, LegacyMobileSubscriptionPlanOffer, LegacyMobileSubscriptionOffer } from "@gafus/types";
 import { apiClient, type ApiResponse } from "@/shared/lib/api/client";
 import { getMobileClientHeaders } from "@/shared/lib/api/client-context";
 
 const isDev = typeof __DEV__ !== "undefined" && __DEV__;
 
-export type AppSubscriptionStatusDto = {
-  hasActiveSubscription: boolean;
-  paidAt: string | null;
-  activeUntil: string | null;
-  isTrial: boolean;
-  trialEndsAt: string | null;
-  isLifetime: boolean;
-  provider: "YOOKASSA" | "APPLE" | "GOOGLE_PLAY" | "MANUAL" | null;
-  planCode: AppSubscriptionPlanCode | null;
-  planTier?: AppSubscriptionTier | null;
-  status:
-    | "ACTIVE"
-    | "PENDING"
-    | "PAST_DUE"
-    | "CANCELED"
-    | "EXPIRED"
-    | "REFUNDED"
-    | "REVOKED"
-    | null;
-  cancelAtPeriodEnd: boolean;
-  hasSavedPaymentMethod: boolean;
-  paymentMethodLast4: string | null;
-  paymentMethodTitle: string | null;
-  nextChargeAt: string | null;
-  /** @deprecated New trials are disabled; retained for older API compatibility. */
-  yookassaTrialAvailable: boolean;
-  yookassaTrialDays: number;
-  /** @deprecated New trials are disabled; retained for older API compatibility. */
-  yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED" | null;
-};
+/** The old client billing code intentionally excludes retired weekly offers. */
+export type AppSubscriptionPlanCode = Exclude<CanonicalAppSubscriptionPlanCode, "WEEKLY">;
+export type AppSubscriptionStatusDto = Omit<CanonicalStatus, "planCode"> & { planCode: AppSubscriptionPlanCode | null };
+export type AppSubscriptionPlanBadge = AppSubscriptionPlanOfferDto["badge"];
+export type AppSubscriptionPlanOfferDto = LegacyMobileSubscriptionPlanOffer;
+export type AppSubscriptionOfferDto = LegacyMobileSubscriptionOffer;
 
-export type AppSubscriptionPlanCode = "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS";
-export type AppSubscriptionPlanBadge = "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
-
-export type AppSubscriptionPlanOfferDto = {
-  code: AppSubscriptionPlanCode;
-  planTier?: AppSubscriptionTier;
-  label: string;
-  title: string;
-  intervalDays: number;
-  currency: "RUB";
-  yookassaPriceRub: number;
-  enabled: boolean;
-  appleProductId: string | null;
-  /** Older API versions omit this field; clients derive it from planCode as a fallback. */
-  offlineCourseDownloadIncluded?: boolean;
-  consultationBookingIncluded: boolean;
-  cynologistChatIncluded?: boolean;
-  promoCodeEligible: boolean;
-  badge: AppSubscriptionPlanBadge;
-  savingsRub: number | null;
-};
-
-export type AppSubscriptionOfferDto = {
-  /** Legacy fallback for clients released before the multi-period YooKassa offer. */
-  plans: AppSubscriptionPlanOfferDto[];
-  yookassaPlans: AppSubscriptionPlanOfferDto[];
-  applePlan: AppSubscriptionPlanOfferDto | null;
-  appleAppAccountToken: string | null;
-  iosRuCardPaymentEnabled: boolean;
-  androidQaCardPaymentEnabled?: boolean;
-  promoCode: {
-    entryEnabled: boolean;
-    eligible: boolean;
-  };
-  /** Saved registration selection and lifecycle status for an explicit checkout warning. */
-  savedRegistrationPromoCode: { code: string; status: "ACTIVE" | "INACTIVE" | "ARCHIVED" } | null;
-};
-
-export type AppSubscriptionPromoCodePreviewDto = {
-  code: string;
-  revision: number;
-  planCode: Extract<AppSubscriptionPlanCode, "MONTHLY" | "THREE_MONTHS">;
-  discountPercent: number;
-  originalPriceRub: number;
-  discountedPriceRub: number;
-  renewalPriceRub: number;
-  intervalDays: number;
-  currency: "RUB";
-};
+import type { AppSubscriptionPromoCodePreviewDto } from "@gafus/types";
+export type { AppSubscriptionPromoCodePreviewDto } from "@gafus/types";
 
 export const appSubscriptionApi = {
   getStatus(): Promise<ApiResponse<AppSubscriptionStatusDto>> {

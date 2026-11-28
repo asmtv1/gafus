@@ -171,7 +171,7 @@ vi.mock("./FeedPostActions", async () => {
   };
 });
 import { useAuthStore } from "@/shared/stores";
-import { FeedPostCard } from "./screens";
+import { FeedPostCard } from "./FeedPostCard";
 import type { FeedPostDto } from "@gafus/types";
 const userFixture = (id: string) => ({
   id,

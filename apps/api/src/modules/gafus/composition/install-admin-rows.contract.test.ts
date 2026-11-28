@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 const captured = vi.hoisted(() => ({ bound: vi.fn(), transaction: vi.fn() }));
-vi.mock("@gafus/core/services/adminGafus", () => ({ registerGafusAdminRowsPort: captured.bound }));
 vi.mock("@gafus/gafus-server/admin-rows", () => ({ withGafusAdminRows: captured.transaction }));
 
 describe("Gafus admin rows SQL composer", () => {
@@ -10,9 +9,7 @@ describe("Gafus admin rows SQL composer", () => {
       expect(options).toEqual({ maxWait: 10000, timeout: 30000 });
       return action(token);
     });
-    await import("./install-admin-rows");
-    expect(captured.bound).toHaveBeenCalledTimes(1);
-    const port = captured.bound.mock.calls[0]?.[0];
+    const { adminRows: port } = await import("./admin-rows-instance");
     const action = vi.fn(async (rows) => rows);
     await expect(port.withTransaction(action, { maxWait: 10000, timeout: 30000 })).resolves.toBe(token);
     expect(action).toHaveBeenCalledExactlyOnceWith(token);

@@ -1,11 +1,17 @@
+import { createCountDueChat2VideoRecovery } from "@gafus/media-server/chat2-video-recovery";
 import {describe,it,expect,vi} from "vitest";
 import {createChat2MediaRecoveryTick} from "./chat2-media-recovery.js";
+// These unit tests supply a DB delegate and a dispatch mock; no runtime DB or telemetry.
+vi.mock("@gafus/prisma", () => ({ prisma: {} }));
+vi.mock("./cloudru-media-dispatcher.js", () => ({
+  createCloudruChatPoolDispatcher: vi.fn(), createCloudruFeedPoolDispatcher: vi.fn(),
+}));
 const current=()=>new Date("2026-10-27T20:00:00.000Z");
 function mock(groups:Array<{sourceMime:string;_count:{_all:number}}>) {
  const groupBy=vi.fn(async(_args:unknown)=>groups);
  const video=vi.fn(async()=>({dispatched:1}));
  return {groupBy,video,run:createChat2MediaRecoveryTick({
-   database:{chat2V2MediaTask:{groupBy}} as never,video:video as never,now:current,
+   countDueVideos: createCountDueChat2VideoRecovery({ chat2V2MediaTask: {groupBy} } as never),video:video as never,now:current,
  })};
 }
 describe("Chat2 video-only durable Cloud recovery",()=>{

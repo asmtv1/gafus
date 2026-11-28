@@ -15,17 +15,21 @@ const m=vi.hoisted(()=>({
 }));
 vi.mock("@gafus/auth/jwt",()=>({verifyAccessToken:m.jwt}));
 vi.mock("@gafus/core/services/auth",()=>({isRegistrationCompleted:m.reg}));
-vi.mock("@gafus/core/services/training",()=>({
- getTrainingDays:vi.fn(),getTrainingDayWithMonetizedSteps:vi.fn(),requireCourseStepOperationAccess:m.access,
- syncUserCourseStatusFromDays:m.sync,updateStepAndDay:m.step,validateTheoryStepForCompletion:m.theory,
-}));
+vi.mock("../../modules/training/composition/sql-training-instance.js", () => ({ sqlTraining: {
+  getTrainingDays:vi.fn(),
+  getTrainingDayWithMonetizedSteps:vi.fn(),
+  requireCourseStepOperationAccess:m.access,
+  syncUserCourseStatusFromDays:m.sync,
+  updateStepAndDay:m.step,
+  validateTheoryStepForCompletion:m.theory
+} }));
 vi.mock("../../modules/daily-course/composition/dailyCourseApplication.js",()=>({getDailyCourseDayWithUserSteps:vi.fn(),getTodayDailyCourse:vi.fn(),updateDailyCourseStepAndDay:m.daily}));
 vi.mock("@gafus/core/services/petPrevention",async()=>{
  const schema=await import("../../../../../packages/core/src/services/petPrevention/schemas");
  return {...schema,upsertPreventionEntriesBatch:m.prevention,createEntry:vi.fn(),updateEntry:vi.fn(),deleteEntry:vi.fn(),getEntriesByPet:vi.fn()};
 });
 vi.mock("../../modules/training/composition/diary-rows",()=>({getDiaryEntries:vi.fn(),saveDiaryEntry:vi.fn()}));
-vi.mock("@gafus/core/services/course",()=>({checkCourseAccess:vi.fn()}));
+vi.mock("../../modules/courses/composition/catalog-read-instance.js",()=>({checkCourseAccess:vi.fn()}));
 vi.mock("@gafus/core/services/rewardedCredits",()=>({SubscriptionOrCreditsRequiredError:class extends Error{},requirePremiumOrRewardedAccessForVideoUrl:vi.fn()}));
 vi.mock("../../modules/video/composition/video-access.js",()=>({getProgress:vi.fn(),checkVideoAccess:m.vidAccess,getVideoManifestInfo:m.vid,saveProgress:m.saveVideo}));
 vi.mock("@gafus/course-server/video-progress", () => ({ getProgress: vi.fn(), saveProgress: m.saveVideo }));

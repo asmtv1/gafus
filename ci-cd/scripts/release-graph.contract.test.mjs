@@ -150,6 +150,8 @@ test('Vite public bits compile exactly once with sealed private maps, then trans
   const privateArchive=app.steps.find(s=>s.name?.startsWith('Upload immutable private Web release maps from build-apps'));
   const publicUpload=app.steps.find(s=>s.name?.startsWith('Upload public Vite release artifacts'));
   assert.equal(compile.env.GAFUS_PRIVATE_MAPS_ENABLED,'true');
+  assert.equal(compile.env.TURBO_FORCE,'true',
+    'Private sealed maps are outside Turbo outputs: release builds must bypass cache reads');
   assert.equal(compile.env.GAFUS_RELEASE_SHA,'${{ github.sha }}');
   assert.equal(compile.env.VITE_GAFUS_BUILD_ID,'${{ github.sha }}');
   assert(compile.run.includes('--concurrency=1') && compile.run.includes('github.base_ref'),
@@ -194,4 +196,21 @@ test('Vite public bits compile exactly once with sealed private maps, then trans
   const turbo=JSON.parse(readFileSync('turbo.json','utf8'));
   for(const key of ['GAFUS_PRIVATE_MAPS_ENABLED','GAFUS_PRIVATE_MAPS_DIR','GAFUS_RELEASE_SHA','VITE_GAFUS_BUILD_ID'])
     assert(turbo.globalEnv.includes(key),`TURBO_STRICT_ENV_LOSES_RELEASE_ID:${key}`);
+});
+
+test('Admin uses one canonical Vite config for build, dev and preview', () => {
+  const root='apps/admin-panel';
+  const manifest=JSON.parse(readFileSync(root+'/package.json','utf8'));
+  for (const [name,command] of Object.entries({build:'vite build',dev:'vite',start:'vite preview'})) {
+    assert(manifest.scripts[name].startsWith(command+' --config vite.config.mjs'),
+      'ADMIN_VITE_NONCANONICAL_ENTRY:'+name);
+  }
+  assert(existsSync(root+'/vite.config.mjs'));
+  assert(!existsSync(root+'/src/admin-live/vite.config.mjs'),
+    'ADMIN_VITE_ORPHAN_CONFIG_REINTRODUCED');
+  const config=readFileSync(root+'/vite.config.mjs','utf8');
+  assert.match(config,/new URL\("\.\/src\/admin-live\/", import\.meta\.url\)/);
+  assert.match(config,/new URL\("\.\/dist\/", import\.meta\.url\)/);
+  assert.match(readFileSync('ci-cd/docker/Dockerfile-admin-panel-optimized','utf8'),
+    /COPY apps\/admin-panel\/dist\//);
 });

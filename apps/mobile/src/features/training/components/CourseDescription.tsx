@@ -1,3 +1,4 @@
+import { useOfflineCourseScopeVersion } from "@/shared/hooks/useOfflineCourseScopeVersion";
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { View, StyleSheet, Pressable, Linking } from "react-native";
 import { Text, Surface } from "react-native-paper";
@@ -33,7 +34,12 @@ const LEVEL_LABELS: Record<string, string> = {
 /**
  * Компонент описания курса с возможностью сворачивания/разворачивания (как на web)
  */
-export function CourseDescription({
+export function CourseDescription(props: CourseDescriptionProps) {
+  const scopeVersion = useOfflineCourseScopeVersion();
+  return <CourseDescriptionContent key={scopeVersion} {...props} />;
+}
+
+function CourseDescriptionContent({
   description,
   equipment,
   trainingLevel,

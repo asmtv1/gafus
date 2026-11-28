@@ -57,7 +57,7 @@ beforeEach(()=>{
 });
 describe("real Core owner-pet photo upload orchestration",()=>{
   it("uploads own key, locks owner, writes and verifies DB, then removes old",async()=>{
-    expect(await updatePetPhoto("p","u",jpeg())).toBe(fresh);
+    expect(await updatePetPhoto(petRows, "p","u",jpeg())).toBe(fresh);
     expect(m.find).toHaveBeenCalledWith({where:{id:"p",ownerId:"u"},select:{id:true}});
     expect(m.upload).toHaveBeenCalledTimes(1);
     expect(m.tx).toHaveBeenCalledTimes(1);
@@ -72,14 +72,14 @@ describe("real Core owner-pet photo upload orchestration",()=>{
   });
   it("foreign pet rejected before S3 upload",async()=>{
     m.find.mockResolvedValueOnce(null);
-    await expect(updatePetPhoto("p","intruder",jpeg()))
+    await expect(updatePetPhoto(petRows, "p","intruder",jpeg()))
       .rejects.toThrow("не принадлежит пользователю");
     expect(m.upload).not.toHaveBeenCalled();
     expect(m.tx).not.toHaveBeenCalled();
   });
   it("DB rollback after upload deletes candidate but keeps previous location",async()=>{
     m.tx.mockRejectedValueOnce(Error("PG_TEST_ROLLBACK"));
-    await expect(updatePetPhoto("p","u",jpeg()))
+    await expect(updatePetPhoto(petRows, "p","u",jpeg()))
       .rejects.toThrow("PG_TEST_ROLLBACK");
     expect(m.state.photo).toBe(old);
     expect(m.remove).toHaveBeenCalledTimes(1);
@@ -91,7 +91,7 @@ describe("real Core owner-pet photo upload orchestration",()=>{
       await fn({$queryRaw:m.query,pet:{findFirst:m.find,update:m.update}});
       throw Error("COMMIT_ACK_LOST");
     });
-    expect(await updatePetPhoto("p","u",jpeg())).toBe(fresh);
+    expect(await updatePetPhoto(petRows, "p","u",jpeg())).toBe(fresh);
     expect(m.state.photo).toBe(fresh);
     expect(m.remove).not.toHaveBeenCalled();
   });
@@ -107,7 +107,7 @@ describe("real Core owner-pet photo upload orchestration",()=>{
       m.state.photo=data.photoUrl;
       return {id:"p",photoUrl:data.photoUrl};
     });
-    const stored=await updatePetPhoto("p","u",jpeg());
+    const stored=await updatePetPhoto(petRows, "p","u",jpeg());
     expect(stored).toMatch(/^isodev-avatar:documents\/uploads\/users\/u\/pets\/p\//);
     expect(m.events).toEqual([
       "INTENT:candidate:"+stored,
@@ -121,15 +121,15 @@ describe("real Core owner-pet photo upload orchestration",()=>{
   });
   it("malicious extension or MIME cannot construct S3 key",async()=>{
     const svg=new File(["<svg>"],"../x.svg",{type:"image/svg+xml"});
-    await expect(updatePetPhoto("p","u",svg)).rejects.toThrow("расширение");
+    await expect(updatePetPhoto(petRows, "p","u",svg)).rejects.toThrow("расширение");
     const mislabeled=new File(["hello"],"../x.jpg",{type:"image/png"});
-    await expect(updatePetPhoto("p","u",mislabeled)).rejects.toThrow("формат");
+    await expect(updatePetPhoto(petRows, "p","u",mislabeled)).rejects.toThrow("формат");
     expect(m.upload).not.toHaveBeenCalled();
   });
 });
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
+import type { PetRowsPort } from "./petRowsPort";
 import * as originalMediaOutboxAdapter from "@gafus/pets-server/pet-media-deletion-sql";
-registerPetRowsPort({ ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort);
+const petRows = { ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort;

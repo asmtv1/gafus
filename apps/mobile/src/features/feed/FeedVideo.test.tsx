@@ -12,6 +12,8 @@ const { sources, statusListeners, endListeners, prefers, fallbackRequest, player
     replaceAsync: ReturnType<typeof vi.fn>; replay: ReturnType<typeof vi.fn>;
     currentTime: number; playing: boolean }[],
 }));
+// Telemetry is a network boundary; mounted tests use the native view with a local ACK.
+vi.mock("@/shared/lib/api/client", () => ({ apiClient: vi.fn(async () => ({ success: true })) }));
 vi.mock("@expo/vector-icons", async () => {
   const R = await import("react");
   return { MaterialCommunityIcons: ({ name }: { name: string }) =>

@@ -42,13 +42,8 @@ export interface GafusAdminRowsPort {
   withTransaction<T>(operation: (rows: GafusAdminRows) => Promise<T>,
     options?: { maxWait: number; timeout: number }): Promise<T>;
 }
-let bound: Readonly<GafusAdminRowsPort> | null = null;
-export function registerGafusAdminRowsPort(port: GafusAdminRowsPort): void {
-  if (bound && bound !== port) throw new Error("GAFUS_ADMIN_ROWS_PORT_ALREADY_BOUND");
-  bound = port;
-}
 export function withGafusAdminRows<T>(operation: (rows: GafusAdminRows) => Promise<T>,
-  options?: { maxWait: number; timeout: number }): Promise<T> {
-  if (!bound) throw new Error("GAFUS_ADMIN_ROWS_PORT_UNBOUND");
-  return bound.withTransaction(operation, options);
+  options?: { maxWait: number; timeout: number }, port?: GafusAdminRowsPort): Promise<T> {
+  if (!port) throw new Error("GAFUS_ADMIN_ROWS_PORT_UNBOUND");
+  return port.withTransaction(operation, options);
 }

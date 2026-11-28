@@ -69,6 +69,8 @@ tests:
           - exp_labels:
               severity: critical
             exp_annotations:
+              owner: chat2-worker
+              runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#chat2-outbox"
               summary: "Chat2 has queued events but no successful dispatches for ten minutes"
   - name: postgres_connections_capacity_exceeded
     interval: 1m
@@ -98,6 +100,8 @@ tests:
               job: api-operations
               severity: warning
             exp_annotations:
+              owner: observability
+              runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
               summary: "API operations metrics endpoint is not being scraped"
       - eval_time: 20m
         alertname: GafusApiMetricsMissing
@@ -133,6 +137,8 @@ tests:
           - exp_labels:
               severity: warning
             exp_annotations:
+              owner: chat2-worker
+              runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#chat2-outbox"
               summary: "GAFUS Chat2 outbox has sustained excessive dispatch retries"
       - eval_time: 31m
         alertname: GafusChat2DispatchRetryStorm

@@ -38,8 +38,8 @@ describe("Credential registration is composed only from authoritative transactio
   });
   it("propagates unknown server errors, never returns a fabricated success", async () => {
     const c = await import("./registerUserWithCredentials");
-    const p = noopPort();c.registerCredentialRegistrationPort(p);
-    await expect(c.registerUserWithCredentials(input)).rejects.toThrow("SERVER_TX_ABORT");
+    const p = noopPort();const fixtureCredentialRegistrationPort = p;
+    await expect(c.registerUserWithCredentials(input, fixtureCredentialRegistrationPort)).rejects.toThrow("SERVER_TX_ABORT");
     expect(p.withRegistrationTransaction).toHaveBeenCalledTimes(1);
   });
   it("routes two independent instances to their own transaction without global binding", async () => {
@@ -55,10 +55,5 @@ describe("Credential registration is composed only from authoritative transactio
     await expect(c.registerUserWithCredentials(input)).rejects.toThrow("CREDENTIAL_REGISTRATION_PORT_UNBOUND");
   });
 
-  it("cannot hot-swap a registration transaction adapter", async () => {
-    const c = await import("./registerUserWithCredentials");
-    const p = noopPort();c.registerCredentialRegistrationPort(p);c.registerCredentialRegistrationPort(p);
-    expect(() => c.registerCredentialRegistrationPort(noopPort()))
-      .toThrow("CREDENTIAL_REGISTRATION_PORT_ALREADY_BOUND");
-  });
+
 });

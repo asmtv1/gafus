@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import { z } from "zod/v3";
-import { listCompletedDogWalks, syncCompletedDogWalks, syncDogWalkTrackPoints, listDogWalkTrackPoints, listDeletedDogWalkIds, deleteDogWalk } from "@gafus/tracking-server/walks";
+import { listCompletedDogWalks, syncCompletedDogWalks, writeCompletedDogWalks, readDogWalkChanges, syncDogWalkTrackPoints, listDogWalkTrackPoints, listDeletedDogWalkIds, deleteDogWalk } from "@gafus/tracking-server/walks";
 
 export const walksRoutes = new Hono();
 walksRoutes.use("*", async (c, next) => {
@@ -48,6 +48,13 @@ function responseError(c: Context, error: unknown) {
 
 walksRoutes.get("/", async c => {
   try {
+    if (c.req.query("view") === "changes") {
+      const cursor = c.req.query("after");
+      if (cursor !== undefined && (!/^(0|[1-9]\d{0,18})$/.test(cursor) || BigInt(cursor) > 9223372036854775807n))
+        return c.json({ success: false, code: "INVALID_CURSOR" }, 400);
+      const data = await readDogWalkChanges(c.get("user").id, cursor === undefined ? undefined : BigInt(cursor));
+      return c.json({ success: true, data });
+    }
     const data = await listCompletedDogWalks(c.get("user").id);
     return c.json({ success: true, data });
   } catch (error) {
@@ -69,6 +76,10 @@ walksRoutes.put("/sync", async c => {
     return c.json({ success: false, code: "INVALID_WALKS" }, 400);
   }
   try {
+    if (c.req.query("response") === "ack") {
+      await writeCompletedDogWalks(c.get("user").id, payload.walks);
+      return c.json({ success: true, data: { accepted: payload.walks.map(row => row.clientId) } });
+    }
     const data = await syncCompletedDogWalks(c.get("user").id, payload.walks);
     return c.json({ success: true, data });
   } catch (error) {

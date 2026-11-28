@@ -43,7 +43,7 @@ export async function getCoursePathData(
       return { success: false, error: "Курс не найден" };
     }
 
-    const diaryResult = await getDiaryEntries(diaryPersistence, userId, courseId);
+    const diaryResult = await getDiaryEntries(diaryPersistence, reads.checkCourseAccess, userId, courseId);
     if (diaryResult.error) {
       logger.warn("Diary entries error");
       return { success: false, error: diaryResult.error };

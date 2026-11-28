@@ -21,7 +21,7 @@ import { pickMedia } from "@/shared/lib/media/mediaPicker";
 import { photoRetryMessage, photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
 import { PhotoUploadStageError, logPhotoUploadFailure, photoStageDiagnostic } from "@/shared/lib/media/photoUploadStage";
 import { questionPhotoReadIdentity } from "./photoReadIdentity";
-import { allowQuestionsS3Fallback } from "./questionPhotoCdnFallback";
+import { allowQuestionsS3Fallback } from "@gafus/core-client/media-delivery";
 import { questionPhotoTerminalNotice } from "./photoDisplay";
 import { questionPhotoPreviewSource } from "./photoPreviewSource";
 import { questionPhotoGridRows, questionSinglePhotoPreviewRatio,

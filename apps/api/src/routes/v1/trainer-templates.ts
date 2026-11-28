@@ -1,3 +1,4 @@
+import { trainerStepRows } from "../../modules/trainer-steps/composition/trainer-step-rows-instance.js";
 import type { TrainerStepRowsPort } from "@gafus/core/services/trainerStep";
 /**
  * AG4(v5) TR013 frozen read-only public template list for authenticated panel.
@@ -6,11 +7,11 @@ import type { TrainerStepRowsPort } from "@gafus/core/services/trainerStep";
  */
 import { Hono } from "hono";
 import type { TrainerPublicStepTemplatesRead } from
-  "../../../../../packages/types/src/data/trainer-read-contracts";
-import { readPublicTemplatesApplication as legacyReadPublicTemplatesApplication, createPublicTemplatesApplicationForRows } from "../../modules/trainer-templates/composition/read-public-templates.js";
+  "@gafus/types/trainer-read-contracts";
+import { createPublicTemplatesApplicationForRows } from "../../modules/trainer-templates/composition/read-public-templates.js";
 
-export function createTrainerTemplatesRoutes(rowsPort?: TrainerStepRowsPort) {
- const readPublicTemplatesApplication = rowsPort ? createPublicTemplatesApplicationForRows(rowsPort) : legacyReadPublicTemplatesApplication;
+export function createTrainerTemplatesRoutes(rowsPort: TrainerStepRowsPort) {
+ const readPublicTemplatesApplication = createPublicTemplatesApplicationForRows(rowsPort);
  const trainerTemplatesRoutes = new Hono();
 
 trainerTemplatesRoutes.get("/", async c => {
@@ -44,4 +45,4 @@ trainerTemplatesRoutes.get("/", async c => {
 
  return trainerTemplatesRoutes;
 }
-export const trainerTemplatesRoutes = createTrainerTemplatesRoutes();
+export const trainerTemplatesRoutes = createTrainerTemplatesRoutes(trainerStepRows);

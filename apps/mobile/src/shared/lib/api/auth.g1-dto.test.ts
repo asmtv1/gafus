@@ -65,6 +65,18 @@ describe("AG3 G1 native auth DTO (mock-only)", () => {
     });
   });
 
+  it("registration omits promo codes for iOS and preserves Android registration", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(response(200, wireData));
+    vi.stubGlobal("fetch", mockFetch);
+    const consent = { acceptPersonalData: true, acceptPrivacyPolicy: true, acceptDataDistribution: false };
+    for (const channel of ["IOS", "ANDROID"] as const) {
+      await authApi.register("Анна", "fixture@example.invalid", "fixture-pass", "fixture-session",
+        consent, channel, " FIXTURE ");
+    }
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body)).not.toHaveProperty("promoCode");
+    expect(JSON.parse(mockFetch.mock.calls[1][1].body)).toHaveProperty("promoCode", "FIXTURE");
+  });
+
   it("login 401 preserves explicit error code fallback", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(401, {
       success: false, error: "Неверные учётные данные",

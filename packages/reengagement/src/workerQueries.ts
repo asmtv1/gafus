@@ -47,14 +47,14 @@ export async function isReengagementDispatchAllowed(
 export async function getReengagementPushSubscriptions(userId: string) {
   return prisma.pushSubscription.findMany({
     where: { userId },
-    select: { endpoint: true, keys: true },
+    select: { id: true, userId: true, updatedAt: true, endpoint: true, keys: true },
   });
 }
 
-export async function deleteInvalidReengagementPushEndpoints(endpoints: string[]) {
+export async function deleteInvalidReengagementPushEndpoints(userId: string, endpoints: string[]) {
   if (!endpoints.length) return 0;
   const removed = await prisma.pushSubscription.deleteMany({
-    where: { endpoint: { in: endpoints } },
+    where: { userId, endpoint: { in: endpoints } },
   });
   return removed.count;
 }

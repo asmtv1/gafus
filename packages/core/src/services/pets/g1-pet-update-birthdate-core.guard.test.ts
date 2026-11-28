@@ -30,7 +30,7 @@ describe("PETS021 direct Core birthday write boundary", () => {
       `${future}T00:00:00.000Z`,
       "not-a-date",
     ]) {
-      await expect(updatePet("pet-synthetic", "owner-synthetic", { birthDate })).rejects.toThrow(
+      await expect(updatePet(petRows, "pet-synthetic", "owner-synthetic", { birthDate })).rejects.toThrow(
         "Неверная дата",
       );
     }
@@ -45,11 +45,11 @@ describe("PETS021 direct Core birthday write boundary", () => {
       { muzzleGirthCm: -4 },
       { bellyGirthCm: NaN },
     ]) {
-      await expect(updatePet("pet-synthetic", "owner-synthetic", patch)).rejects.toThrow();
+      await expect(updatePet(petRows, "pet-synthetic", "owner-synthetic", patch)).rejects.toThrow();
     }
     expect(db.tx).not.toHaveBeenCalled();
     expect(db.write).not.toHaveBeenCalled();
-    await updatePet("pet-synthetic", "owner-synthetic", { heightCm: null, neckGirthCm: 25.25 });
+    await updatePet(petRows, "pet-synthetic", "owner-synthetic", { heightCm: null, neckGirthCm: 25.25 });
     expect(db.write).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         data: { heightCm: null, neckGirthCm: 25.25 },
@@ -59,7 +59,7 @@ describe("PETS021 direct Core birthday write boundary", () => {
   });
   it("allows valid leap birthday and ISO existing client contract through original Core owner transaction", async () => {
     for (const birthDate of ["2020-02-29", "2020-02-29T00:00:00.000Z"]) {
-      await updatePet("pet-synthetic", "owner-synthetic", { birthDate });
+      await updatePet(petRows, "pet-synthetic", "owner-synthetic", { birthDate });
     }
     expect(db.tx).toHaveBeenCalledTimes(2);
     for (const [call] of db.write.mock.calls) {
@@ -71,5 +71,5 @@ describe("PETS021 direct Core birthday write boundary", () => {
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
-import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
-registerPetRowsPort(originalPetRowsPort as PetRowsPort);
+import type { PetRowsPort } from "./petRowsPort";
+const petRows = originalPetRowsPort as PetRowsPort;

@@ -11,7 +11,8 @@ import {
  hasPublishedDailyCourseVideo,
 } from "@gafus/course-read-server/video-access-read";
 import {readCourseNameVersion} from "../../packages/core/src/services/trainerCourse/courseVersionService.js";
-import {checkVideoAccess,getVideoManifestInfo} from "../../packages/core/src/services/video/videoAccessService.js";
+import {checkVideoAccess,getVideoManifestInfo} from "../../apps/api/src/modules/video/composition/video-access.js";
+import {courseVersionRowsPort} from "../../apps/api/src/modules/trainer-courses/composition/course-version-rows-instance.js";
 
 const url=new URL(process.env.DATABASE_URL??"http://invalid");
 if(process.env.GAFUS_LOCAL_ISOLATED_API!=="1"||process.env.GAFUS_COURSE_VIDEO_REAL_PG!=="1"||
@@ -38,7 +39,7 @@ async function main(){
  }});
  assert.equal((await readCourseVersionRows(course.id,trainer))[0]?.version,1);
  assert.deepEqual(await readCourseVersionRows(course.id,foreignTrainer),[]);
- assert.equal((await readCourseNameVersion(course.id,foreignTrainer)).status,"not_found");
+ assert.equal((await readCourseNameVersion(course.id,foreignTrainer,courseVersionRowsPort)).status,"not_found");
  const writes=await Promise.all([
   writeCourseNameVersionRows({courseId:course.id,name:"Writer One",expectedVersion:1},trainer),
   writeCourseNameVersionRows({courseId:course.id,name:"Writer Two",expectedVersion:1},trainer),
@@ -47,7 +48,7 @@ async function main(){
  assert.equal((await prisma.course.findUniqueOrThrow({where:{id:course.id}})).version,2,"DB trigger increments exactly once");
  assert.deepEqual(await writeCourseNameVersionRows({courseId:course.id,name:"Foreign",expectedVersion:2},foreignTrainer),[]);
  assert.equal((await prisma.course.findUniqueOrThrow({where:{id:course.id}})).version,2);
- assert.equal((await readCourseNameVersion(course.id,trainer)).status,"found");
+ assert.equal((await readCourseNameVersion(course.id,trainer,courseVersionRowsPort)).status,"found");
  const stamped=await readCourseObservedRevision(course.id,owner.id);
  assert.ok(stamped?.updatedAt);
  assert.equal(await readCourseObservedRevision(course.id,other.id),null);

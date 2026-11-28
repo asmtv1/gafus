@@ -51,9 +51,9 @@ describe("P0 packaged Core exports/build review; real SQL belongs to AG4", () =>
       "return createTrainingReminderRow(userId,name,reminderTime,reminderDays,timezone)",
     );
     expect(legacyApplication).not.toContain('from "@gafus/prisma"');
-    expect(keyed).toContain("requireReminderAG4ReviewRowsPort()");
+    expect(keyed).toContain("requireReminderAG4ReviewRowsPort(port)");
     expect(keyed).not.toContain("@gafus/identity-write-server/reminder-review-rows");
-    const adapterComposer=text("apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.ts");
+    const adapterComposer=text("apps/api/src/modules/reminders/composition/reminder-rows.ts");
     expect(adapterComposer).toContain("@gafus/identity-write-server/reminder-review-rows");
     for (const impl of [storage, keyedSql]) {
       expect(impl).toContain('AND "registrationPending" = false FOR UPDATE');

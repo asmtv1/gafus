@@ -108,6 +108,18 @@
     "./utils/personalization": {
       "types": "./dist/utils/personalization.d.ts",
       "default": "./dist/utils/personalization.js"
+    },
+    "./chat2/room-presentation": {
+      "types": "./dist/chat2/roomPresentation.d.ts",
+      "default": "./dist/chat2/roomPresentation.js"
+    },
+    "./utils/subscription-selection": {
+      "types": "./dist/utils/subscriptionSelection.d.ts",
+      "default": "./dist/utils/subscriptionSelection.js"
+    },
+    "./chat2/draft": {
+      "types": "./dist/chat2/draft.d.ts",
+      "default": "./dist/chat2/draft.js"
     }
   },
   "scripts": {

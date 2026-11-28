@@ -1,41 +1,19 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import {
-  checkCourseAccess,
-  checkCourseAccessById,
+  createCatalogReadService,
   deleteCourseLogoFromRecord,
-  getCourseMetadata,
-  getCourseOutline,
-  getCoursesWithProgress,
   updateCourseLogoUrl,
 } from "./courseService";
 // The original Prisma projections remain authoritative but are now bound
 // at the Core/application boundary; existing wire/owner assertions unchanged.
-import { registerCatalogReadPort } from "./catalogReadPort";
+import type { ContentPolicy } from "../contentAccess/policy";
 import {
   readCatalogCourseRows, readCatalogProgressRows, readCatalogFavoriteRows,
   readCourseAccessByType, readCourseAccessById,
   readCourseMetadataRow, readCourseOutlineRow,
 } from "@gafus/course-read-server/legacy-catalog-rows";
-registerCatalogReadPort({
-  readCatalogCourseRows, readCatalogProgressRows, readCatalogFavoriteRows,
-  readCourseAccessByType, readCourseAccessById,
-  readCourseMetadataRow, readCourseOutlineRow,
-});
-
-
-const mockCourseFindMany = vi.fn();
-const mockCourseFindUnique = vi.fn();
-const mockCourseFindFirst = vi.fn();
-const mockCourseUpdate = vi.fn();
-const mockUserCourseFindMany = vi.fn();
-const mockFavoriteCourseFindMany = vi.fn();
-const mockHandlePrismaError = vi.fn();
-const mockSetCourseLogoVersioned = vi.fn();
-
-// Detailed entitlement matrix is tested separately in contentAccess/policy.test.ts.
-vi.mock("../contentAccess/policy", () => ({
-  resolveCourseEntitlement: async (
+const resolveCourseEntitlement: ContentPolicy["resolveCourseEntitlement"] = async (
     course: {
       isPrivate: boolean;
       isPaid: boolean;
@@ -49,8 +27,26 @@ vi.mock("../contentAccess/policy", () => ({
           ? userId && (course.access?.length ?? 0) > 0
           : !course.isPaid || userId === "subscriber"),
     ),
-  }),
-}));
+    source: "FREE",
+  });
+const { getCoursesWithProgress, checkCourseAccess, checkCourseAccessById, getCourseMetadata, getCourseOutline } = createCatalogReadService({
+  readCatalogCourseRows, readCatalogProgressRows, readCatalogFavoriteRows,
+  readCourseAccessByType, readCourseAccessById,
+  readCourseMetadataRow, readCourseOutlineRow,
+}, resolveCourseEntitlement);
+
+
+const mockCourseFindMany = vi.fn();
+const mockCourseFindUnique = vi.fn();
+const mockCourseFindFirst = vi.fn();
+const mockCourseUpdate = vi.fn();
+const mockUserCourseFindMany = vi.fn();
+const mockFavoriteCourseFindMany = vi.fn();
+const mockHandlePrismaError = vi.fn();
+const mockSetCourseLogoVersioned = vi.fn();
+
+// Detailed entitlement matrix is tested separately in contentAccess/policy.test.ts.
+
 
 vi.mock("../trainerCourse/courseVersionService", () => ({
   setCourseLogoVersioned: (...args: unknown[]) => mockSetCourseLogoVersioned(...args),
@@ -318,6 +314,7 @@ describe("getCoursesWithProgress", () => {
     expect(mockCourseFindMany).toHaveBeenCalledOnce();
     const query = mockCourseFindMany.mock.calls[0][0];
     expect(query).toEqual({
+      where: { OR: [{ isPrivate: false }, { access: { some: { userId: "u1" } } }] },
       select: {
         id: true,
         name: true,
@@ -565,6 +562,7 @@ describe("updateCourseLogoUrl / deleteCourseLogoFromRecord versioned CAS adapter
     expect(mockSetCourseLogoVersioned).toHaveBeenCalledExactlyOnceWith(
       { courseId: "c1", logoUrl: "https://cdn/l.png", expectedVersion: 7 },
       actor,
+      undefined,
     );
     expect(mockCourseUpdate).not.toHaveBeenCalled();
   });
@@ -583,6 +581,7 @@ describe("updateCourseLogoUrl / deleteCourseLogoFromRecord versioned CAS adapter
     expect(mockSetCourseLogoVersioned).toHaveBeenCalledExactlyOnceWith(
       { courseId: "c1", logoUrl: "https://new/logo.png", expectedVersion: 7 },
       actor,
+      undefined,
     );
     expect(mockCourseUpdate).not.toHaveBeenCalled();
   });
@@ -601,6 +600,7 @@ describe("updateCourseLogoUrl / deleteCourseLogoFromRecord versioned CAS adapter
     expect(mockSetCourseLogoVersioned).toHaveBeenCalledExactlyOnceWith(
       { courseId: "c1", logoUrl: "", expectedVersion: 10 },
       actor,
+      undefined,
     );
     expect(mockCourseUpdate).not.toHaveBeenCalled();
   });

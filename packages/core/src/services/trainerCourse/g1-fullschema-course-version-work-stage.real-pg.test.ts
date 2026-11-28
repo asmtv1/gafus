@@ -25,12 +25,12 @@ import {
   writeCourseNameVersionRows,
   setCourseLogoVersionRows,
 } from "@gafus/course-progress-server/course-version-rows";
-import { registerCourseVersionRowsPort } from "./courseVersionService";
-registerCourseVersionRowsPort({
+
+const fixtureCourseVersionRowsPort = {
   readCourseVersionRows,
   writeCourseNameVersionRows,
   setCourseLogoVersionRows,
-});
+};
 
 
 const courseId = "ag1FullSchemaCASCourse20261025";
@@ -102,11 +102,11 @@ describe.skipIf(process.env.GAFUS_AG1_FULLSCHEMA_STAGE_CAS !== "1")(
 
     it("reads real original Course.version=1 and masks foreign owner", async () => {
       expect((await version()).version).toBe(1);
-      expect(await readCourseNameVersion(courseId, owner)).toMatchObject({
+      expect(await readCourseNameVersion(courseId, owner, fixtureCourseVersionRowsPort)).toMatchObject({
         status: "found",
         data: { version: 1, id: courseId },
       });
-      expect(await readCourseNameVersion(courseId, foreign)).toEqual({ status: "not_found" });
+      expect(await readCourseNameVersion(courseId, foreign, fixtureCourseVersionRowsPort)).toEqual({ status: "not_found" });
     });
 
     it("updates name only for owner with current version, increments exactly once", async () => {
@@ -116,7 +116,7 @@ describe.skipIf(process.env.GAFUS_AG1_FULLSCHEMA_STAGE_CAS !== "1")(
           expectedVersion: 1,
           name: "Synthetic version 2",
         },
-        owner,
+        owner, fixtureCourseVersionRowsPort,
       );
       expect(result).toMatchObject({ status: "updated", data: { version: 2 } });
       expect(await version()).toMatchObject({ version: 2, name: "Synthetic version 2" });
@@ -133,7 +133,7 @@ describe.skipIf(process.env.GAFUS_AG1_FULLSCHEMA_STAGE_CAS !== "1")(
           expectedVersion: 1,
           name: "stale denied",
         },
-        owner,
+        owner, fixtureCourseVersionRowsPort,
       );
       expect(stale).toEqual({ status: "stale" });
       const denied = await updateCourseNameVersioned(
@@ -142,7 +142,7 @@ describe.skipIf(process.env.GAFUS_AG1_FULLSCHEMA_STAGE_CAS !== "1")(
           expectedVersion: 2,
           name: "foreign denied",
         },
-        foreign,
+        foreign, fixtureCourseVersionRowsPort,
       );
       expect(denied).toEqual({ status: "not_found" });
       expect((await version()).version).toBe(2);
@@ -157,7 +157,7 @@ describe.skipIf(process.env.GAFUS_AG1_FULLSCHEMA_STAGE_CAS !== "1")(
           expectedVersion: 2,
           logoUrl: "synthetic-logo-only",
         },
-        owner,
+        owner, fixtureCourseVersionRowsPort,
       );
       expect(result).toEqual({ status: "updated", data: { version: 3, previousLogoUrl: null } });
       expect(await version()).toMatchObject({ version: 3, logoImg: "synthetic-logo-only" });
@@ -168,7 +168,7 @@ describe.skipIf(process.env.GAFUS_AG1_FULLSCHEMA_STAGE_CAS !== "1")(
             expectedVersion: 2,
             logoUrl: "stale-logo-denied",
           },
-          owner,
+          owner, fixtureCourseVersionRowsPort,
         ),
       ).toEqual({ status: "stale" });
       expect(
@@ -178,7 +178,7 @@ describe.skipIf(process.env.GAFUS_AG1_FULLSCHEMA_STAGE_CAS !== "1")(
             expectedVersion: 3,
             logoUrl: "foreign-logo-denied",
           },
-          foreign,
+          foreign, fixtureCourseVersionRowsPort,
         ),
       ).toEqual({ status: "not_found" });
       expect((await version()).version).toBe(3);
@@ -188,8 +188,8 @@ describe.skipIf(process.env.GAFUS_AG1_FULLSCHEMA_STAGE_CAS !== "1")(
       sideEffects.invalidate.mockClear();
       sideEffects.publish.mockClear();
       const results = await Promise.all([
-        updateCourseNameVersioned({ courseId, expectedVersion: 3, name: "CAS winner A" }, owner),
-        updateCourseNameVersioned({ courseId, expectedVersion: 3, name: "CAS winner B" }, owner),
+        updateCourseNameVersioned({ courseId, expectedVersion: 3, name: "CAS winner A" }, owner, fixtureCourseVersionRowsPort),
+        updateCourseNameVersioned({ courseId, expectedVersion: 3, name: "CAS winner B" }, owner, fixtureCourseVersionRowsPort),
       ]);
       expect(results.filter((r) => r.status === "updated")).toHaveLength(1);
       expect(results.filter((r) => r.status === "stale")).toHaveLength(1);

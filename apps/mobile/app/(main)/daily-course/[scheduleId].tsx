@@ -1,3 +1,4 @@
+import { pendingMatchesOccurrence } from "@/shared/lib/offline/pendingOccurrence";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -62,10 +63,20 @@ export default function DailyCourseDayScreen() {
     normalizedScheduleId,
   );
   const latestOccurrenceIds = useRef<string[]>([]);
-  latestOccurrenceIds.current = dayData?.steps.map((step) => step.id) ?? [];
+  latestOccurrenceIds.current = dayData?.steps.map((step) => step.bundleStepId ?? step.id) ?? [];
+  const actionSteps = useRef(dayData?.steps);
+  actionSteps.current = dayData?.steps;
+  const bindDailyAction = useCallback((index: number) => {
+    const step = actionSteps.current?.[index];
+    return step?.bundleStepId && step.stepId ? {
+      expectedBundleStepId: step.bundleStepId, expectedStepId: step.stepId,
+      ...(step.offlineProgressVersion ? { offlineProgressVersion: step.offlineProgressVersion } : {}),
+    } : {};
+  }, []);
   const completeForLifecycle = useCallback(
-    (vars: { scheduleId: string; stepIndex: number }) => completeMutation.mutateAsync(vars),
-    [completeMutation],
+    (vars: { scheduleId: string; stepIndex: number }) =>
+      completeMutation.mutateAsync({ ...vars, ...bindDailyAction(vars.stepIndex) }),
+    [completeMutation, bindDailyAction],
   );
   const completeSideEffect = useCallback(
     (stepIndex: number, offline: boolean) => {
@@ -124,6 +135,9 @@ export default function DailyCourseDayScreen() {
       return deactivatePending;
     }, [activatePending, deactivatePending, refreshPendingDaily, verifiedProfile]),
   );
+  useEffect(() => newOnlyV2NativeQueues.subscribePracticeAcknowledgements?.(() => {
+    void refreshPendingDaily();
+  }), [refreshPendingDaily]);
   const localStepStatuses = useDayStepStatuses(
     courseId,
     normalizedScheduleId,
@@ -170,6 +184,7 @@ export default function DailyCourseDayScreen() {
       const epochAtStart = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
         const response = await startMutation.mutateAsync({
+          ...bindDailyAction(stepIndex),
           scheduleId: normalizedScheduleId,
           stepIndex,
           status: "IN_PROGRESS",
@@ -210,6 +225,7 @@ export default function DailyCourseDayScreen() {
       const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
         const response = await pauseMutation.mutateAsync({
+          ...bindDailyAction(stepIndex),
           scheduleId: normalizedScheduleId,
           stepIndex,
           timeLeftSec: remainingSec,
@@ -252,6 +268,7 @@ export default function DailyCourseDayScreen() {
       const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
         const response = await resumeMutation.mutateAsync({
+          ...bindDailyAction(stepIndex),
           scheduleId: normalizedScheduleId,
           stepIndex,
         });
@@ -293,6 +310,7 @@ export default function DailyCourseDayScreen() {
       const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
         const response = await resetMutation.mutateAsync({
+          ...bindDailyAction(stepIndex),
           scheduleId: normalizedScheduleId,
           stepIndex,
         });
@@ -449,7 +467,7 @@ export default function DailyCourseDayScreen() {
           <View style={styles.stepsContainer}>
             {dayData.steps.map((step, index) => (
               <AccordionStep
-                key={`${normalizedScheduleId}-${step.stepId}-${index}`}
+                key={step.bundleStepId ?? `${normalizedScheduleId}-${step.stepId}-${index}`}
                 step={step}
                 index={index}
                 stepNumber={index + 1}
@@ -457,7 +475,7 @@ export default function DailyCourseDayScreen() {
                 localState={getStepState(courseId, normalizedScheduleId, index)}
                 verifiedLocalCompleted={
                   onlineReceipt.isConfirmed(index) ||
-                  pendingDaily.some((row) => row.stepIndex === index && row.status === "COMPLETED")
+                  pendingDaily.some((row) => row.status === "COMPLETED" && pendingMatchesOccurrence(row, step.bundleStepId, step.stepId))
                 }
                 courseId={courseId}
                 dayOnCourseId={normalizedScheduleId}

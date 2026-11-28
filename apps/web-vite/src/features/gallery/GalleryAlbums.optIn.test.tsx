@@ -5,7 +5,7 @@ import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
 import {afterEach,beforeEach,describe,expect,it,vi} from "vitest";
 import {ProfileOverview} from "../profile/ProfileOverview";
 import {GalleryOptInHarness} from "./GalleryOptInHarness";
-import {GalleryAlbums} from "./GalleryAlbums";
+import { GalleryAlbums } from "./GalleryAlbums";
 import {CURRENT_USER_QUERY_KEY} from "../../shared/auth/useAuth";
 import {ApiError} from "../../shared/api/client";
 import type {AlbumSummary,AlbumPhoto,GalleryPage} from "./galleryApi";

@@ -3,15 +3,15 @@ import {
   deleteDays, getTrainingDayForEdit, updateTrainingDay,
 } from "./trainingDayService";
 // Bind original atomic SQL rows against this test's mocked Prisma client.
-import { registerTrainingDayRowsPort } from "./trainingDayRowsPort";
+
 import {
   readTrainingDayForEdit, insertTrainingDay, replaceTrainingDay,
   deleteTrainingDayRows, listVisibleTrainingDays,
 } from "@gafus/course-progress-server/training-day-rows";
-registerTrainingDayRowsPort({
+const fixtureTrainingDayRowsPort = {
   readTrainingDayForEdit, insertTrainingDay, replaceTrainingDay,
   deleteTrainingDayRows, listVisibleTrainingDays,
-});
+};
 
 
 const m = vi.hoisted(() => ({
@@ -55,7 +55,7 @@ beforeEach(() => {
 });
 describe("Core training-day mutation owner scope", () => {
   it("uses authorId as a Prisma update predicate", async () => {
-    expect((await updateTrainingDay(input, actor)).success).toBe(true);
+    expect((await updateTrainingDay(input, actor, fixtureTrainingDayRowsPort)).success).toBe(true);
     expect(m.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: input.id, authorId: actor.id },
     }));
@@ -64,7 +64,7 @@ describe("Core training-day mutation owner scope", () => {
   it("allows repeated occurrences while checking ownership once per unique step", async () => {
     const ids = ["step-1", "step-2", "step-1"];
     m.stepCount.mockResolvedValueOnce(2);
-    expect((await updateTrainingDay({ ...input, stepIds: ids }, actor)).success).toBe(true);
+    expect((await updateTrainingDay({ ...input, stepIds: ids }, actor, fixtureTrainingDayRowsPort)).success).toBe(true);
     expect(m.stepCount).toHaveBeenCalledWith({
       where: { id: { in: ["step-1", "step-2"] }, authorId: actor.id },
     });
@@ -80,7 +80,7 @@ describe("Core training-day mutation owner scope", () => {
   });
   it("blocks attaching foreign steps in the same transaction as the update", async () => {
     m.stepCount.mockResolvedValueOnce(0);
-    const result = await updateTrainingDay(input, actor);
+    const result = await updateTrainingDay(input, actor, fixtureTrainingDayRowsPort);
     expect(result.success).toBe(false);
     expect(m.update).not.toHaveBeenCalled();
     expect(m.invalidate).not.toHaveBeenCalled();
@@ -90,18 +90,18 @@ describe("Core training-day mutation owner scope", () => {
   });
   it("requires owner for edit read, admin can read any day", async () => {
     m.findUnique.mockResolvedValue(null);
-    await getTrainingDayForEdit(input.id, actor);
+    await getTrainingDayForEdit(input.id, actor, fixtureTrainingDayRowsPort);
     expect(m.findUnique).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: input.id, authorId: actor.id },
     }));
-    await getTrainingDayForEdit(input.id, { id: "admin", role: "ADMIN" });
+    await getTrainingDayForEdit(input.id, { id: "admin", role: "ADMIN" }, fixtureTrainingDayRowsPort);
     expect(m.findUnique).toHaveBeenLastCalledWith(expect.objectContaining({
       where: { id: input.id },
     }));
   });
   it("does not delete anything if any requested day is foreign", async () => {
     m.findMany.mockResolvedValue([{ id: "day-own" }]);
-    const result = await deleteDays({ dayIds: ["day-own", "day-foreign"] }, actor);
+    const result = await deleteDays({ dayIds: ["day-own", "day-foreign"] }, actor, fixtureTrainingDayRowsPort);
     expect(result.success).toBe(false);
     expect(m.dayOnCourseDeleteMany).not.toHaveBeenCalled();
     expect(m.deleteMany).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe("Core training-day mutation owner scope", () => {
   });
   it("deletes owner day in a transaction with exact predicates", async () => {
     m.findMany.mockResolvedValue([{ id: input.id }]);
-    const result = await deleteDays({ dayIds: [input.id] }, actor);
+    const result = await deleteDays({ dayIds: [input.id] }, actor, fixtureTrainingDayRowsPort);
     expect(result).toEqual({
       success: true, courseIds: ["course-1"], deletedDayIds: [input.id],
     });

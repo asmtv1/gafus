@@ -17,6 +17,7 @@ import {
 } from "./walkModel";
 import { loadWalkJournal, saveWalkJournal } from "./walkStorage";
 import { gpsWalkMeters } from "./walkGpsStorage";
+import { reportCompletedWalkGps } from "./walkGpsCompletionDiagnostics";
 import { startWalkGps, stopWalkGps } from "./walkGpsTask";
 import { publishWalkWidgetSnapshot } from "./walkWidgetSnapshot";
 import { WALK_WIDGET_OWNER_KEY, type WidgetWalkAction } from "./androidWalkWidgetActions";
@@ -115,6 +116,13 @@ async function apply(ownerId: string, action: WidgetWalkAction): Promise<void> {
   }
   if ((await AsyncStorage.getItem(WALK_WIDGET_OWNER_KEY)) !== ownerId) return;
   await saveWalkJournal(ownerId, journal);
+  if (action === "finish" && journal.completed[0]) {
+    const completed = journal.completed[0];
+    // A headless widget may not have a hydrated auth store.
+    await reportCompletedWalkGps(ownerId, completed, async () =>
+      (await AsyncStorage.getItem(WALK_WIDGET_OWNER_KEY)) === ownerId,
+    ).catch(() => undefined);
+  }
   await publishWalkWidgetSnapshot(
     journal.active ?? journal.completed[0] ?? null,
     now,

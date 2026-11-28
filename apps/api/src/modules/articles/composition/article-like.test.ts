@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({
   policy: vi.fn(),
+  entitlement: vi.fn(),
   exists: vi.fn(),
   toggle: vi.fn(),
 }));
@@ -12,6 +13,7 @@ vi.mock("@gafus/article-server/likes", () => ({
   articleExists: m.exists,
   toggleArticleLikeAtomic: m.toggle,
 }));
+vi.mock("../../content-access/composition/content-policy-instance.js", () => ({ resolveArticleEntitlement: m.entitlement }));
 import { toggleArticleLikeWithMonetizedAccess } from "./article-like";
 
 describe("Article like composition must bind the original SQL pair through Core paywall", () => {
@@ -23,7 +25,7 @@ describe("Article like composition must bind the original SQL pair through Core 
     expect(m.policy).toHaveBeenCalledExactlyOnceWith(input, {
       articleExists: m.exists,
       toggleArticleLikeAtomic: m.toggle,
-    });
+    }, m.entitlement);
     expect(m.exists).not.toHaveBeenCalled();
     expect(m.toggle).not.toHaveBeenCalled();
   });

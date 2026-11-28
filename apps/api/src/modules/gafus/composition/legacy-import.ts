@@ -1,3 +1,4 @@
+import { gafusWallet } from "./wallet-instance.js";
 /** Operator-only legacy Gafus migration. Core owns confirmation/cutover,
  * frozen batch limits and wallet business rules; SQL is bound here. */
 import {
@@ -22,5 +23,5 @@ export const legacyGafusImportPorts: LegacyGafusImportPorts = {
 export const legacyGafusImportApplication = {
   preflight: (actorId: string) => getLegacyGafusImportPreflight(actorId, legacyGafusImportPorts),
   importBatch: (input: Parameters<typeof importLegacyRewardedBatch>[0]) =>
-    importLegacyRewardedBatch(input, legacyGafusImportPorts),
+    importLegacyRewardedBatch(input, legacyGafusImportPorts, gafusWallet.changeGafusBalanceTx),
 };

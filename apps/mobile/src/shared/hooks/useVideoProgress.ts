@@ -8,6 +8,7 @@ import {
   readOwnPendingVideoProgress,
 } from "@/shared/lib/offline/newOnlyV2VideoWriter";
 import { useAuthStore } from "@/shared/stores/authStore";
+import { validProgressVersion } from "@/shared/lib/offline/journalVersionFields";
 import { useIsOffline } from "./useNetworkStatus";
 
 interface UseVideoProgressResult {
@@ -21,6 +22,8 @@ interface PendingVideoProgress {
   videoId: string;
   positionSec: number;
   updatedAt: number;
+  ownerId: string;
+  authEpoch: string;
 }
 
 async function hasQueuedVideoProgress(videoId: string): Promise<boolean> {
@@ -35,7 +38,14 @@ async function hasQueuedVideoProgress(videoId: string): Promise<boolean> {
   }
 }
 
+function currentVideoActor(progress: PendingVideoProgress): boolean {
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  return useAuthStore.getState().user?.id === progress.ownerId &&
+    binding?.principalId === progress.ownerId && binding.authEpoch === progress.authEpoch;
+}
+
 async function enqueueVideoProgress(progress: PendingVideoProgress): Promise<void> {
+  if (!currentVideoActor(progress)) return;
   await persistNewOnlyVideoProgress(
     newOnlyV2NativeQueues,
     progress.videoId,
@@ -101,6 +111,7 @@ export function useVideoProgress(
       const binding = newOnlyV2NativeQueues.getVerifiedBinding();
       return (
         ownerRef.current === ownerId &&
+        useAuthStore.getState().user?.id === ownerId &&
         !!ownerId &&
         binding?.principalId === ownerId &&
         binding.authEpoch === verifiedEpoch
@@ -128,41 +139,49 @@ export function useVideoProgress(
     setIsLoading(true);
     void (async () => {
       const localProgress = await readOwnPendingVideoProgress(newOnlyV2NativeQueues, videoId);
+      const snapshot = await newOnlyV2NativeQueues.videoSnapshot?.(videoId, bindingAtLoad);
+      if (!attestedForLoad()) return undefined;
       if (requestIdRef.current !== requestId) return undefined;
       const recentSeek = savedDuringLoad();
       if (recentSeek !== null) return recentSeek;
       if (isOfflineRef.current) {
-        return localProgress?.positionSec;
+        return localProgress?.positionSec ?? snapshot?.lastPositionSec;
       }
 
       try {
-        const response = await trainingApi.getVideoProgress(videoId);
+        const response = await trainingApi.getVideoProgress(videoId, attestedForLoad);
         // A different video (or unmount) invalidates this in-flight load.
         // A network flap must not overwrite a newer offline playback position.
-        if (requestIdRef.current !== requestId) return undefined;
+        if (requestIdRef.current !== requestId || !attestedForLoad()) return undefined;
         const recentSeek = savedDuringLoad();
         if (recentSeek !== null) return recentSeek;
         if (isOfflineRef.current) {
           const latestLocal = await readOwnPendingVideoProgress(newOnlyV2NativeQueues, videoId);
-          return latestLocal?.positionSec;
+          return latestLocal?.positionSec ?? snapshot?.lastPositionSec;
         }
         if (!response.success) {
           throw new Error(response.error || "Не удалось загрузить прогресс видео");
         }
         const serverPosition = response.data?.lastPositionSec;
+        const progressVersion = response.data?.progressVersion;
+        if (validProgressVersion(progressVersion) && Number.isSafeInteger(serverPosition)) {
+          await newOnlyV2NativeQueues.videoSnapshot?.(videoId, bindingAtLoad,
+            { lastPositionSec: serverPosition as number, progressVersion },
+            () => attestedForLoad() && requestIdRef.current === requestId && savedDuringLoad() === null);
+        }
         if (await hasQueuedVideoProgress(videoId)) {
           return localProgress?.positionSec ?? serverPosition;
         }
         if (typeof serverPosition === "number" && Number.isFinite(serverPosition)) {
           return serverPosition;
         }
-        return localProgress?.positionSec;
+        return localProgress?.positionSec ?? snapshot?.lastPositionSec;
       } catch (error) {
         reportClientError(error instanceof Error ? error : new Error(String(error)), {
           issueKey: "VideoProgress",
           keys: { operation: "load" },
         });
-        return localProgress?.positionSec;
+        return localProgress?.positionSec ?? snapshot?.lastPositionSec;
       }
     })()
       .then((position) => {
@@ -201,19 +220,33 @@ export function useVideoProgress(
       while (pendingPositionRef.current) {
         const progress = pendingPositionRef.current;
         pendingPositionRef.current = null;
+        if (!currentVideoActor(progress)) continue;
 
         if (await hasQueuedVideoProgress(progress.videoId)) {
           await enqueueVideoProgress(progress);
           continue;
         }
 
+        if (!currentVideoActor(progress)) continue;
         try {
           const response = await trainingApi.saveVideoProgress(
             progress.videoId,
             progress.positionSec,
+            () => currentVideoActor(progress),
           );
+          if (!currentVideoActor(progress)) continue;
           if (!response.success) {
             throw new Error(response.error || "Не удалось сохранить прогресс видео");
+          }
+          const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+          const progressVersion = response.data?.progressVersion;
+          if (binding && validProgressVersion(progressVersion)) {
+            try {
+              await newOnlyV2NativeQueues.videoSnapshot?.(progress.videoId, binding,
+                { lastPositionSec: progress.positionSec, progressVersion }, () => currentVideoActor(progress));
+            } catch {
+              reportClientError(new Error("VIDEO_SNAPSHOT_WRITE_FAILED"), { issueKey: "VideoProgress" });
+            }
           }
         } catch (error) {
           try {
@@ -258,6 +291,7 @@ export function useVideoProgress(
         videoId: currentVideoId,
         positionSec: Math.max(0, Math.floor(positionSec)),
         updatedAt: Date.now(),
+        ownerId, authEpoch: liveBinding.authEpoch,
       };
 
       if (isOffline) {
@@ -278,7 +312,7 @@ export function useVideoProgress(
             );
           };
           try {
-            if (!attested()) throw new Error("V2_SESSION_UNVERIFIED");
+            if (!binding || !attested()) throw new Error("V2_SESSION_UNVERIFIED");
             setSaveError(null);
             const receipt = await persistNewOnlyVideoProgress(
               newOnlyV2NativeQueues,
@@ -297,7 +331,7 @@ export function useVideoProgress(
                   event.payload.videoId === progress.videoId &&
                   event.payload.positionSec === progress.positionSec &&
                   event.payload.updatedAt === progress.updatedAt,
-              )
+              ) && !newOnlyV2NativeQueues.wasPracticeAcknowledged?.(receipt.eventId, binding)
             )
               throw new Error("V2_LOCAL_RECEIPT_UNCONFIRMED");
             if (activeVideoIdRef.current === progress.videoId) {

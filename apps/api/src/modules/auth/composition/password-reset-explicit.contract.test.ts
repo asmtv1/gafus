@@ -33,7 +33,7 @@ describe("password reset explicit composition", () => {
 
   it("fails closed without a reader and maps only trusted receipt-unavailable errors", async () => {
     const core = await import("@gafus/core/services/auth");
-    await expect(core.resetPasswordByToken("unbound-token", "NewPass1"))
+    await expect(core.resetPasswordByToken("unbound-token", "NewPass1", undefined!))
       .rejects.toThrow("PASSWORD_RESET_PORT_UNBOUND");
     const port = reader();
     port.consumePasswordResetReceipt.mockRejectedValueOnce(new RangeError("receipt consumed"));

@@ -7,7 +7,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import { trainingApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { selectHighestBandwidthVariant } from "./hlsOfflineManifest";
-import { assertSafeOfflineSegment } from "./offlineStorage";
+import { assertSafeOfflineSegment, getScopedCourseDirUri } from "./offlineStorage";
+import { captureOfflineCourseScope } from "./offlineCourseSession";
 import { throwIfOfflineDownloadAborted } from "./downloadAbort";
 
 const CONCURRENCY = 3;
@@ -58,19 +59,30 @@ export async function downloadHLSForOffline(
   videoId: string,
   onProgress?: (p: DownloadHLSProgress) => void,
   signal?: AbortSignal,
+  scope = captureOfflineCourseScope(),
 ): Promise<void> {
+  const assertCurrent = () => {
+    throwIfOfflineDownloadAborted(signal);
+    if (!scope?.canWrite()) {
+      const error = new Error("OFFLINE_COURSE_SESSION_CHANGED");
+      error.name = "AbortError";
+      throw error;
+    }
+  };
   assertSafeOfflineSegment(courseType);
   assertSafeOfflineSegment(videoId);
-  throwIfOfflineDownloadAborted(signal);
+  assertCurrent();
   const res = await trainingApi.getVideoUrl(videoUrl);
   if (!res.success || !res.data?.url) {
     throw new Error(res.error || "Не удалось получить URL видео");
   }
+  assertCurrent();
   const rootManifestUrl = res.data.url;
 
   const doc = FileSystem.documentDirectory;
   if (!doc) throw new Error("documentDirectory недоступен");
-  const videoDirUri = `${doc}offline/${courseType}/videos/${videoId}/`;
+  if (!scope) throw new Error("OFFLINE_COURSE_SESSION_REQUIRED");
+  const videoDirUri = `${getScopedCourseDirUri(courseType, scope)}videos/${videoId}/`;
   await FileSystem.makeDirectoryAsync(videoDirUri, { intermediates: true });
 
   const manifestResponse = await fetch(rootManifestUrl, { signal });
@@ -79,7 +91,7 @@ export async function downloadHLSForOffline(
   }
   let manifestUrl = rootManifestUrl;
   let manifestText = await manifestResponse.text();
-  throwIfOfflineDownloadAborted(signal);
+  assertCurrent();
   const selectedVariant = selectHighestBandwidthVariant(manifestText);
   if (selectedVariant) {
     manifestUrl = new URL(selectedVariant, rootManifestUrl).toString();
@@ -88,7 +100,7 @@ export async function downloadHLSForOffline(
       throw new Error(`Вариант HLS: HTTP ${variantResponse.status}`);
     }
     manifestText = await variantResponse.text();
-    throwIfOfflineDownloadAborted(signal);
+    assertCurrent();
   }
   const lines = manifestText.split("\n");
 
@@ -127,11 +139,11 @@ export async function downloadHLSForOffline(
   const downloadOne = async (segmentUrl: string, filePath: string): Promise<void> => {
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= SEGMENT_RETRIES; attempt++) {
-      throwIfOfflineDownloadAborted(signal);
+      assertCurrent();
       try {
         // Нативная загрузка пишет сегмент сразу на диск и не держит его в JS heap.
         const result = await FileSystem.downloadAsync(segmentUrl, filePath);
-        throwIfOfflineDownloadAborted(signal);
+        assertCurrent();
         if (result.status < 200 || result.status >= 300) {
           await FileSystem.deleteAsync(filePath, { idempotent: true });
           throw new Error(`HTTP ${result.status}`);
@@ -173,7 +185,7 @@ export async function downloadHLSForOffline(
   const workerResults = await Promise.allSettled(workers);
   const failedWorker = workerResults.find((result) => result.status === "rejected");
   if (failedWorker?.status === "rejected") throw failedWorker.reason;
-  throwIfOfflineDownloadAborted(signal);
+  assertCurrent();
 
   const localNameByLine = new Map(
     segmentLines.map(({ lineIndex, fileName }) => [lineIndex, fileName]),
@@ -181,16 +193,16 @@ export async function downloadHLSForOffline(
   const modifiedLines = lines.map((line, lineIndex) =>
     localNameByLine.get(lineIndex) ?? line,
   );
-  throwIfOfflineDownloadAborted(signal);
+  assertCurrent();
   await FileSystem.writeAsStringAsync(`${videoDirUri}manifest.m3u8`, modifiedLines.join("\n"));
 
-  throwIfOfflineDownloadAborted(signal);
+  assertCurrent();
   if (res.data.posterUrl) {
     try {
       await downloadOne(res.data.posterUrl, `${videoDirUri}poster.jpg`);
-      throwIfOfflineDownloadAborted(signal);
+      assertCurrent();
     } catch (error) {
-      throwIfOfflineDownloadAborted(signal);
+      assertCurrent();
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "DownloadHLSForOffline",
         severity: "warning",

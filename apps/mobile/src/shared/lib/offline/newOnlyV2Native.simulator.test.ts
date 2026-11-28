@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   nativeGet: vi.fn(), nativeSet: vi.fn(), nativeDelete: vi.fn(),
 }));
 vi.mock("@react-native-async-storage/async-storage", () => ({
-  default: { getItem: vi.fn().mockResolvedValue(null), setItem: vi.fn().mockResolvedValue(undefined) },
+  default: { getItem: vi.fn().mockResolvedValue(null), setItem: vi.fn().mockResolvedValue(undefined), getAllKeys: vi.fn().mockResolvedValue([]), removeItem: vi.fn().mockResolvedValue(undefined) },
 }));
 vi.mock("@/shared/lib/authTokenStorage", () => ({ authTokenStorage: {
   getItemAsync: mocks.get, setItemAsync: mocks.set, deleteItemAsync: mocks.del,

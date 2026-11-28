@@ -1,3 +1,4 @@
+import { authRows } from "../../modules/auth/composition/auth-rows-instance.js";
 /**
  * G03 real source aliases, real jose/JWT, real Core/Prisma, fresh AG4 synthetic PG14
  * and Redis8, loopback Hono TCP. No Core mocks or ordinary Prisma schema generation.
@@ -133,7 +134,7 @@ function privacy(x: { res: Response }) {
 async function sessionRefreshToken(uid: string) {
   const id = randomUUID();
   const token = await generateRefreshToken(uid, id);
-  await createRefreshSession(uid, id, createHash("sha256").update(token).digest("hex"), {
+  await createRefreshSession(authRows, uid, id, createHash("sha256").update(token).digest("hex"), {
     expiresAt: new Date(Date.now() + 2 * 86400000),
     deviceId: "g03-synthetic",
   });

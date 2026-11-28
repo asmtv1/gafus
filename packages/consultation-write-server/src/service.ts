@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isConsultationReminderDue, type ConsultationReminderPush, type ConsultationReminderPushKey } from "@gafus/consultation-shared/reminder-window";
 import type { UserRole as AuthRole } from "@gafus/prisma";
 import {
   ConsultationBookingStatus,
@@ -26,7 +27,10 @@ import {
 } from "@gafus/consultation-shared";
 import { bookSlotResultSchema, type BookSlotInput } from "./validation";
 import { lockConsultationClient, readClientConsultationRestrictions } from "@gafus/consultation-query-server/booking-eligibility";
-import type { enqueueConsultationEmail as enqueueConsultationEmailPort } from "@gafus/notifications-server/consultation-email-outbox";
+import {
+  stageConsultationEmailIntents,
+  type enqueueConsultationEmail as enqueueConsultationEmailPort,
+} from "@gafus/notifications-server/consultation-email-outbox";
 
 /** Injection seam: SQL and booking transitions own one transaction; Core retains
  * subscription policy, eligibility denial, exact error classes and lazy push transport. */
@@ -52,6 +56,7 @@ export interface ConsultationBookingServicePorts {
     title: string;
     body: string;
     url?: string;
+    consultationReminder?: ConsultationReminderPush;
   }) => Promise<{ success: boolean; notificationId?: string; error?: string }>;
 }
 
@@ -106,7 +111,7 @@ export function createConsultationBookingService({
     start: "remind-start",
   };
 
-  const CONSULTATION_RECONCILE_LOOKBACK_MINUTES = 10;
+
 
   async function hasLiveConsultationBookingReplay(
     clientId: string,
@@ -167,9 +172,10 @@ export function createConsultationBookingService({
     body: string,
     url: string,
     logCtx: { bookingId?: string; kind: string },
+    consultationReminder?: ConsultationReminderPush,
   ): Promise<void> {
     try {
-      const pushResult = await sendImmediatePushNotification({ userId, title, body, url });
+      const pushResult = await sendImmediatePushNotification({ userId, title, body, url, ...(consultationReminder && { consultationReminder }) });
       if (!pushResult.success) {
         logger.warn("пуш не отправлен", { ...logCtx, error: pushResult.error });
       }
@@ -435,6 +441,10 @@ export function createConsultationBookingService({
             expiresAt,
           },
         });
+        await stageConsultationEmailIntents(tx, booking.id, [
+          ConsultationEmailType.TRAINER_CONFIRM_REQUEST,
+          ConsultationEmailType.CLIENT_BOOKING_RECEIVED,
+        ]);
         bookingId = booking.id;
         return {
           kind: "created" as const,
@@ -584,12 +594,19 @@ export function createConsultationBookingService({
       throw new ConsultationForbiddenError("Некорректный статус");
     }
 
-    const transitioned = await prisma.consultationBooking.updateMany({
-      where: { id: bookingId, status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION },
-      data: {
-        status: ConsultationBookingStatus.CONFIRMED,
-        trainerConfirmedAt: new Date(),
-      },
+    const transitioned = await prisma.$transaction(async tx => {
+      const updated = await tx.consultationBooking.updateMany({
+        where: { id: bookingId, status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION },
+        data: {
+          status: ConsultationBookingStatus.CONFIRMED,
+          trainerConfirmedAt: new Date(),
+        },
+      });
+      if (updated.count === 1) await stageConsultationEmailIntents(tx, bookingId, [
+        ConsultationEmailType.CLIENT_BOOKING_CONFIRMED,
+        ConsultationEmailType.TRAINER_BOOKING_CONFIRMED,
+      ]);
+      return updated;
     });
     if (transitioned.count !== 1) {
       throw new ConsultationForbiddenError("Статус бронирования уже изменился");
@@ -656,6 +673,7 @@ export function createConsultationBookingService({
         where: { id: b.slotId },
         data: { status: ConsultationSlotStatus.FREE },
       });
+      await stageConsultationEmailIntents(tx, bookingId, [ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_TRAINER]);
       return true;
     });
     if (!cancelled) throw new ConsultationForbiddenError("Статус бронирования уже изменился");
@@ -737,11 +755,17 @@ export function createConsultationBookingService({
       );
     }
 
-    const transitioned = await prisma.consultationBooking.updateMany({
-      where: { id: bookingId, status: ConsultationBookingStatus.CONFIRMED },
-      data: {
-        status: ConsultationBookingStatus.NO_SHOW,
-      },
+    const transitioned = await prisma.$transaction(async tx => {
+      const updated = await tx.consultationBooking.updateMany({
+        where: { id: bookingId, status: ConsultationBookingStatus.CONFIRMED },
+        data: {
+          status: ConsultationBookingStatus.NO_SHOW,
+        },
+      });
+      if (updated.count === 1) await stageConsultationEmailIntents(tx, bookingId, [
+        ConsultationEmailType.CLIENT_CONSULTATION_NO_SHOW,
+      ]);
+      return updated;
     });
     if (transitioned.count !== 1) {
       throw new ConsultationForbiddenError("Статус бронирования уже изменился");
@@ -799,6 +823,7 @@ export function createConsultationBookingService({
         where: { id: b.slotId },
         data: { status: ConsultationSlotStatus.FREE },
       });
+      await stageConsultationEmailIntents(tx, bookingId, [ConsultationEmailType.TRAINER_BOOKING_CANCELLED_BY_USER]);
       return true;
     });
     if (!cancelled) throw new ConsultationForbiddenError("Статус бронирования уже изменился");
@@ -853,6 +878,7 @@ export function createConsultationBookingService({
         where: { id: b.slotId },
         data: { status: ConsultationSlotStatus.FREE },
       });
+      await stageConsultationEmailIntents(tx, bookingId, [ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_SLA]);
       return true;
     });
     if (!cancelled) return;
@@ -876,6 +902,7 @@ export function createConsultationBookingService({
   async function processConsultationReminder(
     bookingId: string,
     kind: ConsultationReminderKind = "30m",
+    now = new Date(),
   ): Promise<void> {
     const b = await prisma.consultationBooking.findUnique({
       where: { id: bookingId },
@@ -885,7 +912,7 @@ export function createConsultationBookingService({
         client: { select: { id: true } },
       },
     });
-    if (!b || b.status !== ConsultationBookingStatus.CONFIRMED) {
+    if (!b || b.status !== ConsultationBookingStatus.CONFIRMED || !isConsultationReminderDue(b.slot, kind, now)) {
       return;
     }
 
@@ -898,57 +925,45 @@ export function createConsultationBookingService({
       timeZone: CONSULTATION_TIMEZONE,
     }).format(b.slot.startAt);
 
-    if (kind === "start") {
-      const emailResult = await enqueueConsultationEmail(
-        bookingId,
-        ConsultationEmailType.CLIENT_CONSULTATION_START,
-      );
-      if (emailResult === "duplicate") {
-        return;
-      }
-      await tryConsultationPush(
-        b.clientId,
-        "Консультация начинается",
-        "Ваша консультация начинается прямо сейчас. Присоединяйтесь по ссылке из приложения. Кинолог вас ждёт.",
-        "/consultations/my",
-        { bookingId, kind: "start-client" },
-      );
-      await tryConsultationPush(
-        b.cynologist.user.id,
-        "Консультация начинается",
-        "Запланированная видеоконсультация начинается. Откройте встречу из панели кинолога.",
-        "/main-panel/consultations",
-        { bookingId, kind: "start-trainer" },
-      );
-      return;
-    }
+    const starting = kind === "start";
+    // Each channel and recipient owns a separate idempotent operation. A failed
+    // email enqueue cannot prevent push dispatch or silence the other recipient.
+    const deliveries = [
+      enqueueConsultationEmail(bookingId, starting
+        ? ConsultationEmailType.CLIENT_CONSULTATION_START : ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M),
+      tryConsultationPush(b.clientId, starting ? "Консультация начинается" : "Скоро консультация",
+        starting ? "Ваша консультация начинается прямо сейчас. Присоединяйтесь по ссылке из приложения. Кинолог вас ждёт."
+          : `Напоминание: начало примерно в ${slotMsk} (МСК). Проверьте связь и ссылку на встречу в письме или в «Мои консультации».`,
+        "/consultations/my", { bookingId, kind }, { bookingId, key: `${kind}-client` }),
+      tryConsultationPush(b.cynologist.user.id, starting ? "Консультация начинается" : "Скоро консультация",
+        starting ? "Запланированная видеоконсультация начинается. Откройте встречу из панели кинолога."
+          : `Напоминание: встреча с клиентом примерно в ${slotMsk} (МСК). Видеовстреча доступна в панели кинолога.`,
+        "/main-panel/consultations", { bookingId, kind }, { bookingId, key: `${kind}-trainer` }),
+    ];
+    if (!starting) deliveries.push(enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_CONSULTATION_REMINDER_30M));
+    const results = await Promise.allSettled(deliveries);
+    for (const result of results) if (result.status === "rejected") throw result.reason;
+  }
 
-    const clientEmailResult = await enqueueConsultationEmail(
-      bookingId,
-      ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M,
-    );
-    if (clientEmailResult === "duplicate") {
-      return;
+  /** Booking commit must not depend on successful BullMQ delayed-job creation.
+   * The same status-CAS timeout command is safe to replay from a bounded scan. */
+  async function reconcileOverdueConsultationBookings(options: { now?: Date; limit?: number } = {}) {
+    const now = options.now ?? new Date();
+    const rows = await prisma.consultationBooking.findMany({
+      where: {
+        status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
+        confirmationDeadlineAt: { lte: now },
+      },
+      select: { id: true },
+      orderBy: [{ confirmationDeadlineAt: "asc" }, { id: "asc" }],
+      take: Math.max(1, Math.min(100, Math.trunc(options.limit ?? 50))),
+    });
+    let failed = 0;
+    for (const row of rows) {
+      try { await processBookingSlaTimeout(row.id); }
+      catch { failed++; }
     }
-    await enqueueConsultationEmail(
-      bookingId,
-      ConsultationEmailType.TRAINER_CONSULTATION_REMINDER_30M,
-    );
-
-    await tryConsultationPush(
-      b.clientId,
-      "Скоро консультация",
-      `Напоминание: начало примерно в ${slotMsk} (МСК). Проверьте связь и ссылку на встречу в письме или в «Мои консультации».`,
-      "/consultations/my",
-      { bookingId, kind: "remind-client" },
-    );
-    await tryConsultationPush(
-      b.cynologist.userId,
-      "Скоро консультация",
-      `Напоминание: встреча с клиентом примерно в ${slotMsk} (МСК). Видеовстреча доступна в панели кинолога.`,
-      "/main-panel/consultations",
-      { bookingId, kind: "remind-trainer" },
-    );
+    return { checked: rows.length, failed };
   }
 
   async function reconcileMissedConsultationReminders(options?: {
@@ -957,60 +972,55 @@ export function createConsultationBookingService({
     batchSize?: number;
   }): Promise<{ checked: number; triggered30m: number; triggeredStart: number }> {
     const now = options?.now ?? new Date();
-    const lookbackMs =
-      Math.max(1, options?.lookbackMinutes ?? CONSULTATION_RECONCILE_LOOKBACK_MINUTES) * 60 * 1000;
+    const lookbackMs = options?.lookbackMinutes === undefined ? undefined : Math.max(1, options.lookbackMinutes) * 60_000;
     const batchSize = Math.min(500, Math.max(1, options?.batchSize ?? 100));
 
-    const startLower = new Date(now.getTime() - lookbackMs);
+    const startLower = lookbackMs === undefined ? undefined : new Date(now.getTime() - lookbackMs);
     const startUpper = now;
-    const reminder30mLower = new Date(now.getTime() + 30 * 60 * 1000 - lookbackMs);
+    const reminder30mLower = lookbackMs === undefined ? now : new Date(now.getTime() + 30 * 60_000 - lookbackMs);
     const reminder30mUpper = new Date(now.getTime() + 30 * 60 * 1000);
 
+    function needsPush(kind: ConsultationReminderKind, audience: "client" | "trainer"): Prisma.ConsultationBookingWhereInput {
+      const key: ConsultationReminderPushKey = `${kind}-${audience}`;
+      const subscribed = { pushSubscriptions: { some: {} } };
+      return {
+        ...(audience === "client" ? { client: subscribed } : { cynologist: { user: subscribed } }),
+        OR: [
+          { reminderPushes: { none: { consultationReminderKey: key } } },
+          { reminderPushes: { some: { consultationReminderKey: key, sent: false, paused: false, consultationRetryAt: { lte: now } } } },
+        ],
+      };
+    }
     const bookings = await prisma.consultationBooking.findMany({
       where: {
         status: ConsultationBookingStatus.CONFIRMED,
         OR: [
-          { slot: { startAt: { gte: startLower, lte: startUpper } } },
-          { slot: { startAt: { gte: reminder30mLower, lte: reminder30mUpper } } },
+          { slot: { startAt: { gte: startLower, lte: startUpper }, endAt: { gt: now } },
+            OR: [
+              { client: { email: { not: null } }, emailLogs: { none: { type: ConsultationEmailType.CLIENT_CONSULTATION_START } } },
+              needsPush("start", "client"), needsPush("start", "trainer"),
+            ] },
+          { slot: { startAt: { gt: now, gte: reminder30mLower, lte: reminder30mUpper } },
+            OR: [
+              { client: { email: { not: null } }, emailLogs: { none: { type: ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M } } },
+              { cynologist: { user: { email: { not: null } } }, emailLogs: { none: { type: ConsultationEmailType.TRAINER_CONSULTATION_REMINDER_30M } } },
+              needsPush("30m", "client"), needsPush("30m", "trainer"),
+            ] },
         ],
       },
-      include: {
-        slot: true,
-        emailLogs: {
-          where: {
-            type: {
-              in: [
-                ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M,
-                ConsultationEmailType.CLIENT_CONSULTATION_START,
-              ],
-            },
-          },
-          select: { type: true },
-        },
-      },
-      orderBy: { createdAt: "asc" },
-      take: batchSize,
+      select: { id: true, slot: { select: { startAt: true, endAt: true } } },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: batchSize,
     });
 
     let triggered30m = 0;
     let triggeredStart = 0;
 
     for (const booking of bookings) {
-      const startAtMs = booking.slot.startAt.getTime();
-      const loggedTypes = new Set(booking.emailLogs.map((log) => log.type));
-
-      const is30mWindow =
-        startAtMs >= reminder30mLower.getTime() && startAtMs <= reminder30mUpper.getTime();
-      if (is30mWindow && !loggedTypes.has(ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M)) {
-        await processConsultationReminder(booking.id, "30m");
-        triggered30m += 1;
-      }
-
-      const isStartWindow = startAtMs >= startLower.getTime() && startAtMs <= startUpper.getTime();
-      if (isStartWindow && !loggedTypes.has(ConsultationEmailType.CLIENT_CONSULTATION_START)) {
-        await processConsultationReminder(booking.id, "start");
-        triggeredStart += 1;
-      }
+      const kind = booking.slot.startAt > now ? "30m" : "start";
+      if (!isConsultationReminderDue(booking.slot, kind, now)) continue;
+      await processConsultationReminder(booking.id, kind, now);
+      if (kind === "30m") triggered30m++;
+      else triggeredStart++;
     }
 
     return { checked: bookings.length, triggered30m, triggeredStart };
@@ -1172,6 +1182,7 @@ export function createConsultationBookingService({
     processBookingSlaTimeout,
     processConsultationReminder,
     reconcileMissedConsultationReminders,
+    reconcileOverdueConsultationBookings,
     listClientBookings,
     listTrainerBookings,
   };
@@ -1180,7 +1191,7 @@ export function createConsultationBookingService({
 /** Composition-only mail/push adapters; no queue import inside Core. */
 export { enqueueConsultationEmail, resolveConsultationEmailRecipient } from "@gafus/notifications-server/consultation-email-outbox";
 export async function sendConsultationPush(input: {
-  userId: string; title: string; body: string; url?: string;
+  userId: string; title: string; body: string; url?: string; consultationReminder?: ConsultationReminderPush;
 }) {
   const {sendImmediatePushNotification} = await import("@gafus/notifications-server/immediatePushService");
   return sendImmediatePushNotification(input);

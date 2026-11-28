@@ -3,7 +3,7 @@
 prometheus.relabel "uptrace_allowlist" {
   rule {
     source_labels = ["__name__"]
-    regex = "probe_success|pg_up|redis_up|up|gafus_(mobile_telemetry|server_diagnostic_otlp|media|mail|chat2_outbox|http|queue|database_backup|questions_legacy_delete)_[a-zA-Z0-9_]+|http_requests_total|http_request_duration_seconds_(bucket|sum|count)|http_inflight_requests|node_cpu_seconds_total|node_memory_(MemTotal|MemAvailable)_bytes|node_filesystem_(avail|size)_bytes|pg_stat_activity_count|pg_settings_max_connections|redis_memory_used_bytes|dependency_errors_total|job_(attempts|failures)_total|job_duration_seconds_(bucket|sum|count)|db_(query_duration|pool_wait)_seconds_(bucket|sum|count)|db_pool_wait_metrics_fresh"
+    regex = "probe_success|pg_up|redis_up|up|gafus_(mobile_telemetry|server_diagnostic_otlp|video_first_frame|media|mail|chat2_outbox|http|queue|database_backup|questions_legacy_delete)_[a-zA-Z0-9_]+|http_requests_total|http_request_duration_seconds_(bucket|sum|count)|http_inflight_requests|node_cpu_seconds_total|node_memory_(MemTotal|MemAvailable)_bytes|node_filesystem_(avail|size)_bytes|pg_stat_activity_count|pg_settings_max_connections|redis_memory_used_bytes|dependency_errors_total|job_(attempts|failures)_total|job_duration_seconds_(bucket|sum|count)|db_(query_duration|pool_wait)_seconds_(bucket|sum|count)|db_pool_wait_metrics_fresh"
     action = "keep"
   }
   // Replace URL-valued blackbox instance label with bounded service alias.
@@ -14,12 +14,28 @@ prometheus.relabel "uptrace_allowlist" {
     replacement = "$1"
     action = "replace"
   }
+  // Preserve only bounded dimensions needed by first-frame and OTA metrics.
+  rule {
+    source_labels = ["platform"]
+    regex = "(web|ios|android)?"
+    action = "keep"
+  }
+  rule {
+    source_labels = ["surface"]
+    regex = "(moments|chat|training|preview)?"
+    action = "keep"
+  }
+  rule {
+    source_labels = ["event"]
+    regex = "(LAUNCHED|CHECKED|DOWNLOADED|UPDATE_ERROR|ROLLBACK_DETECTED|SIGNATURE_REJECTED|MANDATORY_ATTEMPT|MANDATORY_INCOMPLETE)?"
+    action = "keep"
+  }
   // Drop *all* labels except audited, bounded infrastructure/operation keys.
   // This applies to every scrape and protects against future accidental
   // dynamic user/device/request labels being added by a producer.
   rule {
     action = "labelkeep"
-    regex = "__name__|job|instance|cluster|environment|service|status|status_class|method|route|le|cpu|mode|mountpoint|fstype|device|state|pipeline|task_type|job_type|outcome|class|phase|queue|source|error_class|dependency|resource|operation|role"
+    regex = "__name__|job|instance|cluster|environment|service|status|status_class|method|route|le|cpu|mode|mountpoint|fstype|device|state|pipeline|task_type|job_type|outcome|class|phase|queue|source|error_class|dependency|resource|operation|role|platform|surface|event"
   }
   forward_to = [prometheus.remote_write.uptrace.receiver]
 }

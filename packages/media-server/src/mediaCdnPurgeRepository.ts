@@ -62,3 +62,17 @@ export function createMediaCdnPurgeRepository(): MediaCdnPurgeRepository {
     },
   };
 }
+
+/** One aggregate read; no keys, receipts, owner IDs or provider payload leave persistence. */
+export async function readMediaCdnPurgeMetrics() {
+  const [row] = await prisma.$queryRaw<{
+    pending: number; expired: number; oldestAgeSeconds: number;
+  }[]>
+    `SELECT count(*)::int AS pending,
+      count(*) FILTER (WHERE "status" = 'processing'
+        AND ("leaseUntil" IS NULL OR "leaseUntil" <= timezone('UTC', now())))::int AS expired,
+      COALESCE(GREATEST(0, EXTRACT(EPOCH FROM timezone('UTC', now()) - min("createdAt"))), 0)::double precision AS "oldestAgeSeconds"
+    FROM "MediaCdnPurge" WHERE "status" IN ('pending', 'processing')`;
+  if (!row) throw new Error("MEDIA_PURGE_METRICS_EMPTY");
+  return row;
+}

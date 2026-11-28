@@ -1,4 +1,4 @@
-import { prisma } from "@gafus/prisma";
+import { countDueFeedVideoRecovery } from "@gafus/feed-server/feed-video-recovery";
 import { createCloudruFeedPoolDispatcher } from "./cloudru-media-dispatcher.js";
 
 /** Feed's PostgreSQL outbox is authoritative; Cloud Jobs launch only for due work.
@@ -6,7 +6,7 @@ import { createCloudruFeedPoolDispatcher } from "./cloudru-media-dispatcher.js";
  * duplicate processing across concurrent workers, even for repeated wake-ups.
  */
 export function createFeedMediaRecoveryTick(input: {
-  database: Pick<typeof prisma, "feedStorageJob">;
+  countDueVideos: (now: Date) => Promise<number>;
   video: ReturnType<typeof createCloudruFeedPoolDispatcher>;
   now?: () => Date;
 }) {
@@ -16,18 +16,7 @@ export function createFeedMediaRecoveryTick(input: {
     running = true;
     try {
       const now = input.now?.() ?? new Date();
-      const due = await input.database.feedStorageJob.groupBy({
-        by: ["kind"],
-        where: { OR: [
-          { status: "pending", availableAt: { lte: now } },
-          { status: "processing", leaseUntil: { lt: now } },
-        ] },
-        _count: { _all: true },
-      });
-      let videos = 0;
-      for (const row of due) {
-        if (row.kind === "publish_video") videos += row._count._all;
-      }
+      const videos = await input.countDueVideos(now);
       let dispatched = 0;
       for (let i = 0; i < Math.min(2, videos); i++) {
         const result = await input.video();
@@ -44,7 +33,7 @@ export async function runFeedMediaRecoveryTick(): Promise<void> {
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED !== "true" ||
       process.env.FEED_PROCESSOR_READY !== "true") return;
   recovery ??= createFeedMediaRecoveryTick({
-    database: prisma,
+    countDueVideos: countDueFeedVideoRecovery,
     video: createCloudruFeedPoolDispatcher("video"),
   });
   await recovery();

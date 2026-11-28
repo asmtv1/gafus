@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RewardedWalletTx, RewardedWalletPort } from "./rewardedWalletPort";
 const premiums=vi.hoisted(()=>({ access:vi.fn(async()=>({hasActiveSubscription:false})) }));
 vi.mock("../appSubscription",()=>({getAppSubscriptionAccess:premiums.access}));
+const settings = vi.fn();
 const tx={lockedOwner:"rewarded:owner-1"} as unknown as RewardedWalletTx;
 function stub():RewardedWalletPort {
  const db={
@@ -17,28 +18,23 @@ function stub():RewardedWalletPort {
 }
 beforeEach(()=>{vi.resetModules();vi.clearAllMocks();premiums.access.mockResolvedValue({hasActiveSubscription:false});});
 describe("rewarded credits wallet atomic SQL port",()=>{
-  it("fails closed without a real locked user transaction",async()=>{
-    const service=await import("./walletService");
-    await expect(service.getRewardedCreditBalance("owner-1"))
-      .rejects.toThrow("REWARDED_WALLET_PORT_UNBOUND");
-    await expect(service.refundRewardedCredits({
-      userId:"owner-1",target:{targetType:"ARTICLE",targetId:"a-1"},amount:1,
-      reason:"refund",idempotencyKey:"refund:1",
-    })).rejects.toThrow("REWARDED_WALLET_PORT_UNBOUND");
+  it("requires explicit wallet dependencies",async()=>{
+    const {createRewardedWalletService}=await import("./walletService");
+    expect(()=>createRewardedWalletService(undefined as never,settings,premiums.access)).toThrow("REWARDED_WALLET_DEPENDENCIES_REQUIRED");
   });
   it("settles pending refunds in the SAME advisory-locked owner transaction",async()=>{
-    const domain=await import("./rewardedWalletPort");const service=await import("./walletService");
-    const db=stub();domain.registerRewardedWalletPort(db);
+    const {createRewardedWalletService}=await import("./walletService");
+    const db=stub();const service=createRewardedWalletService(db,settings,premiums.access);
     await expect(service.getRewardedCreditBalance("owner-1")).resolves.toBe(5);
     expect(db.withLockedRewardedWallet).toHaveBeenCalledWith("owner-1",expect.any(Function));
     expect(db.ensureRewardedWalletRow).toHaveBeenCalledExactlyOnceWith("owner-1",tx);
     expect(db.updateRewardedWalletRow).toHaveBeenCalledExactlyOnceWith(tx,"owner-1",{balance:5,pendingRefundCredits:0});
   });
   it("replays one already-processed spend without inserting a second debit",async()=>{
-    const domain=await import("./rewardedWalletPort");const service=await import("./walletService");
+    const {createRewardedWalletService}=await import("./walletService");
     const db=stub();db.findRewardedTransactionByKey=vi.fn(async()=>({id:"old-spend"}));
     db.ensureRewardedWalletRow=vi.fn(async()=>({balance:5,pendingRefundCredits:0}));
-    domain.registerRewardedWalletPort(db);
+    const service=createRewardedWalletService(db,settings,premiums.access);
     await expect(service.spendRewardedCredits({
       userId:"owner-1",target:{targetType:"ARTICLE",targetId:"article-1"},
       amount:1,idempotencyKey:"key:already-spent",
@@ -47,10 +43,14 @@ describe("rewarded credits wallet atomic SQL port",()=>{
     expect(db.appendRewardedWalletEntry).not.toHaveBeenCalled();
     expect(db.updateRewardedWalletRow).not.toHaveBeenCalled();
   });
-  it("rejects replacement of an installed PostgreSQL advisory wallet provider",async()=>{
-    const domain=await import("./rewardedWalletPort");const db=stub();domain.registerRewardedWalletPort(db);
-    domain.registerRewardedWalletPort(db);
-    expect(()=>domain.registerRewardedWalletPort(stub()))
-      .toThrow("REWARDED_WALLET_PORT_ALREADY_BOUND");
+  it("isolates two wallet instances",async()=>{
+    const {createRewardedWalletService}=await import("./walletService");
+    const a=stub(), b=stub();
+    b.ensureRewardedWalletRow=vi.fn(async()=>({balance:9,pendingRefundCredits:0}));
+    const first=createRewardedWalletService(a,settings,premiums.access);
+    const second=createRewardedWalletService(b,settings,premiums.access);
+    expect(await first.getRewardedCreditBalance("owner-1")).toBe(5);
+    expect(await second.getRewardedCreditBalance("owner-2")).toBe(9);
+    expect(b.ensureRewardedWalletRow).toHaveBeenCalledExactlyOnceWith("owner-2",tx);
   });
 });

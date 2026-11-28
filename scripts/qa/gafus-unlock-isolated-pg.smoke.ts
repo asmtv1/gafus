@@ -5,7 +5,8 @@ import {prisma} from '@gafus/prisma';
 import {withGafusUserLock} from '@gafus/gafus-server/wallet-lock';
 import {withGafusUnlockTransaction,readGafusUnlockReplayTx,insertGafusUnlockGrantTx}
  from '@gafus/gafus-server/unlock-records';
-import {changeGafusBalanceTx} from '../../packages/core/src/services/gafus/walletService.js';
+import {gafusWallet} from "../../apps/api/src/modules/gafus/composition/wallet-instance.js";
+const {changeGafusBalanceTx}=gafusWallet;
 const url=new URL(process.env.DATABASE_URL??'http://invalid');
 if(process.env.GAFUS_LOCAL_ISOLATED_API!=='1'||process.env.GAFUS_UNLOCK_REAL_PG!=='1'||
  url.protocol!=='postgresql:'||url.hostname!=='127.0.0.1'||url.pathname!=='/gafus_refactor_unlock_j')

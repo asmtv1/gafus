@@ -17,7 +17,7 @@ describe("iOS photo pickers avoid handing raw HEIC to device optimization", () =
     }
   });
   it("video-only Chat2 keeps original selection representation", () => {
-    const chat = read("../../../features/chat2/Chat2RoomScreen.tsx");
+    const chat = ["../../../features/chat2/Chat2RoomScreen.tsx", "../../../features/chat2/Chat2RoomComposer.tsx", "../../../features/chat2/chat2RoomStyles.ts", "../../../features/chat2/Chat2RoomMedia.tsx"].map(read).join("\n");
     expect(chat).toContain('...(kind === "image" ? iosCompatiblePhotoPicker() : {})');
   });
   it("iOS Questions exposes sanitized lifecycle diagnostics instead of a generic on-device error", () => {

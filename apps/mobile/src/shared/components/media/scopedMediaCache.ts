@@ -50,11 +50,9 @@ export function scopedMediaCacheKey(urlString: string, accountId: string, now = 
   let kind: 'gallery' | 'feed';
   let signedExpirySec: number | undefined;
   if (isCloudru) {
-    if (!url.searchParams.has('X-Amz-Signature')) throw new Error('MEDIA_CACHE_UNSIGNED');
-    const match = /^\/(gafus-gallery-private|gafus-feed-private)(\/.*)$/.exec(url.pathname);
-    if (!match) throw new Error('MEDIA_CACHE_UNTRUSTED_PATH');
-    kind = match[1] === 'gafus-gallery-private' ? 'gallery' : 'feed';
-    path = match[2]!;
+    // SigV4 temporary credentials may expire earlier than X-Amz-Expires.
+    // A private S3 fallback must never yield a persistent cache key.
+    throw new Error('MEDIA_CACHE_S3_MEMORY_ONLY');
   } else {
     kind = scope!;
     // V2 Feed URLs use query signatures rather than legacy Gallery's path
@@ -70,13 +68,12 @@ export function scopedMediaCacheKey(urlString: string, accountId: string, now = 
     }
   }
   if (!authorizedFinalPath(kind, path)) throw new Error('MEDIA_CACHE_UNTRUSTED_PATH');
-  // A stable disk key is safe only while the server-issued CDN token is valid.
-  // Never let the 180-second cache slot outlive an expired (or nearly expired)
-  // token; keep it memory-only until a fresh authenticated media read arrives.
-  if (signedExpirySec !== undefined &&
-      (!Number.isSafeInteger(signedExpirySec) || signedExpirySec * 1000 <= now + 15_000))
+  // Disk entries can be reused until the end of the slot. Require the
+  // capability to cover that entire window, not merely the next 15 seconds.
+  const slotMs = kind === 'feed' && isLongLivedPublicFeedCdnUrl(urlString, now) ? dayMs : 180_000;
+  const slot = Math.floor(now / slotMs);
+  if (!Number.isSafeInteger(signedExpirySec) ||
+      signedExpirySec! * 1000 <= (slot + 1) * slotMs + 15_000)
     throw new Error('MEDIA_CACHE_EXPIRED');
-  const slot = Math.floor(now / (kind === 'feed' && isLongLivedPublicFeedCdnUrl(urlString, now)
-    ? dayMs : 180_000));
   return `gafus-media-v2:${accountId}:${kind}:${url.hostname}:${path}:${slot}`;
 }

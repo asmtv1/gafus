@@ -15,7 +15,13 @@ export type AccountCleanupJob={
 export async function claimAccountCleanupJob(token:string,selectedOwner:string|null){
  const jobs=await prisma.$queryRaw<AccountCleanupJob[]>`
         UPDATE "AccountStorageCleanup" SET "status" = 'processing', "attemptToken" = ${token},
-          "leaseUntil" = timezone('UTC', now()) + interval '5 minutes', "attempts" = "attempts" + 1, "updatedAt" = timezone('UTC', now())
+          "leaseUntil" = timezone('UTC', now()) + interval '5 minutes', "attempts" = "attempts" + 1,
+          -- An expired attempt may have deleted late objects without durably
+          -- recording the need for a fresh purge. Restart from the first page.
+          "keyCursor" = CASE WHEN "errorCode" = 'CLEANUP_SWEEP_UNCERTAIN' THEN 0 ELSE "keyCursor" END,
+          "purgeAfter" = CASE WHEN "errorCode" = 'CLEANUP_SWEEP_UNCERTAIN' THEN NULL ELSE "purgeAfter" END,
+          "purgeOperations" = CASE WHEN "errorCode" = 'CLEANUP_SWEEP_UNCERTAIN' THEN ARRAY[]::text[] ELSE "purgeOperations" END,
+          "updatedAt" = timezone('UTC', now())
         WHERE "id" = (
           SELECT "id" FROM "AccountStorageCleanup"
           WHERE (("status" = 'pending' AND "availableAt" <= timezone('UTC', now()))
@@ -36,6 +42,15 @@ export async function checkpointAccountStreamJob(job:{id:string},token:string,re
             "status" = ${remaining.length ? "pending" : "done"}, "availableAt" = timezone('UTC', now()),
             "leaseUntil" = NULL, "attemptToken" = NULL, "errorCode" = NULL, "updatedAt" = timezone('UTC', now())
             WHERE "id" = ${job.id} AND "attemptToken" = ${token} AND "leaseUntil" > timezone('UTC', now())`;
+}
+
+/** Commit intent BEFORE the external sweep. A crash after deletion but before
+ * the next receipt must never allow an older CDN purge to prove completion. */
+export async function beginAccountCleanupSweep(job:{id:string},token:string){
+ return prisma.$executeRaw`UPDATE "AccountStorageCleanup"
+            SET "errorCode" = 'CLEANUP_SWEEP_UNCERTAIN', "updatedAt" = timezone('UTC', now())
+            WHERE "id" = ${job.id} AND "attemptToken" = ${token}
+              AND "status" = 'processing' AND "leaseUntil" > timezone('UTC', now())`;
 }
 
 export async function resetAccountCdnPurge(job:{id:string},token:string){

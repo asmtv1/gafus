@@ -10,7 +10,7 @@ interface MailJobData {
   emailLogId: string;
 }
 
-export function startConsultationMailWorker(): void {
+export function startConsultationMailWorker() {
   // Only coalesce overlapping deliveries in this worker process. This is
   // not a distributed lock and cannot guarantee provider exactly-once ACK.
   const inFlight = new Map<string, Promise<"missing" | "sent" | "already-sent" | "queued" | "failed">>();
@@ -42,4 +42,5 @@ export function startConsultationMailWorker(): void {
     logger.error("consultation-mail worker error", new Error("CONSULTATION_MAIL_WORKER_ERROR"));
   });
   logger.success("consultation-mail worker запущен");
+  return worker;
 }

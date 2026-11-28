@@ -16,6 +16,8 @@ const state = vi.hoisted(() => ({
   remove: vi.fn(),
   progress: 0.32,
   check: vi.fn(),
+  nativeLogs: vi.fn(),
+  telemetry: vi.fn(),
   fetch: vi.fn(),
   reload: vi.fn(),
   policy: vi.fn(),
@@ -59,6 +61,7 @@ vi.mock("expo-updates", () => ({
   isEnabled: true, runtimeVersion: "1.7.5", channel: "production",
   useUpdates: () => ({ isUpdatePending: false, downloadProgress: state.progress }),
   checkForUpdateAsync: state.check, fetchUpdateAsync: state.fetch, reloadAsync: state.reload,
+  readLogEntriesAsync: state.nativeLogs,
 }));
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: { getItem: state.getItem, setItem: state.setItem },
@@ -87,7 +90,7 @@ vi.mock("@/shared/lib/ota/installationIdentity", () => ({
   refreshOtaTesterGrant: state.grant, selfHostedOtaActive: () => true,
 }));
 vi.mock("@/shared/lib/ota/telemetry", () => ({
-  trackOtaEvent: vi.fn().mockResolvedValue(undefined),
+  trackOtaEvent: state.telemetry,
   trackOtaLaunch: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/shared/lib/otaDownloadSize", () => ({
@@ -134,6 +137,8 @@ beforeEach(() => {
   state.check.mockResolvedValue({ isAvailable: false });
   state.fetch.mockResolvedValue({});
   state.reload.mockResolvedValue(undefined);
+  state.nativeLogs.mockResolvedValue([]);
+  state.telemetry.mockResolvedValue(undefined);
   state.grant.mockResolvedValue(undefined);
   state.getItem.mockResolvedValue(null);
   state.setItem.mockResolvedValue(undefined);
@@ -309,6 +314,71 @@ describe("mandatory 1.7.5 OTA runtime gate", () => {
     expect(host.textContent).toContain("Завершаем загрузку и проверку ресурсов");
     expect(host.textContent).not.toContain("99%");
     expect(state.reload).not.toHaveBeenCalled();
+  });
+
+  it("reports a verified mandatory failure separately from generic OTA errors", async () => {
+    state.check.mockImplementation(async () => {
+      state.nativeLogs.mockResolvedValue([{timestamp: Date.now(), code: "UpdateHasInvalidSignature"}]);
+      throw new Error("Native update check failed");
+    });
+    await render();
+    expect(screen("required-ota-screen")).not.toBeNull();
+    expect(screen("courses")).toBeNull();
+    const events = state.telemetry.mock.calls.map(call => call[0]);
+    expect(events).toContain("MANDATORY_ATTEMPT");
+    expect(events).toContain("MANDATORY_INCOMPLETE");
+    expect(events).toContain("SIGNATURE_REJECTED");
+    expect(events).toContain("UPDATE_ERROR");
+    expect(state.reload).not.toHaveBeenCalled();
+  });
+
+  it("reports a hanging required download without changing the mandatory gate", async () => {
+    vi.useFakeTimers();
+    state.check.mockResolvedValue({ isAvailable: true, manifest: { id: "available-update" } });
+    state.fetch.mockImplementation(() => holdRequest({}));
+    await render();
+    await act(async () => vi.advanceTimersByTimeAsync(5 * 60_000));
+    expect(state.telemetry.mock.calls.filter(call => call[0] === "MANDATORY_INCOMPLETE")).toHaveLength(1);
+    expect(screen("courses")).toBeNull();
+    expect(state.reload).not.toHaveBeenCalled();
+  });
+
+  it("retries an interrupted mandatory download without unlocking navigation or marking it installed", async () => {
+    state.check.mockResolvedValue({ isAvailable: true, manifest: { id: "available-update" } });
+    state.fetch.mockRejectedValueOnce(new Error("Synthetic connection lost during download"));
+    await render();
+
+    expect(state.fetch).toHaveBeenCalledOnce();
+    expect(state.reload).not.toHaveBeenCalled();
+    expect(state.setItem).not.toHaveBeenCalledWith("@gafus/forced-ota-attempt-v1:android:1.7.5-ota.6", "reloaded");
+    expect(screen("courses")).toBeNull();
+    expect(host.textContent).toContain("Повторить загрузку");
+    const retry = host.querySelector("button");
+    expect(retry).not.toBeNull();
+    await act(async () => { retry?.click(); });
+
+    expect(state.check).toHaveBeenCalledTimes(2);
+    expect(state.fetch).toHaveBeenCalledTimes(2);
+    expect(state.setItem).toHaveBeenCalledWith("@gafus/forced-ota-attempt-v1:android:1.7.5-ota.6", "reloaded");
+    expect(state.reload).toHaveBeenCalledOnce();
+    expect(screen("courses")).toBeNull();
+  });
+
+  it("does not auto-reload a stale mandatory bundle, but permits explicit recovery", async () => {
+    const key = "@gafus/forced-ota-attempt-v1:android:1.7.5-ota.6";
+    state.getItem.mockImplementation(async (requested: string) => requested === key ? "reloaded" : null);
+    state.check.mockResolvedValue({ isAvailable: true, manifest: { id: "recovery-update" } });
+    await render();
+    expect(screen("courses")).toBeNull();
+    expect(state.check).not.toHaveBeenCalled();
+    expect(state.reload).not.toHaveBeenCalled();
+    const retry = host.querySelector("button");
+    expect(retry).not.toBeNull();
+    await act(async () => { retry?.click(); });
+    expect(state.check).toHaveBeenCalledOnce();
+    expect(state.fetch).toHaveBeenCalledOnce();
+    expect(state.reload).toHaveBeenCalledOnce();
+    expect(screen("courses")).toBeNull();
   });
 
   it("downloads and reloads a confirmed update", async () => {

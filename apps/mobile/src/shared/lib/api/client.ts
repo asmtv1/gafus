@@ -16,6 +16,8 @@ interface ApiClientOptions {
   headers?: Record<string, string>;
   skipAuth?: boolean;
   suppressSubscriptionPaywall?: boolean;
+  /** Journal ACKs require the exact expected successful HTTP status. */
+  expectedSuccessStatus?: number;
   timeoutMs?: number;
   /** G05 actor fence: blocks POST (including 401 refresh replay) after owner/epoch change. */
   /** Guard may inspect the exact SecureStore token selected for this request. */
@@ -420,6 +422,7 @@ async function apiClientWithRefreshLimit<T>(
     headers = {},
     skipAuth = false,
     suppressSubscriptionPaywall = false,
+    expectedSuccessStatus,
     timeoutMs = API_REQUEST_TIMEOUT_MS,
     requestGuard,
     skipAuthRefreshReplay = false,
@@ -465,7 +468,9 @@ async function apiClientWithRefreshLimit<T>(
       return getRefreshFailureResponse(refreshResult);
     }
 
+    if (requestGuard && !requestGuard(token)) return getSessionChangedError();
     const parsed = await safeParseResponseJson(response, sensitive);
+    if (requestGuard && !requestGuard(token)) return getSessionChangedError();
     if (!parsed.ok) {
       reportClientError(new Error(parsed.error), {
         issueKey: "ApiClient",
@@ -503,8 +508,12 @@ async function apiClientWithRefreshLimit<T>(
       };
     }
 
+    if (expectedSuccessStatus !== undefined && response.status !== expectedSuccessStatus) {
+      return { success: false, code: "UNEXPECTED_SUCCESS_STATUS" };
+    }
     return data as ApiResponse<T>;
   } catch (error) {
+    if (requestGuard && !requestGuard(token)) return getSessionChangedError();
     reportClientError(
       sensitive
         ? new Error(
@@ -540,38 +549,49 @@ async function apiClientWithRefreshLimit<T>(
 export async function apiClientMultipart<T>(
   endpoint: string,
   buildFormData: () => FormData,
+  requestGuard?: ApiClientOptions["requestGuard"],
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
   const safeEndpoint = traceEndpoint(endpoint);
   const sensitive = vetEndpoint(endpoint);
 
-  const doFetch = async (): Promise<Response> => {
+  let selectedToken: string | null | undefined;
+  const doFetch = async (): Promise<{ response: Response; token: string | null } | null> => {
     const token = await SecureStore.getItemAsync("auth_token");
+    selectedToken = token;
+    if (requestGuard && !requestGuard(token)) return null;
     const headers: Record<string, string> = {
       ...getMobileClientHeaders(),
     };
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    return fetchWithTimeout(url, {
+    const response = await fetchWithTimeout(url, {
       method: "POST",
       headers,
       body: buildFormData(),
     });
+    return {response, token};
   };
 
   try {
-    let response = await doFetch();
-    if (response.status === 401) {
-      const refreshResult = await refreshAccessToken();
+    let selected = await doFetch();
+    if (!selected || (requestGuard && !requestGuard(selected.token))) return getSessionChangedError();
+    if (selected.response.status === 401) {
+      const originalToken = selected.token;
+      const isCurrent = () => requestGuard?.(originalToken) ?? true;
+      const refreshResult = await refreshAccessToken(isCurrent);
+      if (!isCurrent()) return getSessionChangedError();
       if (refreshResult.success) {
-        response = await doFetch();
+        selected = await doFetch();
+        if (!selected || (requestGuard && !requestGuard(selected.token))) return getSessionChangedError();
       } else {
         return getRefreshFailureResponse(refreshResult);
       }
     }
-
+    const {response, token} = selected;
     const parsed = await safeParseResponseJson(response, sensitive);
+    if (requestGuard && !requestGuard(token)) return getSessionChangedError();
     if (!parsed.ok) {
       reportClientError(new Error(parsed.error), {
         issueKey: "ApiClientMultipart",
@@ -599,6 +619,7 @@ export async function apiClientMultipart<T>(
 
     return data as ApiResponse<T>;
   } catch (error) {
+    if (requestGuard && !requestGuard(selectedToken)) return getSessionChangedError();
     reportClientError(sensitive ? new Error("VET_MULTIPART_FAILED") : error, {
       issueKey: "ApiClientMultipart",
       keys: { endpoint: safeEndpoint },

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type {
   PublicCourseCatalogItem,
   PublicCourseCatalogResponse,
-} from "../../../../../packages/types/src/data/course";
+} from "@gafus/types/course";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-public-courses");

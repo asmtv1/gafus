@@ -7,7 +7,7 @@ import type {
   TrainingDayStepWire,
   TrainingDaysWireItem,
   TrainingDaysRead,
-} from "../../../../../../packages/types/src/data/training";
+} from "@gafus/types/training";
 
 // Типы для тренировок
 export interface TrainingDay {
@@ -62,6 +62,8 @@ export type StepContent = {
 };
 
 export interface UserStep {
+  stepOnDayId?: string;
+  offlineProgressVersion?: string;
   id: string;
   stepId: string;
   stepIndex: number;
@@ -98,6 +100,9 @@ export interface StepActionParams {
   courseId: string;
   dayOnCourseId: string;
   stepIndex: number;
+  expectedStepOnDayId?: string;
+  expectedStepId?: string;
+  offlineProgressVersion?: string;
 }
 
 export interface StartStepParams extends StepActionParams {
@@ -126,23 +131,8 @@ export type DiaryEntry = Pick<
 
 /** Public, read-only marketing outline shared with Web's paid course overview.
  * The endpoint rejects private/non-paid courses and never returns step bodies. */
-export type PublicPaidCourseOutline = {
-  courseId: string;
-  courseType: string;
-  name: string;
-  description: string | null;
-  equipment: string | null;
-  trainingLevel: string | null;
-  outline: {
-    id: string;
-    title: string;
-    order: number;
-    type?: string;
-    equipment?: string;
-    estimatedDuration?: number;
-    theoryMinutes?: number;
-  }[];
-};
+import type { LegacyPublicPaidCourseOutline as PublicPaidCourseOutline } from "@gafus/types/course-outline";
+export type { LegacyPublicPaidCourseOutline as PublicPaidCourseOutline } from "@gafus/types/course-outline";
 
 const validOutlineId = (value: unknown): value is string =>
   typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -197,6 +187,11 @@ export function projectPublicPaidCourseOutline(
 /**
  * API модуль для работы с тренировками
  */
+function withoutOfflineProgressVersion<T extends { offlineProgressVersion?: string }>(params: T) {
+  const { offlineProgressVersion: _version, ...body } = params;
+  return body;
+}
+
 export const trainingApi = {
   getPublicPaidCourseOutline: async (
     courseType: string, requestGuard?: () => boolean,
@@ -255,7 +250,7 @@ export const trainingApi = {
   startStep: async (params: StartStepParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/training/step/start", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
       suppressSubscriptionPaywall: true,
     });
   },
@@ -268,7 +263,7 @@ export const trainingApi = {
   ): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/training/step/status", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
       suppressSubscriptionPaywall: true,
     });
   },
@@ -279,7 +274,7 @@ export const trainingApi = {
   pauseStep: async (params: PauseStepParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/training/step/pause", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
       suppressSubscriptionPaywall: true,
     });
   },
@@ -290,7 +285,7 @@ export const trainingApi = {
   resumeStep: async (params: StepActionParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/training/step/resume", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
       suppressSubscriptionPaywall: true,
     });
   },
@@ -301,7 +296,7 @@ export const trainingApi = {
   resetStep: async (params: ResetStepParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/training/step/reset", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
       suppressSubscriptionPaywall: true,
     });
   },
@@ -312,7 +307,7 @@ export const trainingApi = {
   completeTheoryStep: async (params: CompleteStepParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/training/step/complete/theory", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
       suppressSubscriptionPaywall: true,
     });
   },
@@ -323,7 +318,7 @@ export const trainingApi = {
   completePracticeStep: async (params: CompleteStepParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/training/step/complete/practice", {
       method: "POST",
-      body: params,
+      body: withoutOfflineProgressVersion(params),
       suppressSubscriptionPaywall: true,
     });
   },
@@ -365,18 +360,19 @@ export const trainingApi = {
   },
 
   async getVideoProgress(
-    videoId: string,
-  ): Promise<ApiResponse<{ lastPositionSec: number } | null>> {
-    return apiClient<{ lastPositionSec: number } | null>(
+    videoId: string, requestGuard?: () => boolean,
+  ): Promise<ApiResponse<{ lastPositionSec: number; progressVersion?: string } | null>> {
+    return apiClient<{ lastPositionSec: number; progressVersion?: string } | null>(
       `/api/v1/training/video/${encodeURIComponent(videoId)}/progress`,
-      { suppressSubscriptionPaywall: true },
+      { suppressSubscriptionPaywall: true, headers: { "X-Gafus-Sync-Protocol": "2" }, requestGuard },
     );
   },
 
-  async saveVideoProgress(videoId: string, positionSec: number): Promise<ApiResponse<void>> {
-    return apiClient<void>(`/api/v1/training/video/${encodeURIComponent(videoId)}/progress`, {
+  async saveVideoProgress(videoId: string, positionSec: number, requestGuard?: () => boolean): Promise<ApiResponse<{ progressVersion?: string }>> {
+    return apiClient<{ progressVersion?: string }>(`/api/v1/training/video/${encodeURIComponent(videoId)}/progress`, {
       method: "POST",
       body: { positionSec },
+      headers: { "X-Gafus-Sync-Protocol": "2" }, requestGuard,
       suppressSubscriptionPaywall: true,
     });
   },

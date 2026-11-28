@@ -13,7 +13,8 @@ describe("private mobile media cache isolation", () => {
     expect(scopedMediaCacheKey(url,"actor",now)).not.toBe(scopedMediaCacheKey(url,"another",now));
     const short = cdn+"?md5="+"A".repeat(22)+"&expires="+Math.floor((now+300_000)/1000);
     expect(isLongLivedPublicFeedCdnUrl(short,now)).toBe(false);
-    expect(scopedMediaCacheKey(short,"actor",now)).not.toBe(scopedMediaCacheKey(short,"actor",now+180_000));
+    expect(scopedMediaCacheKey(short,"actor",now)).toContain("/media/v2/");
+    expect(()=>scopedMediaCacheKey(short,"actor",now+180_000)).toThrow("MEDIA_CACHE_EXPIRED");
     for(const candidate of [
       url.replace("quepraquiecebquomiel","fupiquafifeswu"),
       url.replace("/image/m.webp","/incoming/source.jpg"),
@@ -34,7 +35,7 @@ describe("private mobile media cache isolation", () => {
     expect(key1).not.toBe(scopedMediaCacheKey(first,'other',now));
     expect(key1).not.toBe(scopedMediaCacheKey(first,'actor',now+180_000));
     const cloud = `https://s3.cloud.ru/gafus-feed-private/media/v2/media1/v2/image/m.webp?X-Amz-Signature=test`;
-    expect(scopedMediaCacheKey(cloud,'actor',now)).toContain('/media/v2/media1/v2/image/m.webp');
+    expect(()=>scopedMediaCacheKey(cloud,'actor',now)).toThrow('MEDIA_CACHE_S3_MEMORY_ONLY');
   });
   it("never treats unsigned or foreign Feed V2 objects as cacheable", () => {
     const base=`https://quepraquiecebquomiel.begetcdn.cloud/media/v2/media1/v2/image/s.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
@@ -61,7 +62,7 @@ describe("private mobile media cache isolation", () => {
     const token = 'A'.repeat(22);
     const url = `https://quepraquiecebquomiel.begetcdn.cloud/md5(${token},1800000000)/${key}`;
     const origin = `https://s3.cloud.ru/gafus-feed-private/${key}?X-Amz-Signature=secret`;
-    expect(scopedMediaCacheKey(origin, 'viewer')).toContain('/' + key);
+    expect(()=>scopedMediaCacheKey(origin, 'viewer')).toThrow('MEDIA_CACHE_S3_MEMORY_ONLY');
     for (const invalid of [
       url.replace('quepraquiecebquomiel', 'fupiquafifeswu'),
       url.replace('/md5(', '/md5(INVALID'),
@@ -87,7 +88,7 @@ describe("private mobile media cache isolation", () => {
     const path = '/gallery/u/media/m/v2/thumb.webp';
     const signed = `https://fupiquafifeswu.begetcdn.cloud/md5(${'A'.repeat(22)},${expires})${path}`;
     const now = expires * 1000 - 16_000;
-    expect(scopedMediaCacheKey(signed,'viewer',now)).toContain(path);
+    expect(() => scopedMediaCacheKey(signed,'viewer',now)).toThrow('MEDIA_CACHE_EXPIRED');
     expect(() => scopedMediaCacheKey(signed,'viewer',now+2_000)).toThrow('MEDIA_CACHE_EXPIRED');
     const feed=`https://quepraquiecebquomiel.begetcdn.cloud/media/v2/media1/v2/image/m.webp?md5=${'B'.repeat(22)}&expires=${expires}`;
     expect(() => scopedMediaCacheKey(feed,'viewer',now+2_000)).toThrow('MEDIA_CACHE_EXPIRED');

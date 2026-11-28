@@ -3,7 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import type {
   SurveyBySlugRead,
   SurveyComparisonRead,
-} from "../../../../../packages/types/src/data/survey";
+} from "@gafus/types/survey";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 

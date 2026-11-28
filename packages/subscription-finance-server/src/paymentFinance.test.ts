@@ -20,8 +20,16 @@ describe("payment financial SQL repository (policy remains Core)",()=>{
  });
  it("refund receipt uses the supplied transaction, not a second connection",async()=>{
   const data={providerRefundId:"r",paymentId:"p",amountKopecks:500,refundedAt:new Date()};
+  m.upsert.mockResolvedValueOnce(data);
   await persistRefundFinanceReceipt({appSubscriptionFinanceRefund:{upsert:m.upsert}} as never,data);
-  expect(m.upsert).toHaveBeenCalledExactlyOnceWith({where:{providerRefundId:"r"},update:{},create:data});
+  expect(m.upsert).toHaveBeenCalledExactlyOnceWith({where:{providerRefundId:"r"},update:{},create:data,select:{paymentId:true,amountKopecks:true,refundedAt:true}});
   expect(m.update).not.toHaveBeenCalled();
  });
+ it("refuses a reused refund ID with a different immutable payment",async()=>{
+  const data={providerRefundId:"r",paymentId:"p",amountKopecks:500,refundedAt:new Date()};
+  m.upsert.mockResolvedValueOnce({...data,paymentId:"foreign"});
+  await expect(persistRefundFinanceReceipt({appSubscriptionFinanceRefund:{upsert:m.upsert}} as never,data))
+    .rejects.toThrow("FINANCE_REFUND_RECEIPT_CONFLICT");
+ });
+
 });

@@ -86,6 +86,7 @@ describe("dailyCourseService", () => {
     vi.clearAllMocks();
     mocks.transaction.mockImplementation((callback: (tx: unknown) => unknown) =>
       callback({
+        $queryRaw: vi.fn(async () => [{ locked: "" }]),
         dailyCourseSchedule: {
           findFirst: (...args: unknown[]) => mocks.dailyCourseScheduleFindFirst(...args),
         },

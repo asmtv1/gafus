@@ -58,6 +58,17 @@ describe("Trainer AI Core history projection via explicit server ports", () => {
     );
   });
 
+  it("bounds offsets and normalizes non-finite pagination", async () => {
+    mocks.count.mockResolvedValue(50000);
+    mocks.findMany.mockResolvedValue([]);
+    const malformed = await getTrainerAIHistory("u1", NaN, Infinity);
+    expect(malformed.hasMore).toBe(true);
+    expect(mocks.findMany).toHaveBeenLastCalledWith(expect.objectContaining({skip:0,take:20}));
+    const distant = await getTrainerAIHistory("u1", Number.MAX_VALUE, 100);
+    expect(distant.hasMore).toBe(false);
+    expect(mocks.findMany).toHaveBeenLastCalledWith(expect.objectContaining({skip:Math.floor(Number.MAX_SAFE_INTEGER/100)*100,take:100}));
+  });
+
   it("clears only requesting trainer's messages", async () => {
     mocks.deleteMany.mockResolvedValue({ count: 2 });
     expect(await clearTrainerAIHistory("u1")).toBe(2);

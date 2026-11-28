@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
-for bin in initdb pg_ctl createdb python3; do
+for bin in initdb pg_ctl createdb psql node python3; do
   command -v "$bin" >/dev/null || { echo "WALKS_LOAD_QA_TOOL_MISSING"; exit 2; }
 done
 DIR="$(mktemp -d /tmp/gafus-walks-load-pg.XXXXXX)"
@@ -19,10 +19,14 @@ trap cleanup EXIT INT TERM
 initdb -D "$DIR/pg" -A trust -U qacourse --no-instructions >"$DIR/init.log" 2>&1
 pg_ctl -D "$DIR/pg" -l "$DIR/server.log" -o "-h 127.0.0.1 -p $PORT" -w start >/dev/null
 started=1
-createdb -h 127.0.0.1 -p "$PORT" -U qacourse gafus_refactor_walks_load
-export DATABASE_URL="postgresql://qacourse@127.0.0.1:$PORT/gafus_refactor_walks_load?schema=public"
+createdb -h 127.0.0.1 -p "$PORT" -U qacourse gafus_fresh_walks_load
+unset DIRECT_URL SHADOW_DATABASE_URL REDIS_URL
+export GAFUS_FRESH_BOOTSTRAP_CONFIRM=gafus_fresh_walks_load
+export DATABASE_URL="postgresql://qacourse@127.0.0.1:$PORT/gafus_fresh_walks_load?schema=public"
 export NODE_ENV=test GAFUS_LOCAL_ISOLATED_API=1 GAFUS_WALKS_LOAD_REAL_PG=1
 export GAFUS_WALKS_LOAD_PG_DIR="$DIR/pg" GAFUS_WALKS_LOAD_PG_PORT="$PORT"
 export GAFUS_WALKS_LOAD_REPORT="/tmp/gafus-walks-local-latency.json"
-(cd packages/prisma && pnpm exec prisma db push --skip-generate >"$DIR/schema.log" 2>&1) || { tail -60 "$DIR/schema.log"; exit 1; }
+# Use the reviewed historical baseline + forward migrations, including
+# migration-owned triggers that db push cannot create.
+(bash packages/prisma/scripts/bootstrap-fresh-postgres.sh >"$DIR/schema.log" 2>&1) || { tail -60 "$DIR/schema.log"; exit 1; }
 (cd apps/api && pnpm exec tsx scripts/qa/walks-local-load.smoke.ts)

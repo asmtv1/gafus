@@ -22,9 +22,9 @@ vi.mock("./chatDisplayRole", () => ({
 import { getPublicProfile, getUserProfileForApi, updateUserProfile } from "./profileService";
 // Bind unchanged identity-write SQL projections against the existing synthetic
 // Prisma test rows; production composition runs before Hono routes.
-import { registerProfileRowsPort } from "./profileRowsPort";
+
 import * as profileSql from "@gafus/identity-write-server/profile-rows";
-registerProfileRowsPort(profileSql);
+const fixtureProfileRowsPort = profileSql;
 
 
 describe("core profile city ownership", () => {
@@ -34,7 +34,7 @@ describe("core profile city ownership", () => {
   });
 
   it("creates and updates the city in the same upsert", async () => {
-    await updateUserProfile("user-1", { city: "  Казань  " });
+    await updateUserProfile("user-1", { city: "  Казань  " }, fixtureProfileRowsPort);
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
       where: { userId: "user-1" },
       create: expect.objectContaining({ city: "Казань" }),
@@ -43,7 +43,7 @@ describe("core profile city ownership", () => {
   });
 
   it("clears the city with empty input", async () => {
-    await updateUserProfile("user-1", { city: "  " });
+    await updateUserProfile("user-1", { city: "  " }, fixtureProfileRowsPort);
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
       create: expect.objectContaining({ city: null }),
       update: expect.objectContaining({ city: null }),
@@ -51,14 +51,14 @@ describe("core profile city ownership", () => {
   });
 
   it("does not overwrite the city when field is omitted", async () => {
-    await updateUserProfile("user-1", { about: "текст" });
+    await updateUserProfile("user-1", { about: "текст" }, fixtureProfileRowsPort);
     const args = upsert.mock.calls[0][0];
     expect(args.update).not.toHaveProperty("city");
     expect(args.create).not.toHaveProperty("city");
   });
 
   it("keeps all omitted fields and existing birthDate/socials untouched", async () => {
-    await updateUserProfile("user-1", { city: "Тюмень" });
+    await updateUserProfile("user-1", { city: "Тюмень" }, fixtureProfileRowsPort);
     const args = upsert.mock.calls[0][0];
     expect(args.update).toEqual({ city: "Тюмень" });
     expect(args.create).toEqual({
@@ -68,7 +68,7 @@ describe("core profile city ownership", () => {
   });
 
   it("explicitly clears selected fields while preserving all others", async () => {
-    await updateUserProfile("user-1", { telegram: "  ", birthDate: "" });
+    await updateUserProfile("user-1", { telegram: "  ", birthDate: "" }, fixtureProfileRowsPort);
     const args = upsert.mock.calls[0][0];
     expect(args.update).toEqual({ telegram: null, birthDate: null });
     expect(args.create).toEqual({
@@ -78,7 +78,7 @@ describe("core profile city ownership", () => {
   });
 
   it("rejects invalid birth dates before accessing the database", async () => {
-    await expect(updateUserProfile("user-1", { birthDate: "not-a-date" }))
+    await expect(updateUserProfile("user-1", { birthDate: "not-a-date" }, fixtureProfileRowsPort))
       .rejects.toThrow("Неверная дата");
     expect(upsert).not.toHaveBeenCalled();
   });
@@ -90,7 +90,7 @@ describe("core profile city ownership", () => {
         telegram: null, instagram: null, website: null, avatarUrl: null },
       diplomas: [], pets: [], authoredCourses: [],
     });
-    const result = await getPublicProfile("tester");
+    const result = await getPublicProfile("tester", fixtureProfileRowsPort);
     expect(result?.profile?.city).toBe("Самара");
     expect(userFindFirst).toHaveBeenCalledWith(expect.objectContaining({
       select: expect.objectContaining({
@@ -106,7 +106,7 @@ describe("core profile city ownership", () => {
       profile: { city: "Самара", fullName: null, about: null, telegram: null,
         instagram: null, website: null, birthDate: null, avatarUrl: null },
     });
-    const result = await getUserProfileForApi("user-1");
+    const result = await getUserProfileForApi("user-1", fixtureProfileRowsPort);
     expect(result?.profile.city).toBe("Самара");
   });
 });

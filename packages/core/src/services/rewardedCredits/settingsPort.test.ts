@@ -18,19 +18,14 @@ function ports() {
 
 describe("Core rewarded settings Persistence port", () => {
   it("fails closed when no adapter is composed", async () => {
-    const mod = await import("./settingsService");
-    await expect(mod.getRewardedAdSettings())
-      .rejects.toThrow("REWARDED_SETTINGS_PORT_UNBOUND");
-    await expect(mod.updateRewardedAdSettings({ testMode: false }, "admin"))
-      .rejects.toThrow("REWARDED_SETTINGS_PORT_UNBOUND");
-    await expect(mod.resolveRewardedPlatformSettings("ANDROID"))
-      .rejects.toThrow("REWARDED_SETTINGS_PORT_UNBOUND");
+    const {createRewardedSettingsService}=await import("./settingsService");
+    expect(()=>createRewardedSettingsService(undefined as never,async()=>false)).toThrow("REWARDED_SETTINGS_DEPENDENCIES_REQUIRED");
   });
 
   it("preserves missing-DB-row defaults while using the installed SQL adapter", async () => {
-    const mod = await import("./settingsService");
+    const {createRewardedSettingsService}=await import("./settingsService");
     const adapter = ports();
-    mod.registerRewardedSettingsPort(adapter);
+    const mod=createRewardedSettingsService(adapter as never,async()=>false);
     const settings = await mod.getRewardedAdSettings();
     expect(adapter.readRewardedAdSettingsRow).toHaveBeenCalledTimes(1);
     expect(settings).toMatchObject({
@@ -42,9 +37,9 @@ describe("Core rewarded settings Persistence port", () => {
   });
 
   it("keeps invalid limits and missing production placement errors unchanged", async () => {
-    const mod = await import("./settingsService");
+    const {createRewardedSettingsService}=await import("./settingsService");
     const adapter = ports();
-    mod.registerRewardedSettingsPort(adapter);
+    const mod=createRewardedSettingsService(adapter as never,async()=>false);
     await expect(mod.updateRewardedAdSettings({ dailyAdLimit: 101 }, "admin"))
       .rejects.toThrow("dailyAdLimit must be an integer between 0 and 100");
     await expect(mod.updateRewardedAdSettings({ androidEnabled: true, testMode: false }, "admin"))
@@ -52,13 +47,14 @@ describe("Core rewarded settings Persistence port", () => {
     expect(adapter.writeRewardedAdSettingsRow).not.toHaveBeenCalled();
   });
 
-  it("passes the actor and normalized row to the exact adapter; no replacement", async () => {
-    const mod = await import("./settingsService");
+  it("passes the actor and normalized row to the exact independent adapter", async () => {
+    const {createRewardedSettingsService}=await import("./settingsService");
     const adapter = ports();
-    mod.registerRewardedSettingsPort(adapter);
-    mod.registerRewardedSettingsPort(adapter);
-    expect(() => mod.registerRewardedSettingsPort(ports()))
-      .toThrow("REWARDED_SETTINGS_PORT_ALREADY_BOUND");
+    const mod=createRewardedSettingsService(adapter as never,async()=>false);
+    const other=ports();
+    const independent=createRewardedSettingsService(other as never,async()=>false);
+    await independent.getRewardedAdSettings();
+    expect(adapter.readRewardedAdSettingsRow).not.toHaveBeenCalled();
     await mod.updateRewardedAdSettings({
       androidEnabled: true, testMode: false,
       yandexAndroidPlacementId: "  placement-prod  ",

@@ -74,9 +74,21 @@ for (const name of packages) {
         if (!target.startsWith(path.join(root,'src')+path.sep))
           violations.push(`${name}/${item.name}: relative import escaped package (${spec})`);
       } else if (spec.startsWith('@gafus/')) {
-        if (!Object.hasOwn(manifest.dependencies || {},spec))
+        // A workspace dependency is declared by its package name, while a
+        // subpath must be an explicitly exported entry of that same package.
+        const [scope, packageName, ...segments] = spec.split('/');
+        const packageId = scope + '/' + packageName;
+        if (!Object.hasOwn(manifest.dependencies || {}, packageId)) {
           violations.push(`${name}/${item.name}: undeclared workspace dependency ${spec}`);
-        if (packages.some(p => spec === '@gafus/'+p) && spec !== manifest.name)
+        } else if (segments.length) {
+          const targetManifest = path.join(project, 'packages', packageName, 'package.json');
+          const entry = './' + segments.join('/');
+          if (!fs.existsSync(targetManifest) ||
+              !Object.hasOwn(JSON.parse(fs.readFileSync(targetManifest, 'utf8')).exports || {}, entry)) {
+            violations.push(`${name}/${item.name}: unexported workspace subpath ${spec}`);
+          }
+        }
+        if (packages.some(p => packageId === '@gafus/'+p) && packageId !== manifest.name)
           importedServerPackages.set(`${name} -> ${spec}`,true);
       }
     });
@@ -120,23 +132,20 @@ for (const name of packages) {
         !fs.readFileSync(moduleFacade,"utf8").includes("@gafus/tracking-server/trackingService"))
       violations.push(name + ": missing compatibility service export");
   } else if (name === "feature-flags-server") {
-    // The former Core -> Persistence re-export is retired. The replacement is a
-    // fail-closed, explicitly composed port, never a hidden transitive import.
-    const portPath = path.join(project, "packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts");
-    const installerPath = path.join(project, "apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts");
+    // Core only retains the flag contract. The transactional access policy
+    // receives a reader at composition, without any process-global binder.
+    const portSource = fs.readFileSync(path.join(project, "packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts"), "utf8");
+    const policySource = fs.readFileSync(path.join(project, "packages/core/src/services/contentAccess/index.ts"), "utf8");
+    const instanceSource = fs.readFileSync(path.join(project, "apps/api/src/modules/content-access/composition/transactional-policy-instance.ts"), "utf8");
     const appSource = fs.readFileSync(path.join(project, "apps/api/src/app.ts"), "utf8");
-    const portSource = fs.existsSync(portPath) ? fs.readFileSync(portPath, "utf8") : "";
-    const installerSource = fs.existsSync(installerPath) ? fs.readFileSync(installerPath, "utf8") : "";
     if (portSource.includes("@gafus/feature-flags-server") ||
-        !portSource.includes("registerAppFeatureFlagsPort") ||
-        !portSource.includes("APP_FEATURE_FLAGS_PORT_UNBOUND") ||
-        !portSource.includes("APP_FEATURE_FLAGS_PORT_ALREADY_BOUND")) {
-      violations.push(name + ": Core feature-flag port missing or permits an unbound adapter");
-    }
-    if (!installerSource.includes('from "@gafus/feature-flags-server/appFeatureFlagsService"') ||
-        !installerSource.includes("registerAppFeatureFlagsPort(featureFlagsPort)") ||
-        !appSource.startsWith('import "./modules/app-feature-flags/composition/install-core-flags.js";')) {
-      violations.push(name + ": missing API feature-flag composition before routing");
+        /registerAppFeatureFlagsPort|installedPort|requirePort\(/.test(portSource) ||
+        !policySource.includes("createTransactionalContentPolicy(") ||
+        !policySource.includes("readGatingEnabled()") ||
+        !instanceSource.includes('from "@gafus/feature-flags-server"') ||
+        !instanceSource.includes("getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true)") ||
+        appSource.includes("install-core-flags")) {
+      violations.push(name + ": missing explicit flag policy composition or global binder reintroduced");
     }
     if (coreManifest.dependencies?.["@gafus/feature-flags-server"]) {
       violations.push(name + ": Core runtime manifest still depends on Persistence");
@@ -158,9 +167,9 @@ for (const name of packages) {
   const corePackage = JSON.parse(fs.readFileSync(path.join(project,
     'packages/core/package.json'), 'utf8'));
   if (service.includes('@gafus/subscription-read-server') ||
-      !service.includes('registerSubscriptionAccessPort') ||
+      service.includes('registerSubscriptionAccessPort') ||
       !service.includes('SUBSCRIPTION_ACCESS_PORT_UNBOUND') ||
-      !service.includes('SUBSCRIPTION_ACCESS_PORT_ALREADY_BOUND')) {
+      !service.includes('ports: SubscriptionAccessPorts')) {
     violations.push('subscription-read-server: missing fail-closed Core read port');
   }
   const instance = fs.readFileSync(path.join(project,
@@ -172,7 +181,7 @@ for (const name of packages) {
   const subscription = fs.readFileSync(path.join(project,
     'apps/api/src/routes/v1/app-subscription.ts'),'utf8');
   const chat = fs.readFileSync(path.join(project,
-    'apps/api/src/modules/chat2/service.ts'),'utf8');
+    'apps/api/src/modules/chat2/access.ts'),'utf8');
   if (!instance.includes('from "@gafus/subscription-read-server"') ||
       !instance.includes('export const subscriptionAccessPort: SubscriptionAccessPorts') ||
       fs.existsSync(retiredInstaller) ||
@@ -182,6 +191,14 @@ for (const name of packages) {
       !subscription.includes('getAppSubscriptionAccess(user.id, undefined, subscriptionAccessPort)') ||
       !chat.includes('getCynologistEntitlements(userId, undefined, subscriptionAccessPort)')) {
     violations.push('subscription-read-server: API and Chat2 must explicitly inject authoritative entitlement port');
+  }
+  const consultation = fs.readFileSync(path.join(project,
+    'packages/consultation-server/src/bookingApplication.ts'),'utf8');
+  const consultationManifest = JSON.parse(fs.readFileSync(path.join(project,
+    'packages/consultation-server/package.json'),'utf8'));
+  if (!consultation.includes('import { getAppSubscriptionAccess, getCynologistEntitlements } from "@gafus/subscription-read-server"') ||
+      consultationManifest.dependencies?.['@gafus/subscription-read-server'] !== 'workspace:*') {
+    violations.push('subscription-read-server: consultation must compose authoritative access independently of API bootstrap');
   }
   if (corePackage.dependencies?.['@gafus/subscription-read-server']) {
     violations.push('subscription-read-server: Core still has a runtime Persistence dependency');
@@ -193,19 +210,18 @@ for (const name of packages) {
   const coreService = fs.readFileSync(path.join(project,
     'packages/core/src/services/rewardedCredits/settingsService.ts'), 'utf8');
   const adapterFile = path.join(project,
-    'apps/api/src/modules/rewarded-credits/composition/install-core-settings.ts');
+    'apps/api/src/modules/rewarded-credits/composition/settings-rows-instance.ts');
   const adapter = fs.existsSync(adapterFile) ? fs.readFileSync(adapterFile, 'utf8') : '';
   const app = fs.readFileSync(path.join(project, 'apps/api/src/app.ts'), 'utf8');
   if (coreService.includes('@gafus/gafus-server/rewarded-settings') ||
-      !coreService.includes('registerRewardedSettingsPort') ||
-      !coreService.includes('REWARDED_SETTINGS_PORT_UNBOUND') ||
-      !coreService.includes('REWARDED_SETTINGS_PORT_ALREADY_BOUND')) {
+      !coreService.includes('createRewardedSettingsService(') ||
+      !coreService.includes('REWARDED_SETTINGS_DEPENDENCIES_REQUIRED') ||
+      /registerRewardedSettingsPort|requireRewardedSettingsPort/.test(coreService)) {
     violations.push('gafus-server/rewarded-settings: Core lacks fail-closed settings port');
   }
   if (!adapter.includes('from "@gafus/gafus-server/rewarded-settings"') ||
-      !adapter.includes('registerRewardedSettingsPort(rewardedSettingsPort)') ||
-      !app.startsWith('import "./modules/app-feature-flags/composition/install-core-flags.js";\n' +
-        'import "./modules/rewarded-credits/composition/install-core-settings.js";')) {
+      !adapter.includes('export const rewardedSettingsPort: RewardedSettingsPorts') ||
+      app.includes('install-core-settings')) {
     violations.push('gafus-server/rewarded-settings: API settings adapter not installed before routes');
   }
 }
@@ -219,9 +235,9 @@ for (const name of packages) {
   const installer = fs.existsSync(installerFile) ? fs.readFileSync(installerFile, 'utf8') : '';
   const app = fs.readFileSync(path.join(project, 'apps/api/src/app.ts'), 'utf8');
   if (core.includes('@gafus/course-progress-server/course-version-rows') ||
-      !core.includes('registerCourseVersionRowsPort') ||
+      core.includes('registerCourseVersionRowsPort') ||
       !core.includes('COURSE_VERSION_PORT_UNBOUND') ||
-      !core.includes('COURSE_VERSION_PORT_ALREADY_BOUND')) {
+      core.includes('COURSE_VERSION_PORT_ALREADY_BOUND') || core.includes('registerCourseVersionRowsPort')) {
     violations.push('course-version: Core SQL port is not fail-closed');
   }
   const instanceFile = path.join(project,
@@ -231,7 +247,7 @@ for (const name of packages) {
       !instance.includes('export const courseVersionRowsPort: CourseVersionRowsPort') ||
       !instance.includes('writeCourseNameVersionRows') ||
       !instance.includes('setCourseLogoVersionRows') ||
-      !installer.includes('registerCourseVersionRowsPort(courseVersionRowsPort)') ||
+      fs.existsSync(installerFile) ||
       app.includes('import "./modules/trainer-courses/composition/install-core-version-rows.js";') ||
       !app.includes('import { courseVersionRowsPort } from "./modules/trainer-courses/composition/course-version-rows-instance.js";') ||
       !app.includes('createTrainerCoursesRoutes(courseVersionRowsPort, trainerCourseRows)')) {
@@ -245,20 +261,19 @@ for (const name of packages) {
   const service = fs.readFileSync(path.join(project,
     'packages/core/src/services/auth/registrationUseCases.ts'), 'utf8');
   const installerPath = path.join(project,
-    'apps/api/src/modules/auth/composition/install-registration-context.ts');
+    'apps/api/src/modules/auth/composition/registration-context-instance.ts');
   const installer = fs.existsSync(installerPath) ? fs.readFileSync(installerPath, 'utf8') : '';
   const app = fs.readFileSync(path.join(project, 'apps/api/src/app.ts'), 'utf8');
   if (service.includes('@gafus/identity-write-server/registration-context-reads') ||
-      !service.includes('registerRegistrationContextPort') ||
+      service.includes('registerRegistrationContextPort') ||
       !service.includes('REGISTRATION_CONTEXT_PORT_UNBOUND') ||
-      !service.includes('REGISTRATION_CONTEXT_PORT_ALREADY_BOUND')) {
+      service.includes('REGISTRATION_CONTEXT_PORT_ALREADY_BOUND') || service.includes('registerRegistrationContextPort')) {
     violations.push('registration-context: missing Core fail-closed transaction/read port');
   }
   if (!installer.includes('from "@gafus/identity-write-server/registration-context-reads"') ||
-      !installer.includes('registerRegistrationContextPort(registrationContextPort)') ||
-      !app.startsWith('import "./modules/app-feature-flags/composition/install-core-flags.js";\n' +
-        'import "./modules/rewarded-credits/composition/install-core-settings.js";\n' +
-        'import "./modules/auth/composition/install-registration-context.js";')) {
+      !fs.readFileSync(path.join(project, 'apps/api/src/middleware/auth.ts'), 'utf8')
+        .includes('createAuthMiddleware(registrationContextPort)') ||
+      app.includes('composition/install-registration-context.js')) {
     violations.push('registration-context: API transaction/read adapter not composed before routes');
   }
 }
@@ -269,12 +284,12 @@ for (const name of packages) {
     'packages/core/src/services/auth/passwordReset.ts'), 'utf8');
   const installerPath = path.join(project,
     'apps/api/src/modules/auth/composition/install-password-reset.ts');
-  const installer = fs.existsSync(installerPath) ? fs.readFileSync(installerPath, 'utf8') : '';
+  const installerExists = fs.existsSync(installerPath);
   const app = fs.readFileSync(path.join(project, 'apps/api/src/app.ts'), 'utf8');
   if (source.includes('@gafus/identity-write-server/password-reset') ||
-      !source.includes('registerPasswordResetPort') ||
+      source.includes('registerPasswordResetPort') ||
       !source.includes('PASSWORD_RESET_PORT_UNBOUND') ||
-      !source.includes('PASSWORD_RESET_PORT_ALREADY_BOUND')) {
+      !source.includes('ports: PasswordResetPorts')) {
     violations.push('password-reset: Core must consume receipts through a fail-closed port');
   }
   const instance = fs.readFileSync(path.join(project,
@@ -283,7 +298,7 @@ for (const name of packages) {
   if (!instance.includes('from "@gafus/identity-write-server/password-reset"') ||
       !instance.includes('export const passwordResetPort: PasswordResetPorts') ||
       !instance.includes('error instanceof ResetReceiptUnavailableError') ||
-      !installer.includes('registerPasswordResetPort(passwordResetPort)') ||
+      installerExists ||
       app.includes('import "./modules/auth/composition/install-password-reset.js";') ||
       !route.includes('resetPassword(token, password, passwordResetPort)')) {
     violations.push('password-reset: API proof adapter and error identity not composed before routes');
@@ -299,9 +314,9 @@ for (const name of packages) {
   const installer = fs.existsSync(installerPath) ? fs.readFileSync(installerPath, 'utf8') : '';
   const app = fs.readFileSync(path.join(project, 'apps/api/src/app.ts'), 'utf8');
   if (core.includes('@gafus/identity-write-server/email-account-rows') ||
-      !core.includes('registerEmailAccountRowsPort') ||
+      core.includes('registerEmailAccountRowsPort') ||
       !core.includes('EMAIL_ACCOUNT_ROWS_PORT_UNBOUND') ||
-      !core.includes('EMAIL_ACCOUNT_ROWS_PORT_ALREADY_BOUND')) {
+      core.includes('EMAIL_ACCOUNT_ROWS_PORT_ALREADY_BOUND') || core.includes('registerEmailAccountRowsPort')) {
     violations.push('email-account-rows: Core must use a fail-closed delivery/SQL port');
   }
   const instance = fs.readFileSync(path.join(project,
@@ -324,18 +339,18 @@ for (const name of packages) {
   const core = fs.readFileSync(path.join(project,
     'packages/core/src/services/auth/registerUserWithCredentials.ts'), 'utf8');
   const installerPath = path.join(project,
-    'apps/api/src/modules/auth/composition/install-credential-registration.ts');
+    'apps/api/src/modules/auth/composition/credential-registration-instance.ts');
   const installer = fs.existsSync(installerPath) ? fs.readFileSync(installerPath, 'utf8') : '';
   const app = fs.readFileSync(path.join(project, 'apps/api/src/app.ts'), 'utf8');
   if (core.includes('@gafus/identity-write-server/registration-contract-rows') ||
-      !core.includes('registerCredentialRegistrationPort') ||
+      core.includes('registerCredentialRegistrationPort') ||
       !core.includes('CREDENTIAL_REGISTRATION_PORT_UNBOUND') ||
-      !core.includes('CREDENTIAL_REGISTRATION_PORT_ALREADY_BOUND')) {
+      core.includes('CREDENTIAL_REGISTRATION_PORT_ALREADY_BOUND') || core.includes('registerCredentialRegistrationPort')) {
     violations.push('credential-registration: Core lacks fail-closed one-transaction port');
   }
   if (!installer.includes('from "@gafus/identity-write-server/registration-contract-rows"') ||
-      !installer.includes('registerCredentialRegistrationPort(credentialRegistrationPort)') ||
-      !hasEarlyCompositionInstall(app, 'auth/composition/install-credential-registration.js')) {
+      !installer.includes('export const credentialRegistrationPort') ||
+      app.includes('auth/composition/install-credential-registration.js')) {
     violations.push('credential-registration: API persistence transaction not composed before routes');
   }
 }
@@ -348,20 +363,20 @@ for (const name of packages) {
     'packages/core/src/services/auth/registrationContractRowsPort.ts');
   const port = fs.existsSync(corePortFile) ? fs.readFileSync(corePortFile, 'utf8') : '';
   const installerFile = path.join(project,
-    'apps/api/src/modules/auth/composition/install-registration-contract-rows.ts');
+    'apps/api/src/modules/auth/composition/registration-contract-rows-instance.ts');
   const installer = fs.existsSync(installerFile) ? fs.readFileSync(installerFile, 'utf8') : '';
   const app = fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   if (core.includes('@gafus/identity-write-server/registration-contract-rows') ||
       !core.includes('requireRegistrationContractRowsPort') ||
       !port.includes('REGISTRATION_CONTRACT_ROWS_PORT_UNBOUND') ||
-      !port.includes('REGISTRATION_CONTRACT_ROWS_PORT_ALREADY_BOUND') ||
+      port.includes('REGISTRATION_CONTRACT_ROWS_PORT_ALREADY_BOUND') || port.includes('registerRegistrationContractRowsPort') ||
       !port.includes('RegistrationContractDbTx = unknown')) {
     violations.push('registration-contracts: Core does not have a fail-closed opaque SQL port');
   }
   if (!installer.includes('from "@gafus/identity-write-server/registration-contract-rows"') ||
-      !installer.includes('registerRegistrationContractRowsPort(rows)') ||
+      !installer.includes('export const registrationContractRows') ||
       !installer.includes('callback(tx)') ||
-      !hasEarlyCompositionInstall(app, 'auth/composition/install-registration-contract-rows.js')) {
+      app.includes('auth/composition/install-registration-contract-rows.js')) {
     violations.push('registration-contracts: Application has not composed authoritative Tx SQL rows before Hono routes');
   }
 }
@@ -370,20 +385,20 @@ for (const name of packages) {
 {
   const policy = fs.readFileSync(path.join(project,
     'packages/core/src/services/contentAccess/policy.ts'), 'utf8');
-  const installerPath = path.join(project,
-    'apps/api/src/modules/content-access/composition/install-policy-reads.ts');
-  const installer = fs.existsSync(installerPath) ? fs.readFileSync(installerPath, 'utf8') : '';
+  const instancePath = path.join(project,
+    'apps/api/src/modules/content-access/composition/content-policy-instance.ts');
+  const instance = fs.existsSync(instancePath) ? fs.readFileSync(instancePath, 'utf8') : '';
   const app = fs.readFileSync(path.join(project,'apps/api/src/app.ts'), 'utf8');
   if (policy.includes('@gafus/entitlements-server/policy-reads') ||
-      !policy.includes('registerContentPolicyReadPort') ||
-      !policy.includes('CONTENT_POLICY_READ_PORT_UNBOUND') ||
-      !policy.includes('CONTENT_POLICY_READ_PORT_ALREADY_BOUND')) {
-    violations.push('content-policy: missing fail-closed Core owner-scoped SQL read port');
+      !policy.includes('createContentPolicy(') ||
+      !policy.includes('CONTENT_POLICY_DEPENDENCIES_REQUIRED') ||
+      /registerContentPolicyReadPort|requireContentPolicyReadPort/.test(policy)) {
+    violations.push('content-policy: missing explicit owner-scoped SQL read dependencies');
   }
-  if (!installer.includes('from "@gafus/entitlements-server/policy-reads"') ||
-      !installer.includes('registerContentPolicyReadPort(contentPolicyReads)') ||
-      !hasEarlyCompositionInstall(app, 'content-access/composition/install-policy-reads.js')) {
-    violations.push('content-policy: Application does not bind authoritative owner/period SQL reader before routes');
+  if (!instance.includes('from "@gafus/entitlements-server/policy-reads"') ||
+      !instance.includes('createContentPolicy(contentPolicyReads,') ||
+      app.includes('install-policy-reads')) {
+    violations.push('content-policy: Application does not explicitly compose authoritative owner/period SQL reader');
   }
 }
 // Grants and media eligibility are occurrence-scoped. Core supplies both the
@@ -397,9 +412,9 @@ for (const name of packages) {
   const installer=fs.existsSync(installerPath)?fs.readFileSync(installerPath,'utf8'):'';
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   if(source.includes('from "@gafus/entitlements-server"')||
-     !source.includes('registerCourseOccurrenceReadsPort')||
+     source.includes('registerCourseOccurrenceReadsPort')||
      !source.includes('COURSE_OCCURRENCE_READ_PORT_UNBOUND')||
-     !source.includes('COURSE_OCCURRENCE_READ_PORT_ALREADY_BOUND')){
+     !source.includes('reads: CourseOccurrenceReadsPort')){
     violations.push('course-occurrence: Core must use a fail-closed occurrence SQL port');
   }
   const instance=fs.readFileSync(path.join(project,
@@ -410,12 +425,12 @@ for (const name of packages) {
     'apps/api/src/modules/video/composition/video-access.ts'),'utf8');
   const gafus=fs.readFileSync(path.join(project,
     'apps/api/src/modules/rewarded-credits/composition/gafus-access.ts'),'utf8');
-  if(!installer.includes('registerCourseOccurrenceReadsPort(occurrenceReadPort)')||
+  if(fs.existsSync(installerPath)||
      !instance.includes('from "@gafus/entitlements-server"')||
      !instance.includes('export const occurrenceReadPort: CourseOccurrenceReadsPort')||
      app.includes('import "./modules/content-access/composition/install-occurrence-reads.js";')||
      !training.includes('hasActiveGafusCourseStepAccess(input, occurrenceReadPort)')||
-     !video.includes('now, occurrenceReadPort)')||
+     !video.includes('now, transactionalContentPolicy.resolveCourseStepAccessTx, occurrenceReadPort)')||
      !gafus.includes('hasActiveGafusCourseStepAccess(input, occurrenceReadPort)')){
     violations.push('course-occurrence: API must explicitly inject SQL reader into Training, Gafus and Video');
   }
@@ -426,19 +441,19 @@ for (const name of packages) {
   const core=fs.readFileSync(path.join(project,
     'packages/core/src/services/gafus/locking.ts'),'utf8');
   const file=path.join(project,
-    'apps/api/src/modules/gafus/composition/install-wallet-lock.ts');
+    'apps/api/src/modules/gafus/composition/wallet-lock-instance.ts');
   const installer=fs.existsSync(file)?fs.readFileSync(file,'utf8'):'';
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   if(core.includes('@gafus/gafus-server/wallet-lock') ||
-     !core.includes('registerGafusLockPort') ||
-     !core.includes('GAFUS_WALLET_LOCK_PORT_UNBOUND') ||
-     !core.includes('GAFUS_WALLET_LOCK_PORT_ALREADY_BOUND') ||
+     !core.includes('createGafusLockService(') ||
+     !core.includes('GAFUS_WALLET_LOCK_DEPENDENCIES_REQUIRED') ||
+     /registerGafusLockPort|installedGafusLockPort/.test(core) ||
      !core.includes('GAFUS_WALLET_OWNER_REQUIRED')){
     violations.push('gafus-wallet-lock: missing Core fail-closed transaction port');
   }
   if(!installer.includes('from "@gafus/gafus-server/wallet-lock"') ||
-     !installer.includes('registerGafusLockPort(walletLockPort)') ||
-     !hasEarlyCompositionInstall(app, 'gafus/composition/install-wallet-lock.js')){
+     !installer.includes('createGafusLockService(walletLockPort)') ||
+     app.includes('install-wallet-lock')){
     violations.push('gafus-wallet-lock: Application must install server advisory lock before routes');
   }
 }
@@ -456,9 +471,9 @@ for (const name of packages) {
   const app = fs.readFileSync(path.join(project, 'apps/api/src/app.ts'), 'utf8');
   if (!instance.includes('from "@gafus/pets-server/vet-visit-write-rows"') ||
       !instance.includes('export const vetVisitRows: VetVisitRowsPort') ||
-      !core.includes('rows ?? legacyRows') ||
-      !core.includes('vetDb(()=>(rows ?? legacyRows).reservePetVetAttachment') ||
-      !core.includes('vetDb(()=>(rows ?? legacyRows).removeOwnPetVetVisit') ||
+      !core.includes('requireVetVisitRowsPort(rows)') ||
+      !core.includes('vetDb(()=>requireVetVisitRowsPort(rows).reservePetVetAttachment') ||
+      !core.includes('vetDb(()=>requireVetVisitRowsPort(rows).removeOwnPetVetVisit') ||
       !http.includes('listPetVetVisits(petId, ownerId, rows)') ||
       !http.includes('savePetVetVisit(petId, ownerId, body, visitId, rows)') ||
       !api.includes('import { vetVisitRows }') ||
@@ -498,9 +513,9 @@ for (const name of packages) {
   const installer=fs.existsSync(installerPath)?fs.readFileSync(installerPath,'utf8'):'';
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   if(core.includes('from "@gafus/course-read-server/content-revision"')||
-    !core.includes('registerCourseContentRevisionReadPort')||
+    core.includes('registerCourseContentRevisionReadPort')||
     !core.includes('COURSE_CONTENT_REVISION_PORT_UNBOUND')||
-    !core.includes('COURSE_CONTENT_REVISION_PORT_ALREADY_BOUND')||
+    !core.includes('explicitReadPort: CourseContentRevisionReadPort')||
     !core.includes('return null;')){
     violations.push('course-content-revision: Core must use fail-closed DB revision port');
   }
@@ -511,11 +526,11 @@ for (const name of packages) {
     'apps/api/src/modules/training/composition/sql-training-instance.ts'),'utf8');
   if(!instance.includes('from "@gafus/course-read-server/content-revision"')||
      !instance.includes('export const contentRevisionReadPort: CourseContentRevisionReadPort')||
-     !installer.includes('registerCourseContentRevisionReadPort(contentRevisionReadPort)')||
+     fs.existsSync(installerPath)||
      app.includes('import "./modules/training/composition/install-content-revision-read.js";')||
      !training.includes('revisionRows: contentRevisionReadPort')||
      !training.includes('getTrainingDayContent(courseType, dayOnCourseId, {')||
-     !core.includes('explicitReadPort ?? requireCourseContentRevisionReadPort()')) {
+     !core.includes('explicitReadPort.readDurableCourseContentRevision()')) {
     violations.push('course-content-revision: Hono Training Service must receive committed DB revision port explicitly');
   }
 }
@@ -529,23 +544,21 @@ for (const name of packages) {
   const portFile=path.join(project,
     'packages/core/src/services/course/catalogReadPort.ts');
   const port=fs.existsSync(portFile)?fs.readFileSync(portFile,'utf8'):'';
-  const installerPath=path.join(project,
-    'apps/api/src/modules/courses/composition/install-catalog-read.ts');
-  const installer=fs.existsSync(installerPath)?fs.readFileSync(installerPath,'utf8'):'';
+  const instancePath=path.join(project,
+    'apps/api/src/modules/courses/composition/catalog-read-instance.ts');
+  const instance=fs.existsSync(instancePath)?fs.readFileSync(instancePath,'utf8'):'';
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
-  const boot='import "./modules/courses/composition/install-catalog-read.js";';
   if(catalogCore.includes('@gafus/course-read-server/legacy-catalog-rows') ||
-     !catalogCore.includes('requireCatalogReadPort()') ||
+     !catalogCore.includes('createCatalogReadService(') ||
+     !catalogCore.includes('rows: CatalogReadPort') ||
      !catalogCore.includes('access.userId === userId') ||
-     !port.includes('COURSE_CATALOG_READ_PORT_UNBOUND') ||
-     !port.includes('COURSE_CATALOG_READ_PORT_ALREADY_BOUND')){
-    violations.push('course-catalog: Core must use a fail-closed owner-scoped catalog read port');
+     /registerCatalogReadPort|requireCatalogReadPort/.test(catalogCore+port)){
+    violations.push('course-catalog: Core must use explicit owner-scoped catalog dependencies');
   }
-  if(!installer.includes('from "@gafus/course-read-server/legacy-catalog-rows"') ||
-     !installer.includes('registerCatalogReadPort(catalogReadPort)') ||
-     !app.includes(boot) ||
-     app.indexOf(boot)>app.indexOf('import { internalFeedRoutes }')){
-    violations.push('course-catalog: SQL reader must be composed before Hono routes');
+  if(!instance.includes('from "@gafus/course-read-server/legacy-catalog-rows"') ||
+     !instance.includes('createCatalogReadService(catalogReadPort, resolveCourseEntitlement)') ||
+     app.includes('install-catalog-read')){
+    violations.push('course-catalog: SQL reader must be explicitly composed, without global registration');
   }
 }
 // Lesson content snapshots may be cached only after a committed PostgreSQL
@@ -568,15 +581,15 @@ for (const name of packages) {
   const training=fs.readFileSync(path.join(project,
     'apps/api/src/modules/training/composition/sql-training-instance.ts'),'utf8');
   if(service.includes('from "@gafus/course-read-server"')||
-     !service.includes('contentRows ?? requireTrainingDayContentReadPort()')||
+     !service.includes('requireTrainingDayContentReadPort(contentRows)')||
      !service.includes('getVerifiedCourseContentRevision(contentPorts.revisionRows)')||
      !port.includes('TRAINING_DAY_CONTENT_READ_PORT_UNBOUND')||
-     !port.includes('TRAINING_DAY_CONTENT_READ_PORT_ALREADY_BOUND')){
+     port.includes('registerTrainingDayContentReadPort')){
     violations.push('training-day-content: Core must require an exact course/day SQL port and validate committed revision');
   }
   if(!instance.includes('from "@gafus/course-read-server"')||
      !instance.includes('export const dayContentReadPort: TrainingDayContentReadPort')||
-     !installer.includes('registerTrainingDayContentReadPort(dayContentReadPort)')||
+     fs.existsSync(installerPath)||
      app.includes(boot)||
      !training.includes('contentRows: dayContentReadPort')||
      !training.includes('revisionRows: contentRevisionReadPort')){
@@ -599,9 +612,9 @@ for (const name of packages) {
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   const boot='import "./modules/app-subscription/composition/install-promo-code-rows.js";';
   if(core.includes('@gafus/subscription-finance-server/promo-code-rows') ||
-     !core.includes('requireSubscriptionPromoPort()') ||
+     !core.includes('requireSubscriptionPromoPort(ports)') ||
      !port.includes('SUBSCRIPTION_PROMO_PORT_UNBOUND') ||
-     !port.includes('SUBSCRIPTION_PROMO_PORT_ALREADY_BOUND')) {
+     port.includes('SUBSCRIPTION_PROMO_PORT_ALREADY_BOUND') || port.includes('registerSubscriptionPromoPort')) {
     violations.push('subscription-promo: missing fail-closed Core SQL transaction port');
   }
   const instance=fs.readFileSync(path.join(project,
@@ -636,14 +649,14 @@ for (const name of packages) {
   const sql=fs.readFileSync(path.join(project,
     'packages/gafus-server/src/walletRecords.ts'),'utf8');
   const installerPath=path.join(project,
-    'apps/api/src/modules/gafus/composition/install-ledger-rows.ts');
+    'apps/api/src/modules/gafus/composition/wallet-instance.ts');
   const installer=fs.existsSync(installerPath)?fs.readFileSync(installerPath,'utf8'):'';
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   const boot='import "./modules/gafus/composition/install-ledger-rows.js";';
   if(core.includes('@gafus/gafus-server/wallet-records')||
-     !core.includes('requireGafusLedgerRowsPort()')||
-     !port.includes('GAFUS_LEDGER_PORT_UNBOUND')||
-     !port.includes('GAFUS_LEDGER_PORT_ALREADY_BOUND')||
+     !core.includes('createGafusWalletService(')||
+     !core.includes('GAFUS_LEDGER_DEPENDENCIES_REQUIRED')||
+     /registerGafusLedgerRowsPort|requireGafusLedgerRowsPort/.test(core+port)||
      !core.includes('GAFUS_IDEMPOTENCY_CONFLICT')||
      !core.includes('GAFUS_INSUFFICIENT_BALANCE')){
     violations.push('gafus-ledger: missing fail-closed transaction-local SQL port');
@@ -651,8 +664,8 @@ for (const name of packages) {
   if(!sql.includes('updateMany')||!sql.includes('balance:{gte:-delta}')||
      !sql.includes('idempotencyKey')||
      !installer.includes('from "@gafus/gafus-server/wallet-records"')||
-     !installer.includes('registerGafusLedgerRowsPort(ledgerRows)')||
-     !app.includes(boot)||app.indexOf(boot)>app.indexOf('import { internalFeedRoutes }')){
+     !installer.includes('createGafusWalletService(ledgerRows)')||
+     app.includes(boot)){
     violations.push('gafus-ledger: conditional debit and owner SQL adapter must be installed before routes');
   }
 }
@@ -673,11 +686,11 @@ for (const name of packages) {
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   const boot='import "./modules/gafus/composition/install-unlock-rows.js";';
   if(core.includes('@gafus/gafus-server/unlock-records')||
-    !core.includes('requireGafusUnlockRowsPort()')||
+    !core.includes('requireGafusUnlockRowsPort(unlockRows)')||
     !core.includes('GAFUS_IDEMPOTENCY_CONFLICT')||
     !core.includes('changeGafusBalanceTx(tx,')||
     !port.includes('GAFUS_UNLOCK_PORT_UNBOUND')||
-    !port.includes('GAFUS_UNLOCK_PORT_ALREADY_BOUND')){
+    port.includes('GAFUS_UNLOCK_PORT_ALREADY_BOUND') || port.includes('registerGafusUnlockRowsPort')){
     violations.push('gafus-unlock: Core must bind the fail-closed one-transaction grant port');
   }
   const instance = fs.readFileSync(path.join(project,
@@ -689,10 +702,10 @@ for (const name of packages) {
      !adapter.includes('tx.gafusTargetAccess.create') ||
      !instance.includes('from "@gafus/gafus-server/unlock-records"') ||
      !instance.includes('export const unlockRows: GafusUnlockRowsPort') ||
-     !installer.includes('registerGafusUnlockRowsPort(unlockRows)') ||
+     fs.existsSync(installerPath) ||
      app.includes(boot) ||
      !route.includes('import { unlockRows }') ||
-     !route.includes('}, unlockRows);')) {
+     !route.includes('}, gafusWallet, transactionalContentPolicy, unlockRows);')) {
     violations.push('gafus-unlock: PostgreSQL lock+debit+grant adapter missing in API boot');
   }
 }
@@ -712,9 +725,9 @@ for (const name of packages) {
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   const boot='import "./modules/trainer-days/composition/install-training-day-rows.js";';
   if(service.includes('@gafus/course-progress-server/training-day-rows')||
-     !service.includes('requireTrainingDayRowsPort()')||
+     !service.includes('requireTrainingDayRowsPort(rowsPort)')||
      !port.includes('TRAINING_DAY_ROWS_PORT_UNBOUND')||
-     !port.includes('TRAINING_DAY_ROWS_PORT_ALREADY_BOUND')){
+     port.includes('TRAINING_DAY_ROWS_PORT_ALREADY_BOUND') || port.includes('registerTrainingDayRowsPort')){
     violations.push('trainer-day-rows: missing Core fail-closed owner-scoped write port');
   }
   const explicitPath=path.join(project,
@@ -729,14 +742,10 @@ for (const name of packages) {
     app.includes('createTrainerDayManageRoutes(createProductionTrainerContentPorts(trainingDayRows, trainerStepRows))') &&
     app.includes('createTrainerStepManageRoutes(createProductionTrainerContentPorts(trainingDayRows, trainerStepRows))') &&
     !app.includes(boot);
-  const legacyComposition=
-    installer.includes('from "@gafus/course-progress-server/training-day-rows"') &&
-    installer.includes('registerTrainingDayRowsPort(trainingDayRows)') &&
-    app.includes(boot) && app.indexOf(boot)<app.indexOf('import { internalFeedRoutes }');
   if(!adapter.includes('STEP_OWNER_MISMATCH')||
      !adapter.includes('DAY_DELETE_RACE')||
      !adapter.includes('authorId: actor.id')||
-     (!explicitComposition&&!legacyComposition)){
+     (!explicitComposition || fs.existsSync(installerPath))){
     violations.push('trainer-day-rows: trainer day SQL adapter must reach both read and write routes with owner checks');
   }
 }
@@ -784,22 +793,22 @@ for (const name of packages) {
   const sql=fs.readFileSync(path.join(project,
     'packages/entitlements-server/src/rewardedAccessReads.ts'),'utf8');
   const installerPath=path.join(project,
-    'apps/api/src/modules/rewarded-credits/composition/install-access-reads.ts');
+    'apps/api/src/modules/rewarded-credits/composition/access-reads-instance.ts');
   const installer=fs.existsSync(installerPath)?fs.readFileSync(installerPath,'utf8'):'';
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   const boot='import "./modules/rewarded-credits/composition/install-access-reads.js";';
   if(core.includes('@gafus/entitlements-server/rewarded-access-reads')||
-     !core.includes('requireRewardedAccessReadPort()')||
-     !port.includes('REWARDED_ACCESS_READ_PORT_UNBOUND')||
-     !port.includes('REWARDED_ACCESS_READ_PORT_ALREADY_BOUND')){
+     !core.includes('createRewardedAccessPolicy(')||
+     !core.includes('REWARDED_ACCESS_DEPENDENCIES_REQUIRED')||
+     /registerRewardedAccessReadPort|requireRewardedAccessReadPort/.test(core+port)){
     violations.push('rewarded-access: missing fail-closed owner-scoped Core SQL read port');
   }
   if(!sql.includes('userTrainings: { some: { userId } }')||
      !sql.includes('userTraining: { userId }')||
      !sql.includes('courseAccess.findFirst')||
      !installer.includes('from "@gafus/entitlements-server/rewarded-access-reads"')||
-     !installer.includes('registerRewardedAccessReadPort(rewardedAccessReader)')||
-     !app.includes(boot)||app.indexOf(boot)>app.indexOf('import { internalFeedRoutes }')){
+     !installer.includes('export const rewardedAccessReader: RewardedAccessReadPort')||
+     app.includes(boot)){
     violations.push('rewarded-access: actor/occurrence SQL projection missing before Hono routes');
   }
 }
@@ -813,7 +822,7 @@ for (const name of packages) {
     'packages/core/src/services/reminders/reminderAG4ReviewPort.ts');
   const port=fs.existsSync(portPath)?fs.readFileSync(portPath,'utf8'):'';
   const installerPath=path.join(project,
-    'apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.ts');
+    'apps/api/src/modules/reminders/composition/reminder-rows.ts');
   const installer=fs.existsSync(installerPath)?fs.readFileSync(installerPath,'utf8'):'';
   const reviewRoute=fs.readFileSync(path.join(project,
     'apps/api/src/routes/v1/g1-reminders-v2-unmounted.review.ts'),'utf8');
@@ -822,16 +831,16 @@ for (const name of packages) {
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   if(core.includes('@gafus/identity-write-server/reminder-review-rows')||
      !core.includes('SOURCE REVIEW ONLY')||
-     !core.includes('requireReminderAG4ReviewRowsPort()')||
+     !core.includes('requireReminderAG4ReviewRowsPort(port)')||
      !port.includes('REMINDER_AG4_REVIEW_PORT_UNBOUND')||
-     !port.includes('REMINDER_AG4_REVIEW_PORT_ALREADY_BOUND')){
+     port.includes('registerReminderAG4ReviewRowsPort')){
     violations.push('reminder-ag4-review: Core source-only receipt port must fail closed');
   }
   if(!installer.includes('from "@gafus/identity-write-server/reminder-review-rows"')||
      !installer.includes('from "@gafus/core/services/reminders"')||
-     !installer.includes('reminderCore.registerReminderAG4ReviewRowsPort(reminderRows)')||
-     !reviewRoute.includes('install-ag4-review-rows.review.js')||
-     !activeRoute.includes('import "../../modules/reminders/composition/install-ag4-review-rows.review.js";')||
+     !installer.includes('export const reminderRows: ReminderAG4ReviewRowsPort')||
+     !reviewRoute.includes('}, key, reminderRows)')||
+     !activeRoute.includes('}, idempotencyKey, reminderRows)')||
      app.includes('install-ag4-review-rows.review')||
      app.includes('g1-reminders-v2-unmounted.review')){
     violations.push('reminder-ag4-review: existing keyed route must bind compiled Core SQL port, without mounting review candidate');
@@ -850,18 +859,18 @@ for (const name of packages) {
   const rows=fs.readFileSync(path.join(project,
     'packages/course-progress-server/src/offlineVideoRows.ts'),'utf8');
   const composerPath=path.join(project,
-    'apps/api/src/modules/offline/composition/install-video-position-v3-review.ts');
+    'apps/api/src/modules/offline/composition/video-position-v3-review-instance.ts');
   const composer=fs.existsSync(composerPath)?fs.readFileSync(composerPath,'utf8'):'';
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   const route=fs.readFileSync(path.join(project,
     'apps/api/src/routes/v1/offline.ts'),'utf8');
   if(core.includes('@gafus/course-progress-server/offline-video-rows')||
-     !core.includes('requireOfflineVideoSqlPort()')||
-     !core.includes('authorizeVideoOccurrenceV3(tx, ownerId, parsed, now)')||
+     !core.includes('requireOfflineVideoSqlPort(port)')||
+     !core.includes('authorizeVideoOccurrenceV3(tx, ownerId, parsed, resolveAccess, now)')||
      !core.includes('IDEMPOTENCY_KEY_CONFLICT')||
      !core.includes('STALE_VIDEO_REVISION')||
      !port.includes('OFFLINE_VIDEO_SQL_PORT_UNBOUND')||
-     !port.includes('OFFLINE_VIDEO_SQL_PORT_ALREADY_BOUND')){
+     port.includes('registerOfflineVideoSqlPort')){
     violations.push('offline-video-v3: Core must use an atomic fail-closed exact-occurrence SQL port');
   }
   if(!rows.includes('prisma.$transaction(cb, { timeout: 10000 })')||
@@ -870,9 +879,9 @@ for (const name of packages) {
      !rows.includes('AND "revision"=${expectedRevision}')||
      !rows.includes('"responseStatus"=200')||
      !composer.includes('from "@gafus/course-progress-server/offline-video-rows"')||
-     !composer.includes('registerOfflineVideoSqlPort(offlineVideoSql)')||
-     app.includes('install-video-position-v3-review')||
-     route.includes('install-video-position-v3-review')||
+     !composer.includes('export const offlineVideoSql: OfflineVideoSqlPort')||
+     app.includes('video-position-v3-review-instance')||
+     route.includes('video-position-v3-review-instance')||
      route.includes('submitVideoPositionV2Proposal')){
     violations.push('offline-video-v3: atomic receipt+revision SQL composer must remain UNMOUNTED');
   }
@@ -890,16 +899,15 @@ for (const name of packages) {
   const sql=fs.readFileSync(path.join(project,
     'packages/gafus-server/src/rewardedWalletRows.ts'),'utf8');
   const composerPath=path.join(project,
-    'apps/api/src/modules/rewarded-credits/composition/install-wallet-rows.ts');
+    'apps/api/src/modules/rewarded-credits/composition/wallet-rows-instance.ts');
   const composer=fs.existsSync(composerPath)?fs.readFileSync(composerPath,'utf8'):'';
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   const boot='import "./modules/rewarded-credits/composition/install-wallet-rows.js";';
   if(core.includes('@gafus/gafus-server/rewarded-wallet-rows')||
-     !core.includes('requireRewardedWalletPort().withLockedRewardedWallet(')||
+     !core.includes('rows.withLockedRewardedWallet(') || !core.includes('createRewardedWalletService(')||
      !core.includes('REWARDED_MAX_CREDIT_BALANCE')||
      !core.includes('REWARDED_DAILY_LIMIT_TIMEZONE')||
-     !port.includes('REWARDED_WALLET_PORT_UNBOUND')||
-     !port.includes('REWARDED_WALLET_PORT_ALREADY_BOUND')||
+     !core.includes('REWARDED_WALLET_DEPENDENCIES_REQUIRED')|| /registerRewardedWalletPort|requireRewardedWalletPort/.test(core+port)||
      !port.includes('rewardedWalletTxBrand')){
     violations.push('rewarded-wallet: Core must use opaque fail-closed owner-locked SQL port');
   }
@@ -910,8 +918,8 @@ for (const name of packages) {
      !sql.includes('idempotencyKey')||
      !sql.includes('rewardedCreditWallet.update')||
      !composer.includes('from "@gafus/gafus-server/rewarded-wallet-rows"')||
-     !composer.includes('registerRewardedWalletPort(rewardedWalletRows)')||
-     !app.includes(boot)||app.indexOf(boot)>app.indexOf('import { createOfflineRoutes }') ||
+     !composer.includes('export const rewardedWalletRows: RewardedWalletPort')||
+     app.includes(boot) ||
      !app.includes('app.route("/api/v1/offline", createOfflineRoutes({') ||
      !app.includes('applyStepDayAndCourseTx: sqlTraining.applyStepDayAndCourseTx')){
     violations.push('rewarded-wallet: original PG owner lock, idempotency and SQL composer required before routes');
@@ -944,12 +952,12 @@ for (const name of packages) {
   const app=fs.readFileSync(path.join(project,'apps/api/src/app.ts'),'utf8');
   const boot='import "./modules/user/composition/install-profile-rows.js";';
   if(core.includes('@gafus/identity-write-server/profile-rows')||
-    !core.includes('requireProfileRowsPort()')||
+    !core.includes('requireProfileRowsPort(rows)')||
     !core.includes('parseBirthDateEditWire')||
     !core.includes('getChatDisplayRole(user, (id, at) =>')||
     !core.includes('deleteFileFromCDN(priorKey)')||
     !port.includes('PROFILE_ROWS_PORT_UNBOUND')||
-    !port.includes('PROFILE_ROWS_PORT_ALREADY_BOUND')){
+    port.includes('PROFILE_ROWS_PORT_ALREADY_BOUND') || port.includes('registerProfileRowsPort')){
     violations.push('profile-sql: Core must preserve strict private/public DTO and fail-closed owner-scoped port');
   }
   if(!sql.includes('PROFILE_OWNER_MISMATCH')||
@@ -959,7 +967,7 @@ for (const name of packages) {
      !sql.includes('where: { provider: "vk" }')||
      !instance.includes('from "@gafus/identity-write-server/profile-rows"')||
      !instance.includes('export const profileRows: ProfileRowsPort')||
-     !composer.includes('registerProfileRowsPort(profileRows)')||
+     fs.existsSync(composerPath)||
      app.includes(boot)||
      !profileComposition.includes('getUserProfileForApi(userId, profileRows)')||
      !profileComposition.includes('updateUserProfile(userId, data, profileRows)')||
@@ -972,6 +980,21 @@ for (const name of packages) {
     violations.push('profile-sql: canonical owner SQL and explicit per-service DI with avatar PG lock must be preserved');
   }
 }
+// Production Core must never regain a process-global adapter registry.
+function checkExplicitCorePorts(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (!['__tests__', 'fixtures', 'test', 'tests'].includes(entry.name)) checkExplicitCorePorts(file);
+    } else if (entry.isFile() && /\.tsx?$/.test(file) && !/\.(?:test|spec|d)\.tsx?$/.test(file)) {
+      const source = fs.readFileSync(file, 'utf8');
+      if (/\b(?:function\s+register\w*Port\s*\(|(?:const|let|var)\s+register\w*Port\s*[=:])/.test(source)) {
+        violations.push('Core global adapter registration forbidden: ' + path.relative(project, file));
+      }
+    }
+  }
+}
+checkExplicitCorePorts(path.join(project, 'packages/core/src'));
 if (importedServerPackages.size) {
   violations.push('Unexpected server-domain dependency: '+[...importedServerPackages.keys()].join(', '));
 }

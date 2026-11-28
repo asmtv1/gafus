@@ -227,6 +227,13 @@ ci-cd/nginx/conf.d/.release-maintenance
 # Keep any existing local diagnostics, but never stage them with source files.
 /tests/e2e/web/.qa/
 
+# Gallery storage temporary declaration build workspace
+.types-build-*/
+
+# Python verifier bytecode is generated locally, not release source.
+__pycache__/
+*.pyc
+
 
 # From apps/admin-panel/src/admin-live/.gitignore (scoped to its directory)
 apps/admin-panel/src/admin-live/dist/

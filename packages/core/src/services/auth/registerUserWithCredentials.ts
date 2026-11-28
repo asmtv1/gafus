@@ -53,16 +53,9 @@ export interface CredentialRegistrationPort {
     tx: CredentialRegistrationTx, userId: string, promoCode: string,
   ): Promise<unknown>;
 }
-let installedCredentialRegistrationPort: Readonly<CredentialRegistrationPort> | null = null;
-export function registerCredentialRegistrationPort(port: CredentialRegistrationPort): void {
-  if (installedCredentialRegistrationPort !== null && installedCredentialRegistrationPort !== port) {
-    throw new Error("CREDENTIAL_REGISTRATION_PORT_ALREADY_BOUND");
-  }
-  installedCredentialRegistrationPort = port;
-}
-function requireCredentialRegistrationPort(): Readonly<CredentialRegistrationPort> {
-  if (!installedCredentialRegistrationPort) throw new Error("CREDENTIAL_REGISTRATION_PORT_UNBOUND");
-  return installedCredentialRegistrationPort;
+function requireCredentialRegistrationPort(port: CredentialRegistrationPort | undefined): Readonly<CredentialRegistrationPort> {
+  if (!port) throw new Error("CREDENTIAL_REGISTRATION_PORT_UNBOUND");
+  return port;
 }
 
 
@@ -165,7 +158,7 @@ export async function registerUserWithCredentials(
     },
   });
 
-  const port = registrationRows ?? requireCredentialRegistrationPort();
+  const port = requireCredentialRegistrationPort(registrationRows);
   try {
     const outcome = await port.withRegistrationTransaction(async (tx) => {
       const attempt = await getOrCreateRegistrationEmailAttemptInTransaction(tx, {

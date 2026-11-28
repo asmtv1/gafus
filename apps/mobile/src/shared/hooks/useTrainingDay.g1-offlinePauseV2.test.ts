@@ -22,7 +22,7 @@ vi.mock("@/shared/stores/authStore", () => ({
 }));
 vi.mock("@/shared/stores/networkStatusStore", () => ({ getIsOffline: () => m.offline }));
 vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
-  newOnlyV2NativeQueues: { enqueue: m.enqueue },
+  newOnlyV2NativeQueues: { enqueue: m.enqueue, getVerifiedBinding: () => null },
 }));
 vi.mock("@/shared/lib/offline/offlineStorage", () => ({ getCourseMeta: vi.fn() }));
 vi.mock("@/shared/lib/offline/mapOfflineMetaToTraining", () => ({

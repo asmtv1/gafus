@@ -5,7 +5,7 @@
 import { readFile } from "node:fs/promises";
 
 import type { Attachment } from "@gafus/mailer";
-import { sendTransactionalMail, sendTransactionalMailWithDisposition } from "@gafus/mailer";
+import { mailerEnvFromProcess, sendTransactionalMail, sendTransactionalMailWithDisposition } from "@gafus/mailer";
 import type { TransactionalMailDisposition, SendTransactionalMailInput } from "@gafus/mailer";
 import { createWebLogger } from "@gafus/logger";
 
@@ -133,7 +133,7 @@ export function plainLinkFallbackHtml(url: string): string {
 
 interface WrapTransactionalEmailOptions {
   blocksHtml: string[];
-  logoMode: "cid" | "none";
+  logoMode: "cid" | "remote" | "none";
 }
 
 function wrapTransactionalEmailHtml({
@@ -141,9 +141,10 @@ function wrapTransactionalEmailHtml({
   logoMode,
 }: WrapTransactionalEmailOptions): string {
   const inner = blocksHtml.join("\n");
-  const logoImg = `<img src="cid:${TRANSACTIONAL_LOGO_CID}" width="100" alt="Гафус" style="display:block;width:100px;max-width:100%;height:auto;margin:0;border:0;" />`;
+  const logoSrc = logoMode === "remote" ? transactionalLogoAbsoluteUrl() : `cid:${TRANSACTIONAL_LOGO_CID}`;
+  const logoImg = `<img src="${escapeHtml(logoSrc)}" width="100" alt="Гафус" style="display:block;width:100px;max-width:100%;height:auto;margin:0;border:0;" />`;
   const logoBlock =
-    logoMode === "cid"
+    logoMode !== "none"
       ? `${brandTextHeaderHtml()}${logoImg}`
       : brandTextHeaderHtml();
 
@@ -183,7 +184,7 @@ export async function sendTransactionalEmailWithLayout(input: {
   blocksHtml: string[];
   deliveryMode?: "immediate" | "deferred";
   maxQueueAgeMs?: number;
-  category?: "auth" | "welcome" | "consultation" | "receipt" | "subscription" | "notice" | "general";
+  category?: "auth" | "password_reset" | "welcome" | "consultation" | "receipt" | "subscription" | "notice" | "general";
 }): Promise<void> {
   await sendTransactionalMail(await transactionalLayoutPayload(input));
 }
@@ -193,8 +194,14 @@ type LayoutMailInput = Parameters<typeof sendTransactionalEmailWithLayout>[0];
 async function transactionalLayoutPayload(
   input: LayoutMailInput,
 ): Promise<SendTransactionalMailInput> {
-  const logoAtt = await resolveInlineLogoAttachment();
-  const logoMode: WrapTransactionalEmailOptions["logoMode"] = logoAtt ? "cid" : "none";
+  // Resend receives attachments as base64 JSON. Large decorative logos can
+  // stall the HTTPS upload; use a public image URL and retain the text brand.
+  // Do not fetch the image or enqueue its bytes for Resend.
+  const useRemoteLogo = mailerEnvFromProcess().provider === "resend";
+  const logoAtt = useRemoteLogo ? undefined : await resolveInlineLogoAttachment();
+  const logoMode: WrapTransactionalEmailOptions["logoMode"] = useRemoteLogo
+    ? "remote"
+    : logoAtt ? "cid" : "none";
   const html = wrapTransactionalEmailHtml({
     blocksHtml: input.blocksHtml,
     logoMode,

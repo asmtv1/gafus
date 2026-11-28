@@ -76,6 +76,7 @@ vi.mock("./app-subscription-renewal-reminders", () => ({
 
 const mockReconcileConsultationEmailLog = vi.fn().mockResolvedValue("sent");
 vi.mock("@gafus/consultation-server/booking-application", () => ({
+  reconcileOverdueConsultationBookings: vi.fn().mockResolvedValue({ checked: 0, failed: 0 }),
   reconcileMissedConsultationReminders: vi.fn().mockResolvedValue({
     checked: 0,
     triggered30m: 0,
@@ -83,6 +84,7 @@ vi.mock("@gafus/consultation-server/booking-application", () => ({
   }),
 }));
 vi.mock("@gafus/consultation-server/mail-delivery", () => ({
+  canDispatchConsultationMail: vi.fn(),
   reconcileConsultationEmailLog: (...args: unknown[]) => mockReconcileConsultationEmailLog(...args),
 }));
 
@@ -101,6 +103,20 @@ describe("cron-scheduler", () => {
   });
 
   describe("startCronJobs", () => {
+    it("stops all registered tasks once and supports a new lifecycle", () => {
+      const stopTask = vi.fn();
+      mockSchedule.mockReturnValue({ stop: stopTask });
+      const stop = startCronJobs();
+      const taskCount = mockSchedule.mock.calls.length;
+      expect(taskCount).toBeGreaterThan(0);
+      stop();
+      stop();
+      expect(stopTask).toHaveBeenCalledTimes(taskCount);
+      const stopAgain = startCronJobs();
+      stopAgain();
+      expect(stopTask).toHaveBeenCalledTimes(taskCount * 2);
+    });
+
     it("регистрирует 10 базовых cron задач с очисткой аккаунта по умолчанию", async () => {
 
       startCronJobs();
@@ -133,7 +149,7 @@ describe("cron-scheduler", () => {
       expect(due).toBeDefined();
       await due?.[1]();
       await vi.waitFor(() => expect(mockProcessMailOutbox).toHaveBeenCalledWith({
-        batchSize: 10, onTerminalCommitted: expect.any(Function),
+        batchSize: 10, canDispatchConsultationMail: expect.any(Function), onTerminalCommitted: expect.any(Function),
       }));
       const hook = mockProcessMailOutbox.mock.calls[0][0].onTerminalCommitted as
         (key: string) => Promise<void>;
@@ -197,3 +213,7 @@ describe("cron-scheduler", () => {
     });
   });
 });
+
+vi.mock("@gafus/notifications-server/consultation-email-outbox", () => ({
+  recoverUnstartedConsultationEmails: vi.fn().mockResolvedValue({ checked: 0, queued: 0, failed: 0 }),
+}));

@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 describe("AG1 Vet history list existing Core SELECT-only contract", () => {
   it("L01 owner-and-pet scoped history desc with attachment metadata, no media keys", async () => {
-    const rows = await listPetVetVisits("pet-A", "owner-A");
+    const rows = await listPetVetVisits("pet-A", "owner-A", fixtureVetVisitRowsPort);
     expect(m.owner).toHaveBeenCalledWith({
       where: { id: "pet-A", ownerId: "owner-A" }, select: { id: true },
     });
@@ -46,19 +46,19 @@ describe("AG1 Vet history list existing Core SELECT-only contract", () => {
   });
   it("L02 zero owned visits => [] with no pending preview query", async () => {
     m.visits.mockResolvedValueOnce([]);
-    expect(await listPetVetVisits("pet-A", "owner-A")).toEqual([]);
+    expect(await listPetVetVisits("pet-A", "owner-A", fixtureVetVisitRowsPort)).toEqual([]);
     expect(m.jobs).not.toHaveBeenCalled();
   });
   it("L03 nonexistent/foreign pet 404 before history/preview queries", async () => {
     m.owner.mockResolvedValueOnce(null);
-    await expect(listPetVetVisits("pet-A", "foreign-B"))
+    await expect(listPetVetVisits("pet-A", "foreign-B", fixtureVetVisitRowsPort))
       .rejects.toMatchObject({ status: 404 });
     expect(m.visits).not.toHaveBeenCalled();
     expect(m.jobs).not.toHaveBeenCalled();
   });
   it("L04 previewProcessing computed only by readonly jobs and no writes", async () => {
     m.jobs.mockResolvedValueOnce([{ dedupeKey: "vet-preview:att-new" }]);
-    const result=await listPetVetVisits("pet-A", "owner-A");
+    const result=await listPetVetVisits("pet-A", "owner-A", fixtureVetVisitRowsPort);
     expect(result[0]?.attachments[0]?.previewProcessing).toBe(true);
     expect(result[1]?.attachments[0]?.previewProcessing).toBe(false);
     expect(m.jobs).toHaveBeenCalledWith({
@@ -72,5 +72,5 @@ describe("AG1 Vet history list existing Core SELECT-only contract", () => {
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalVetVisitRowsPort from "@gafus/pets-server/vet-visit-write-rows";
-import { registerVetVisitRowsPort } from "./vetVisitRowsPort";
-registerVetVisitRowsPort({ ...originalVetVisitRowsPort, isVetVisitDbError: (error): error is originalVetVisitRowsPort.VetVisitDbError => error instanceof originalVetVisitRowsPort.VetVisitDbError });
+
+const fixtureVetVisitRowsPort = { ...originalVetVisitRowsPort, isVetVisitDbError: (error): error is originalVetVisitRowsPort.VetVisitDbError => error instanceof originalVetVisitRowsPort.VetVisitDbError };

@@ -454,7 +454,7 @@ export function VideoReportBlock({ userStepId, stepId }: VideoReportBlockProps) 
       ) : (
         <View style={styles.card}>
           <View style={styles.previewWrap}>
-            <VideoPlayer uri={localVideoUri} autoPlay={false} />
+            <VideoPlayer frameSurface="preview" uri={localVideoUri} autoPlay={false} />
           </View>
           {videoSize > 0 && (
             <Text style={[styles.sizeCaption, oversized && styles.sizeError]}>

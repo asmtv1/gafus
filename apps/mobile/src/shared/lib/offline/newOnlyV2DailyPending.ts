@@ -13,7 +13,7 @@ export function reducePendingDailyTimers(
   events: readonly V2PendingEvent[],
   scheduleId: string,
 ): PendingTimer[] {
-  const latest = new Map<number, PendingTimer>();
+  const latest = new Map<string, PendingTimer>();
   for (const event of events) {
     if (!Object.prototype.hasOwnProperty.call(DAILY_KINDS, event.kind)) continue;
     const payload = event.payload;
@@ -33,7 +33,10 @@ export function reducePendingDailyTimers(
       (!Number.isSafeInteger(payload.timeLeftSec) || (payload.timeLeftSec as number) < 0)
     )
       continue;
-    const previous = latest.get(step as number);
+    const occurrenceId = typeof payload.expectedBundleStepId === "string" ? payload.expectedBundleStepId : undefined;
+    const originalStepId = typeof payload.expectedStepId === "string" ? payload.expectedStepId : undefined;
+    const key = occurrenceId && originalStepId ? JSON.stringify([occurrenceId, originalStepId]) : "legacy:" + step;
+    const previous = latest.get(key);
     const remainingSec =
       event.kind === "dailyCourseStartStep"
         ? (payload.durationSec as number)
@@ -42,7 +45,8 @@ export function reducePendingDailyTimers(
           : event.kind === "dailyCourseResumeStep"
             ? (previous?.remainingSec ?? null)
             : null;
-    latest.set(step as number, {
+    latest.set(key, {
+      ...(occurrenceId && originalStepId ? { occurrenceId, originalStepId } : {}),
       stepIndex: step as number,
       status,
       remainingSec,

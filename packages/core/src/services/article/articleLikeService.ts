@@ -4,7 +4,7 @@
  */
 import type { MonetizedAccessPlatform } from "../rewardedCredits";
 import { SubscriptionOrCreditsRequiredError } from "../rewardedCredits";
-import { resolveArticleEntitlement } from "../contentAccess/policy";
+import type { ContentPolicy } from "../contentAccess/policy";
 
 export interface ArticleLikePorts {
   articleExists(articleId: string): Promise<boolean>;
@@ -23,6 +23,7 @@ export interface ArticleLikeInput {
 export async function toggleArticleLikeWithMonetizedAccess(
   input: ArticleLikeInput,
   ports: ArticleLikePorts,
+  resolveArticleEntitlement: ContentPolicy["resolveArticleEntitlement"],
 ): Promise<boolean> {
   if (!(await ports.articleExists(input.articleId))) throw new Error("ARTICLE_NOT_FOUND");
   const access = await resolveArticleEntitlement(input.articleId, input.userId, input.platform);

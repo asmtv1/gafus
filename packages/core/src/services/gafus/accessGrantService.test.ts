@@ -36,7 +36,7 @@ vi.mock("@gafus/prisma", () => ({
   },
 }));
 vi.mock("./locking", () => ({ lockGafusUser: vi.fn(async () => undefined) }));
-vi.mock("../contentAccess", () => ({
+const content = vi.hoisted(() => ({
   resolveCourseStepTargetTx: vi.fn(async (
     _tx: unknown, dayOnCourseId: string, stepOnDayId: string,
   ) => ({
@@ -65,6 +65,7 @@ vi.mock("../contentAccess", () => ({
     expiresAt: null, eligibleForGafus: true,
   })),
 }));
+vi.mock("../contentAccess", () => content);
 vi.mock("./settingsService", () => ({
   getGafusSettingsTx: vi.fn(async () => ({
     economyEnabled: state.settingsEnabled,
@@ -73,7 +74,7 @@ vi.mock("./settingsService", () => ({
     accessDurationSeconds: 604800, revision: 1,
   })),
 }));
-vi.mock("./walletService", () => ({
+const wallet = ({
   ensureGafusWalletTx: vi.fn(async () => ({ balance: state.balance })),
   changeGafusBalanceTx: vi.fn(async (_tx: unknown, input: {
     userId: string; targetType: string; targetKey: string;
@@ -91,18 +92,19 @@ vi.mock("./walletService", () => ({
     });
     return { transactionId: id, balance: state.balance, replay: false };
   }),
-}));
+});
 
-import { unlockContentWithGafus } from "./accessGrantService";
-import { registerGafusUnlockRowsPort } from "./gafusUnlockPort";
+import { unlockContentWithGafus as coreUnlock } from "./accessGrantService";
+const unlockContentWithGafus = (input: Parameters<typeof coreUnlock>[0]) => coreUnlock(input, wallet as Parameters<typeof coreUnlock>[1], content as unknown as Parameters<typeof coreUnlock>[2], fixtureGafusUnlockRowsPort);
+
 import {
   withGafusUnlockTransaction,
   readGafusUnlockReplayTx,
   insertGafusUnlockGrantTx,
 } from "@gafus/gafus-server/unlock-records";
-registerGafusUnlockRowsPort({
+const fixtureGafusUnlockRowsPort = {
   withGafusUnlockTransaction, readGafusUnlockReplayTx, insertGafusUnlockGrantTx,
-});
+};
 
 
 const request = (clientRequestId: string) => ({

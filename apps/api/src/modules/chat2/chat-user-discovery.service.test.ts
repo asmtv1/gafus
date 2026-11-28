@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ findMany: vi.fn(), findFirst: vi.fn() }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: {
+vi.mock("@gafus/prisma", async (original) => ({ ...(await original<Record<string, unknown>>()), prisma: { user: {
   findMany: mocks.findMany, findFirst: mocks.findFirst,
 } } }));
 import { findChatUserIdByUsername, listCandidateChatUsers } from "./service";

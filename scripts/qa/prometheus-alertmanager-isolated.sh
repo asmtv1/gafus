@@ -27,12 +27,28 @@ AM_PORT="$(port)"
 PROM_PORT="$(port)"
 SINK_PORT="$(port)"
 echo "Downloading isolated upstream Prometheus and Alertmanager binaries to temporary workspace"
-curl -fsSL --retry 2 --max-time 180 \
-  "https://github.com/prometheus/prometheus/releases/download/v3.15.1/prometheus-3.15.1.darwin-arm64.tar.gz" \
-  -o "$DIR/prometheus.tar.gz"
-curl -fsSL --retry 2 --max-time 180 \
-  "https://github.com/prometheus/alertmanager/releases/download/v0.29.0/alertmanager-0.29.0.darwin-arm64.tar.gz" \
-  -o "$DIR/alertmanager.tar.gz"
+download_verified() {
+  local project="$1" version="$2" filename="$3" archive="$4"
+  local base="https://github.com/prometheus/$project/releases/download/v$version"
+  curl -fsSL --retry 0 --connect-timeout 15 --max-time 60 "$base/sha256sums.txt" -o "$DIR/$project.sha256sums"
+  curl -fsSL --retry 0 --connect-timeout 15 --max-time 240 "$base/$filename" -o "$DIR/$archive"
+  python3 - "$DIR/$project.sha256sums" "$filename" "$DIR/$archive" <<'VERIFY'
+import hashlib, pathlib, re, sys
+sums, name, archive = sys.argv[1:]
+matches = [parts[0] for line in pathlib.Path(sums).read_text().splitlines()
+           if len(parts := line.split()) == 2 and parts[1].lstrip("*") == name]
+assert len(matches) == 1 and re.fullmatch(r"[0-9a-fA-F]{64}", matches[0]), "missing unique official checksum"
+with open(archive, "rb") as stream:
+    h = hashlib.sha256()
+    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+        h.update(chunk)
+    digest = h.hexdigest()
+assert digest == matches[0].lower(), "archive SHA256 mismatch"
+print("VERIFIED upstream SHA256:", digest, name)
+VERIFY
+}
+download_verified prometheus 3.15.1 prometheus-3.15.1.darwin-arm64.tar.gz prometheus.tar.gz
+download_verified alertmanager 0.29.0 alertmanager-0.29.0.darwin-arm64.tar.gz alertmanager.tar.gz
 tar -xzf "$DIR/prometheus.tar.gz" -C "$DIR"
 tar -xzf "$DIR/alertmanager.tar.gz" -C "$DIR"
 PROM="$DIR/prometheus-3.15.1.darwin-arm64/prometheus"
@@ -43,6 +59,7 @@ test -x "$PROM" && test -x "$PROMTOOL" && test -x "$AM" && test -x "$AMTOOL"
 "$PROMTOOL" check rules ci-cd/docker/prometheus/gafus-alerts.yml
 "$PROMTOOL" test rules ci-cd/docker/prometheus/gafus-alerts.promtool.test.yml
 "$PROMTOOL" test rules ci-cd/docker/prometheus/gafus-alerts-agent2.promtool.test.yml
+"$PROMTOOL" test rules ci-cd/docker/prometheus/gafus-alerts-operational.promtool.test.yml
 cat > "$DIR/alertmanager.yml" <<EOF
 global:
   resolve_timeout: 10s

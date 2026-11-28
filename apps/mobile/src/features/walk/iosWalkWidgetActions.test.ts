@@ -43,11 +43,11 @@ vi.mock("@/shared/stores/authStore", () => ({
     }),
   },
 }));
-vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocked.report }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocked.report, reportClientErrorAndWait: mocked.report }));
 vi.mock("expo-notifications", () => ({ getPermissionsAsync: mocked.notificationPermissions }));
 vi.mock("./walkNotifications", () => ({ syncWalkNotifications: mocked.notify }));
 vi.mock("./walkStorage", () => ({ loadWalkJournal: mocked.load, saveWalkJournal: mocked.save }));
-vi.mock("./walkGpsStorage", () => ({ gpsWalkMeters: mocked.meters }));
+vi.mock("./walkGpsStorage", () => ({ gpsWalkMeters: mocked.meters, hasStoredGpsPoint: vi.fn(async () => true) }));
 vi.mock("./walkGpsTask", () => ({ startWalkGps: mocked.startGps, stopWalkGps: mocked.stopGps }));
 vi.mock("./walkWidgetSnapshot", () => ({ publishWalkWidgetSnapshot: mocked.publish }));
 vi.mock("./androidWalkWidgetActions", () => ({ WALK_WIDGET_OWNER_KEY: "owner-key" }));

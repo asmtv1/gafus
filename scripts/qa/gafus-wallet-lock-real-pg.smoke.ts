@@ -3,19 +3,8 @@ import assert from "node:assert/strict";
 import {setTimeout as sleep} from "node:timers/promises";
 import {prisma} from "@gafus/prisma";
 import {lockGafusUser,withGafusUserLock} from "@gafus/gafus-server/wallet-lock";
-import {changeGafusBalanceTx} from "../../packages/core/src/services/gafus/walletService.js";
-import {registerGafusLedgerRowsPort, type GafusLedgerRowsPort} from "../../packages/core/src/services/gafus/gafusLedgerPort.js";
-import {ensureWalletRow,findLedgerEntry,updateWalletBalanceRow,appendLedgerEntry,readWalletBalanceRow,readWalletLedgerRows} from "@gafus/gafus-server/wallet-records";
-// Isolated smoke does not load the API composition root: bind the exact
-// production SQL adapter explicitly, preserving lock/CAS/unique semantics.
-const ledgerRows: GafusLedgerRowsPort = {
-  ensureWalletRow: ensureWalletRow as unknown as GafusLedgerRowsPort["ensureWalletRow"],
-  findLedgerEntry: findLedgerEntry as unknown as GafusLedgerRowsPort["findLedgerEntry"],
-  updateWalletBalanceRow: updateWalletBalanceRow as unknown as GafusLedgerRowsPort["updateWalletBalanceRow"],
-  appendLedgerEntry: appendLedgerEntry as unknown as GafusLedgerRowsPort["appendLedgerEntry"],
-  readWalletBalanceRow,readWalletLedgerRows,
-};
-registerGafusLedgerRowsPort(ledgerRows);
+import {gafusWallet} from "../../apps/api/src/modules/gafus/composition/wallet-instance.js";
+const {changeGafusBalanceTx}=gafusWallet;
 const db=new URL(process.env.DATABASE_URL??"http://invalid");
 if(process.env.GAFUS_LOCAL_ISOLATED_API!=="1" || process.env.GAFUS_WALLET_LOCK_REAL_PG!=="1" ||
   db.protocol!=="postgresql:" || db.hostname!=="127.0.0.1" ||

@@ -124,8 +124,8 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
       setRows(updated);
       setMessage(`${mandatoryPlatform}/${mandatoryRuntime}: ${required ? "обязательная OTA включена" : "обязательная OTA отключена"}; другой платформы изменения не коснулись.`);
     }catch(error){
+      await load("mandatory-policies");
       setError(`${error instanceof Error?error.message:"Ошибка записи"}. Проверьте реестр перед повтором. Операция: ${operationId}`);
-      try{await load("mandatory-policies");}catch{}
     }finally{writeLock.current=false;setBusy(false);}
   };
   const registerNative = async () => {

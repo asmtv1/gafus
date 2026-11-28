@@ -2,12 +2,13 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@gafus/prisma";
-import {
+import { sqlTraining } from "../../../../../apps/api/src/modules/training/composition/sql-training-instance";
+const {
   getTrainingDayWithMonetizedSteps,
   getTrainingDayWithUserSteps,
   requireCourseStepOperationAccess,
   updateStepAndDay,
-} from "./trainingService.ts";
+} = sqlTraining;
 
 const run = process.env.AG1_LEARN032_WORK_PG === "1" ? describe : describe.skip;
 const prefix = "ag1learn032_20261025_" + randomBytes(4).toString("hex");

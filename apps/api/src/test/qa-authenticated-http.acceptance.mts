@@ -22,7 +22,7 @@ assert.match(db.port,/^\d{4,5}$/);assert.equal(redis.protocol,'redis:');
 assert.equal(redis.hostname,'127.0.0.1');assert.match(redis.port,/^\d{4,5}$/);
 assert.equal(redis.pathname,'/0');
 assert.ok(report.startsWith(root+'/.qa/testing/'));
-assert.match(report,/\/qa-[a-z0-9-]+\/tasks\/[a-f0-9]{20}\/tests\.json$/);
+assert.match(report,/\/qa-[a-z0-9-]+\/tasks\/[a-f0-9]{20}\/attempt-[1-9][0-9]*\/tests\.json$/);
 assert.ok((process.env.JWT_SECRET??'').length>=32);
 assert.ok((process.env.JWT_REFRESH_SECRET??'').length>=32);
 for(const flag of ['FEED_ENABLED','GALLERY_ENABLED','CDN_HEALTH_MONITOR_ENABLED'])assert.equal(process.env[flag],'false');

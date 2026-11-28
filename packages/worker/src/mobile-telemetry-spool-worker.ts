@@ -27,7 +27,7 @@ function bumpServiceOutcome(environment:'preview'|'production',service:string,ou
   counts[outcome]++;
   perServiceOutcomes.set(key,counts);
 }
-let started=false;
+let timer: ReturnType<typeof setInterval> | undefined;
 let draining=false;
 // Reset only after an operator rotates the secret and restarts the Worker.
 let authSuspended=false;
@@ -90,7 +90,7 @@ export async function drainMobileTelemetrySpool(options:{endpoint:string;dsn:str
   }
 }
 export function startMobileTelemetryExportWorker(env:NodeJS.ProcessEnv=process.env):boolean {
-  if(started)return true;
+  if(timer)return true;
   if(env.GAFUS_TELEMETRY_EXPORT_ENABLED!=='true')return false;
   if(!ALLOWED_ENVS.has(env.GAFUS_TELEMETRY_ENVIRONMENT??''))return false;
   if(env.GAFUS_TELEMETRY_ENVIRONMENT==='production' &&
@@ -98,13 +98,17 @@ export function startMobileTelemetryExportWorker(env:NodeJS.ProcessEnv=process.e
   const endpoint=mobileOtlpLogsUrl(env);
   const dsn=env.UPTRACE_DSN;
   if(!endpoint||!dsn||dsn.length>4096||dsn.length<12)return false;
-  started=true;
   const environment=env.GAFUS_TELEMETRY_ENVIRONMENT as 'preview'|'production';
-  const timer=setInterval(()=>void drainMobileTelemetrySpool({endpoint,dsn,environment}),PERIOD_MS);
+  timer=setInterval(()=>void drainMobileTelemetrySpool({endpoint,dsn,environment}),PERIOD_MS);
   timer.unref?.();
   void drainMobileTelemetrySpool({endpoint,dsn,environment});
   logger.info('SDK57 durable telemetry worker enabled', {environment:env.GAFUS_TELEMETRY_ENVIRONMENT??'unknown'});
   return true;
+}
+
+export function stopMobileTelemetryExportWorker(): void {
+  if (timer) clearInterval(timer);
+  timer = undefined;
 }
 
 /** Fixed-cardinality Prometheus metrics; only worker-internal endpoint exposes them. */

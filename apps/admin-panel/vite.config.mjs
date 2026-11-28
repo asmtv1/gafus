@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 export default defineConfig(({ command, isPreview }) => ({
   root: fileURLToPath(new URL("./src/admin-live/", import.meta.url)),
   oxc: { jsx: { runtime: "automatic" } },
-  resolve: { alias: [{ find: /^@gafus\/cdn-upload\/utils$/, replacement: fileURLToPath(new URL("../../packages/cdn-upload/src/utils.ts", import.meta.url)) }] },
   build: { outDir: fileURLToPath(new URL("./dist/", import.meta.url)), emptyOutDir: true,
       sourcemap: process.env.GAFUS_PRIVATE_MAPS_ENABLED === "true" ? "hidden" : false },
   preview: { host: "127.0.0.1", port: 4177, strictPort: true, proxy: {} },

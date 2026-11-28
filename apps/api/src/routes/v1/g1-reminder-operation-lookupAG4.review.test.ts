@@ -76,7 +76,7 @@ describe("AG4 GET /operations/:uuid candidate mounted in isolated Hono", () => {
         reminder: { id: "r-a" },
       },
     });
-    expect(lookup).toHaveBeenCalledWith("owner-a", key);
+    expect(lookup).toHaveBeenCalledWith("owner-a", key, expect.any(Object));
     const foreign = await get(b);
     expect(foreign.status).toBe(404);
     expect(await foreign.json()).toEqual({ success: false, code: "REMINDER_OPERATION_UNKNOWN" });

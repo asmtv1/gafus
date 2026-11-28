@@ -8,11 +8,11 @@ import { prisma } from "@gafus/prisma";
 import { registerUserWithCredentials } from "./registerUserWithCredentials";
 // The production owner-scoped SQL rows are still called, but are now bound
 // through the Core transaction port; mocks keep the same Prisma Tx in-process.
-import { registerRegistrationContractRowsPort } from "./registrationContracts";
+
 import * as registrationRows from "@gafus/identity-write-server/registration-contract-rows";
 const asServerTx = (tx: unknown): registrationRows.RegistrationContractDbTx =>
   tx as registrationRows.RegistrationContractDbTx;
-registerRegistrationContractRowsPort({
+const fixtureRegistrationContractRowsPort = {
   withRegistrationTransaction: (action, options) =>
     registrationRows.withRegistrationTransaction(tx => action(tx), options),
   readRegistrationPromoRowTx: (tx, code) => registrationRows.readRegistrationPromoRowTx(asServerTx(tx), code),
@@ -25,9 +25,9 @@ registerRegistrationContractRowsPort({
   claimVkRegistrationContextUserTx: (tx, input) => registrationRows.claimVkRegistrationContextUserTx(asServerTx(tx), input),
   insertVkLoginGrantTx: (tx, input) => registrationRows.insertVkLoginGrantTx(asServerTx(tx), input),
   consumeVkLoginGrantRowTx: (tx, input) => registrationRows.consumeVkLoginGrantRowTx(asServerTx(tx), input),
-});
+};
 
-import { registerCredentialRegistrationPort } from "./registerUserWithCredentials";
+
 import {
   withRegistrationTransaction,
   readCredentialRegistrationReplayUserTx,
@@ -37,7 +37,7 @@ import {
   createCompletedConsentLogsInTransaction,
   attributePartnerReferralIfCurrentPartnerInTransaction,
 } from "@gafus/identity-write-server/registration-contract-rows";
-registerCredentialRegistrationPort({
+const fixtureCredentialRegistrationPort = {
   withRegistrationTransaction,
   readCredentialRegistrationReplayUserTx,
   insertCredentialRegistrationUserTx,
@@ -45,7 +45,7 @@ registerCredentialRegistrationPort({
   registrationUniqueErrorTargets,
   createCompletedConsentLogsInTransaction,
   attributePartnerReferralIfCurrentPartnerInTransaction,
-});
+};
 
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -72,7 +72,7 @@ async function register(suffix: string, promoCode?: string, tempSessionId = cryp
     password: "Password1x",
     promoCode,
     registrationContext: context(tempSessionId, username, email),
-  });
+  }, fixtureCredentialRegistrationPort, fixtureRegistrationContractRowsPort);
   if (result.ok) ids.users.push(result.userId);
   return { result, username, email, tempSessionId };
 }
@@ -110,12 +110,12 @@ integration("registerUserWithCredentials PostgreSQL contract", () => {
     await expect(prisma.partnerReferral.count({ where: { buyerId: partner.result.userId } })).resolves.toBe(1);
 
     await prisma.appSubscriptionPromoCode.update({ where: { id: partnerPromo.id }, data: { isActive: false, revision: { increment: 1 } } });
-    const replay = await registerUserWithCredentials({ username: partner.username, email: partner.email, password: "Password1x", promoCode: partnerPromo.code, registrationContext: context(partner.tempSessionId, partner.username, partner.email) });
+    const replay = await registerUserWithCredentials({ username: partner.username, email: partner.email, password: "Password1x", promoCode: partnerPromo.code, registrationContext: context(partner.tempSessionId, partner.username, partner.email) }, fixtureCredentialRegistrationPort, fixtureRegistrationContractRowsPort);
     expect(replay).toEqual({ ok: true, userId: partner.result.userId, wasCreated: false });
 
     const raceSession = crypto.randomUUID();
     const first = register("race", undefined, raceSession);
-    const second = registerUserWithCredentials({ username: `${runId}_race`, email: `${runId}_race@example.test`, password: "Password1x", registrationContext: context(raceSession, `${runId}_race`, `${runId}_race@example.test`) });
+    const second = registerUserWithCredentials({ username: `${runId}_race`, email: `${runId}_race@example.test`, password: "Password1x", registrationContext: context(raceSession, `${runId}_race`, `${runId}_race@example.test`) }, fixtureCredentialRegistrationPort, fixtureRegistrationContractRowsPort);
     const [firstResult, secondResult] = await Promise.all([first, second]);
     expect(firstResult.result).toMatchObject({ ok: true });
     expect(secondResult).toMatchObject({ ok: true });
@@ -134,9 +134,9 @@ integration("registerUserWithCredentials PostgreSQL contract", () => {
 
     const created = await register("mismatch");
     if (!created.result.ok) throw new Error("fixture registration unexpectedly failed");
-    const changedConsent = await registerUserWithCredentials({ username: created.username, email: created.email, password: "Password1x", registrationContext: { ...context(created.tempSessionId, created.username, created.email), defaultVersion: "integration-v2" } });
+    const changedConsent = await registerUserWithCredentials({ username: created.username, email: created.email, password: "Password1x", registrationContext: { ...context(created.tempSessionId, created.username, created.email), defaultVersion: "integration-v2" } }, fixtureCredentialRegistrationPort, fixtureRegistrationContractRowsPort);
     expect(changedConsent).toMatchObject({ ok: false, code: "ATTEMPT_MISMATCH" });
-    const changedPassword = await registerUserWithCredentials({ username: created.username, email: created.email, password: "Password2x", registrationContext: context(created.tempSessionId, created.username, created.email) });
+    const changedPassword = await registerUserWithCredentials({ username: created.username, email: created.email, password: "Password2x", registrationContext: context(created.tempSessionId, created.username, created.email) }, fixtureCredentialRegistrationPort, fixtureRegistrationContractRowsPort);
     expect(changedPassword).toMatchObject({ ok: false, code: "ATTEMPT_MISMATCH" });
   }, 30_000);
 });

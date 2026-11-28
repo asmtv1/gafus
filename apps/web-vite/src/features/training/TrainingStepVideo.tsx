@@ -1,3 +1,4 @@
+import { MeasuredVideo } from "../../shared/media/MeasuredVideo";
 import { Loading } from "../../shared/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./TrainingStepVideoPlayer.css";
@@ -334,14 +335,14 @@ export function TrainingStepVideo({ originalUrl, title }: {
     aria-label={"Видео: " + title}>
     <div className="training-video-player" data-state={
       directPublic || source ? "ready" : error ? "error" : loading ? "loading" : "preview"}>
-      {directPublic ? <video className="training-video-element" controls playsInline preload="none"
+      {directPublic ? <MeasuredVideo frameSurface="training" className="training-video-element" controls playsInline preload="none"
         src={originalUrl} aria-label={"Плеер: " + title} /> :
       externalEmbed ? <iframe className="training-video-element training-video-embed"
         title={"Видео: " + title} src={externalEmbed} loading="lazy"
         referrerPolicy="no-referrer" allowFullScreen
         sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
         allow="fullscreen; encrypted-media; picture-in-picture" /> :
-      source ? <video className="training-video-element" ref={video} controls playsInline preload="none"
+      source ? <MeasuredVideo frameSurface="training" className="training-video-element" ref={video} controls playsInline preload="none"
         poster={ticket?.posterUrl ?? undefined}
         src={isHls(source) ? undefined : source} aria-label={"Плеер: " + title}
         onLoadedMetadata={() => {

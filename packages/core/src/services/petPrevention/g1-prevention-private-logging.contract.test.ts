@@ -37,7 +37,7 @@ beforeEach(() => vi.resetAllMocks());
 describe("AG1 Core prevention service: sensitive medical failure logging (no SQL)", () => {
   it("ServiceError context and message cannot enter logs; unchanged generic response", async () => {
     m.petLookup.mockRejectedValueOnce(new ServiceError(CANARY, `SYNTHETIC_${CANARY}`));
-    const result = await getEntriesByPet(OWNER, PET);
+    const result = await getEntriesByPet(OWNER, PET, fixturePreventionRowsPort);
     expect(result).toEqual({ success: false, error: "Не удалось загрузить записи" });
     assertNoPrivateLogs();
   });
@@ -46,14 +46,14 @@ describe("AG1 Core prevention service: sensitive medical failure logging (no SQL
     m.petLookup.mockRejectedValueOnce(new ZodError([
       { code: "custom", path: ["notes"], message: CANARY },
     ]));
-    const result = await getEntriesByPet(OWNER, PET);
+    const result = await getEntriesByPet(OWNER, PET, fixturePreventionRowsPort);
     expect(result).toEqual({ success: false, error: "Неверные данные" });
     assertNoPrivateLogs();
   });
 
   it("unknown exception does not expose request identifiers to logs", async () => {
     m.petLookup.mockRejectedValueOnce(new Error(CANARY));
-    const result = await getEntriesByPet(OWNER, PET);
+    const result = await getEntriesByPet(OWNER, PET, fixturePreventionRowsPort);
     expect(result).toEqual({ success: false, error: "Не удалось загрузить записи" });
     assertNoPrivateLogs();
   });
@@ -61,5 +61,5 @@ describe("AG1 Core prevention service: sensitive medical failure logging (no SQL
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalPreventionRowsPort from "@gafus/pets-server/prevention-rows";
-import { registerPreventionRowsPort, type PreventionRowsPort } from "./preventionRowsPort";
-registerPreventionRowsPort(originalPreventionRowsPort as PreventionRowsPort);
+import { type PreventionRowsPort } from "./preventionRowsPort";
+const fixturePreventionRowsPort = originalPreventionRowsPort as PreventionRowsPort;

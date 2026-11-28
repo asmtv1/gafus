@@ -1,3 +1,4 @@
+import * as originalAuthRowsPort from "@gafus/identity-write-server/auth-rows";
 /** AG4 ACTIVE W1 G02 isolated PG14 only. Real Prisma, real bcrypt, fake mail.
  * A precise opt-in URL guard prevents accidental access to any other database.
  * All fixtures UUID-owned and deleted; no production/secrets/network providers.
@@ -85,7 +86,7 @@ const db=prisma as PrismaClient;
  const tokens=async(id:string)=>db.refreshToken.findMany({where:{userId:id},select:{revokedAt:true}});
  it("PG01: first set commits bcrypt hash+revokeStamp+all refresh A only",async()=>{
   const stale=Date.now()-1000;expect(await sessionIsCurrent({sub:owner,authenticatedAt:stale})).toBe(true);
-  await setPassword(owner,fresh().next);const a=await user(owner),b=await user(foreign);
+  await setPassword(originalAuthRowsPort, owner,fresh().next);const a=await user(owner),b=await user(foreign);
   expect(a.password).not.toBe(fresh().next);expect(await bcrypt.compare(fresh().next,a.password)).toBe(true);
   expect(a.passwordSetAt).toBeInstanceOf(Date);expect(a.sessionsRevokedAt?.getTime()).toBe(a.passwordSetAt?.getTime());
   expect((await tokens(owner)).every(t=>t.revokedAt?.getTime()===a.sessionsRevokedAt?.getTime())).toBe(true);
@@ -94,15 +95,15 @@ const db=prisma as PrismaClient;
   expect(await sessionIsCurrent({sub:owner,authenticatedAt:a.sessionsRevokedAt!.getTime()+1000})).toBe(true);
  });
  it("PG02: repeated & simultaneous set requests only first succeeds, no second revocation",async()=>{
-  const results=await Promise.allSettled([setPassword(owner,fresh().next),setPassword(owner,fresh().other)]);
+  const results=await Promise.allSettled([setPassword(originalAuthRowsPort, owner,fresh().next),setPassword(originalAuthRowsPort, owner,fresh().other)]);
   expect(results.filter(x=>x.status==="fulfilled")).toHaveLength(1);
   expect(results.filter(x=>x.status==="rejected")).toHaveLength(1);
   const a=await user(owner);expect(a.sessionsRevokedAt).toBeInstanceOf(Date);
   expect((await tokens(owner)).every(x=>x.revokedAt!==null)).toBe(true);
-  await expect(setPassword(owner,fresh().next)).rejects.toThrow("уже установлен");
+  await expect(setPassword(originalAuthRowsPort, owner,fresh().next)).rejects.toThrow("уже установлен");
  });
  it("PG03: current password checked using real bcrypt; new B hash, old JWT+refresh revoked",async()=>{
-  const was=Date.now()-1000;await changePassword(foreign,fresh().old,fresh().next);
+  const was=Date.now()-1000;await changePassword(originalAuthRowsPort, foreign,fresh().old,fresh().next);
   const b=await user(foreign);expect(await bcrypt.compare(fresh().old,b.password)).toBe(false);
   expect(await bcrypt.compare(fresh().next,b.password)).toBe(true);
   expect(b.sessionsRevokedAt?.getTime()).toBe(b.passwordSetAt?.getTime());
@@ -112,15 +113,15 @@ const db=prisma as PrismaClient;
  });
  it("PG04: wrong current/VK-only/invalid new never revoke or change hash",async()=>{
   const before=(await user(foreign)).password;
-  await expect(changePassword(foreign,"INCORRECT",fresh().next)).rejects.toThrow("Неверный текущий пароль");
-  await expect(changePassword(owner,fresh().old,fresh().next)).rejects.toThrow("Сначала установите пароль");
-  await expect(changePassword(foreign,fresh().old,"weak")).rejects.toThrow();
+  await expect(changePassword(originalAuthRowsPort, foreign,"INCORRECT",fresh().next)).rejects.toThrow("Неверный текущий пароль");
+  await expect(changePassword(originalAuthRowsPort, owner,fresh().old,fresh().next)).rejects.toThrow("Сначала установите пароль");
+  await expect(changePassword(originalAuthRowsPort, foreign,fresh().old,"weak")).rejects.toThrow();
   expect((await user(foreign)).password).toBe(before);
   expect((await tokens(foreign))[0]?.revokedAt).toBeNull();
  });
  it("PG05: synchronized 2 concurrent change passwords with same old: one ACK and one refresh revocation",async()=>{
   m.changeId=foreign;m.changeBarrier=true;
-  const results=await Promise.allSettled([changePassword(foreign,fresh().old,fresh().next),changePassword(foreign,fresh().old,fresh().other)]);
+  const results=await Promise.allSettled([changePassword(originalAuthRowsPort, foreign,fresh().old,fresh().next),changePassword(originalAuthRowsPort, foreign,fresh().old,fresh().other)]);
   expect(results.filter(x=>x.status==="fulfilled")).toHaveLength(1);
   expect(results.filter(x=>x.status==="rejected")).toHaveLength(1);
   const b=await user(foreign);expect(b.sessionsRevokedAt).toBeInstanceOf(Date);
@@ -129,7 +130,7 @@ const db=prisma as PrismaClient;
  it("PG06: injected throw AFTER SQL refresh UPDATE rolls back credentials and tokens",async()=>{
   const initial=(await user(foreign)).password;
   m.injectRefreshAfterUpdate=true;
-  await expect(changePassword(foreign,fresh().old,fresh().next)).rejects.toThrow("SYNTH_FAIL_AFTER_SQL_REFRESH_UPDATE");
+  await expect(changePassword(originalAuthRowsPort, foreign,fresh().old,fresh().next)).rejects.toThrow("SYNTH_FAIL_AFTER_SQL_REFRESH_UPDATE");
   m.injectRefreshAfterUpdate=false;
   expect((await user(foreign)).password).toBe(initial);
   expect((await user(foreign)).sessionsRevokedAt).toBeNull();
@@ -137,7 +138,7 @@ const db=prisma as PrismaClient;
  });
  it("PG07: notification failure after commit is nonfatal, no email provider called",async()=>{
   m.mail.mockRejectedValueOnce(Error("SYNTHETIC_MAIL_FAILURE"));
-  await changePassword(foreign,fresh().old,fresh().next);
+  await changePassword(originalAuthRowsPort, foreign,fresh().old,fresh().next);
   expect((await user(foreign)).sessionsRevokedAt).toBeInstanceOf(Date);
   expect((await tokens(foreign))[0]?.revokedAt).toBeInstanceOf(Date);
  });

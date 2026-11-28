@@ -8,6 +8,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./reminder-window": {
+      "types": "./dist/reminderWindow.d.ts",
+      "default": "./dist/reminderWindow.js"
+    },
     "./types": {
       "types": "./dist/types.d.ts",
       "default": "./dist/types.js"

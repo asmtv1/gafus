@@ -17,7 +17,7 @@ describe("all four mobile photo upload paths share the pre-S3 optimizer", () => 
     expect(src).toContain("type.kind === \"video\" ? await makeFeedVideoPoster(asset.uri) : undefined");
   });
   it("Chat2 optimizes only image attachments, retains original as preview, and disposes temp bytes", () => {
-    const src = read("../../../features/chat2/Chat2RoomScreen.tsx");
+    const src = ["../../../features/chat2/Chat2RoomScreen.tsx", "../../../features/chat2/Chat2RoomComposer.tsx", "../../../features/chat2/chat2RoomStyles.ts", "../../../features/chat2/Chat2RoomMedia.tsx"].map(read).join("\n");
     expect(src).toContain("if (kind === \"image\") {");
     expect(src).toContain("prepared = await prepareUploadPhoto(source);");
     expect(src).toContain("sourcePhoto: photo, uploading: true");

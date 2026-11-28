@@ -38,6 +38,10 @@
     "./gafus-reaction-progress": {
       "types": "./dist/gafusReactionProgress.d.ts",
       "default": "./dist/gafusReactionProgress.js"
+    },
+    "./feed-video-recovery": {
+      "types": "./dist/feedVideoRecoveryRows.d.ts",
+      "default": "./dist/feedVideoRecoveryRows.js"
     }
   },
   "scripts": {
@@ -54,7 +58,8 @@
     "zod": "^3.25.56",
     "@gafus/feed-storage": "workspace:*",
     "@gafus/media-server": "workspace:*",
-    "@gafus/media-shared": "workspace:*"
+    "@gafus/media-shared": "workspace:*",
+    "@gafus/gafus-server": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

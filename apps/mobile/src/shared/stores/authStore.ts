@@ -1,3 +1,4 @@
+import { cachedCredentialOwnsCourses, setOfflineCoursePrincipal } from "@/shared/lib/offline/offlineCourseSession";
 import { clearRegisteredGallerySession } from "./galleryCleanupBridge";
 import { authTokenStorage as SecureStore } from "@/shared/lib/authTokenStorage";
 import { Platform } from "react-native";
@@ -145,6 +146,8 @@ export const useAuthStore = create<AuthStore>()(
 
           // A verified new login fences a still-pending startup checkAuth.
           const generation = ++authSessionGeneration;
+          fenceV2OnSignOut();
+          setOfflineCoursePrincipal(null);
           resetUserStores();
           await SecureStore.setItemAsync("auth_token", accessToken);
           await SecureStore.setItemAsync("refresh_token", refreshToken);
@@ -156,6 +159,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const user = profileRes.data;
+          if (generation !== authSessionGeneration) return { success: false, error: "Сессия изменилась" };
           await beginV2AfterVerifiedProfile(user.id);
           if (__DEV__) {
             console.log("[authStore] profile", { id: user.id });
@@ -163,6 +167,7 @@ export const useAuthStore = create<AuthStore>()(
 
           if (generation !== authSessionGeneration) return { success: false, error: "Сессия изменилась" };
           settledCredentialGeneration = generation;
+          setOfflineCoursePrincipal(user.id, true);
           set({
             user,
             isAuthenticated: true,
@@ -219,14 +224,18 @@ export const useAuthStore = create<AuthStore>()(
 
           const { accessToken, refreshToken } = response.data;
           const generation = ++authSessionGeneration;
+          fenceV2OnSignOut();
+          setOfflineCoursePrincipal(null);
 
           resetUserStores();
           await SecureStore.setItemAsync("auth_token", accessToken);
           await SecureStore.setItemAsync("refresh_token", refreshToken);
 
+          if (generation !== authSessionGeneration) return { success: false, error: "Сессия изменилась" };
           await beginV2AfterVerifiedProfile(response.data.user.id);
           if (generation !== authSessionGeneration) return { success: false, error: "Сессия изменилась" };
           settledCredentialGeneration = generation;
+          setOfflineCoursePrincipal(response.data.user.id, true);
           set({
             user: response.data.user,
             isAuthenticated: true,
@@ -257,6 +266,7 @@ export const useAuthStore = create<AuthStore>()(
        */
       logout: async () => {
         const generation = ++authSessionGeneration;
+        setOfflineCoursePrincipal(null);
         settledCredentialGeneration = generation;
         fenceV2OnSignOut();
         clearRegisteredGallerySession();
@@ -326,8 +336,10 @@ export const useAuthStore = create<AuthStore>()(
             // whether the app can render immediately while validation continues.
             await waitForAuthHydration();
             const token = await SecureStore.getItemAsync("auth_token");
+            if (generation !== authSessionGeneration) return;
 
             if (!token) {
+              setOfflineCoursePrincipal(null);
               if (__DEV__) console.log("[authStore] checkAuth: no token");
               set({
                 isLoading: false,
@@ -340,6 +352,7 @@ export const useAuthStore = create<AuthStore>()(
 
             const persistedUser = useAuthStore.getState().user;
             if (persistedUser) {
+              setOfflineCoursePrincipal(cachedCredentialOwnsCourses(token, persistedUser.id) ? persistedUser.id : null);
               set({
                 user: persistedUser,
                 isAuthenticated: true,
@@ -368,6 +381,7 @@ export const useAuthStore = create<AuthStore>()(
               if (generation !== authSessionGeneration) return;
 
               settledCredentialGeneration = generation;
+              setOfflineCoursePrincipal(userData.id, true);
               set({
                 user: userData,
                 isAuthenticated: true,
@@ -384,12 +398,14 @@ export const useAuthStore = create<AuthStore>()(
               }
               // Cache-first state is already active; keep it until connectivity returns.
             } else if (isTransientError) {
+              setOfflineCoursePrincipal(null);
               set({
                 isLoading: false,
                 isAuthenticated: false,
                 verifiedSessionEpoch: null,
               });
             } else {
+              setOfflineCoursePrincipal(null);
               if (__DEV__) console.log("[authStore] checkAuth: invalid token", response);
               await SecureStore.deleteItemAsync("auth_token");
               await SecureStore.deleteItemAsync("refresh_token");
@@ -422,6 +438,7 @@ export const useAuthStore = create<AuthStore>()(
        */
       handleSessionExpired: () => {
         settledCredentialGeneration = ++authSessionGeneration;
+        setOfflineCoursePrincipal(null);
         fenceV2OnSignOut();
         clearRegisteredGallerySession();
         resetUserStores();
@@ -436,7 +453,10 @@ export const useAuthStore = create<AuthStore>()(
       /**
        * Установка данных пользователя (например, после обновления профиля)
        */
-      setUser: (user) => set({ user }),
+      setUser: (user) => {
+        if (user?.id !== useAuthStore.getState().user?.id) setOfflineCoursePrincipal(null);
+        set({ user });
+      },
       setUserProfile: (profile) =>
         set((state) => {
           if (!state.user || state.user.id !== profile.userId) return state;

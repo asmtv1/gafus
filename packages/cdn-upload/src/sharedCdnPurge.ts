@@ -27,7 +27,7 @@ export async function beginSharedCdnPurge(scope: Scope, paths: string[], existin
   checkpoint?: (operations: string[]) => Promise<void>): Promise<string[]> {
   validate(scope, paths);
   const shared = requiresSharedCdnPurge(scope) || existing.some(op => op.replace(/^done:/, '').startsWith('yandex:'));
-  let operations = [...existing];
+  const operations = [...existing];
   if (shared) {
     configured(scope);
     for (let i=0; i<paths.length; i+=10) {

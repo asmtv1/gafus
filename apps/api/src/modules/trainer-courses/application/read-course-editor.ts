@@ -6,7 +6,7 @@ import type {
 import type {
   TrainerCourseDraftItem,
   TrainerCourseEditorSnapshotItem,
-} from "../../../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 
 type DraftReader = typeof getCourseDraftWithRelations;
 type SnapshotReader = (

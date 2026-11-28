@@ -1,8 +1,9 @@
+import { MeasuredVideoView } from "@/shared/components/MeasuredVideoView";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Modal, PixelRatio, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
-import { useVideoPlayer, VideoView } from "expo-video";
+import { useVideoPlayer } from "expo-video";
 import { playVideoFromBeginningIfEnded } from "@/shared/lib/media/replayVideo";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
@@ -128,7 +129,7 @@ function ActiveFeedV2Player({ url, publicMedia, onError, onReady, onStarted, ful
     available={variants} onChange={onQualityChange} />;
   return <View style={s.videoFrame}>
     {!expanded && <>
-      <VideoView player={player} style={s.videoFrame} contentFit="contain"
+      <MeasuredVideoView frameSurface="moments" player={player} style={s.videoFrame} contentFit="contain"
         nativeControls={false} fullscreenOptions={{ enable: false }}
         allowsPictureInPicture={false}
         surfaceType={Platform.OS === "android" ? "textureView" : undefined} />
@@ -141,7 +142,7 @@ function ActiveFeedV2Player({ url, publicMedia, onError, onReady, onStarted, ful
       <GestureHandlerRootView style={s.modal}>
         <SwipeDismissMedia onDismiss={() => setExpanded(false)}>
           <View style={s.expandedVideoContainer}>
-            <VideoView player={player} style={s.expandedVideo} contentFit="contain"
+            <MeasuredVideoView frameSurface="moments" player={player} style={s.expandedVideo} contentFit="contain"
               nativeControls={false} fullscreenOptions={{ enable: false }}
               allowsPictureInPicture={false}
               surfaceType={Platform.OS === "android" ? "textureView" : undefined} />

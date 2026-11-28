@@ -15,7 +15,7 @@ interface FeedJob {
  * claims Core's durable processing jobs; this queue never processes media.
  * The minute-based dispatcher remains the recovery path for failed wake-ups.
  */
-export function startFeedProcessingTriggerWorker(): void {
+export function startFeedProcessingTriggerWorker() {
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED !== "true" ||
       process.env.FEED_PROCESSOR_READY !== "true") return;
 
@@ -62,4 +62,5 @@ export function startFeedProcessingTriggerWorker(): void {
     logger.error("Feed immediate processing worker error", error);
   });
   logger.success("Feed immediate processing trigger worker started");
+  return worker;
 }

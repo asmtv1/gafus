@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const stack = read("../../../../app/(main)/_layout.tsx");
 const list = read("../../../features/chat2/Chat2ListScreen.tsx");
-const room = read("../../../features/chat2/Chat2RoomScreen.tsx");
+const room = ["../../../features/chat2/Chat2RoomScreen.tsx", "../../../features/chat2/Chat2RoomComposer.tsx", "../../../features/chat2/chat2RoomStyles.ts", "../../../features/chat2/Chat2RoomMedia.tsx"].map(read).join("\n");
 const post = read("../../../features/feed/FeedPostActions.tsx");
 const photo = read("../../../features/gallery/PhotoActionsMenu.tsx");
 const chatSettings = read("../../../features/chat2/Chat2SettingsSheet.tsx");

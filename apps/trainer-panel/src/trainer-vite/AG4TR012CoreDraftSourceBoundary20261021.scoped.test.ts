@@ -19,16 +19,15 @@ vi.mock("../../../../packages/core/src/services/training/trainingContentRevision
 }));
 // The new Core service reads via the fail-closed persistence port, not Prisma.
 // Mock only the port adapter; real Core ownership filtering and DTO projection run.
-vi.mock("../../../../packages/core/src/services/trainerCourse/trainerCourseRowsPort", async (original) => ({
- ...(await original<Record<string, unknown>>()),
- readCourseDraftRow: (id: string) => m.readDraft(id),
-}));
+
 // Runtime loads ACTUAL Core implementation without compiling server internals in Trainer tsconfig.
 const corePath="../../../../packages/core/src/services/trainerCourse/trainerCourseService";
-const {getCourseDraftWithRelations}=await vi.importActual<{
- getCourseDraftWithRelations:(id:string,actor:string,opts?:{allowAdmin?:boolean})=>
+const {getCourseDraftWithRelations:readDraft}=await vi.importActual<{
+ getCourseDraftWithRelations:(id:string,actor:string,opts?:{allowAdmin?:boolean}, rows?: unknown)=>
   Promise<unknown|null>,
 }>(corePath);
+const getCourseDraftWithRelations=(id:string, actor:string, opts?:{allowAdmin?:boolean}) =>
+ readDraft(id,actor,opts,{readDraft:m.readDraft});
 const draft={
  id:"course-cuid-1",name:"Owned",shortDesc:"",guideContent:null,
  description:"",duration:"30",videoUrl:null,logoImg:"",

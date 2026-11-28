@@ -44,10 +44,10 @@ export async function getTrainingReminderPushSubscriptions(userId: string) {
   return prisma.pushSubscription.findMany({ where: { userId } });
 }
 
-export async function removeInvalidTrainingReminderEndpoints(endpoints: string[]): Promise<number> {
+export async function removeInvalidTrainingReminderEndpoints(userId: string, endpoints: string[]): Promise<number> {
   if (!endpoints.length) return 0;
   const removed = await prisma.pushSubscription.deleteMany({
-    where: { endpoint: { in: endpoints } },
+    where: { userId, endpoint: { in: endpoints } },
   });
   return removed.count;
 }

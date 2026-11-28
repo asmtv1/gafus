@@ -1,0 +1,10 @@
+M	apps/api/src/test/stage2-12-di-http.acceptance.mts
+M	apps/web-vite/src/features/chats/Chat2Messenger.stage11.mounted.test.tsx
+A	docs/audit/evidence/stage14-alert-delivery-20261128/SHA256SUMS
+A	docs/audit/evidence/stage14-alert-delivery-20261128/alert-delivery-summary.json
+A	docs/audit/evidence/stage14-alert-delivery-20261128/alert-delivery.log
+A	docs/audit/evidence/stage14-alert-delivery-20261128/initial-network-failure.log
+A	docs/audit/evidence/stage14-alert-delivery-20261128/run.json
+A	docs/audit/gafus-architecture-roadmap-20261128-final-local-acceptance.md
+A	docs/audit/gafus-architecture-roadmap-20261128-stage14-alert-delivery.md
+M	scripts/qa/prometheus-alertmanager-isolated.sh

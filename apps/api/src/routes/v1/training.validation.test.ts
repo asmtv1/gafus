@@ -52,15 +52,15 @@ vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ error: logErrorMock, info: logInfoMock, warn: vi.fn() }),
 }));
 
-vi.mock("@gafus/core/services/training", () => ({
+vi.mock("../../modules/training/composition/sql-training-instance.js", () => ({ sqlTraining: {
   getTrainingDays: vi.fn(),
   getTrainingDayWithMonetizedSteps: getTrainingDayWithMonetizedStepsMock,
   getTrainingDayWithUserSteps: vi.fn(),
   requireCourseStepOperationAccess: requireCourseStepOperationAccessMock,
   syncUserCourseStatusFromDays: syncUserCourseStatusFromDaysMock,
   updateStepAndDay: updateStepAndDayMock,
-  validateTheoryStepForCompletion: vi.fn(),
-}));
+  validateTheoryStepForCompletion: vi.fn()
+} }));
 
 vi.mock("@gafus/core/services/rewardedCredits", () => ({
   requirePremiumOrRewardedAccessForVideoUrl: requirePremiumOrRewardedAccessForVideoUrlMock,
@@ -72,7 +72,7 @@ vi.mock("@gafus/core/services/rewardedCredits", () => ({
   },
 }));
 
-vi.mock("@gafus/core/services/course", () => ({
+vi.mock("../../modules/courses/composition/catalog-read-instance.js", () => ({
   checkCourseAccess: vi.fn(),
 }));
 

@@ -60,7 +60,8 @@ vi.mock("@gafus/reengagement", () => ({
 }));
 
 async function startupAndSend() {
-  await import("./reengagement-worker");
+  const { startReengagementWorker } = await import("./reengagement-worker");
+  startReengagementWorker();
   const run = state.jobs.get("reengagement");
   expect(run).toBeTypeOf("function");
   await run?.({ id: "synthetic-job", data: {

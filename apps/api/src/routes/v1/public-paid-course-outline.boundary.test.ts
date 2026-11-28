@@ -24,7 +24,7 @@ describe("anonymous marketing outline HTTP -> Application -> pure Core", () => {
   it("Application owns only erased Core types; composition injects the pure public policy", () => {
     expect(runtimeImports(applicationPath)).toEqual([]);
     expect(runtimeImports(compositionPath)).toEqual([
-      "@gafus/core/services/course",
+      "./catalog-read-instance.js",
       "@gafus/core/services/course/publicOutlinePolicy",
       "../application/read-public-outline.js",
     ]);

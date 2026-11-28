@@ -7,7 +7,7 @@ import {
   type QuestionPhotoRendition,
 } from "./questionPhotoRead";
 import "./QuestionPhotoGallery.css";
-import { allowQuestionsS3Fallback } from "./questionPhotoCdnFallback";
+import { allowQuestionsS3Fallback } from "@gafus/core-client/media-delivery";
 import { sameOriginCdnProbeFetch } from "../../shared/api/cdnProbe";
 
 /** A changed discussion/photo owner retires old signed URLs and viewer state. */

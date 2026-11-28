@@ -74,3 +74,4 @@ export * from "./contracts/applicationError";
 export * from "./contracts/mobileReleaseErrors";
 
 export * from "./contracts/mobileTelemetry";
+export * from "./contracts/mobileFeatureFlagKeys";

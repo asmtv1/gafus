@@ -1,10 +1,10 @@
 /** Application decides anonymous publication eligibility before querying day structure. */
 import type { isPublicPaidCourse, projectPublicPaidCourseOutline } from "@gafus/core/services/course/publicOutlinePolicy";
-import type { getCourseMetadata, getCourseOutline } from "@gafus/core/services/course";
+import type { CatalogReadService } from "@gafus/core/services/course";
 
 export function createPublicPaidCourseOutlineApplication(ports: {
-  metadata: typeof getCourseMetadata;
-  outline: typeof getCourseOutline;
+  metadata: CatalogReadService["getCourseMetadata"];
+  outline: CatalogReadService["getCourseOutline"];
   isPublicPaidCourse: typeof isPublicPaidCourse;
   projectPublicPaidCourseOutline: typeof projectPublicPaidCourseOutline;
 }) {

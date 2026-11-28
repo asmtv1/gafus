@@ -14,10 +14,10 @@ vi.mock("bcryptjs", () => ({ default: { hash: fake.hash } }));
 describe("API password reset composition", () => {
   it("retains Core public invalid-token class while classifying server receipt failure", async () => {
     const core = await import("@gafus/core/services/auth");
-    await import("./install-password-reset");
+    const { passwordResetPort } = await import("./password-reset-instance");
     const { ResetReceiptUnavailableError } = await import("@gafus/identity-write-server/password-reset");
     fake.consume.mockRejectedValueOnce(new ResetReceiptUnavailableError());
-    await expect(core.resetPasswordByToken("old-token", "NewPass9"))
+    await expect(core.resetPasswordByToken("old-token", "NewPass9", passwordResetPort))
       .rejects.toBeInstanceOf(core.InvalidPasswordResetTokenError);
     expect(fake.consume).toHaveBeenCalledTimes(1);
   });

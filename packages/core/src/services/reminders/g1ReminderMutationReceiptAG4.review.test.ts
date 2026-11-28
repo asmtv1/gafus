@@ -81,10 +81,10 @@ import {
  } from "./g1ReminderMutationReceiptAG4.review";
 // Source-review-only SQL composition for mock transaction fixtures; this
 // is not a production route activation or a DB schema migration.
-import { registerReminderAG4ReviewRowsPort } from "./reminderAG4ReviewPort";
+
 import * as rows from "@gafus/identity-write-server/reminder-review-rows";
 const asTx = (opaque: unknown): rows.ReminderReviewTx => opaque as rows.ReminderReviewTx;
-registerReminderAG4ReviewRowsPort({
+const fixtureReminderAG4ReviewRowsPort = {
   withAG4ReminderCreateTx: (fn) => rows.withAG4ReminderCreateTx(tx => fn(tx)),
   lockAG4ReminderOwner: (tx, owner) => rows.lockAG4ReminderOwner(asTx(tx), owner),
   readAG4ReminderReceipt: (tx, owner, key) => rows.readAG4ReminderReceipt(asTx(tx), owner, key),
@@ -95,7 +95,7 @@ registerReminderAG4ReviewRowsPort({
   commitAG4ReminderReceipt: (tx, owner, key, reminder, response) => rows.commitAG4ReminderReceipt(asTx(tx), owner, key, reminder, response),
   readAG4ReminderReceiptForLookup: rows.readAG4ReminderReceiptForLookup,
   isReminderUniqueConstraintError: rows.isReminderUniqueConstraintError,
-});
+};
 
 import { createReminder } from "@gafus/notifications-server/training-reminder-application";
 const key = (id: number) => `00000000-0000-4000-8000-${id.toString().padStart(12, "0")}`;
@@ -114,108 +114,108 @@ describe("AG4 owner receipt/expiry/revocation design review, mock transaction", 
     expect(fingerprintDraft({ ...input, name: "Other" })).not.toBe(fingerprintDraft(input));
   });
   it("A02 keyed create, replay identical id and payload, no duplicate", async () => {
-    const a = await createReminderAG4("A", input, key(2));
-    const b = await createReminderAG4("A", { ...input, name: "Walk" }, key(2));
+    const a = await createReminderAG4("A", input, key(2), fixtureReminderAG4ReviewRowsPort);
+    const b = await createReminderAG4("A", { ...input, name: "Walk" }, key(2), fixtureReminderAG4ReviewRowsPort);
     expect([a.kind, b.kind]).toEqual(["created", "idempotent_replay"]);
     expect(b.reminder).toEqual(a.reminder);
     expect(db.reminders.size).toBe(1);
     expect(db.receipts.size).toBe(1);
   });
   it("A03 conflicting content same owner/key 409, original untouched", async () => {
-    await createReminderAG4("A", input, key(3));
-    await expect(createReminderAG4("A", { ...input, name: "Changed" }, key(3)))
+    await createReminderAG4("A", input, key(3), fixtureReminderAG4ReviewRowsPort);
+    await expect(createReminderAG4("A", { ...input, name: "Changed" }, key(3), fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderConflictError);
     expect(db.reminders.size).toBe(1);
   });
   it("A04 same UUID across owners is isolated, foreign readback UNKNOWN", async () => {
-    const a = await createReminderAG4("A", input, key(4));
-    const b = await createReminderAG4("B", input, key(4));
+    const a = await createReminderAG4("A", input, key(4), fixtureReminderAG4ReviewRowsPort);
+    const b = await createReminderAG4("B", input, key(4), fixtureReminderAG4ReviewRowsPort);
     expect(a.reminder.id).not.toBe(b.reminder.id);
-    expect((await lookupReminderAG4("A", key(4))).reminder.id).toBe(a.reminder.id);
-    expect((await lookupReminderAG4("B", key(4))).reminder.id).toBe(b.reminder.id);
-    await expect(lookupReminderAG4("C", key(4)))
+    expect((await lookupReminderAG4("A", key(4), fixtureReminderAG4ReviewRowsPort)).reminder.id).toBe(a.reminder.id);
+    expect((await lookupReminderAG4("B", key(4), fixtureReminderAG4ReviewRowsPort)).reminder.id).toBe(b.reminder.id);
+    await expect(lookupReminderAG4("C", key(4), fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderUnknownError);
   });
   it("A05 COMMIT then lost ACK/restart: GET owner reads receipt, no POST required", async () => {
     db.fault = "ack";
-    await expect(createReminderAG4("A", input, key(5)))
+    await expect(createReminderAG4("A", input, key(5), fixtureReminderAG4ReviewRowsPort))
       .rejects.toThrow("ACK_LOST_AFTER_REAL_COMMIT_MOCK");
     db.fault = "";
-    expect((await lookupReminderAG4("A", key(5))).status).toBe("COMMITTED");
-    expect((await createReminderAG4("A", input, key(5))).kind).toBe("idempotent_replay");
+    expect((await lookupReminderAG4("A", key(5), fixtureReminderAG4ReviewRowsPort)).status).toBe("COMMITTED");
+    expect((await createReminderAG4("A", input, key(5), fixtureReminderAG4ReviewRowsPort)).kind).toBe("idempotent_replay");
     expect(db.reminders.size).toBe(1);
   });
   it("A06 error at receipt UPDATE after reminder INSERT rolls back both", async () => {
     db.fault = "update";
-    await expect(createReminderAG4("A", input, key(6)))
+    await expect(createReminderAG4("A", input, key(6), fixtureReminderAG4ReviewRowsPort))
       .rejects.toThrow("DB_RECEIPT_UPDATE_FAULT");
     expect(db.reminders.size).toBe(0);
     expect(db.receipts.size).toBe(0);
   });
   it("A07 fail in receipt INSERT or reminder INSERT leaves zero records", async () => {
     db.fault = "insert";
-    await expect(createReminderAG4("A", input, key(7)))
+    await expect(createReminderAG4("A", input, key(7), fixtureReminderAG4ReviewRowsPort))
       .rejects.toThrow("DB_RECEIPT_INSERT_FAULT");
     db.fault = "create";
-    await expect(createReminderAG4("A", input, key(7)))
+    await expect(createReminderAG4("A", input, key(7), fixtureReminderAG4ReviewRowsPort))
       .rejects.toThrow("DB_CREATE_FAULT");
     expect(db.reminders.size).toBe(0);
     expect(db.receipts.size).toBe(0);
   });
   it("A08 12 concurrent same owner/key yield single Reminder+receipt", async () => {
     const outcomes = await Promise.all(Array.from({ length: 12 }, () =>
-      createReminderAG4("A", input, key(8))));
+      createReminderAG4("A", input, key(8), fixtureReminderAG4ReviewRowsPort)));
     expect(outcomes.filter((x) => x.kind === "created")).toHaveLength(1);
     expect(outcomes.filter((x) => x.kind === "idempotent_replay")).toHaveLength(11);
     expect(db.reminders.size).toBe(1);
   });
   it("A09 concurrent distinct keys enforce cap five; replays before count", async () => {
     const results = await Promise.allSettled(Array.from({ length: 8 }, (_, i) =>
-      createReminderAG4("A", input, key(20 + i))));
+      createReminderAG4("A", input, key(20 + i), fixtureReminderAG4ReviewRowsPort)));
     expect(results.filter((x) => x.status === "fulfilled")).toHaveLength(5);
     expect(results.filter((x) => x.status === "rejected")).toHaveLength(3);
     expect((results.filter((x) => x.status === "rejected") as PromiseRejectedResult[])
       .every((x) => x.reason instanceof ReminderCapError)).toBe(true);
     expect(db.reminders.size).toBe(5);
-    expect((await createReminderAG4("A", input, key(20))).kind).toBe("idempotent_replay");
+    expect((await createReminderAG4("A", input, key(20), fixtureReminderAG4ReviewRowsPort)).kind).toBe("idempotent_replay");
   });
   it("A10 expired receipt retains tombstone, cannot recreate even with same key", async () => {
-    await createReminderAG4("A", input, key(10));
+    await createReminderAG4("A", input, key(10), fixtureReminderAG4ReviewRowsPort);
     db.receipts.get(`A:${key(10)}`)!.expiresAt = new Date(Date.now() - 1000);
-    await expect(lookupReminderAG4("A", key(10)))
+    await expect(lookupReminderAG4("A", key(10), fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderUnknownError);
-    await expect(createReminderAG4("A", input, key(10)))
+    await expect(createReminderAG4("A", input, key(10), fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderUnknownError);
     expect(db.reminders.size).toBe(1);
   });
   it("A11 reminder deleted, receipt remains tombstone and never resurrects", async () => {
-    const saved = await createReminderAG4("A", input, key(11));
+    const saved = await createReminderAG4("A", input, key(11), fixtureReminderAG4ReviewRowsPort);
     db.reminders.delete(saved.reminder.id);
-    await expect(lookupReminderAG4("A", key(11)))
+    await expect(lookupReminderAG4("A", key(11), fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderUnknownError);
-    await expect(createReminderAG4("A", input, key(11)))
+    await expect(createReminderAG4("A", input, key(11), fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderUnknownError);
     expect(db.reminders.size).toBe(0);
     expect(db.receipts.size).toBe(1);
   });
   it("A12 duplicate key P2002 becomes UNKNOWN 409 domain, no leaked ORM error", async () => {
     db.fault = "unique";
-    await expect(createReminderAG4("A", input, key(12)))
+    await expect(createReminderAG4("A", input, key(12), fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderUnknownError);
     expect(db.reminders.size).toBe(0);
     expect(db.receipts.size).toBe(0);
   });
   it("A13 same UUID different operation kind cannot replay CREATE", async () => {
-    await createReminderAG4("A", input, key(13));
+    await createReminderAG4("A", input, key(13), fixtureReminderAG4ReviewRowsPort);
     db.receipts.get(`A:${key(13)}`)!.operationKind = "DELETE";
-    await expect(createReminderAG4("A", input, key(13)))
+    await expect(createReminderAG4("A", input, key(13), fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderConflictError);
     expect(db.reminders.size).toBe(1);
   });
   it("A14 four existing + concurrent keyed/keyless => one winner, max five", async () => {
-    for (let n = 1; n <= 4; n++) await createReminderAG4("A", input, key(70 + n));
+    for (let n = 1; n <= 4; n++) await createReminderAG4("A", input, key(70 + n), fixtureReminderAG4ReviewRowsPort);
     const results = await Promise.allSettled([
-      createReminderAG4("A", { ...input, name: "Fifth keyed" }, key(77)),
+      createReminderAG4("A", { ...input, name: "Fifth keyed" }, key(77), fixtureReminderAG4ReviewRowsPort),
       createReminder("A", "Fifth legacy", "10:00", null, "Europe/Moscow"),
     ]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
@@ -225,7 +225,7 @@ describe("AG4 owner receipt/expiry/revocation design review, mock transaction", 
     expect(db.receipts.size).toBeLessThanOrEqual(5);
   });
   it("A15 four existing + two simultaneous keyless => one success, max five", async () => {
-    for (let n = 1; n <= 4; n++) await createReminderAG4("A", input, key(80 + n));
+    for (let n = 1; n <= 4; n++) await createReminderAG4("A", input, key(80 + n), fixtureReminderAG4ReviewRowsPort);
     const results = await Promise.allSettled([
       createReminder("A", "Legacy fifth", "10:00"),
       createReminder("A", "Legacy sixth", "11:00"),
@@ -243,9 +243,9 @@ describe("AG4 owner receipt/expiry/revocation design review, mock transaction", 
   });
   it("A17 invalid UUID/client data fails without any receipt mutation", async () => {
     expect(() => validateKey("uuid-v1")).toThrow(ReminderInvalidError);
-    await expect(createReminderAG4("A", { ...input, name: "   " }, key(12)))
+    await expect(createReminderAG4("A", { ...input, name: "   " }, key(12), fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderInvalidError);
-    await expect(createReminderAG4("A", { ...input, timezone: "BAD/TZ" }, key(12)))
+    await expect(createReminderAG4("A", { ...input, timezone: "BAD/TZ" }, key(12), fixtureReminderAG4ReviewRowsPort))
       .rejects.toBeInstanceOf(ReminderInvalidError);
     expect(db.receipts.size).toBe(0);
   });

@@ -17,9 +17,7 @@ vi.mock("../rewardedCredits", () => ({
   },
 }));
 
-vi.mock("../contentAccess/policy", () => ({
-  resolveArticleEntitlement: (...args: unknown[]) => mockResolveArticleEntitlement(...args),
-}));
+
 
 import { toggleArticleLikeWithMonetizedAccess } from "./articleLikeService";
 
@@ -41,6 +39,7 @@ describe("toggleArticleLikeWithMonetizedAccess", () => {
           platform: "WEB_DESKTOP",
         },
         ports,
+        mockResolveArticleEntitlement,
       ),
     ).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
     expect(mockAtomicToggle).not.toHaveBeenCalled();
@@ -56,6 +55,7 @@ describe("toggleArticleLikeWithMonetizedAccess", () => {
           platform: "ANDROID",
         },
         ports,
+        mockResolveArticleEntitlement,
       ),
     ).rejects.toThrow("ARTICLE_NOT_FOUND");
     expect(mockResolveArticleEntitlement).not.toHaveBeenCalled();
@@ -72,6 +72,7 @@ describe("toggleArticleLikeWithMonetizedAccess", () => {
           platform: "ANDROID",
         },
         ports,
+        mockResolveArticleEntitlement,
       ),
     ).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
   });
@@ -87,6 +88,7 @@ describe("toggleArticleLikeWithMonetizedAccess", () => {
           platform: "WEB_DESKTOP",
         },
         ports,
+        mockResolveArticleEntitlement,
       ),
     ).resolves.toBe(true);
     expect(mockAtomicToggle).toHaveBeenCalledWith("user-1", "article-1");
@@ -103,6 +105,7 @@ describe("toggleArticleLikeWithMonetizedAccess", () => {
           platform: "IOS",
         },
         ports,
+        mockResolveArticleEntitlement,
       ),
     ).resolves.toBe(true);
     expect(mockResolveArticleEntitlement).toHaveBeenCalledWith("article-1", "user-1", "IOS");

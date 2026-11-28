@@ -31,7 +31,7 @@ beforeEach(() => {
 describe("G1 Core actual vet visit owner conditions", () => {
   it("rejects listing a foreign pet before vet visit query", async () => {
     mock.petFind.mockResolvedValueOnce(null);
-    await expect(listPetVetVisits("pet-A", "actor-B"))
+    await expect(listPetVetVisits("pet-A", "actor-B", fixtureVetVisitRowsPort))
       .rejects.toMatchObject({ status: 404 });
     expect(mock.petFind).toHaveBeenCalledWith({
       where: { id: "pet-A", ownerId: "actor-B" }, select: { id: true },
@@ -39,7 +39,7 @@ describe("G1 Core actual vet visit owner conditions", () => {
     expect(mock.visitFind).not.toHaveBeenCalled();
   });
   it("lists only current owner's visits, ordered newest first", async () => {
-    await expect(listPetVetVisits("pet-A", "actor-A")).resolves.toEqual([]);
+    await expect(listPetVetVisits("pet-A", "actor-A", fixtureVetVisitRowsPort)).resolves.toEqual([]);
     expect(mock.visitFind).toHaveBeenCalledWith({
       where: { petId: "pet-A", ownerId: "actor-A" },
       include: { attachments: { orderBy: { createdAt: "asc" } } },
@@ -48,7 +48,7 @@ describe("G1 Core actual vet visit owner conditions", () => {
   });
   it("rejects foreign attachment before signing media URL", async () => {
     mock.attachmentFind.mockResolvedValueOnce(null);
-    await expect(getPetVetMedia("pet-A", "actor-B", "visit-A", "file-A", "preview"))
+    await expect(getPetVetMedia("pet-A", "actor-B", "visit-A", "file-A", "preview", fixtureVetVisitRowsPort))
       .rejects.toMatchObject({ status: 404 });
     expect(mock.attachmentFind).toHaveBeenCalledWith({
       where: { id: "file-A", visitId: "visit-A", visit: { petId: "pet-A", ownerId: "actor-B" } },
@@ -56,7 +56,7 @@ describe("G1 Core actual vet visit owner conditions", () => {
     expect(mock.mediaUrl).not.toHaveBeenCalled();
   });
   it("authorized preview returns signed URL only after owner-scoped lookup", async () => {
-    const data = await getPetVetMedia("pet-A", "actor-A", "visit-A", "file-A", "preview");
+    const data = await getPetVetMedia("pet-A", "actor-A", "visit-A", "file-A", "preview", fixtureVetVisitRowsPort);
     expect(data).toEqual({ url: "https://signed.invalid/secret" });
     expect(mock.attachmentFind).toHaveBeenCalledWith({
       where: { id: "file-A", visitId: "visit-A", visit: { petId: "pet-A", ownerId: "actor-A" } },
@@ -64,17 +64,17 @@ describe("G1 Core actual vet visit owner conditions", () => {
     expect(mock.mediaUrl).toHaveBeenCalledWith("owners/actor-A/pet-A/preview", undefined);
   });
   it("download uses original key and attachment filename only after owner lookup", async () => {
-    await getPetVetMedia("pet-A", "actor-A", "visit-A", "file-A", "download");
+    await getPetVetMedia("pet-A", "actor-A", "visit-A", "file-A", "download", fixtureVetVisitRowsPort);
     expect(mock.mediaUrl).toHaveBeenCalledWith("owners/actor-A/pet-A/original", "health.pdf");
   });
   it("unknown variant rejects before signing media", async () => {
-    await expect(getPetVetMedia("pet-A", "actor-A", "visit-A", "file-A", "other"))
+    await expect(getPetVetMedia("pet-A", "actor-A", "visit-A", "file-A", "other", fixtureVetVisitRowsPort))
       .rejects.toMatchObject({ status: 400 });
     expect(mock.mediaUrl).not.toHaveBeenCalled();
   });
   it("missing preview fails closed rather than signing original key", async () => {
     mock.attachmentFind.mockResolvedValueOnce({ originalKey: "private-original", previewKey: null });
-    await expect(getPetVetMedia("pet-A", "actor-A", "visit-A", "file-A", "preview"))
+    await expect(getPetVetMedia("pet-A", "actor-A", "visit-A", "file-A", "preview", fixtureVetVisitRowsPort))
       .rejects.toMatchObject({ status: 404 });
     expect(mock.mediaUrl).not.toHaveBeenCalled();
   });
@@ -82,5 +82,5 @@ describe("G1 Core actual vet visit owner conditions", () => {
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalVetVisitRowsPort from "@gafus/pets-server/vet-visit-write-rows";
-import { registerVetVisitRowsPort } from "./vetVisitRowsPort";
-registerVetVisitRowsPort({ ...originalVetVisitRowsPort, isVetVisitDbError: (error): error is originalVetVisitRowsPort.VetVisitDbError => error instanceof originalVetVisitRowsPort.VetVisitDbError });
+
+const fixtureVetVisitRowsPort = { ...originalVetVisitRowsPort, isVetVisitDbError: (error): error is originalVetVisitRowsPort.VetVisitDbError => error instanceof originalVetVisitRowsPort.VetVisitDbError };

@@ -1,3 +1,4 @@
+import { chat2RoomName } from "@gafus/core-client/chat2/room-presentation";
 import { postChat2FileToS3 } from "./s3Upload";
 import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
 import { prepareUploadWebpVariants, sanitizePreparedWebpVariant, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
@@ -79,14 +80,7 @@ const safe = (id: string) => {
   return id;
 };
 export function nameFor(c: Pick<Conversation, "kind" | "name" | "members">, userId: string) {
-  return (
-    c.name ||
-    (c.kind === "CYNOLOGIST"
-      ? "Чат с кинологом"
-      : c.kind === "DIRECT"
-        ? c.members.find((m) => m.userId !== userId)?.username || "Личный чат"
-        : "Сообщество")
-  );
+  return chat2RoomName(c, userId, "Личный чат");
 }
 function guardChat2Destination(): string {
   // Chat2 needs an explicit endpoint; production is allowed only alongside the production mobile API.

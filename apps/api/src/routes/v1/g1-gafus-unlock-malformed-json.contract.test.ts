@@ -1,3 +1,5 @@
+import { gafusWallet } from "../../modules/gafus/composition/wallet-instance.js";
+import { transactionalContentPolicy } from "../../modules/content-access/composition/transactional-policy-instance.js";
 /** G1 Gafus /unlock real Hono request/role boundary; Core is mocked, no DB writes. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -123,7 +125,7 @@ describe("G1 Web/Mobile Gafus unlock malformed JSON/auth/RBAC contract", () => {
       userId: "owner-from-token",
       clientRequestId: validBody.clientRequestId,
       target: validBody.target,
-    }, unlockRows);
+    }, gafusWallet, transactionalContentPolicy, unlockRows);
   });
   it("ARTICLE target is accepted only with authenticated owner and exact articleId", async () => {
     const target = { type: "ARTICLE", articleId: "paid-article-1" };
@@ -133,7 +135,7 @@ describe("G1 Web/Mobile Gafus unlock malformed JSON/auth/RBAC contract", () => {
     expect(fake.unlock).toHaveBeenCalledExactlyOnceWith({
       userId: "owner-from-token", target,
       clientRequestId: "article-gafus-0001",
-    }, unlockRows);
+    }, gafusWallet, transactionalContentPolicy, unlockRows);
     const forged = await post(JSON.stringify({
       ...body, target: { ...target, cost: 0 },
     }));
@@ -151,3 +153,7 @@ describe("G1 Web/Mobile Gafus unlock malformed JSON/auth/RBAC contract", () => {
     expect(r.headers.get("cache-control")).toBe("no-store");
   });
 });
+
+vi.mock("../../modules/gafus/composition/wallet-instance.js", () => ({ gafusWallet: { listGafusTransactions: vi.fn(), changeGafusBalanceTx: vi.fn(), ensureGafusWalletTx: vi.fn() } }));
+vi.mock("../../modules/gafus/composition/wallet-lock-instance.js", () => ({ gafusLock: { lockGafusUser: vi.fn() } }));
+vi.mock("../../modules/content-access/composition/transactional-policy-instance.js", () => ({ transactionalContentPolicy: {} }));

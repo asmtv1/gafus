@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { allowQuestionsS3Fallback } from "./questionPhotoCdnFallback";
+import { allowQuestionsS3Fallback } from "@gafus/core-client/media-delivery";
 const key =
   "questions/uploads/questions/v2/owner-1/01234567-89ab-4def-8123-456789abcdef/v1/image/s.webp";
 const cdn = "https://ebiteskukingusk.begetcdn.cloud/" + key;

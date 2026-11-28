@@ -1,13 +1,17 @@
 import { File } from "node:buffer";
 import { Readable } from "node:stream";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
   copyObjectInCDN, deleteFileFromCDN, deleteFolderFromCDN,
   downloadFileFromCDN, getSignedDownloadUrl, streamFileFromCDN,
   uploadBufferToCDN, uploadFileToCDN, uploadReadableStreamToCDN,
 } from "./uploadToCDN";
 
-afterEach(() => vi.unstubAllEnvs());
+import { installMediaCredentialFixture } from "../../../tests/support/media-credentials-fixture.cjs";
+
+let fixture: ReturnType<typeof installMediaCredentialFixture>;
+beforeEach(() => { fixture = installMediaCredentialFixture(); });
+afterEach(() => { vi.unstubAllEnvs(); fixture?.restore(); });
 describe("isolated S3 may not touch legacy Yandex storage", () => {
   it("fails closed for every legacy entry without networking or secret logging", async () => {
     vi.stubEnv("GAFUS_ISOLATED_NONPROD_S3", "enabled");

@@ -1,3 +1,5 @@
+import { trainerStepRows } from "../../modules/trainer-steps/composition/trainer-step-rows-instance.js";
+import { trainingDayRows } from "../../modules/trainer-days/composition/training-day-rows-instance.js";
 import type { TrainerStepRowsPort } from "@gafus/core/services/trainerStep";
 import type { TrainingDayRowsPort } from "@gafus/core/services/trainingDay";
 /**
@@ -107,32 +109,22 @@ export type TrainerContentPorts = {
     countSteps: (ids: string[], who: Actor) => Promise<number>;
   };
 };
-const production: TrainerContentPorts = {
-  step: { read: getStepForEdit, update: updateStep, remove: deleteSteps },
-  day: {
-    read: getTrainingDayForEdit, update: updateTrainingDay, remove: deleteDays,
-    countSteps: countEditableDaySteps,
-  },
-};
-
-/** Production uses a per-route typed day SQL port instead of the legacy
- * module-level registration. The step port stays unchanged until migrated. */
-export function createProductionTrainerContentPorts(dayRows: TrainingDayRowsPort, stepRows?: TrainerStepRowsPort): TrainerContentPorts {
+export function createProductionTrainerContentPorts(dayRows: TrainingDayRowsPort, stepRows: TrainerStepRowsPort): TrainerContentPorts {
   return {
-    ...production,
     step: {
       read: (id, who) => getStepForEdit(id, who, stepRows),
       update: (input, who) => updateStep(input, who, stepRows),
       remove: (input, who) => deleteSteps(input, who, stepRows),
     },
     day: {
-      ...production.day,
+      countSteps: countEditableDaySteps,
       read: (id, who) => getTrainingDayForEdit(id, who, dayRows),
       update: (input, who) => updateTrainingDay(input, who, dayRows),
       remove: (input, who) => deleteDays(input, who, dayRows),
     },
   };
 }
+const production = createProductionTrainerContentPorts(trainingDayRows, trainerStepRows);
 
 // Batch routes have the same all-or-nothing owner fencing as single deletion.
 // All ID authorization and the actual deletion are atomic in Core.

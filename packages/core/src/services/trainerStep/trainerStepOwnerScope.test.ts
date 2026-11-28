@@ -42,7 +42,7 @@ beforeEach(() => {
 });
 describe("Core trainer-step ownership at the mutation boundary", () => {
   it("keeps trainer authorId inside atomic Prisma step update condition", async () => {
-    expect((await updateStep(step, actor)).success).toBe(true);
+    expect((await updateStep(step, actor, fixtureTrainerStepRowsPort)).success).toBe(true);
     expect(m.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: step.id, authorId: actor.id },
     }));
@@ -57,7 +57,7 @@ describe("Core trainer-step ownership at the mutation boundary", () => {
       hlsManifestPath: "hls/master.m3u8",
     }]);
     const input = { ...step, videoUrl: url, videoUrls: [url] };
-    expect((await updateStep(input, actor)).success).toBe(true);
+    expect((await updateStep(input, actor, fixtureTrainerStepRowsPort)).success).toBe(true);
     expect(m.libraryFindMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: { in: ["clip-1"] }, trainerId: actor.id,
         transcodingStatus: "COMPLETED" },
@@ -65,25 +65,25 @@ describe("Core trainer-step ownership at the mutation boundary", () => {
     m.update.mockClear();
     const foreignUrl = url.replaceAll("trainer-1", "someone-else");
     expect((await updateStep({ ...input, videoUrl: foreignUrl,
-      videoUrls: [foreignUrl] }, actor)).success).toBe(false);
+      videoUrls: [foreignUrl] }, actor, fixtureTrainerStepRowsPort)).success).toBe(false);
     expect(m.update).not.toHaveBeenCalled();
   });
   it("admin may update any step only with explicit ADMIN actor", async () => {
-    await updateStep(step, { id: "admin", role: "ADMIN" });
+    await updateStep(step, { id: "admin", role: "ADMIN" }, fixtureTrainerStepRowsPort);
     expect(m.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: step.id },
     }));
   });
   it("reads edit data constrained to owner before returning private fields", async () => {
     m.findUnique.mockResolvedValue(null);
-    expect(await getStepForEdit(step.id, actor)).toBeNull();
+    expect(await getStepForEdit(step.id, actor, fixtureTrainerStepRowsPort)).toBeNull();
     expect(m.findUnique).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: step.id, authorId: actor.id },
     }));
   });
   it("refuses to delete mixed-owner IDs before invoking any delete", async () => {
     m.findMany.mockResolvedValue([{ id: "own-1", imageUrls: [] }]);
-    const result = await deleteSteps({ stepIds: ["own-1", "foreign-2"] }, actor);
+    const result = await deleteSteps({ stepIds: ["own-1", "foreign-2"] }, actor, fixtureTrainerStepRowsPort);
     expect(result.success).toBe(false);
     expect(m.deleteMany).not.toHaveBeenCalled();
     expect(m.invalidate).not.toHaveBeenCalled();
@@ -95,7 +95,7 @@ describe("Core trainer-step ownership at the mutation boundary", () => {
   it("deletes exactly one own step and returns its media for deferred CDN cleanup", async () => {
     m.findMany.mockResolvedValue([{ id: step.id, imageUrls: ["https://example.invalid/a.jpg"] }]);
     m.deleteMany.mockResolvedValue({ count: 1 });
-    const result = await deleteSteps({ stepIds: [step.id] }, actor);
+    const result = await deleteSteps({ stepIds: [step.id] }, actor, fixtureTrainerStepRowsPort);
     expect(result).toMatchObject({
       success: true, imageUrls: ["https://example.invalid/a.jpg"],
     });
@@ -108,5 +108,5 @@ describe("Core trainer-step ownership at the mutation boundary", () => {
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalTrainerStepRowsPort from "@gafus/course-progress-server/trainer-step-rows";
-import { registerTrainerStepRowsPort, type TrainerStepRowsPort } from "./trainerStepRowsPort";
-registerTrainerStepRowsPort(originalTrainerStepRowsPort as TrainerStepRowsPort);
+import { type TrainerStepRowsPort } from "./trainerStepRowsPort";
+const fixtureTrainerStepRowsPort = originalTrainerStepRowsPort as TrainerStepRowsPort;

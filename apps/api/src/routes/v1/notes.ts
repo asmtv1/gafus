@@ -1,5 +1,5 @@
 import { Hono, type TypedResponse } from "hono";
-import type { StudentNotesRead } from "../../../../../packages/types/src/data/notes";
+import type { StudentNotesRead } from "@gafus/types/notes";
 import { readStudentNotesApplication } from "../../modules/student-notes/composition/read-student-notes.js";
 import { createWebLogger } from "@gafus/logger";
 

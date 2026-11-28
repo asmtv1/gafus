@@ -6,8 +6,9 @@ import { reportClientError } from "@/shared/lib/error-reporting";
 import * as FileSystem from "expo-file-system/legacy";
 import { offlineApi, type FullCourseData } from "@/shared/lib/api/offline";
 import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";
-import { saveCourseMeta, deleteCourseData, assertSafeOfflineSegment } from "./offlineStorage";
+import { saveCourseMeta, deleteCourseData, assertSafeOfflineSegment, getScopedCourseDirUri, beginOfflineCourseDownload, recoverIncompleteOfflineCourse } from "./offlineStorage";
 import { downloadHLSForOffline } from "./downloadHLSForOffline";
+import { captureOfflineCourseScope, type OfflineCourseScope } from "./offlineCourseSession";
 import { throwIfOfflineDownloadAborted } from "./downloadAbort";
 
 const MIN_FREE_BYTES = 500 * 1024 * 1024; // 500 МБ
@@ -86,14 +87,17 @@ export async function downloadCourseForOffline(
       code: "INVALID_COURSE_TYPE",
     };
   }
-  if (activeOfflineDownloads.has(courseType)) {
+  const scope = captureOfflineCourseScope();
+  if (!scope?.canWrite()) return { success: false, error: "Нет подтверждённой сессии", code: "OFFLINE_COURSE_SESSION_REQUIRED" };
+  const downloadKey = `${scope.principalId}/${courseType}`;
+  if (activeOfflineDownloads.has(downloadKey)) {
     return {
       success: false,
       error: "Этот курс уже загружается",
       code: "DOWNLOAD_IN_PROGRESS",
     };
   }
-  activeOfflineDownloads.add(courseType);
+  activeOfflineDownloads.add(downloadKey);
   try {
     // Existing on-device data can belong to another user or an older schema.
     // Refuse implicit overwrite or deletion until ownership is reconciled.
@@ -106,8 +110,8 @@ export async function downloadCourseForOffline(
       };
     }
     try {
-      const existing = await FileSystem.getInfoAsync(doc + "offline/" + courseType + "/");
-      if (existing.exists) {
+      const existing = await FileSystem.getInfoAsync(getScopedCourseDirUri(courseType, scope));
+      if (existing.exists && (!existing.isDirectory || !await recoverIncompleteOfflineCourse(courseType, scope))) {
         return {
           success: false,
           error: "На устройстве уже есть данные курса; требуется безопасное восстановление",
@@ -128,16 +132,16 @@ export async function downloadCourseForOffline(
 
     let lastNetworkError: Error | null = null;
     for (let attempt = 1; attempt <= NETWORK_RETRY_ATTEMPTS; attempt++) {
-      if (signal?.aborted) {
+      if (signal?.aborted || !scope.canWrite()) {
         return { success: false, error: "Отменено", code: "ABORTED" };
       }
       try {
-        const result = await runDownload(courseType, onProgress, signal);
+        const result = await runDownload(courseType, onProgress, scope, signal);
         return result;
       } catch (err) {
-        const isAbort = err instanceof Error && err.name === "AbortError";
+        const isAbort = !scope.canWrite() || (err instanceof Error && err.name === "AbortError");
         if (isAbort) {
-          await deleteCourseData(courseType);
+          await deleteCourseData(courseType, scope);
           return { success: false, error: "Отменено", code: "ABORTED" };
         }
         const isNetwork =
@@ -146,6 +150,10 @@ export async function downloadCourseForOffline(
             (err.message.includes("network") || err.message.includes("fetch")));
         if (isNetwork) {
           lastNetworkError = err instanceof Error ? err : new Error(String(err));
+          // A retry must not mix media from two versions or leave a partial
+          // course if the next API response denies access. The directory was
+          // verified absent before this download acquired its in-process guard.
+          await deleteCourseData(courseType, scope);
           continue;
         }
         const errorObj = err instanceof Error ? err : new Error(String(err));
@@ -153,7 +161,7 @@ export async function downloadCourseForOffline(
           issueKey: "OfflineDownload",
           keys: { operation: "download_course", courseType },
         });
-        await deleteCourseData(courseType);
+        await deleteCourseData(courseType, scope);
         return {
           success: false,
           error: errorObj.message,
@@ -167,25 +175,35 @@ export async function downloadCourseForOffline(
         keys: { operation: "download_course_retries", courseType },
       });
     }
-    await deleteCourseData(courseType);
+    await deleteCourseData(courseType, scope);
     return {
       success: false,
       error: lastNetworkError?.message || "Ошибка сети. Повторите позже.",
       code: "NETWORK_ERROR",
     };
   } finally {
-    activeOfflineDownloads.delete(courseType);
+    activeOfflineDownloads.delete(downloadKey);
   }
 }
 
 async function runDownload(
   courseType: string,
   onProgress: (p: DownloadCourseProgress) => void,
+  scope: OfflineCourseScope,
   signal?: AbortSignal,
 ): Promise<{ success: true; version: string } | { success: false; error: string; code?: string }> {
-  throwIfOfflineDownloadAborted(signal);
+  const assertCurrent = () => {
+    throwIfOfflineDownloadAborted(signal);
+    if (!scope.canWrite()) {
+      const error = new Error("OFFLINE_COURSE_SESSION_CHANGED");
+      error.name = "AbortError";
+      throw error;
+    }
+  };
+  assertCurrent();
   onProgress({ phase: "meta", current: 0, total: 1, label: "Загрузка данных..." });
   const apiResult = await offlineApi.downloadCourse(courseType);
+  assertCurrent();
 
   if (
     apiResult.code === "COURSE_ACCESS_DENIED" ||
@@ -222,13 +240,8 @@ async function runDownload(
       error: "Курс содержит видео из внешнего или неподдерживаемого источника. Сохранить весь курс для просмотра без интернета нельзя.",
     };
   }
-  const downloadedAt = new Date().toISOString();
-  await saveCourseMeta(courseType, {
-    course: data.course,
-    trainingDays: data.trainingDays ?? [],
-    version: data.course.updatedAt,
-    downloadedAt,
-  });
+  await beginOfflineCourseDownload(courseType, scope);
+  assertCurrent();
   onProgress({ phase: "meta", current: 1, total: 1 });
 
   const cdnVideos = data.mediaFiles.videos;
@@ -249,20 +262,20 @@ async function runDownload(
   };
 
   for (let i = 0; i < cdnVideos.length; i++) {
-    throwIfOfflineDownloadAborted(signal);
+    assertCurrent();
     const videoUrl = cdnVideos[i];
     const videoId = getVideoIdFromUrl(videoUrl);
     if (!videoId) {
       report();
       continue;
     }
-    await downloadHLSForOffline(videoUrl, courseType, videoId, undefined, signal);
+    await downloadHLSForOffline(videoUrl, courseType, videoId, undefined, signal, scope);
     report(`Видео ${i + 1}/${totalVideos}`);
   }
 
   const doc = FileSystem.documentDirectory;
   if (!doc) throw new Error("documentDirectory недоступен");
-  const baseUri = `${doc}offline/${courseType}`;
+  const baseUri = getScopedCourseDirUri(courseType, scope).replace(/\/$/, "");
   const imagesUri = `${baseUri}/images/`;
   const pdfsUri = `${baseUri}/pdfs/`;
   await FileSystem.makeDirectoryAsync(imagesUri, { intermediates: true });
@@ -271,10 +284,10 @@ async function runDownload(
   const downloadFile = async (url: string, dirUri: string, fileName: string): Promise<void> => {
     assertSafeOfflineSegment(fileName);
     const resp = await fetch(url, { signal });
-    throwIfOfflineDownloadAborted(signal);
+    assertCurrent();
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const buf = await resp.arrayBuffer();
-    throwIfOfflineDownloadAborted(signal);
+    assertCurrent();
     const bytes = new Uint8Array(buf);
     let binary = "";
     const chunkSize = 8192;
@@ -285,35 +298,45 @@ async function runDownload(
     await FileSystem.writeAsStringAsync(`${dirUri}${fileName}`, base64, {
       encoding: FileSystem.EncodingType.Base64,
     });
-    throwIfOfflineDownloadAborted(signal);
+    assertCurrent();
   };
 
   for (const url of data.mediaFiles.images) {
-    throwIfOfflineDownloadAborted(signal);
+    assertCurrent();
     try {
       const name = getSafeAssetFileName(url);
       await downloadFile(url, imagesUri, name);
     } catch (error) {
-      throwIfOfflineDownloadAborted(signal);
+      assertCurrent();
       if (error instanceof Error && error.name === "AbortError") throw error;
       // Пропускаем при ошибке одного изображения
     }
     report();
   }
   for (const url of data.mediaFiles.pdfs) {
-    throwIfOfflineDownloadAborted(signal);
+    assertCurrent();
     try {
       const name = getSafeAssetFileName(url);
       await downloadFile(url, pdfsUri, name);
     } catch (error) {
-      throwIfOfflineDownloadAborted(signal);
+      assertCurrent();
       if (error instanceof Error && error.name === "AbortError") throw error;
       // Пропускаем при ошибке одного PDF
     }
     report();
   }
 
-  throwIfOfflineDownloadAborted(signal);
+  assertCurrent();
+  // Publish metadata only after mandatory media completes. A process killed
+  // mid-download must not expose a partially downloaded course as complete.
+  const downloadedAt = new Date().toISOString();
+  await saveCourseMeta(courseType, {
+    course: data.course,
+    trainingDays: data.trainingDays ?? [],
+    version: data.course.updatedAt,
+    downloadedAt,
+  }, scope);
+  assertCurrent();
   onProgress({ phase: "done", current: totalMedia, total: totalMedia, label: "Готово" });
   return { success: true, version: data.course.updatedAt };
 }

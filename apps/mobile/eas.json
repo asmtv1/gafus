@@ -144,6 +144,28 @@
         "EXPO_PUBLIC_ENABLE_TRACER": "false"
       }
     },
+    "native-ios-store": {
+      "channel": "production",
+      "environment": "production",
+      "distribution": "store",
+      "autoIncrement": false,
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "APP_ENV": "production",
+        "GAFUS_OTA_TRANSPORT": "self-hosted",
+        "GAFUS_OTA_LOCAL_STORE_BUILD": "true",
+        "EXPO_PUBLIC_TELEMETRY_ENABLED": "true",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.gafus.ru",
+        "EXPO_PUBLIC_CHAT2_API_ORIGIN": "https://api.gafus.ru",
+        "GAFUS_OTA_TARGET_PLATFORM": "ios",
+        "GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR": ".ota-certs/ios-store-native.json",
+        "GAFUS_OTA_NATIVE_CERTIFICATE": ".ota-certs/native.pem",
+        "EXPO_PUBLIC_ENABLE_TRACER": "false",
+        "EXPO_PUBLIC_YM_MOBILE_ENABLED": "true"
+      }
+    },
     "ota-175-ios-store": {
       "channel": "production",
       "environment": "production",

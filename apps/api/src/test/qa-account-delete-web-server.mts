@@ -25,7 +25,7 @@ assert.equal(pg.hostname,'127.0.0.1');assert.equal(pg.username,'qahttp');
 assert.equal(redis.hostname,'127.0.0.1');assert.equal(redis.pathname,'/0');
 assert.ok(webPort>=1024&&apiPort>=1024&&webPort!==apiPort);
 assert.ok(task.startsWith(root+'/.qa/testing/qa-'));
-assert.match(task,/\/tasks\/[a-f0-9]{20}$/);
+assert.match(task,/\/tasks\/[a-f0-9]{20}\/attempt-[1-9][0-9]*$/);
 assert.ok(existsSync(task));
 assert.equal(process.env.FEED_ENABLED,'false');
 assert.equal(process.env.GALLERY_ENABLED,'false');

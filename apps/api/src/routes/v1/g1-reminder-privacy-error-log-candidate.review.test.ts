@@ -27,7 +27,8 @@ vi.mock("@gafus/core/services/reminders", () => ({
   ReminderInvalidError: class ReminderInvalidError extends Error {},
   ReminderCapError: class ReminderCapError extends Error {},
 }));
-import { remindersRoutes } from "./g1-reminder-private-error-log.candidate.review";
+vi.mock("../../modules/reminders/composition/reminder-rows.js", () => ({ reminderRows: {} }));
+import { remindersRoutes } from "./reminders";
 const app = new Hono();
 app.use("/api/v1/reminders/*", async (c, next) => {
   c.header("Cache-Control", "private, no-store");

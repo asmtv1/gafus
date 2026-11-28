@@ -1,33 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const counts = vi.hoisted(() => ({
-  chat2: vi.fn(),
-  questions: vi.fn(),
-  feed: vi.fn(),
-  gallery: vi.fn(),
-}));
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    chat2V2MediaTask: { count: counts.chat2 },
-    questionV2MediaTask: { count: counts.questions },
-    feedUpload: { count: counts.feed },
-    galleryUpload: { count: counts.gallery },
-  },
-}));
+const query = vi.hoisted(() => vi.fn());
+vi.mock("@gafus/prisma", () => ({ prisma: { $queryRaw: query } }));
 import { renderMediaProcessingMetricsPrometheus } from "./mediaProcessingMetrics";
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  for (const fn of Object.values(counts)) fn.mockResolvedValue(0);
-});
+beforeEach(() => { query.mockReset(); });
 
 describe("durable media metrics", () => {
-  it("counts four pipelines, using strict expired lease criteria and no account identifiers", async () => {
+  it("reads all four pipelines in one snapshot with strict expired lease criteria", async () => {
     const now = new Date("2026-11-02T12:00:00.000Z");
-    counts.chat2.mockResolvedValueOnce(2).mockResolvedValueOnce(1);
-    counts.questions.mockResolvedValueOnce(3).mockResolvedValueOnce(0);
-    counts.feed.mockResolvedValueOnce(4).mockResolvedValueOnce(0);
-    counts.gallery.mockResolvedValueOnce(5).mockResolvedValueOnce(0);
+    query.mockResolvedValue([
+      { pipeline: "gallery", stalled: 5, failed: 0 },
+      { pipeline: "chat2", stalled: 2, failed: 1 },
+      { pipeline: "questions", stalled: 3, failed: 0 },
+      { pipeline: "feed", stalled: 4, failed: 0 },
+    ]);
     const body = await renderMediaProcessingMetricsPrometheus(now);
     expect(body).toContain('gafus_media_stalled_processing{pipeline="chat2"} 2');
     expect(body).toContain('gafus_media_stalled_processing{pipeline="questions"} 3');
@@ -36,20 +23,26 @@ describe("durable media metrics", () => {
     expect(body).toContain('gafus_media_failed_tasks{pipeline="chat2"} 1');
     expect(body).not.toContain("ownerId");
     expect(body).not.toContain("sourceKey");
-    for (const [name, fn] of Object.entries(counts)) {
-      const expected = name === "chat2" || name === "questions" ? "PROCESSING" : "processing";
-      expect(fn).toHaveBeenCalledTimes(2);
-      expect(fn.mock.calls[0][0].where).toEqual({
-        status: expected,
-        OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }],
-      });
-    }
+    expect(query).toHaveBeenCalledTimes(1);
+    const [parts, ...params] = query.mock.calls[0];
+    const sql = parts.join("?");
+    expect(params).toEqual([now, now, now, now]);
+    expect(sql.match(/"leaseUntil" IS NULL OR "leaseUntil" < \?/g)).toHaveLength(4);
+    expect(sql.match(/status = 'PROCESSING'/g)).toHaveLength(2);
+    expect(sql.match(/status = 'processing'/g)).toHaveLength(2);
+    expect(sql.match(/status = 'FAILED'/g)).toHaveLength(2);
+    expect(sql.match(/status = 'failed'/g)).toHaveLength(2);
   });
 
-  it("fails the entire scrape instead of returning misleading zero counts when a DB query fails", async () => {
-    counts.questions.mockRejectedValueOnce(new Error("database temporarily unavailable"));
-    await expect(renderMediaProcessingMetricsPrometheus()).rejects.toThrow(
-      "database temporarily unavailable",
-    );
+  it("fails the entire scrape on database failure", async () => {
+    query.mockRejectedValueOnce(new Error("database temporarily unavailable"));
+    await expect(renderMediaProcessingMetricsPrometheus()).rejects.toThrow("database temporarily unavailable");
+  });
+
+  it("fails closed if a pipeline is missing or duplicated", async () => {
+    query.mockResolvedValueOnce([{ pipeline: "chat2", stalled: 0, failed: 0 }]);
+    await expect(renderMediaProcessingMetricsPrometheus()).rejects.toThrow("MEDIA_PROCESSING_METRICS_INCOMPLETE");
+    query.mockResolvedValueOnce(["chat2","chat2","feed","gallery"].map(pipeline=>({pipeline,stalled:0,failed:0})));
+    await expect(renderMediaProcessingMetricsPrometheus()).rejects.toThrow("MEDIA_PROCESSING_METRICS_INCOMPLETE");
   });
 });

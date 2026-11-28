@@ -21,18 +21,13 @@ function port() {
  };
 }
 describe("Rewarded paid course and video occurrence read port",()=>{
-  it("without SQL actor role/owner reads rejects all gated premium unlocks",async()=>{
-    const svc=await import("./accessService");
-    await expect(svc.getPremiumOrRewardedAccess({
-      userId:"owner-A",platform:"IOS",target:{targetType:"COURSE_STEP",targetId:"step-1"},
-    })).rejects.toThrow("REWARDED_ACCESS_READ_PORT_UNBOUND");
-    await expect(svc.hasRewardedTargetUnlock({
-      userId:"owner-A",platform:"ANDROID",target:{targetType:"ARTICLE",targetId:"article-A"},
-    })).rejects.toThrow("REWARDED_ACCESS_READ_PORT_UNBOUND");
+  it("requires explicit dependencies",async()=>{
+    const {createRewardedAccessPolicy}=await import("./accessService");
+    expect(()=>createRewardedAccessPolicy(undefined as never,flags.enabled,async()=>false)).toThrow("REWARDED_ACCESS_DEPENDENCIES_REQUIRED");
   });
   it("reads exact owner role and exact target, never grants global Step-based credit",async()=>{
-    const p=await import("./rewardedAccessReadPort");const svc=await import("./accessService");
-    const db=port();p.registerRewardedAccessReadPort(db);
+    const {createRewardedAccessPolicy}=await import("./accessService");
+    const db=port();const svc=createRewardedAccessPolicy(db,flags.enabled,async()=>false);
     await expect(svc.hasRewardedTargetUnlock({
       userId:"owner-A",platform:"ANDROID",target:{targetType:"ARTICLE",targetId:"article-B"},
     })).resolves.toBe(false);
@@ -44,10 +39,14 @@ describe("Rewarded paid course and video occurrence read port",()=>{
     })).rejects.toThrow();
     expect(db.readRewardedViewerRole).toHaveBeenCalledExactlyOnceWith("owner-A");
   });
-  it("refuses runtime replacement of owner-scoped server reader",async()=>{
-    const p=await import("./rewardedAccessReadPort");const db=port();
-    p.registerRewardedAccessReadPort(db);p.registerRewardedAccessReadPort(db);
-    expect(()=>p.registerRewardedAccessReadPort(port()))
-      .toThrow("REWARDED_ACCESS_READ_PORT_ALREADY_BOUND");
+  it("keeps two independent owner readers",async()=>{
+    const {createRewardedAccessPolicy}=await import("./accessService");
+    const a=port(),b=port();
+    b.getAppSubscriptionAccess.mockResolvedValue({hasActiveSubscription:true});
+    const first=createRewardedAccessPolicy(a,flags.enabled,async()=>false);
+    const second=createRewardedAccessPolicy(b,flags.enabled,async()=>false);
+    const input={userId:"owner-A",platform:"IOS",target:{targetType:"ARTICLE",targetId:"article-A"}} as const;
+    await expect(first.getPremiumOrRewardedAccess(input)).rejects.toThrow();
+    await expect(second.getPremiumOrRewardedAccess(input)).resolves.toMatchObject({allowed:true,source:"PREMIUM"});
   });
 });

@@ -22,7 +22,7 @@ describe("transactional auth mail policies", () => {
     await sendEmailChangeConfirmEmail("test@example.test", "https://example.test/confirm");
     await sendAccountDeletionCodeEmail("test@example.test", "000000");
     expect(mock.send).toHaveBeenCalledTimes(3);
-    expect(mock.send.mock.calls[0][0]).toMatchObject({ deliveryMode: "deferred", category: "auth", maxQueueAgeMs: 2_700_000 });
+    expect(mock.send.mock.calls[0][0]).toMatchObject({ deliveryMode: "deferred", category: "password_reset", maxQueueAgeMs: 2_700_000 });
     for (const [payload] of mock.send.mock.calls.slice(1)) {
       expect(payload).toMatchObject({ deliveryMode: "immediate", category: "auth" });
     }

@@ -42,12 +42,7 @@ export type TrainingDayContentRow = {
 export interface TrainingDayContentReadPort {
   readTrainingDayContent(courseType: string, dayOnCourseId: string): Promise<TrainingDayContentRow | null>;
 }
-let bound: Readonly<TrainingDayContentReadPort> | null = null;
-export function registerTrainingDayContentReadPort(port: TrainingDayContentReadPort): void {
-  if (bound !== null && bound !== port) throw new Error("TRAINING_DAY_CONTENT_READ_PORT_ALREADY_BOUND");
-  bound = port;
-}
-export function requireTrainingDayContentReadPort(): Readonly<TrainingDayContentReadPort> {
-  if (!bound) throw new Error("TRAINING_DAY_CONTENT_READ_PORT_UNBOUND");
-  return bound;
+export function requireTrainingDayContentReadPort(port: TrainingDayContentReadPort): TrainingDayContentReadPort {
+  if (!port) throw new Error("TRAINING_DAY_CONTENT_READ_PORT_UNBOUND");
+  return port;
 }

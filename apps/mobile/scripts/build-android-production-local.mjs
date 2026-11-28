@@ -4,6 +4,7 @@ import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { loadRegisteredTarget } from "./native-release-target.mjs";
 const require = createRequire(import.meta.url);
 
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -38,6 +39,7 @@ for (const key of Object.keys(env)) {
   }
 }
 const [mode, ...extraArgs] = process.argv.slice(2);
+let target;
 if (mode !== "--verify-cli") {
   Object.assign(env, {
     GAFUS_OTA_TARGET_PLATFORM: "android",
@@ -51,9 +53,14 @@ if (mode !== "--verify-cli") {
     require("../app.json").expo, { environment: env, appRoot: mobileRoot });
   if (mode !== "--verify-config") {
     const descriptor = JSON.parse(readFileSync(resolve(mobileRoot,env.GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR),"utf8"));
-    const head = execFileSync("git",["rev-parse","HEAD"],{cwd:repoRoot,encoding:"utf8"}).trim();
-    if (descriptor.sourceSha !== head || execFileSync("git",["status","--porcelain"],{cwd:repoRoot,encoding:"utf8"}).trim())
-      throw Error("MOBILE_ANDROID_RELEASE_REQUIRES_FRESH_REGISTERED_DESCRIPTOR_AND_CLEAN_SOURCE");
+    if (!["google-play", "rustore"].includes(descriptor.distribution)) throw Error("MOBILE_ANDROID_STORE_DISTRIBUTION_REQUIRED");
+    target = loadRegisteredTarget({platform:"android",distribution:descriptor.distribution,env});
+    Object.assign(env,target.buildEnv);
+    if (mode === "--check") {
+      console.log(JSON.stringify({state:"NATIVE_ANDROID_STORE_PREFLIGHT_PASS",distribution:target.distribution,
+        appVersion:target.appVersion,buildNumber:target.buildNumber,nativeReleaseId:target.id}));
+      process.exit(0);
+    }
   }
 }
 if (mode === "--verify-cli") {
@@ -89,6 +96,12 @@ if (mode === "--verify-cli") {
 } else {
   const forwarded = mode ? [mode, ...extraArgs] : [];
   if (forwarded.some(arg => /^--(?:profile|platform)(?:=|$)/.test(arg))) throw Error("MOBILE_RELEASE_PROFILE_OVERRIDE_FORBIDDEN");
+  if (!target) throw Error("MOBILE_ANDROID_STORE_TARGET_REQUIRED");
+  const version = spawnSync("npx", ["--yes","eas-cli@27.4.1","build:version:get","--platform","android",
+    "--profile","production-local","--json","--non-interactive"], {cwd:mobileRoot,env,encoding:"utf8",stdio:["ignore","pipe","inherit"]});
+  if (version.error) throw version.error;
+  if (version.status !== 0 || String(JSON.parse(version.stdout).versionCode) !== target.buildNumber)
+    throw Error("MOBILE_ANDROID_STORE_REMOTE_BUILD_NUMBER_MISMATCH");
   const buildStartedAt = Date.now();
   const result = spawnSync(
     "npx",
@@ -118,11 +131,11 @@ if (mode === "--verify-cli") {
       .map(name => resolve(mobileRoot, name))
       .filter(path => statSync(path).mtimeMs >= buildStartedAt - 5000)
       .sort((left,right) => statSync(right).mtimeMs - statSync(left).mtimeMs);
-  if (!candidates.length) {
+  if (!candidates.length || !existsSync(candidates[0]) || statSync(candidates[0]).mtimeMs < buildStartedAt - 5000) {
     throw Error("MOBILE_NEW_AAB_NOT_FOUND: provide --output and verify a fresh AAB before store upload");
   }
   const ota = spawnSync("python3",
-    [resolve(mobileRoot, "scripts/verify-native-ota-artifact.py"), candidates[0]],
+    [resolve(mobileRoot, "scripts/verify-native-ota-artifact.py"), candidates[0], "--descriptor", target.descriptorFile],
     { cwd: mobileRoot, stdio: "inherit" });
   if (ota.error) throw ota.error;
   if (ota.status !== 0) throw Error("MOBILE_ANDROID_AAB_OTA_CHECK_FAILED");

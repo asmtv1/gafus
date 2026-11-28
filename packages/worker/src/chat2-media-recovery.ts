@@ -1,4 +1,4 @@
-import {prisma} from "@gafus/prisma";
+import { countDueChat2VideoRecovery } from "@gafus/media-server/chat2-video-recovery";
 import {createCloudruChatPoolDispatcher} from "./cloudru-media-dispatcher.js";
 
 /** Feed-style recovery: poll only durable due rows, launch up to two jobs per
@@ -6,7 +6,7 @@ import {createCloudruChatPoolDispatcher} from "./cloudru-media-dispatcher.js";
  * In-memory dispatchers keep their alternating round-robin index per kind.
  */
 export function createChat2MediaRecoveryTick(input:{
-  database: Pick<typeof prisma,"chat2V2MediaTask">;
+  countDueVideos: (now: Date) => Promise<number>;
   video:ReturnType<typeof createCloudruChatPoolDispatcher>;
   now?:()=>Date;
 }) {
@@ -16,22 +16,7 @@ export function createChat2MediaRecoveryTick(input:{
     running=true;
     try{
       const now=input.now?.()??new Date();
-      const grouped=await input.database.chat2V2MediaTask.groupBy({
-        by:["sourceMime"],
-        where:{attempts:{lt:4},sourceMime:{startsWith:"video/"},OR:[
-          {status:"QUEUED",nextAttemptAt:{lte:now}},
-          {status:"PROCESSING",leaseUntil:{lt:now}},
-          {status:"READY",nextAttemptAt:{lte:now},
-            OR:[{attemptToken:null},{leaseUntil:{lt:now}}],
-            manifest:{path:["renditions"],array_contains:[{quality:720}]},
-            NOT:{manifest:{path:["renditions"],array_contains:[{quality:360}]}}},
-        ]},
-        _count:{_all:true},
-      });
-      let videos=0;
-      for(const item of grouped){
-        if(item.sourceMime.startsWith("video/"))videos+=item._count._all;
-      }
+      const videos = await input.countDueVideos(now);
       let dispatched=0;
       for(let i=0;i<Math.min(2,videos);i++){
         const result=await input.video();
@@ -49,7 +34,7 @@ export async function runChat2MediaRecoveryTick():Promise<void>{
      process.env.CHAT2_PROCESSOR_READY!=="true" ||
      process.env.CHAT2_V2_MEDIA_ENABLED!=="true" ||
      process.env.CHAT2_V2_CORE_ENABLED!=="true")return;
-  recovery??=createChat2MediaRecoveryTick({database:prisma,
+  recovery??=createChat2MediaRecoveryTick({countDueVideos:countDueChat2VideoRecovery,
     video:createCloudruChatPoolDispatcher("video")});
   await recovery();
 }

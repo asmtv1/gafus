@@ -1,5 +1,4 @@
 import type { GafusTx } from "../gafus/types";
-import { getAppFeatureFlagEnabled, APP_FEATURE_APP_SUBSCRIPTION_GATING } from "../appFeatureFlags";
 
 // Explicit exceptions only: unknown/new paid step types must fail closed.
 const FREE_STEP_TYPES = new Set(["BREAK", "DIARY"]);
@@ -118,6 +117,7 @@ async function resolveEntitlementTx(
   userId: string,
   target: CourseStepTarget | MiniGuideTarget | ArticleTarget,
   now: Date,
+  readGatingEnabled: () => Promise<boolean>,
 ): Promise<ContentEntitlement> {
   if (target.type === "MINI_GUIDE") {
     // Assignment is mandatory for a private guide; public paid guides
@@ -144,7 +144,7 @@ async function resolveEntitlementTx(
       return { allowed: true, source: "DAILY_FREE", expiresAt: null, eligibleForGafus: false };
     }
   }
-  if (!await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true)) {
+  if (!await readGatingEnabled()) {
     return { allowed: true, source: "GATING_DISABLED", expiresAt: null, eligibleForGafus: false };
   }
   if (await hasPremiumTx(tx, userId, now, target.type !== "MINI_GUIDE")) {
@@ -183,23 +183,30 @@ async function resolveEntitlementTx(
   return { allowed: false, source: "DENIED", expiresAt: null, eligibleForGafus: true };
 }
 
-export async function resolveCourseStepAccessTx(
-  tx: GafusTx, userId: string, target: CourseStepTarget, now = new Date(),
-) {
-  return resolveEntitlementTx(tx, userId, target, now);
-}
+/** One explicit policy for transaction-local access decisions. */
+export function createTransactionalContentPolicy(readGatingEnabled: () => Promise<boolean>) {
+  if (typeof readGatingEnabled !== "function") throw new Error("CONTENT_GATING_READER_REQUIRED");
+  async function resolveCourseStepAccessTx(
+    tx: GafusTx, userId: string, target: CourseStepTarget, now = new Date(),
+  ) {
+    return resolveEntitlementTx(tx, userId, target, now, readGatingEnabled);
+  }
 
-export async function resolveMiniGuideAccessTx(
-  tx: GafusTx, userId: string, target: MiniGuideTarget, now = new Date(),
-) {
-  return resolveEntitlementTx(tx, userId, target, now);
-}
+  async function resolveMiniGuideAccessTx(
+    tx: GafusTx, userId: string, target: MiniGuideTarget, now = new Date(),
+  ) {
+    return resolveEntitlementTx(tx, userId, target, now, readGatingEnabled);
+  }
 
-export async function resolveArticleAccessTx(
-  tx: GafusTx, userId: string, target: ArticleTarget, now = new Date(),
-) {
-  return resolveEntitlementTx(tx, userId, target, now);
+  async function resolveArticleAccessTx(
+    tx: GafusTx, userId: string, target: ArticleTarget, now = new Date(),
+  ) {
+    return resolveEntitlementTx(tx, userId, target, now, readGatingEnabled);
+  }
+
+  return { resolveCourseStepAccessTx, resolveMiniGuideAccessTx, resolveArticleAccessTx };
 }
+export type TransactionalContentPolicy = ReturnType<typeof createTransactionalContentPolicy>;
 
 /** Occurrence authorization runs against the same Persistence client for
  * the target and its grant/entitlement. Core provides both callbacks and never
@@ -217,14 +224,9 @@ export interface CourseOccurrenceReadsPort {
     resolveAccess:(tx:GafusTx,userId:string,target:CourseStepTarget,now:Date)=>Promise<{allowed:boolean}>,
   ):Promise<boolean>;
 }
-let occurrenceReads:Readonly<CourseOccurrenceReadsPort>|null=null;
-export function registerCourseOccurrenceReadsPort(port:CourseOccurrenceReadsPort):void{
-  if (occurrenceReads!==null && occurrenceReads!==port) throw new Error("COURSE_OCCURRENCE_READ_PORT_ALREADY_BOUND");
-  occurrenceReads=port;
-}
-function requireCourseOccurrenceReadsPort():Readonly<CourseOccurrenceReadsPort>{
-  if (!occurrenceReads) throw new Error("COURSE_OCCURRENCE_READ_PORT_UNBOUND");
-  return occurrenceReads;
+function requireCourseOccurrenceReadsPort(reads: CourseOccurrenceReadsPort): CourseOccurrenceReadsPort {
+  if (!reads) throw new Error("COURSE_OCCURRENCE_READ_PORT_UNBOUND");
+  return reads;
 }
 
 /** Course-occurrence-specific access. Never grant based on stepOnDayId alone. */
@@ -233,13 +235,13 @@ export async function hasActiveGafusCourseStepAccess(input: {
   dayOnCourseId: string;
   stepOnDayId: string;
   now?: Date;
-}, reads?: CourseOccurrenceReadsPort): Promise<boolean> {
-  return (reads ?? requireCourseOccurrenceReadsPort()).readActiveCourseStepGafusGrant(input, resolveCourseStepTargetTx);
+}, reads: CourseOccurrenceReadsPort): Promise<boolean> {
+  return (requireCourseOccurrenceReadsPort(reads)).readActiveCourseStepGafusGrant(input, resolveCourseStepTargetTx);
 }
 
 /** Course read composition injects this existing entitlement policy into persistence. */
-export { resolveCourseEntitlement } from "./policy";
-export { registerContentPolicyReadPort } from "./policy";
+export { createContentPolicy } from "./policy";
+export type { ContentPolicy } from "./policy";
 export type { ContentPolicyReadPort } from "./policy";
 
 /** Video manifest access uses this same canonical course/step entitlement path.
@@ -248,10 +250,11 @@ export type { ContentPolicyReadPort } from "./policy";
  */
 export async function hasAllowedVideoCourseStepAccess(
   userId:string,dayOnCourseId:string,stepOnDayId:string,now:Date,
-  reads?: CourseOccurrenceReadsPort,
+  resolveAccess: TransactionalContentPolicy["resolveCourseStepAccessTx"],
+  reads: CourseOccurrenceReadsPort,
 ):Promise<boolean>{
- return (reads ?? requireCourseOccurrenceReadsPort()).readAllowedVideoCourseStepAccess(
+ return (requireCourseOccurrenceReadsPort(reads)).readAllowedVideoCourseStepAccess(
    {userId, dayOnCourseId, stepOnDayId, now},
-   resolveCourseStepTargetTx, resolveCourseStepAccessTx,
+   resolveCourseStepTargetTx, resolveAccess,
  );
 }

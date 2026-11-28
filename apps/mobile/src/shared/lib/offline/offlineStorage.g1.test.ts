@@ -17,6 +17,12 @@ vi.mock("expo-file-system/legacy", () => ({
   writeAsStringAsync: vi.fn(async (uri: string, value: string) => {
     nativeFs.files.set(uri, value);
   }),
+  moveAsync: vi.fn(async ({ from, to }: { from: string; to: string }) => {
+    const bytes = nativeFs.files.get(from);
+    if (bytes === undefined) throw new Error("not found");
+    nativeFs.files.set(to, bytes);
+    nativeFs.files.delete(from);
+  }),
   readAsStringAsync: vi.fn(async (uri: string) => {
     nativeFs.reads(uri);
     const content = nativeFs.files.get(uri);
@@ -60,30 +66,32 @@ const savedMeta = {
   downloadedAt: "2026-10-15T10:00:00.000Z",
 };
 
-const manifestPath = "file:///test-device-sandbox/offline/base/videos/vid-1/manifest.m3u8";
+const manifestPath = "file:///test-device-sandbox/offline-v2/owner-A/base/videos/vid-1/manifest.m3u8";
 const videoUrl =
   "https://storage.yandexcloud.net/gafus-media/uploads/videocourses/vid-1/original.mp4";
 
 describe("AG3 G1 native offline metadata & HLS JS restart fixtures", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     nativeFs.files.clear();
     nativeFs.directories.clear();
     nativeFs.directoryNames.length = 0;
     vi.clearAllMocks();
     vi.resetModules();
+    (await import("./offlineCourseSession")).setOfflineCoursePrincipal("owner-A", true);
   });
 
   it("can read previously downloaded course metadata after JS module reload", async () => {
     const beforeRestart = await import("./offlineStorage");
     await beforeRestart.saveCourseMeta("base", savedMeta);
-    const metadataUri = "file:///test-device-sandbox/offline/base/meta.json";
+    const metadataUri = "file:///test-device-sandbox/offline-v2/owner-A/base/meta.json";
     const persistedBytes = nativeFs.files.get(metadataUri);
     expect(persistedBytes).toBeDefined();
 
-    vi.resetModules(); // JS restart, keeping simulated Expo FileSystem bytes
+    vi.resetModules();
+    (await import("./offlineCourseSession")).setOfflineCoursePrincipal("owner-A", true); // JS restart, keeping simulated Expo FileSystem bytes
     const afterRestart = await import("./offlineStorage");
     await expect(afterRestart.getCourseMeta("base")).resolves.toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       course: { id: "COURSE_A" },
       version: "version-A",
     });
@@ -92,17 +100,19 @@ describe("AG3 G1 native offline metadata & HLS JS restart fixtures", () => {
   });
 
   it("resolves a previously persisted local HLS manifest after JS module reload", async () => {
+    await (await import("./offlineStorage")).saveCourseMeta("base", savedMeta);
     nativeFs.files.set(manifestPath, "#EXTM3U\n#EXTINF:4\nsegment-1.ts");
     vi.resetModules();
+    (await import("./offlineCourseSession")).setOfflineCoursePrincipal("owner-A", true);
     const offline = await import("./offlineStorage");
 
     await expect(offline.getOfflineVideoUri("base", videoUrl)).resolves.toBe(manifestPath);
-    expect(nativeFs.reads).not.toHaveBeenCalled();
+    expect(nativeFs.reads).toHaveBeenCalled();
     expect(nativeFs.deletes).not.toHaveBeenCalled();
   });
 
   it("does not delete unknown-schema legacy metadata during a read attempt", async () => {
-    const metadataUri = "file:///test-device-sandbox/offline/base/meta.json";
+    const metadataUri = "file:///test-device-sandbox/offline-v2/owner-A/base/meta.json";
     const oldBytes = JSON.stringify({ schemaVersion: 0, course: { id: "LEGACY" } });
     nativeFs.files.set(metadataUri, oldBytes);
     const offline = await import("./offlineStorage");
@@ -114,11 +124,12 @@ describe("AG3 G1 native offline metadata & HLS JS restart fixtures", () => {
 });
 
 describe("AG3 G1 safe offline paths", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     nativeFs.files.clear();
     nativeFs.directories.clear();
     vi.resetModules();
+    (await import("./offlineCourseSession")).setOfflineCoursePrincipal("owner-A", true);
   });
 
   const parent = ["..", "private"].join("/");
@@ -162,15 +173,16 @@ describe("AG3 G1 safe offline paths", () => {
   });
 
   it("ignores unexpected native directory names without probing them", async () => {
-    const base = "file:///test-device-sandbox/offline/";
+    const base = "file:///test-device-sandbox/offline-v2/owner-A/";
     nativeFs.directories.add(base);
     nativeFs.directories.add(base + "base");
     nativeFs.directoryNames.push("base", "..", "%2e%2e", ["private", "folder"].join("/"));
     const offline = await import("./offlineStorage");
 
+    await offline.saveCourseMeta("base", savedMeta);
     await expect(offline.getOfflineCourseTypes()).resolves.toEqual(["base"]);
     expect(nativeFs.inspectedUris).toHaveBeenCalledWith(base + "base");
-    expect(nativeFs.inspectedUris).toHaveBeenCalledTimes(2);
+    expect(nativeFs.inspectedUris).toHaveBeenCalledTimes(3);
   });
 
   it("never resolves outside the native offline tree from an untrusted relative path", async () => {
@@ -178,12 +190,12 @@ describe("AG3 G1 safe offline paths", () => {
     for (const unsafe of [
       "secrets.json",
       "../secrets.json",
-      "/offline/base/videos/vid-1/manifest.m3u8",
+      "/offline-v2/owner-A/base/videos/vid-1/manifest.m3u8",
       "file:///other-private-file",
-      "offline/base/../other/manifest.m3u8",
+      "offline-v2/owner-A/base/../other/manifest.m3u8",
       "offline/base%2Fother/videos/vid-1/manifest.m3u8",
       "offline/base\\other/videos/vid-1/manifest.m3u8",
-      "offline/base/videos/vid-1/manifest.m3u8?token=secret",
+      "offline-v2/owner-A/base/videos/vid-1/manifest.m3u8?token=secret",
       "offline//base/meta.json",
     ]) {
       expect(() => offline.buildFileUri(unsafe)).toThrow("Недопустим");
@@ -192,13 +204,13 @@ describe("AG3 G1 safe offline paths", () => {
     expect(nativeFs.reads).not.toHaveBeenCalled();
   });
 
-  it("still resolves existing safe legacy native paths without schema migration", async () => {
+  it("resolves safe owner-scoped native paths", async () => {
     const offline = await import("./offlineStorage");
-    expect(offline.buildFileUri("offline/base/videos/vid-1/manifest.m3u8")).toBe(
-      "file:///test-device-sandbox/offline/base/videos/vid-1/manifest.m3u8",
+    expect(offline.buildFileUri("offline-v2/owner-A/base/videos/vid-1/manifest.m3u8")).toBe(
+      "file:///test-device-sandbox/offline-v2/owner-A/base/videos/vid-1/manifest.m3u8",
     );
-    expect(offline.buildFileUri("offline/base/meta.json")).toBe(
-      "file:///test-device-sandbox/offline/base/meta.json",
+    expect(offline.buildFileUri("offline-v2/owner-A/base/meta.json")).toBe(
+      "file:///test-device-sandbox/offline-v2/owner-A/base/meta.json",
     );
   });
 
@@ -206,9 +218,36 @@ describe("AG3 G1 safe offline paths", () => {
     const offline = await import("./offlineStorage");
     await offline.saveCourseMeta("base-level_1.0", savedMeta);
     await expect(offline.getCourseMeta("base-level_1.0")).resolves.toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       version: "version-A",
     });
     expect(nativeFs.deletes).not.toHaveBeenCalled();
   });
+});
+
+ it("isolates files across accounts and preserves ownerless legacy files", async () => {
+  vi.resetModules();
+  const session = await import("./offlineCourseSession");
+  const offline = await import("./offlineStorage");
+  session.setOfflineCoursePrincipal("owner-A", true);
+  await offline.saveCourseMeta("base", savedMeta);
+  nativeFs.files.set(manifestPath, "#EXTM3U");
+  const legacy = "file:///test-device-sandbox/offline/base/meta.json";
+  nativeFs.files.set(legacy, "legacy");
+  const oldScope = session.captureOfflineCourseScope()!;
+  session.setOfflineCoursePrincipal(null);
+  await expect(offline.getCourseMeta("base")).resolves.toBeNull();
+  await expect(offline.getOfflineVideoUri("base", videoUrl)).resolves.toBeNull();
+  await expect(offline.getCourseMeta("base", oldScope)).resolves.toBeNull();
+  await expect(offline.getOfflineCourseTypes()).resolves.toEqual([]);
+  session.setOfflineCoursePrincipal("owner-B", true);
+  await expect(offline.getCourseMeta("base")).resolves.toBeNull();
+  await expect(offline.getOfflineVideoUri("base", videoUrl)).resolves.toBeNull();
+  await expect(offline.getCourseMeta("base", oldScope)).resolves.toBeNull();
+  await offline.saveCourseMeta("base", { ...savedMeta, version: "B" });
+  await expect(offline.getCourseMeta("base")).resolves.toMatchObject({ version: "B" });
+  session.setOfflineCoursePrincipal("owner-A", false);
+  await expect(offline.getCourseMeta("base")).resolves.toMatchObject({ version: "version-A" });
+  await expect(offline.saveCourseMeta("base", savedMeta)).rejects.toThrow("SESSION_REQUIRED");
+  expect(nativeFs.files.get(legacy)).toBe("legacy");
 });

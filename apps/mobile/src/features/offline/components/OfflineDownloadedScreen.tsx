@@ -1,3 +1,4 @@
+import { useOfflineCourseScopeVersion } from "@/shared/hooks/useOfflineCourseScopeVersion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { Text } from "react-native-paper";
@@ -32,6 +33,11 @@ function validCourseType(value: string): boolean {
  * Список строится по данным в файловой системе и meta.json.
  */
 export function OfflineDownloadedScreen() {
+  const scopeVersion = useOfflineCourseScopeVersion();
+  return <OfflineDownloadedContent key={scopeVersion} />;
+}
+
+function OfflineDownloadedContent() {
   const router = useRouter();
   const [items, setItems] = useState<OfflineCourseItem[]>([]);
   const [loading, setLoading] = useState(true);

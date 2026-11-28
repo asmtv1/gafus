@@ -1,3 +1,4 @@
+import { petRows } from "../../../../../apps/api/src/modules/pets/composition/pet-rows-instance";
 import { readOwnedPets } from "@gafus/pets-server/pet-reads";
 import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
@@ -56,7 +57,7 @@ if (url) {
         { id: other, username: `pet-profile-${other}`, password: "fixture" },
       ],
     });
-    const pet = await createPet(owner, {
+    const pet = await createPet(petRows, owner, {
       name: "Лада",
       type: "DOG",
       breed: "Метис",
@@ -89,13 +90,13 @@ if (url) {
   });
 
   it("hides only the selected pet publicly and retains all owner data", async () => {
-    const second = await createPet(owner, {
+    const second = await createPet(petRows, owner, {
       name: "Мурка",
       type: "CAT",
       breed: "Метис",
       birthDate: "2022-01-01",
     });
-    await updatePet(petId, owner, { showInProfile: false });
+    await updatePet(petRows, petId, owner, { showInProfile: false });
     expect((await getPublicProfile(username))?.pets.map((pet) => pet.id)).toEqual([second.id]);
     expect((await getPublicProfile(owner))?.pets.map((pet) => pet.id)).toEqual([second.id]);
     expect(await getUserPets(owner)).toEqual(
@@ -108,20 +109,20 @@ if (url) {
         }),
       ]),
     );
-    await updatePet(petId, owner, { name: "Ладушка" });
+    await updatePet(petRows, petId, owner, { name: "Ладушка" });
     expect((await getUserPets(owner)).find((pet) => pet.id === petId)?.showInProfile).toBe(false);
-    await updatePet(petId, owner, { showInProfile: true });
+    await updatePet(petRows, petId, owner, { showInProfile: true });
     expect((await getPublicProfile(username))?.pets).toHaveLength(2);
   });
 
   it("returns an empty public list when all pets are hidden", async () => {
-    await updatePet(petId, owner, { showInProfile: false });
+    await updatePet(petRows, petId, owner, { showInProfile: false });
     expect((await getPublicProfile(username))?.pets).toEqual([]);
     expect(await getUserPets(owner)).toHaveLength(1);
   });
 
   it("does not allow another account to change visibility", async () => {
-    expect(await updatePet(petId, other, { showInProfile: false })).toBeNull();
+    expect(await updatePet(petRows, petId, other, { showInProfile: false })).toBeNull();
     expect((await getPublicProfile(username))?.pets).toHaveLength(1);
   });
 });

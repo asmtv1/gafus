@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -26,7 +26,8 @@ test("Core training TS is authoritative, without adjacent emitted JS/declaration
   const server = readFileSync(path.join(serverDir, "trainingService.ts"), "utf8");
   // Core exposes a fail-closed typed port; the only SQL factory is mounted
   // by the API composition root, never imported by Core.
-  assert.match(source, /registerTrainingServicePort\(/);
+  assert.doesNotMatch(source, /registerTrainingServicePort\(/);
+  assert.match(source, /getCoreTrainingDependencies\(/);
   const composer = readFileSync(path.join(root,
     "apps/api/src/modules/training/composition/sql-training-instance.ts"), "utf8");
   assert.match(composer, /createTrainingService\(/);
@@ -41,11 +42,28 @@ test("Core training TS is authoritative, without adjacent emitted JS/declaration
     "applyStepAndDayTx",
     "syncUserCourseStatusFromDaysTx",
   ]) {
-    assert.match(source, new RegExp(`\\b${name}\\b`));
+    assert.match(readFileSync(path.join(trainingDir, "trainingServiceContract.ts"), "utf8"), new RegExp(`\\b${name}\\b`));
     assert.match(server, new RegExp(`async\\s+function\\s+${name}\\s*\\(`));
   }
   for (const suffix of [".js", ".js.map", ".d.ts", ".d.ts.map"]) {
     assert.equal(existsSync(path.join(serverDir, `trainingService${suffix}`)), false,
       `source-adjacent training server emit shadows TS: ${suffix}`);
   }
+});
+
+test("Types TS sources are not shadowed by adjacent compiler output", () => {
+  const typesDir = path.join(root, "packages/types/src");
+  function visit(dir) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const file = path.join(dir, entry.name);
+      if (entry.isDirectory()) visit(file);
+      else if (entry.isFile() && /\.ts$/.test(file) && !/\.d\.ts$/.test(file)) {
+        const stem = file.slice(0, -3);
+        for (const suffix of [".js", ".js.map", ".d.ts", ".d.ts.map"]) {
+          assert.equal(existsSync(stem + suffix), false, "source-adjacent compiler output: " + stem + suffix);
+        }
+      }
+    }
+  }
+  visit(typesDir);
 });

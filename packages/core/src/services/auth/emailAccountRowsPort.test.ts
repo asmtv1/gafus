@@ -40,8 +40,8 @@ describe("email account SQL port maintains public and delivery rules", () => {
   });
   it("preserves anti-enumeration and does not notify for unknown email", async () => {
     const service = await import("./emailAccountFlows");
-    const p = port();service.registerEmailAccountRowsPort(p);
-    await expect(service.sendPasswordResetRequestByEmail("missing@example.invalid"))
+    const p = port();const fixtureEmailAccountRowsPort = p;
+    await expect(service.sendPasswordResetRequestByEmail("missing@example.invalid", fixtureEmailAccountRowsPort))
       .resolves.toBeUndefined();
     expect(p.readPasswordResetRequestUser).toHaveBeenCalledWith("missing@example.invalid");
     expect(p.claimPasswordResetEmailToken).not.toHaveBeenCalled();
@@ -49,18 +49,13 @@ describe("email account SQL port maintains public and delivery rules", () => {
   });
   it("does not swallow a uniqueness violation or change public email errors", async () => {
     const service = await import("./emailAccountFlows");
-    const p = port();service.registerEmailAccountRowsPort(p);
+    const p = port();const fixtureEmailAccountRowsPort = p;
     vi.mocked(p.consumeEmailChangeConfirmation).mockRejectedValueOnce({ code: "P2002" });
-    await expect(service.confirmEmailChangeByToken("opaque-token"))
+    await expect(service.confirmEmailChangeByToken("opaque-token", fixtureEmailAccountRowsPort))
       .rejects.toThrow("Этот email уже занят");
-    await expect(service.confirmEmailChangeByToken("  "))
+    await expect(service.confirmEmailChangeByToken("  ", fixtureEmailAccountRowsPort))
       .rejects.toThrow("Ссылка недействительна");
     expect(io.notice).not.toHaveBeenCalled();
   });
-  it("keeps one immutable adapter during concurrent account requests", async () => {
-    const service = await import("./emailAccountFlows");
-    const a = port();service.registerEmailAccountRowsPort(a);service.registerEmailAccountRowsPort(a);
-    expect(() => service.registerEmailAccountRowsPort(port()))
-      .toThrow("EMAIL_ACCOUNT_ROWS_PORT_ALREADY_BOUND");
-  });
+
 });

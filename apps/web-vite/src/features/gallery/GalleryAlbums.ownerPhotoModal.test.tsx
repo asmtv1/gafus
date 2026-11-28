@@ -3,7 +3,8 @@ import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GalleryAlbums, GalleryViewerPhoto } from "./GalleryAlbums";
+import { GalleryAlbums } from "./GalleryAlbums";
+import { GalleryViewerPhoto } from "./GalleryViewerPhoto";
 import type { AlbumPhoto, AlbumSummary, GalleryPage } from "./galleryApi";
 
 const future = "2099-10-17T16:00:00.000Z";
@@ -98,6 +99,19 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+it("never downloads a full image in the album grid when the thumbnail is missing", async () => {
+  const item = {...photo("photo_01"), thumbUrl: null};
+  getPhotos.mockResolvedValue(page([item]));
+  await mount();
+  await openAlbum();
+  expect(host.querySelector(`img[src="${item.fullUrl}"]`)).toBeNull();
+  const trigger = host.querySelector<HTMLButtonElement>('button[aria-label="Открыть фотографию Фото photo_01"]');
+  expect(trigger?.disabled).toBe(false);
+  await act(async()=>trigger?.click());
+  await flush();
+  expect(host.querySelector('[role="dialog"][aria-label="Просмотр фотографии"] img')?.getAttribute("src")).toBe(item.fullUrl);
+});
+
 describe("original Next owner route fresh media GET on open",()=>{
   async function routeMount(){
     await act(async()=>root.render(<QueryClientProvider client={client}>
@@ -141,7 +155,10 @@ describe("original Next owner route fresh media GET on open",()=>{
     await flush();
     const dialog=host.querySelector('[role="dialog"][aria-label="Просмотр фотографии"]');
     expect(dialog?.querySelector("img")).toBeNull();
-    expect(dialog?.textContent).toContain("Фото недоступно");
+    await vi.waitFor(async()=>{
+      await flush();
+      expect(dialog?.textContent).toContain("Фото недоступно");
+    },{timeout:20000});
     expect(dialog?.innerHTML).not.toContain("/photo_01/full.jpg");
   });
 });

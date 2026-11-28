@@ -10,7 +10,8 @@
     "tests/support/**",
     "tests/catalog/**",
     "scripts/qa/test-system.mjs",
-    "scripts/qa/test-inventory.mjs"
+    "scripts/qa/test-inventory.mjs",
+    "tsconfig.base.json"
   ],
   "globalEnv": [
     "NODE_ENV",
@@ -49,7 +50,8 @@
         "tsup.config.*",
         "postcss.config.*",
         "tailwind.config.*",
-        "prisma/**"
+        "prisma/**",
+        "schema.prisma"
       ]
     },
     "dev": {
@@ -96,7 +98,8 @@
         "src/**",
         "types/**",
         "tsconfig*.json",
-        "package.json"
+        "package.json",
+        "app/**"
       ]
     },
     "test": {
@@ -171,6 +174,74 @@
       "inputs": [
         "schema.prisma",
         "package.json"
+      ]
+    },
+    "@gafus/web-vite#build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "src/**",
+        "!dist/**",
+        "public/**",
+        "index.html",
+        "vite.config.*",
+        "tsconfig*.json",
+        "package.json",
+        "$TURBO_ROOT$/scripts/observability/postbuild-vite-maps.mjs",
+        "$TURBO_ROOT$/scripts/observability/seal-vite-sourcemaps.mjs",
+        "$TURBO_ROOT$/apps/admin-panel/src/admin-live/**",
+        "$TURBO_ROOT$/scripts/refactor/dev-api-config.mjs"
+      ],
+      "env": [
+        "VITE_*"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "@gafus/admin-panel#build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "src/**",
+        "!dist/**",
+        "public/**",
+        "index.html",
+        "vite.config.*",
+        "tsconfig*.json",
+        "package.json",
+        "$TURBO_ROOT$/scripts/observability/postbuild-vite-maps.mjs",
+        "$TURBO_ROOT$/scripts/observability/seal-vite-sourcemaps.mjs"
+      ],
+      "env": [
+        "VITE_*"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "@gafus/trainer-panel#build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "src/**",
+        "!src/trainer-vite/live/dist/**",
+        "public/**",
+        "index.html",
+        "vite.config.*",
+        "tsconfig*.json",
+        "package.json",
+        "$TURBO_ROOT$/scripts/observability/postbuild-vite-maps.mjs",
+        "$TURBO_ROOT$/scripts/observability/seal-vite-sourcemaps.mjs"
+      ],
+      "env": [
+        "VITE_*"
+      ],
+      "outputs": [
+        "src/trainer-vite/live/dist/**"
       ]
     }
   }

@@ -93,15 +93,14 @@ describe.skipIf(process.env.GAFUS_TRAINER_WORK_REALPG !== "1")(
         userId: user,
         type: "immediate",
         sent: false,
-        jobId: "synthetic-push-job-only",
+        jobId: `immediate-${row.id}`,
         url: "/main-panel/consultations",
       });
-      const content = row.subscription as { subscriptions?: { endpoint?: string }[] };
-      expect(content.subscriptions?.[0]?.endpoint).toContain(nonce);
+      expect(row.subscription).toEqual({});
       expect(m.add).toHaveBeenCalledWith(
         "push",
         { notificationId: row.id },
-        expect.objectContaining({ attempts: 3, delay: 0 }),
+        expect.objectContaining({ jobId: row.jobId, attempts: 3, delay: 0 }),
       );
     });
     it("does not enqueue without a registered native/web device", async () => {

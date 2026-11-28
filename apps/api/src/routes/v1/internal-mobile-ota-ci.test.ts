@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks=vi.hoisted(()=>({ register: vi.fn() }));
-vi.mock("../../modules/mobile-ota/ci-registration.js", async (original) => ({
-  ...await original<typeof import("../../modules/mobile-ota/ci-registration")>(),
+vi.mock("@gafus/mobile-ota-server/ci-registration", async (original) => ({
+  ...await original<typeof import("@gafus/mobile-ota-server/ci-registration")>(),
   registerVerifiedOtaCiResult: mocks.register,
 }));
 import { internalMobileOtaCiRoutes } from "./internal-mobile-ota-ci";

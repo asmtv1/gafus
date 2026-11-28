@@ -26,12 +26,7 @@ export interface ReminderAG4ReviewRowsPort {
   readAG4ReminderReceiptForLookup(ownerId: string, key: string): Promise<ReminderAG4Receipt[]>;
   isReminderUniqueConstraintError(error: unknown): boolean;
 }
-let installed: Readonly<ReminderAG4ReviewRowsPort> | null = null;
-export function registerReminderAG4ReviewRowsPort(port: ReminderAG4ReviewRowsPort): void {
-  if (installed !== null && installed !== port) throw new Error("REMINDER_AG4_REVIEW_PORT_ALREADY_BOUND");
-  installed = port;
-}
-export function requireReminderAG4ReviewRowsPort(): Readonly<ReminderAG4ReviewRowsPort> {
-  if (!installed) throw new Error("REMINDER_AG4_REVIEW_PORT_UNBOUND");
-  return installed;
+export function requireReminderAG4ReviewRowsPort(port: ReminderAG4ReviewRowsPort | undefined): Readonly<ReminderAG4ReviewRowsPort> {
+  if (!port) throw new Error("REMINDER_AG4_REVIEW_PORT_UNBOUND");
+  return port;
 }

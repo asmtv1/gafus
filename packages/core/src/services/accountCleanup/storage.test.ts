@@ -70,6 +70,19 @@ describe("account storage cleanup adapter", () => {
     );
     expect(() => accountStorageTargets("feed", "../u", [])).toThrow();
   });
+  it("never deletes another user's public file or an unproven exam prefix", () => {
+    expect(() => accountStorageTargets("public","owner",[
+      "https://gafus.ru/uploads/users/foreign/avatar/a.jpg",
+    ])).toThrow("CLEANUP_INVALID_PUBLIC_MEDIA_KEY");
+    expect(() => accountStorageTargets("public","owner",["uploads/exams/foreign/a.mp4"],["uploads/exams/own/"]))
+      .toThrow("CLEANUP_INVALID_PUBLIC_MEDIA_KEY");
+    expect(accountStorageTargets("public","owner",[
+      "uploads/users/owner/pets/a.jpg", "uploads/exams/own/a.mp4",
+      "uploads/questions/other-author/answer.jpg",
+    ],["uploads/exams/own/"]).keys).toEqual([
+      "uploads/users/owner/pets/a.jpg","uploads/exams/own/a.mp4","uploads/questions/other-author/answer.jpg",
+    ]);
+  });
   it("selects a scoped Cloud.ru region without switching legacy public/course storage", () => {
     const env = {
       YC_ACCESS_KEY_ID: "legacy",

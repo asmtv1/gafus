@@ -37,7 +37,7 @@ import {
 } from "../promoCodeService";
 // Test keeps the real SERIALIZABLE SQL row adapter with an in-memory mocked
 // Prisma transaction, matching the API application composition boundary.
-import { registerSubscriptionPromoPort } from "../promoCodePort";
+
 import {
   userHasSuccessfulPromoBlockingPayment,
   readPromoSettingsRow,
@@ -45,13 +45,13 @@ import {
   withPromoCodeRecordsTransaction,
   isUniquePromoCodeError,
 } from "@gafus/subscription-finance-server/promo-code-rows";
-registerSubscriptionPromoPort({
+const fixtureSubscriptionPromoPort = {
   userHasSuccessfulPromoBlockingPayment,
   readPromoSettingsRow,
   readPromoCodeByNormalizedCode,
   withPromoCodeRecordsTransaction,
   isUniquePromoCodeError,
-});
+};
 
 
 const tx = {
@@ -76,8 +76,8 @@ describe("app subscription promo code mutations", () => {
 
   it("keeps failed/canceled, Apple and manual histories eligible but closes after successful YooKassa", async () => {
     mocks.paymentFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "paid" });
-    await expect(isAppSubscriptionPromoCodeEligible("user-1")).resolves.toBe(true);
-    await expect(isAppSubscriptionPromoCodeEligible("user-1")).resolves.toBe(false);
+    await expect(isAppSubscriptionPromoCodeEligible("user-1", fixtureSubscriptionPromoPort)).resolves.toBe(true);
+    await expect(isAppSubscriptionPromoCodeEligible("user-1", fixtureSubscriptionPromoPort)).resolves.toBe(false);
     expect(mocks.paymentFindFirst).toHaveBeenCalledWith({
       where: {
         userId: "user-1",
@@ -102,7 +102,7 @@ describe("app subscription promo code mutations", () => {
       ),
     );
 
-    await expect(isAppSubscriptionPromoCodeEligible("user-eligible")).resolves.toBe(true);
+    await expect(isAppSubscriptionPromoCodeEligible("user-eligible", fixtureSubscriptionPromoPort)).resolves.toBe(true);
   });
 
   it.each([
@@ -111,7 +111,7 @@ describe("app subscription promo code mutations", () => {
     ["historical succeededAt", { provider: "YOOKASSA", status: "FAILED", succeededAt: new Date() }],
   ])("permanently closes eligibility for fixture: %s", async (_name, payment) => {
     mocks.paymentFindFirst.mockResolvedValueOnce(payment);
-    await expect(isAppSubscriptionPromoCodeEligible("user-ineligible")).resolves.toBe(false);
+    await expect(isAppSubscriptionPromoCodeEligible("user-ineligible", fixtureSubscriptionPromoPort)).resolves.toBe(false);
   });
 
   it("accepts signed-OTA iOS promo without resurrecting the retired global iOS feature flag",async()=>{
@@ -142,7 +142,7 @@ describe("app subscription promo code mutations", () => {
         userId: "user-1",
         planCode: "MONTHLY",
         promoCode: " kisa ",
-      }),
+      }, fixtureSubscriptionPromoPort),
     ).resolves.toEqual({
       code: "Kisa",
       revision: 4,
@@ -181,7 +181,7 @@ describe("app subscription promo code mutations", () => {
         userId: "user-1",
         planCode: "MONTHLY",
         promoCode: "Kisa",
-      }),
+      }, fixtureSubscriptionPromoPort),
     ).rejects.toMatchObject({ code: expectedCode });
   });
 
@@ -208,7 +208,7 @@ describe("app subscription promo code mutations", () => {
         discountPercent: 10,
         isActive: true,
         actorId: "admin-1",
-      }),
+      }, fixtureSubscriptionPromoPort),
     ).resolves.toBe(created);
 
     expect(mocks.promoCreate).toHaveBeenCalledWith({
@@ -243,7 +243,7 @@ describe("app subscription promo code mutations", () => {
         discountPercent: 10,
         isActive: true,
         actorId: "admin-1",
-      }),
+      }, fixtureSubscriptionPromoPort),
     ).rejects.toMatchObject({
       code: "PROMO_CODE_DUPLICATE",
       message: "Промокод с таким кодом уже существует, включая архивные",
@@ -274,7 +274,7 @@ describe("app subscription promo code mutations", () => {
       discountPercent: 20,
       isActive: true,
       actorId: "admin-2",
-    });
+    }, fixtureSubscriptionPromoPort);
 
     expect(mocks.promoUpdate).toHaveBeenCalledWith({
       where: { id: current.id },
@@ -322,7 +322,7 @@ describe("app subscription promo code mutations", () => {
       id: current.id,
       actorId: "admin-2",
       archivedAt,
-    });
+    }, fixtureSubscriptionPromoPort);
 
     expect(mocks.eventCreateMany).toHaveBeenCalledWith({
       data: [

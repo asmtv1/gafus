@@ -1,3 +1,4 @@
+import { MeasuredVideo } from "../../shared/media/MeasuredVideo";
 import { useEffect, useRef, useState } from "react";
 import type { FeedV2VideoMedia } from "@gafus/types";
 import { selectMp4Quality, type Mp4NetworkHints, type Mp4Quality } from "@gafus/chat-media-quality";
@@ -270,7 +271,7 @@ export function FeedV2Video({
     media.height > media.width ? "portrait" : media.height === media.width ? "square" : "landscape";
   return (
     <div className="feed-v2-video-shell" data-orientation={orientation}>
-      <video
+      <MeasuredVideo frameSurface="moments"
         ref={ref}
         preload="none"
         playsInline

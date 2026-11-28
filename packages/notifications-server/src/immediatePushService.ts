@@ -3,6 +3,8 @@
  * Используется для событий, требующих мгновенного уведомления (например, зачёт экзамена)
  */
 
+import { randomUUID } from "node:crypto";
+import type { ConsultationReminderPush } from "@gafus/consultation-shared/reminder-window";
 import { prisma } from "@gafus/prisma";
 import { pushQueue } from "@gafus/queues";
 import { createWebLogger } from "@gafus/logger";
@@ -16,6 +18,7 @@ export interface ImmediatePushOptions {
   url?: string;
   icon?: string;
   badge?: string;
+  consultationReminder?: ConsultationReminderPush;
 }
 
 /**
@@ -36,78 +39,42 @@ export async function sendImmediatePushNotification(
   options: ImmediatePushOptions,
 ): Promise<{ success: boolean; notificationId?: string; error?: string }> {
   try {
-    const { userId, title, body, url, icon, badge } = options;
+    const { userId, title, body, url, consultationReminder } = options;
+    const id = randomUUID();
+    const jobId = "immediate-" + id;
+    const now = new Date();
+    // Delivery looks up the user's current subscriptions. Do not persist a copy of endpoint secrets.
+    const subscription = await prisma.pushSubscription.findFirst({ where: { userId }, select: { id: true } });
+    if (!subscription) return { success: false, error: "У пользователя нет активных подписок" };
 
-    logger.info("Отправка немедленного пуш-уведомления", { userId, title });
-    // Проверяем, есть ли у пользователя активные подписки
-    const subscriptions = await prisma.pushSubscription.findMany({
-      where: { userId },
-      select: {
-        endpoint: true,
-        keys: true,
-      },
-    });
-
-    if (subscriptions.length === 0) {
-      logger.warn("У пользователя нет активных подписок", { userId });
-      return {
-        success: false,
-        error: "У пользователя нет активных подписок",
-      };
+    const data = {
+      id, userId, jobId, day: 0, stepIndex: 0, endTs: Math.floor(now.getTime() / 1000),
+      sent: false, paused: false, stepTitle: `${title}|${body}`, type: "immediate",
+      url: url || "/", subscription: {},
+    };
+    const notification = consultationReminder
+      ? await prisma.stepNotification.upsert({
+          where: { consultationBookingId_consultationReminderKey: {
+            consultationBookingId: consultationReminder.bookingId, consultationReminderKey: consultationReminder.key,
+          } },
+          create: { ...data, consultationBookingId: consultationReminder.bookingId,
+            consultationReminderKey: consultationReminder.key, consultationRetryAt: now },
+          update: {},
+        })
+      : await prisma.stepNotification.create({ data });
+    if (consultationReminder) {
+      // Only one producer schedules a given reminder during the lease. An interrupted Redis enqueue
+      // becomes eligible again during the meeting window, using the original stable job ID.
+      const claim = await prisma.stepNotification.updateMany({
+        where: { id: notification.id, userId, sent: false, paused: false, consultationRetryAt: { lte: now } },
+        data: { consultationRetryAt: new Date(now.getTime() + 60_000) },
+      });
+      if (!claim.count) return { success: true, notificationId: notification.id };
     }
-
-    // Создаём StepNotification с явным типом "immediate"
-    const notification = await prisma.stepNotification.create({
-      data: {
-        userId,
-        day: 0, // Для немедленных уведомлений используем 0
-        stepIndex: 0, // Теперь используем обычный индекс (не -1)
-        endTs: Math.floor(Date.now() / 1000), // Текущее время
-        sent: false,
-        paused: false,
-        stepTitle: `${title}|${body}`, // Передаём title и body через разделитель |
-        type: "immediate", // Явно указываем тип уведомления
-        url: url || "/",
-        subscription: {
-          subscriptions: subscriptions.map((sub) => ({
-            endpoint: sub.endpoint,
-            keys: sub.keys as Record<string, string>,
-          })),
-          count: subscriptions.length,
-        },
-      },
+    await pushQueue.add("push", { notificationId: notification.id }, {
+      jobId: notification.jobId ?? jobId, delay: 0, attempts: 3, backoff: { type: "exponential", delay: 1000 },
+      removeOnComplete: true, removeOnFail: Boolean(consultationReminder),
     });
-
-    logger.info("StepNotification создан", {
-      notificationId: notification.id,
-      subscriptionCount: subscriptions.length,
-    });
-
-    // Добавляем задачу в очередь с delay = 0 (немедленная отправка)
-    const job = await pushQueue.add(
-      "push",
-      { notificationId: notification.id },
-      {
-        delay: 0, // Немедленная отправка
-        attempts: 3, // Повторные попытки при ошибке
-        backoff: { type: "exponential", delay: 1000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
-    );
-
-    // Обновляем notification с jobId
-    await prisma.stepNotification.update({
-      where: { id: notification.id },
-      data: { jobId: job.id },
-    });
-
-    logger.success("Задача добавлена в очередь", {
-      notificationId: notification.id,
-      jobId: job.id,
-      userId,
-    });
-
     return {
       success: true,
       notificationId: notification.id,

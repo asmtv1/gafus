@@ -23,11 +23,9 @@ vi.mock("./trainingStore", () => ({
   useTrainingStore: { getState: () => ({ reset: mocked.resetTrainings }) },
 }));
 vi.mock("./timerStore", () => ({ useTimerStore: { setState: vi.fn() } }));
-vi.mock("./progressSyncStore", () => ({ useProgressSyncStore: { setState: vi.fn() } }));
 
 import { queryClient } from "@/shared/providers/QueryProvider";
 import { resetUserStores } from "./resetAll";
-import { useProgressSyncStore } from "./progressSyncStore";
 
 describe("AG3 G1 native principal memory cache isolation", () => {
   beforeEach(() => {
@@ -46,7 +44,5 @@ describe("AG3 G1 native principal memory cache isolation", () => {
     expect(queryClient.getQueryData(["pets", "USER_B"])).toBeUndefined();
     // Old video-progress-storage is unknown-owner; logout must not delete it.
     expect(mocked.clearVideo).not.toHaveBeenCalled();
-    // Never persist a cleared historic progress queue during logout.
-    expect(useProgressSyncStore.setState).not.toHaveBeenCalled();
   });
 });

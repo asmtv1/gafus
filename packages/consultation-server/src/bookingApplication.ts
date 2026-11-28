@@ -5,11 +5,8 @@ import {
   resolveConsultationEmailRecipient,
   sendConsultationPush,
 } from "@gafus/consultation-write-server/service";
-import {
-  getAppSubscriptionAccess,
-  getCynologistEntitlements,
-  SubscriptionRequiredError,
-} from "@gafus/core/services/appSubscription";
+import { getAppSubscriptionAccess, getCynologistEntitlements } from "@gafus/subscription-read-server";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 import {
   ConsultationBookingRestrictedError,
   ConsultationBookingNotIncludedError,
@@ -34,6 +31,7 @@ export const {
   processBookingSlaTimeout,
   processConsultationReminder,
   reconcileMissedConsultationReminders,
+  reconcileOverdueConsultationBookings,
   listClientBookings,
   listTrainerBookings,
 } = createConsultationBookingService({

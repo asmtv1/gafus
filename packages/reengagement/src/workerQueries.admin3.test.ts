@@ -101,19 +101,19 @@ describe('reengagement worker persistence adapters', () => {
     await expect(getReengagementPushSubscriptions('learner-2')).resolves.toEqual(rows);
     expect(mocked.subscriptions).toHaveBeenCalledExactlyOnceWith({
       where: { userId: 'learner-2' },
-      select: { endpoint: true, keys: true },
+      select: { id: true, userId: true, updatedAt: true, endpoint: true, keys: true },
     });
   });
   it('never issues a broad delete for an empty list of invalid endpoints', async () => {
-    await expect(deleteInvalidReengagementPushEndpoints([])).resolves.toBe(0);
+    await expect(deleteInvalidReengagementPushEndpoints('learner-2', [])).resolves.toBe(0);
     expect(mocked.deleteSubscriptions).not.toHaveBeenCalled();
   });
   it('deletes only explicitly invalid endpoints and reports actual count', async () => {
     mocked.deleteSubscriptions.mockResolvedValueOnce({ count: 2 });
     const endpoints = ['https://push.example.test/stale-1', 'https://push.example.test/stale-2'];
-    await expect(deleteInvalidReengagementPushEndpoints(endpoints)).resolves.toBe(2);
+    await expect(deleteInvalidReengagementPushEndpoints('learner-2', endpoints)).resolves.toBe(2);
     expect(mocked.deleteSubscriptions).toHaveBeenCalledExactlyOnceWith({
-      where: { endpoint: { in: endpoints } },
+      where: { userId: 'learner-2', endpoint: { in: endpoints } },
     });
   });
   it('propagates storage errors rather than pretending dispatch state was checked', async () => {

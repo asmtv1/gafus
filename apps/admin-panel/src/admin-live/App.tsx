@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import {
   AdminHttpError,
   getAdminActor,
@@ -7,36 +7,14 @@ import {
   requestAdmin,
   type AuthActor,
 } from "./api";
-import { DataPanel } from "./DataPanel";
-import { VideoQualityPanel } from "./VideoQualityPanel";
-import { AdminActions } from "./AdminActions";
-import { FeatureFlagsEditor, PricingEditor } from "./SettingsEditors";
-import { MobileReleasesPanel } from "./MobileReleasesPanel";
-import { Cynologists, Bookings } from "./Consultations";
-import { ScheduleEditor, TrainerPicker } from "./ScheduleEditor";
 import { editableScheduleRangeMsk } from "./consultationScheduleTime";
 import {
   trainerIdFromScheduleSearch,
   scheduleTrainerUrl,
   validScheduleTrainerId,
 } from "./consultationNavigation";
-import { UserSubscription } from "./UserSubscription";
-import { ProfitExpenses } from "./ProfitExpenses";
-import { FeedModerationPanel, QuestionsModerationPanel } from "./ModerationPanels";
-import {
-  MobileIntroPanel,
-  mobileIntroFilterFromSearch,
-  mobileIntroReportUrl,
-} from "./MobileIntroPanel";
-import { AdminCacheSection, MailPanel, StoragePanel } from "./SystemPanels";
-import { ChatOutboxPanel } from "./ChatOutboxPanel";
-import { SubscriptionPanel } from "./SubscriptionPanels";
-import { UsersPanel } from "./UserManagement";
-import { PartnersPanel } from "./PartnersPanel";
-import { ProfitReport } from "./ProfitReport";
-import { GafusPanel } from "./GafusPanel";
-import { RewardedAdsPanel, ReengagementPanel, BroadcastPanel } from "./AnalyticsPanels";
-import { adminSections, matchAdminRoute, maySeeRoute } from "./routes";
+import { mobileIntroFilterFromSearch, mobileIntroReportUrl } from "./mobileIntroNavigation";
+import { adminSections, matchAdminRoute, maySeeRoute, type AdminSection } from "./routes";
 import {
   toAdminBrowserHref, toAdminBrowserPath, toAdminInternalPath,
 } from "./adminBrowserRoutes";
@@ -51,6 +29,85 @@ import {
   subscriptionTabUrl,
   type SubscriptionTab,
 } from "./subscriptionNavigation";
+
+const loadDataPanel = () => import("./DataPanel");
+const loadAdminActions = () => import("./AdminActions");
+const loadSettingsEditors = () => import("./SettingsEditors");
+const loadScheduleEditor = () => import("./ScheduleEditor");
+const loadUserSubscription = () => import("./UserSubscription");
+const loadProfitExpenses = () => import("./ProfitExpenses");
+const loadMobileIntroPanel = () => import("./MobileIntroPanel");
+const loadSystemPanels = () => import("./SystemPanels");
+const loadPartnersPanel = () => import("./PartnersPanel");
+const loadConsultations = () => import("./Consultations");
+const loadVideoQualityPanel = () => import("./VideoQualityPanel");
+const loadChatOutboxPanel = () => import("./ChatOutboxPanel");
+const loadModerationPanels = () => import("./ModerationPanels");
+const loadAnalyticsPanels = () => import("./AnalyticsPanels");
+const loadSubscriptionPanels = () => import("./SubscriptionPanels");
+const loadUserManagement = () => import("./UserManagement");
+const loadProfitReport = () => import("./ProfitReport");
+const loadGafusPanel = () => import("./GafusPanel");
+const loadMobileReleasesPanel = () => import("./MobileReleasesPanel");
+
+const DataPanel = lazy(() => loadDataPanel().then(m => ({ default: m.DataPanel })));
+const AdminActions = lazy(() => loadAdminActions().then(m => ({ default: m.AdminActions })));
+const FeatureFlagsEditor = lazy(() => loadSettingsEditors().then(m => ({ default: m.FeatureFlagsEditor })));
+const PricingEditor = lazy(() => loadSettingsEditors().then(m => ({ default: m.PricingEditor })));
+const ScheduleEditor = lazy(() => loadScheduleEditor().then(m => ({ default: m.ScheduleEditor })));
+const TrainerPicker = lazy(() => loadScheduleEditor().then(m => ({ default: m.TrainerPicker })));
+const UserSubscription = lazy(() => loadUserSubscription().then(m => ({ default: m.UserSubscription })));
+const ProfitExpenses = lazy(() => loadProfitExpenses().then(m => ({ default: m.ProfitExpenses })));
+const MobileIntroPanel = lazy(() => loadMobileIntroPanel().then(m => ({ default: m.MobileIntroPanel })));
+const AdminCacheSection = lazy(() => loadSystemPanels().then(m => ({ default: m.AdminCacheSection })));
+const PartnersPanel = lazy(() => loadPartnersPanel().then(m => ({ default: m.PartnersPanel })));
+const Cynologists = lazy(() => loadConsultations().then(m => ({ default: m.Cynologists })));
+const Bookings = lazy(() => loadConsultations().then(m => ({ default: m.Bookings })));
+const VideoQualityPanel = lazy(() => loadVideoQualityPanel().then(m => ({ default: m.VideoQualityPanel })));
+const MailPanel = lazy(() => loadSystemPanels().then(m => ({ default: m.MailPanel })));
+const StoragePanel = lazy(() => loadSystemPanels().then(m => ({ default: m.StoragePanel })));
+const ChatOutboxPanel = lazy(() => loadChatOutboxPanel().then(m => ({ default: m.ChatOutboxPanel })));
+const FeedModerationPanel = lazy(() => loadModerationPanels().then(m => ({ default: m.FeedModerationPanel })));
+const QuestionsModerationPanel = lazy(() => loadModerationPanels().then(m => ({ default: m.QuestionsModerationPanel })));
+const RewardedAdsPanel = lazy(() => loadAnalyticsPanels().then(m => ({ default: m.RewardedAdsPanel })));
+const ReengagementPanel = lazy(() => loadAnalyticsPanels().then(m => ({ default: m.ReengagementPanel })));
+const BroadcastPanel = lazy(() => loadAnalyticsPanels().then(m => ({ default: m.BroadcastPanel })));
+const SubscriptionPanel = lazy(() => loadSubscriptionPanels().then(m => ({ default: m.SubscriptionPanel })));
+const UsersPanel = lazy(() => loadUserManagement().then(m => ({ default: m.UsersPanel })));
+const ProfitReport = lazy(() => loadProfitReport().then(m => ({ default: m.ProfitReport })));
+const GafusPanel = lazy(() => loadGafusPanel().then(m => ({ default: m.GafusPanel })));
+const MobileReleasesPanel = lazy(() => loadMobileReleasesPanel().then(m => ({ default: m.MobileReleasesPanel })));
+
+const routePanelLoaders: Record<AdminSection["key"], readonly (() => Promise<unknown>)[]> = {
+  "feed-moderation": [loadModerationPanels],
+  "questions": [loadModerationPanels],
+  "users": [loadUserManagement, loadUserSubscription],
+  "mail": [loadSystemPanels],
+  "media": [loadSystemPanels, loadChatOutboxPanel],
+  "video-quality": [loadVideoQualityPanel],
+  "admin": [loadSettingsEditors, loadSystemPanels],
+  "partners": [loadPartnersPanel],
+  "profit": [loadProfitReport, loadProfitExpenses],
+  "mobile-ota": [loadMobileReleasesPanel, loadDataPanel],
+  "feature-flags": [loadSettingsEditors],
+  "broadcasts": [loadAnalyticsPanels],
+  "reengagement": [loadAnalyticsPanels],
+  "rewarded-ads": [loadAnalyticsPanels],
+  "gafus": [loadGafusPanel],
+  "mobile-intro": [loadMobileIntroPanel],
+  "app-subscriptions": [loadSubscriptionPanels],
+  "consultations": [loadConsultations],
+  "bookings": [loadConsultations],
+  "trainers-schedules": [loadScheduleEditor],
+};
+
+// Begin loading only the authorized current route, in parallel with its API request.
+// React.lazy still owns rendering and any import error; speculative imports must not
+// create unhandled promise rejections.
+function preloadAdminRoute(key: AdminSection["key"], userDetails: boolean) {
+  const loaders = key === "users" && userDetails ? [loadUserSubscription] : routePanelLoaders[key];
+  for (const load of loaders) void load().catch(() => undefined);
+}
 
 function Login({ onLogin }: { onLogin: (actor: AuthActor) => void }) {
   const [username, setUsername] = useState("");
@@ -217,6 +274,10 @@ function Section({
   const subscriptionUserId =
     path.match(/^\/main-panel\/users\/([a-zA-Z0-9_-]+)\/app-subscription$/)?.[1] ?? null;
   useEffect(() => {
+    if (section && allowed) preloadAdminRoute(section.key, !!subscriptionUserId);
+  }, [section, allowed, subscriptionUserId]);
+
+  useEffect(() => {
     if (!section || !allowed) return;
     const controller = new AbortController();
     setData(undefined);
@@ -228,6 +289,12 @@ function Section({
     }
     setLoading(true);
     let url: string = section.api;
+    if (section.key === "users") {
+      const search = new URLSearchParams(window.location.search).get("search")?.trim().slice(0,128) ?? "";
+      url = section.api + "?" + new URLSearchParams({page:"1",pageSize:"25",sort:"createdAt",direction:"desc",search});
+    }
+    if (section.key === "partners") url=section.api+"?page=1&pageSize=25";
+    if (section.key === "bookings") url=section.api+"?page=1&pageSize=25&status=ALL";
     if (section.key === "app-subscriptions") url = subscriptionApiUrl(`?${subscriptionSearch}`);
     if (section.key === "profit") url = profitApiUrl(`?${profitSearch}`);
     if (section.key === "mobile-intro") url = mobileIntroReportUrl(mobileRange);
@@ -437,6 +504,7 @@ function Section({
           Получаем данные из GAFUS API…
         </div>
       )}
+      <Suspense fallback={<div className="content-card loading" role="status">Загружаем раздел…</div>}>
       {!loading && !error && data !== undefined && section.key === "video-quality" && (
         <VideoQualityPanel source={data} />
       )}
@@ -609,6 +677,7 @@ function Section({
           "app-subscriptions",
           "mobile-ota",
         ].includes(section.key) && <AdminActions sectionKey={section.key} onSaved={reload} />}
+      </Suspense>
       <footer className="content-footer">
         Источник: авторизованный GAFUS API. Изменения сохраняются на сервере.
       </footer>

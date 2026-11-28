@@ -31,6 +31,10 @@
       "types": "./dist/videoAccessRead.d.ts",
       "default": "./dist/videoAccessRead.js"
     },
+    "./catalog-cards": {
+      "types": "./dist/catalogCards.d.ts",
+      "default": "./dist/catalogCards.js"
+    },
     "./legacy-catalog-rows": {
       "types": "./dist/legacyCatalogRows.d.ts",
       "default": "./dist/legacyCatalogRows.js"

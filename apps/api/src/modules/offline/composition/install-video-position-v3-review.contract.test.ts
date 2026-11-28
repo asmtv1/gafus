@@ -8,7 +8,6 @@ const observed=vi.hoisted(()=>({ register:vi.fn((_value:unknown)=>{}),
  revision:vi.fn(async()=>[{revision:0n,videoRecordedAt:null,videoLastPositionSec:null}]),
  commit:vi.fn(async()=>1),
 }));
-vi.mock("@gafus/core/services/offline",()=>({ registerOfflineVideoSqlPort:observed.register }));
 vi.mock("@gafus/course-progress-server/offline-video-rows",()=>({
   withOfflineVideoSqlTransaction:observed.transaction,
   claimOfflineVideoReceipt:observed.receipt,
@@ -22,14 +21,13 @@ describe("offline video v3 SQL composer remains unmounted",()=>{
   it("is NOT present in active API app or offline v2 Hono routes",()=>{
     const app=readFileSync(fileURLToPath(new URL("../../../app.ts",import.meta.url)),"utf8");
     const offline=readFileSync(fileURLToPath(new URL("../../../routes/v1/offline.ts",import.meta.url)),"utf8");
-    expect(app).not.toContain("install-video-position-v3-review");
-    expect(offline).not.toContain("install-video-position-v3-review");
+    expect(app).not.toContain("video-position-v3-review-instance");
+    expect(offline).not.toContain("video-position-v3-review-instance");
     expect(offline).not.toContain("submitVideoPositionV2Proposal");
   });
   it("explicit review-only composer retains a single transaction across SQL writes",async()=>{
-    await import("./install-video-position-v3-review");
-    expect(observed.register).toHaveBeenCalledTimes(1);
-    const port=observed.register.mock.calls[0]?.[0] as {
+    const { offlineVideoSql } = await import("./video-position-v3-review-instance");
+    const port = offlineVideoSql as unknown as {
       withOfflineVideoSqlTransaction<T>(cb:(tx:unknown)=>Promise<T>):Promise<T>;
       claimOfflineVideoReceipt(tx:unknown,owner:string,event:string,scope:string,hash:string):Promise<{id:string}[]>;
       commitOfflineVideoReceipt(tx:unknown,owner:string,id:string,next:bigint,ack:unknown):Promise<number>;

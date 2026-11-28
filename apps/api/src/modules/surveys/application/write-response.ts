@@ -5,11 +5,11 @@ import type {
 
 export function createWriteSurveyResponseApplication(dependencies: {
   submit: (
-    actorUserId: string, input: Parameters<typeof submitSurveyResponse>[2],
+    actorUserId: string, input: Parameters<typeof submitSurveyResponse>[3],
   ) => ReturnType<typeof submitSurveyResponse>;
 }) {
   return {
-    execute(actorUserId: string, input: Parameters<typeof submitSurveyResponse>[2]) {
+    execute(actorUserId: string, input: Parameters<typeof submitSurveyResponse>[3]) {
       return dependencies.submit(actorUserId, input);
     },
   };

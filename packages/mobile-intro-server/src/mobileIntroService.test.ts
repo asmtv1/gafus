@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const db = vi.hoisted(() => ({ upsert: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() }));
+const db = vi.hoisted(() => ({ upsert: vi.fn(), updateMany: vi.fn(), groupBy: vi.fn() }));
 vi.mock("@gafus/prisma", () => ({ prisma: { mobileIntroInstallation: {
-  upsert: db.upsert, updateMany: db.updateMany, findMany: db.findMany,
+  upsert: db.upsert, updateMany: db.updateMany, groupBy: db.groupBy,
 } } }));
 import { recordMobileIntroEvent, recordMobileIntroAuthOutcome, getMobileIntroReport } from "./mobileIntroService";
 
@@ -50,17 +50,18 @@ describe("intro event storage and idempotent conditional terminal state", () => 
 
 describe("report aggregation", () => {
   it("counts completed, skipped, registered, logged in and pending auth by time range", async () => {
-    db.findMany.mockResolvedValueOnce([
-      { completion: "COMPLETED", authOutcome: "REGISTERED" },
-      { completion: "SKIPPED", authOutcome: "LOGGED_IN" },
-      { completion: null, authOutcome: null },
-      { completion: "COMPLETED", authOutcome: null },
+    db.groupBy.mockResolvedValueOnce([
+      { completion: "COMPLETED", authOutcome: "REGISTERED", _count:{_all:1} },
+      { completion: "SKIPPED", authOutcome: "LOGGED_IN", _count:{_all:1} },
+      { completion: null, authOutcome: null, _count:{_all:1} },
+      { completion: "COMPLETED", authOutcome: null, _count:{_all:1} },
     ]);
     const range = { start: openedAt, end: new Date("2026-11-12T10:00:00Z") };
     const result = await getMobileIntroReport(range);
-    expect(db.findMany).toHaveBeenCalledExactlyOnceWith({
+    expect(db.groupBy).toHaveBeenCalledExactlyOnceWith({
       where: { openedAt: { gte: range.start, lt: range.end } },
-      select: { completion: true, authOutcome: true },
+      by: ["completion","authOutcome"],
+      _count: { _all:true },
     });
     expect(result).toMatchObject({ timeZone: "Europe/Samara", openings: 4, completed: 2,
       skipped: 1, registered: 1, loggedIn: 1, pendingAuth: 2,

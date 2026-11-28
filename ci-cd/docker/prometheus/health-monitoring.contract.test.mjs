@@ -220,7 +220,8 @@ test('actual Prisma pool-wait metric requires engine preview, guarded scrape and
 
 test('expanded synthetic alert suites include all required API, Worker, media and dependency cases', () => {
   const suites = [YAML.parse(load('gafus-alerts.promtool.test.yml')),
-    YAML.parse(load('gafus-alerts-agent2.promtool.test.yml'))];
+    YAML.parse(load('gafus-alerts-agent2.promtool.test.yml')),
+    YAML.parse(load('gafus-alerts-operational.promtool.test.yml'))];
   const cases = suites.flatMap(s => s.tests ?? []);
   assert(cases.length >= 20);
   const checkedNames = new Set(cases.flatMap(t => (t.alert_rule_test ?? []).map(a => a.alertname)));
@@ -231,4 +232,25 @@ test('expanded synthetic alert suites include all required API, Worker, media an
     'GafusPostgresUnavailable', 'GafusRedisUnavailable', 'GafusHttpServiceDown',
     'GafusWorkerAttemptMetricsMissing', 'GafusApiMetricsMissing',
   ]) assert(checkedNames.has(name), 'missing rule fixture: ' + name);
+});
+
+test("operational signals preserve bounded OTA and first-frame dimensions", () => {
+  for (const label of ["surface","platform","event","outcome","le"])
+    assert(exportedLabels.test(label), "missing remote dimension " + label);
+  for (const metric of ["gafus_video_first_frame_seconds_bucket","gafus_video_first_frame_seconds_count",
+    "gafus_video_first_frame_observations_total","gafus_mail_reset_attempt_stalled_1h",
+    "gafus_mail_metrics_available","gafus_mobile_telemetry_ota_reported_events_1h"])
+    assert(exportedMetrics.test(metric), "missing remote metric " + metric);
+  for (const label of ["surface","platform","event"])
+    assert(uptraceRules.includes('source_labels = ["' + label + '"]'), "unbounded label " + label);
+  const rules = alerts.groups.flatMap(group => group.rules);
+  const required = ["GafusPasswordResetMailStalled","GafusMailProviderAttemptStalled",
+    "GafusMailMetricsUnavailable","GafusVideoFirstFrameSlow","GafusServerDiagnosticExportDrops",
+    "GafusServerDiagnosticExportBlocked"];
+  for (const name of required) {
+    const rule = rules.find(r => r.alert === name);
+    assert(rule?.labels.owner && rule.annotations.runbook_url.includes("OPERATIONAL_SIGNALS.md#"));
+  }
+  const slow = rules.find(r=>r.alert==="GafusVideoFirstFrameSlow");
+  assert(slow.expr.includes("gafus_video_first_frame_seconds_count") && slow.expr.includes(">= 30"));
 });

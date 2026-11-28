@@ -96,6 +96,15 @@ describe.skipIf(!DatabaseSync)("GPS SQLite integration (real database)", () => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
+  it("probes only stored points for the exact owner and walk", async () => {
+    await store.activateGpsSession("a","walk");
+    expect(await store.hasStoredGpsPoint("a","walk")).toBe(false);
+    await store.persistGpsBatch(samples,start+12000);
+    await store.deactivateGpsSession("a","walk",start+12000);
+    expect(await store.hasStoredGpsPoint("a","walk")).toBe(true);
+    expect(await store.hasStoredGpsPoint("b","walk")).toBe(false);
+    expect(await store.hasStoredGpsPoint("a","other")).toBe(false);
+  });
   it("persists only canonical points, flushes finish and is idempotent across restart", async () => {
     await store.activateGpsSession("a","walk");
     await store.persistGpsBatch(samples,start+15_000);

@@ -1,3 +1,4 @@
+import { setOfflineCoursePrincipal } from "@/shared/lib/offline/offlineCourseSession";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { deleteCourseDataMock, downloadCourseForOfflineMock, hasEnoughDiskSpaceMock } = vi.hoisted(
@@ -20,6 +21,9 @@ vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 
 vi.mock("@/shared/lib/offline/offlineStorage", () => ({
   deleteCourseData: deleteCourseDataMock,
+  getOfflineCourseTypes: vi.fn().mockResolvedValue([]),
+  getCourseMeta: vi.fn().mockResolvedValue(null),
+  assertSafeOfflineSegment: vi.fn(),
 }));
 
 vi.mock("@/shared/lib/offline/downloadCourseForOffline", () => ({
@@ -30,7 +34,10 @@ vi.mock("@/shared/lib/offline/downloadCourseForOffline", () => ({
 import { useOfflineStore } from "./offlineStore";
 
 describe("mobile offline store", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    setOfflineCoursePrincipal(null);
+    setOfflineCoursePrincipal("owner-A", true);
+    await new Promise(resolve => setTimeout(resolve, 0));
     vi.stubGlobal("__DEV__", false);
     vi.clearAllMocks();
     hasEnoughDiskSpaceMock.mockResolvedValue(true);
@@ -122,7 +129,18 @@ describe("mobile offline store", () => {
 
     await useOfflineStore.getState().removeDownload("base");
 
-    expect(deleteCourseDataMock).toHaveBeenCalledWith("base");
+    expect(deleteCourseDataMock).toHaveBeenCalledWith("base", expect.objectContaining({ principalId: "owner-A" }));
     expect(useOfflineStore.getState().downloaded).toEqual({});
+  });
+  it("does not acknowledge the previous account's pending result", async () => {
+    let finish!: (result: { success: true; version: string }) => void;
+    downloadCourseForOfflineMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const pending = useOfflineStore.getState().startDownload("base");
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    setOfflineCoursePrincipal("owner-B", true);
+    finish({ success: true, version: "owner-A" });
+    await pending;
+    expect(useOfflineStore.getState().downloaded).toEqual({});
+    expect(useOfflineStore.getState().status).toEqual({ status: "idle" });
   });
 });

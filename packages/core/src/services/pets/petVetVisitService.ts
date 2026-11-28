@@ -1,13 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod/v3";
 import { fileTypeFromBuffer } from "file-type";
-import {
- ownPetForVet,isVetVisitDbError,lockVetPetRowTx,listOwnPetVetRows,
- upsertOwnPetVetVisit,removeOwnPetVetVisit,requireOwnPetVetVisit,
- reservePetVetAttachment,commitPetVetAttachment,removeOwnPetVetAttachment,
- readOwnPetVetAttachment,enqueueOwnPetVetCleanupTx,
- type VetVisitDbRow,type VetVisitDbTx,type VetVisitRowsPort,
-} from "./vetVisitRowsPort";
+import { requireVetVisitRowsPort, type VetVisitDbRow, type VetVisitDbTx, type VetVisitRowsPort } from "./vetVisitRowsPort";
 import { uploadVetVisitFile, vetVisitFileKeys, vetVisitMediaUrl } from "@gafus/cdn-upload";
 import {
   VET_VISIT_MAX_FILE_BYTES,
@@ -72,21 +66,12 @@ function dto(row: VisitRow, pending = new Set<string>()): PetVetVisit {
     })),
   };
 }
-/** Compatibility-only deferred SQL functions. Production HTTP injects a
- * concrete, owner-scoped port instead of registering a process-wide binding. */
-const legacyRows: VetVisitRowsPort = {
-  isVetVisitDbError, lockVetPetRowTx, listOwnPetVetRows,
-  upsertOwnPetVetVisit, removeOwnPetVetVisit, requireOwnPetVetVisit,
-  reservePetVetAttachment, commitPetVetAttachment, removeOwnPetVetAttachment,
-  readOwnPetVetAttachment, enqueueOwnPetVetCleanupTx,
-  ownPetForVet,
-};
 
 /** Public API error boundary stays in Core, never leaks SQL or clinical PII. */
 async function vetDb<T>(action:()=>Promise<T>, rows?: VetVisitRowsPort):Promise<T>{
  try{return await action();}
  catch(error){
-  if((rows ?? legacyRows).isVetVisitDbError(error)){
+  if(requireVetVisitRowsPort(rows).isVetVisitDbError(error)){
    switch(error.kind){
     case "pet":throw new VetVisitError("Питомец не найден",404);
     case "visit":throw new VetVisitError("Посещение не найдено",404);
@@ -100,20 +85,20 @@ async function vetDb<T>(action:()=>Promise<T>, rows?: VetVisitRowsPort):Promise<
 }
 
 export async function lockVetPet(tx:VetVisitDbTx,petId:string,ownerId:string,rows?:VetVisitRowsPort){
- await vetDb(()=>(rows ?? legacyRows).lockVetPetRowTx(tx,petId,ownerId), rows);
+ await vetDb(()=>requireVetVisitRowsPort(rows).lockVetPetRowTx(tx,petId,ownerId), rows);
 }
 export async function listPetVetVisits(petId:string,ownerId:string,rows?:VetVisitRowsPort){
- const {rows:visitRows,pending}=await vetDb(()=>(rows ?? legacyRows).listOwnPetVetRows(petId,ownerId), rows);
+ const {rows:visitRows,pending}=await vetDb(()=>requireVetVisitRowsPort(rows).listOwnPetVetRows(petId,ownerId), rows);
  return visitRows.map(row=>dto(row,pending));
 }
 export async function savePetVetVisit(petId:string,ownerId:string,input:unknown,id?:string,rows?:VetVisitRowsPort){
  const parsed=petVetVisitSchema.parse(input);
  const data={...parsed,visitedOn:new Date(`${parsed.visitedOn}T00:00:00Z`)};
- const row=await vetDb(()=>(rows ?? legacyRows).upsertOwnPetVetVisit(petId,ownerId,data,id), rows);
+ const row=await vetDb(()=>requireVetVisitRowsPort(rows).upsertOwnPetVetVisit(petId,ownerId,data,id), rows);
  return dto(row);
 }
 export async function deletePetVetVisit(petId:string,ownerId:string,id:string,rows?:VetVisitRowsPort){
- await vetDb(()=>(rows ?? legacyRows).removeOwnPetVetVisit(petId,ownerId,id,enqueueDelete), rows);
+ await vetDb(()=>requireVetVisitRowsPort(rows).removeOwnPetVetVisit(petId,ownerId,id,enqueueDelete), rows);
 }
 export async function addPetVetAttachment(
   petId: string,
@@ -122,7 +107,7 @@ export async function addPetVetAttachment(
   file: File,
   rows?: VetVisitRowsPort,
 ) {
-  await vetDb(()=>(rows ?? legacyRows).requireOwnPetVetVisit(petId,ownerId,visitId), rows);
+  await vetDb(()=>requireVetVisitRowsPort(rows).requireOwnPetVetVisit(petId,ownerId,visitId), rows);
   if (!file.size || file.size > VET_VISIT_MAX_FILE_BYTES)
     throw new VetVisitError("Размер файла должен быть от 1 байта до 10 МБ", 413);
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -140,7 +125,7 @@ export async function addPetVetAttachment(
   const asyncPreview = false;
   const dedupeKey = `vet-upload:${id}`;
   // Durable cleanup is reserved BEFORE storage I/O. It survives crashes, partial uploads and owner deletion.
-  await vetDb(()=>(rows ?? legacyRows).reservePetVetAttachment(petId,ownerId,visitId,keys,dedupeKey,enqueueDelete), rows);
+  await vetDb(()=>requireVetVisitRowsPort(rows).reservePetVetAttachment(petId,ownerId,visitId,keys,dedupeKey,enqueueDelete), rows);
   await uploadVetVisitFile(bytes, detected.mime, keys, { asyncPreview });
   const rawName = file.name
     .split("")
@@ -151,7 +136,7 @@ export async function addPetVetAttachment(
     .join("")
     .trim()
     .slice(0, 200);
-  await vetDb(()=>(rows ?? legacyRows).commitPetVetAttachment(petId,ownerId,visitId,{
+  await vetDb(()=>requireVetVisitRowsPort(rows).commitPetVetAttachment(petId,ownerId,visitId,{
    id,keys,dedupeKey,
    name:rawName||`Медкарта.${detected.ext}`,
    mimeType:detected.mime,sizeBytes:bytes.byteLength,
@@ -162,7 +147,7 @@ export async function deletePetVetAttachment(
  petId:string,ownerId:string,visitId:string,id:string,
  rows?:VetVisitRowsPort,
 ){
- await vetDb(()=>(rows ?? legacyRows).removeOwnPetVetAttachment(petId,ownerId,visitId,id,enqueueDelete), rows);
+ await vetDb(()=>requireVetVisitRowsPort(rows).removeOwnPetVetAttachment(petId,ownerId,visitId,id,enqueueDelete), rows);
 }
 export async function getPetVetMedia(
   petId: string,
@@ -172,7 +157,7 @@ export async function getPetVetMedia(
   variant: string,
   rows?: VetVisitRowsPort,
 ) {
-  const attachment=await vetDb(()=>(rows ?? legacyRows).readOwnPetVetAttachment(petId,ownerId,visitId,id), rows);
+  const attachment=await vetDb(()=>requireVetVisitRowsPort(rows).readOwnPetVetAttachment(petId,ownerId,visitId,id), rows);
   if (!["preview", "original", "download"].includes(variant))
     throw new VetVisitError("Неизвестный вид вложения");
   if (variant === "preview" && !attachment.previewKey)
@@ -186,5 +171,5 @@ export async function getPetVetMedia(
 }
 
 export async function enqueuePetVetCleanup(tx:VetVisitDbTx,petId:string,ownerId:string,rows?:VetVisitRowsPort){
- await vetDb(()=>(rows ?? legacyRows).enqueueOwnPetVetCleanupTx(tx,petId,ownerId,enqueueDelete), rows);
+ await vetDb(()=>requireVetVisitRowsPort(rows).enqueueOwnPetVetCleanupTx(tx,petId,ownerId,enqueueDelete), rows);
 }

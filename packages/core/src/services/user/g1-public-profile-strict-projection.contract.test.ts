@@ -13,9 +13,9 @@ vi.mock("./chatDisplayRole", () => ({
 import { getPublicProfile } from "./profileService";
 // Bind unchanged identity-write SQL projections against the existing synthetic
 // Prisma test rows; production composition runs before Hono routes.
-import { registerProfileRowsPort } from "./profileRowsPort";
+
 import * as profileSql from "@gafus/identity-write-server/profile-rows";
-registerProfileRowsPort(profileSql);
+const fixtureProfileRowsPort = profileSql;
 
 
 const CANARY = "PRIVATE_CORE_PROFILE_FIELD_NOT_FOR_PUBLIC";
@@ -49,7 +49,7 @@ beforeEach(() => {
 describe("Core public projection: no raw Prisma relations or private identifiers", () => {
   it("public trainer retains exact DTO shape while omitting raw authoredCourses", async () => {
     m.find.mockResolvedValueOnce(mockUser());
-    const result = await getPublicProfile("A");
+    const result = await getPublicProfile("A", fixtureProfileRowsPort);
     expect(result).not.toBeNull();
     expect(Object.keys(result!).sort()).toEqual([
       "chatRole", "courses", "diplomas", "pets", "profile", "role", "username",
@@ -71,7 +71,7 @@ describe("Core public projection: no raw Prisma relations or private identifiers
     const u = mockUser();
     m.find.mockResolvedValueOnce({ ...u, role: "USER", pets: [], authoredCourses: u.authoredCourses });
     m.displayRole.mockResolvedValueOnce(null);
-    const result = await getPublicProfile("A");
+    const result = await getPublicProfile("A", fixtureProfileRowsPort);
     expect(result?.courses).toBeUndefined();
     expect(result?.pets).toEqual([]);
     expect(JSON.stringify(result)).not.toContain(CANARY);
@@ -92,13 +92,13 @@ describe("Core public projection: no raw Prisma relations or private identifiers
 
   it("notfound returns null without subscription role lookup", async () => {
     m.find.mockResolvedValueOnce(null);
-    expect(await getPublicProfile("missing")).toBeNull();
+    expect(await getPublicProfile("missing", fixtureProfileRowsPort)).toBeNull();
     expect(m.displayRole).not.toHaveBeenCalled();
   });
 
   it("Prisma failure never turns into fallback public data", async () => {
     m.find.mockRejectedValueOnce(new Error(CANARY));
-    await expect(getPublicProfile("A")).rejects.toThrow(CANARY);
+    await expect(getPublicProfile("A", fixtureProfileRowsPort)).rejects.toThrow(CANARY);
     expect(m.displayRole).not.toHaveBeenCalled();
   });
 });

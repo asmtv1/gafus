@@ -208,6 +208,8 @@ export interface TodayDailyCourseRead {
  * not narrowed here without an independently approved source contract.
  */
 export interface TrainingDayStepWire {
+  stepOnDayId?: string;
+  offlineProgressVersion?: string;
   id: string;
   videoUrl: string | null;
   videoUrls?: string[];
@@ -307,6 +309,7 @@ export interface DailyCourseDayRead {
 /** Negotiated Web-only stable occurrence contract. Never send to legacy/native GET. */
 export type DailyCourseBoundStepWire = DailyCourseDayStepWire & {
   bundleStepId: string;
+  offlineProgressVersion?: string;
   /** Server-authored snapshot from persisted updatedAt and remainingSec. */
   timerSnapshot?: { remainingSecAtServerNow: number | null; expiresAt: string | null };
 };

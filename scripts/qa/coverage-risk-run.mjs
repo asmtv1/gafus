@@ -8,7 +8,7 @@ const root=resolve(import.meta.dirname,'../..');
 const [domain,reportArg]=process.argv.slice(2);
 const script={payment:'scripts/qa/payment-archqa-isolated-pg.sh',worker:'scripts/qa/media-cdn-purge-isolated-pg.sh'}[domain];
 if(!script || !reportArg || !reportArg.startsWith('/') || reportArg.includes('..') ||
-  !/^\.qa\/testing\/qa-[a-zA-Z0-9-]+\/tasks\/[a-f0-9]{20}\/tests\.json$/.test(reportArg.startsWith(root+'/')?reportArg.slice(root.length+1):'')) {
+  !/^\.qa\/testing\/qa-[a-zA-Z0-9-]+\/tasks\/[a-f0-9]{20}\/attempt-[1-9][0-9]*\/tests\.json$/.test(reportArg.startsWith(root+'/')?reportArg.slice(root.length+1):'')) {
   console.error('COVERAGE_RISK_DENIED_UNOWNED_REPORT_OR_DOMAIN');process.exit(2);
 }
 const taskDir=dirname(reportArg),coverageDir=join(taskDir,'coverage');

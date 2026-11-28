@@ -35,6 +35,9 @@ export type StepOccurrenceBinding = {
     expectedStepOnDayId: string;
     expectedStepId: string;
     expectedCourseId: string;
+    /** Internal journal policy, never supplied by an untrusted HTTP body. */
+    allowedStepTypes?: readonly string[];
+    journal?: { expectedVersion?: string; recordedAt?: number };
 };
 export type TrainingServiceApi = {
     getTrainingDays: (userId: string, courseType?: string) => Promise<{
@@ -91,6 +94,7 @@ export type TrainingServiceApi = {
     }) => Promise<{
         courseId: string;
         courseType: string;
+        binding: StepOccurrenceBinding;
     }>;
     validateTheoryStepForCompletion: (dayOnCourseId: string, stepIndex: number, binding?: {
         expectedStepOnDayId: string;
@@ -123,6 +127,7 @@ export type TrainingServiceApi = {
         stepJustStarted: boolean;
         stepOnDayId: string;
         stepId: string;
+        progressVersion?: string;
     }>;
     applyStepAndDayTx: (tx: unknown, userId: string, dayOnCourseId: string, stepIndex: number, operation: StepOperation, binding?: StepOccurrenceBinding) => Promise<{
         courseId: string;
@@ -131,6 +136,7 @@ export type TrainingServiceApi = {
         stepJustStarted: boolean;
         stepOnDayId: string;
         stepId: string;
+        progressVersion?: string;
     }>;
     applyStepDayAndCourseTx: (tx: unknown, userId: string, dayOnCourseId: string, stepIndex: number, operation: StepOperation, binding?: StepOccurrenceBinding) => Promise<{
         courseId: string;
@@ -139,6 +145,7 @@ export type TrainingServiceApi = {
         stepJustStarted: boolean;
         stepOnDayId: string;
         stepId: string;
+        progressVersion?: string;
     }>;
     syncUserCourseStatusFromDays: (userId: string, courseId: string) => Promise<void>;
     syncUserCourseStatusFromDaysTx: (tx: unknown, userId: string, courseId: string) => Promise<void>;

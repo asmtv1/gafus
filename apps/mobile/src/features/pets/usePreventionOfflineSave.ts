@@ -1,4 +1,4 @@
-/** OFF021 Phase1 — screen-lifetime durable local prevention, never network/replay/ACK. */
+/** OFF021 Phase1 — screen-lifetime durable local prevention with verified ACK refresh. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CreatePreventionEntryData } from "@/shared/lib/api/pets";
 import { useAuthStore } from "@/shared/stores/authStore";
@@ -10,7 +10,8 @@ import {
 } from "@/shared/lib/offline/newOnlyV2PreventionPending";
 import type { NewOnlyV2Queues, V2PendingEvent } from "@/shared/lib/offline/newOnlyV2Queues";
 
-type SessionQueue = Pick<NewOnlyV2Queues, "getVerifiedBinding" | "getPending">;
+type SessionQueue = Pick<NewOnlyV2Queues, "getVerifiedBinding" | "getPending"> &
+  Partial<Pick<NewOnlyV2Queues, "subscribePreventionAcknowledgements" | "wasPreventionAcknowledged">>;
 type SavedEvent = V2PendingEvent & { ownerId: string; authEpoch: string };
 export type PreventionPendingReadStatus =
   | "IDLE"
@@ -133,6 +134,10 @@ export function usePreventionOfflineSave(
     }
   }, [deps, isCurrent, petId, principalId]);
 
+  useEffect(() => deps.queue.subscribePreventionAcknowledgements?.(() => {
+    if (!inFlight.current && active.current) void refreshPending();
+  }), [deps, refreshPending]);
+
   const save = useCallback(
     async (data: CreatePreventionEntryData, callbacks: SaveCallbacks) => {
       if (inFlight.current) return;
@@ -160,7 +165,8 @@ export function usePreventionOfflineSave(
         // exact durable receipt through the same owner-scoped reader used on restart.
         const rows = await readOwnPendingPrevention(deps.queue, petId, principalId);
         if (!isCurrent(ticket, principalId, epoch)) return;
-        if (!rows.some((entry) => entry.eventId === receipt.eventId))
+        if (!rows.some((entry) => entry.eventId === receipt.eventId) &&
+            !deps.queue.wasPreventionAcknowledged?.(receipt.eventId, binding))
           throw new Error("V2_LOCAL_RECEIPT_UNCONFIRMED");
         setPendingState({ owner: principalId, epoch, petId, rows });
         setReadState({ owner: principalId, epoch, petId, status: "READY" });

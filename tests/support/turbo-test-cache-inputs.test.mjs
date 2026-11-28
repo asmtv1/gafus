@@ -31,3 +31,35 @@ test('actual Turbo dry-run confirms direct Vite config files participate in web-
   assert.match(task.hash,/^[0-9a-f]{16}$/);
   assert(inputs.length>100,'Test cache denominator unexpectedly tiny');
 });
+
+test('actual Turbo build graph includes frontend entry/config, shared scripts and Prisma schema',()=>{
+  const packages=['web-vite','admin-panel','trainer-panel','api','prisma'];
+  const r=spawnSync('pnpm',['exec','turbo','run','build',
+    ...packages.map(name=>'--filter=@gafus/'+name),'--dry=json'],
+    {cwd:root,encoding:'utf8',timeout:60000,maxBuffer:32*1024*1024});
+  assert.equal(r.status,0,String(r.stderr||r.error));
+  const tasks=new Map(JSON.parse(r.stdout).tasks.map(t=>[t.taskId,t]));
+  const get=(pkg,task='build')=>{
+    const t=tasks.get('@gafus/'+pkg+'#'+task);
+    assert(t && t.command!=='<NONEXISTENT>',pkg+'#'+task+' missing');
+    return t;
+  };
+  const requireInputs=(t,names)=>{
+    for(const name of names) assert(Object.hasOwn(t.inputs,name),t.taskId+' missing input: '+name);
+  };
+  const shared=['../../scripts/observability/postbuild-vite-maps.mjs',
+    '../../scripts/observability/seal-vite-sourcemaps.mjs'];
+  requireInputs(get('web-vite'),['index.html','vite.config.mjs',
+    '../admin-panel/src/admin-live/App.tsx','../../scripts/refactor/dev-api-config.mjs',...shared]);
+  requireInputs(get('admin-panel'),['vite.config.mjs','src/admin-live/index.html',...shared]);
+  requireInputs(get('trainer-panel'),['src/trainer-vite/live/vite.config.mjs',
+    'src/trainer-vite/live/index.html',...shared]);
+  assert.deepEqual(get('trainer-panel').outputs,['src/trainer-vite/live/dist/**']);
+  assert(!Object.keys(get('trainer-panel').inputs).some(name=>name.startsWith('src/trainer-vite/live/dist/')),
+    'Generated Trainer output must not feed its own build hash');
+  requireInputs(get('api'),['tsup.config.ts']);
+  requireInputs(get('prisma'),['schema.prisma']);
+  requireInputs(get('prisma','prisma:generate'),['schema.prisma']);
+  assert(get('prisma').dependencies.includes('@gafus/prisma#prisma:generate'));
+  assert(get('api').dependencies.includes('@gafus/prisma#build'));
+});

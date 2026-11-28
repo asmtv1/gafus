@@ -48,71 +48,69 @@ beforeEach(()=>{
 });
 describe("W1 G02 Core real orchestration/mock Prisma, mail & bcrypt",()=>{
  it("set first time hashes cost 12, atomically revokes A sessions but not B",async()=>{
-  await setPassword("A",P);expect(m.hash).toHaveBeenCalledWith(P,12);
+  await setPassword(originalAuthRowsPort, "A",P);expect(m.hash).toHaveBeenCalledWith(P,12);
   expect(m.state.get("A")?.password).toBe("new-hash");expect(m.state.get("A")?.passwordSetAt).toBeInstanceOf(Date);
   expect(m.state.get("A")?.sessionsRevokedAt).toBeInstanceOf(Date);expect(m.sessions.get("A1")?.revokedAt).toBeInstanceOf(Date);expect(m.sessions.get("A2")?.revokedAt).toBeInstanceOf(Date);
   expect(m.sessions.get("B1")?.revokedAt).toBeNull();expect(m.txn).toHaveBeenCalledTimes(1);
  });
  it("set retry cannot overwrite existing password or revoke again",async()=>{
-  await setPassword("A",P);const rev=m.state.get("A")!.sessionsRevokedAt;await expect(setPassword("A","Password3Next")).rejects.toThrow("уже установлен");
+  await setPassword(originalAuthRowsPort, "A",P);const rev=m.state.get("A")!.sessionsRevokedAt;await expect(setPassword(originalAuthRowsPort, "A","Password3Next")).rejects.toThrow("уже установлен");
   expect(m.state.get("A")?.sessionsRevokedAt).toBe(rev);expect(m.txn).toHaveBeenCalledTimes(1);
  });
  it("set when already configured refuses before bcrypt and DB writes",async()=>{
-  await expect(setPassword("B",P)).rejects.toThrow("уже установлен");expect(m.hash).not.toHaveBeenCalled();expect(m.txn).not.toHaveBeenCalled();
+  await expect(setPassword(originalAuthRowsPort, "B",P)).rejects.toThrow("уже установлен");expect(m.hash).not.toHaveBeenCalled();expect(m.txn).not.toHaveBeenCalled();
  });
  it("set rollback if refresh update fails: no half-applied credentials",async()=>{
-  m.faultRevoke=true;await expect(setPassword("A",P)).rejects.toThrow("FAKE_DB_REVOKE_FAILURE");
+  m.faultRevoke=true;await expect(setPassword(originalAuthRowsPort, "A",P)).rejects.toThrow("FAKE_DB_REVOKE_FAILURE");
   expect(m.state.get("A")?.passwordSetAt).toBeNull();expect(m.state.get("A")?.sessionsRevokedAt).toBeNull();expect(m.sessions.get("A1")?.revokedAt).toBeNull();
  });
  it("set mail failure is nonfatal AFTER credential+revocation commit",async()=>{
-  m.mail.mockRejectedValueOnce(Error("FAKE_MAIL_FAILURE"));await setPassword("A",P);
+  m.mail.mockRejectedValueOnce(Error("FAKE_MAIL_FAILURE"));await setPassword(originalAuthRowsPort, "A",P);
   expect(m.state.get("A")?.password).toBe("new-hash");expect(m.sessions.get("A1")?.revokedAt).toBeInstanceOf(Date);
  });
  it("change correct current password revokes B sessions without touching A",async()=>{
-  await changePassword("B",OLD,P);expect(m.compare).toHaveBeenCalledWith(OLD,"old-hash");expect(m.hash).toHaveBeenCalledWith(P,12);
+  await changePassword(originalAuthRowsPort, "B",OLD,P);expect(m.compare).toHaveBeenCalledWith(OLD,"old-hash");expect(m.hash).toHaveBeenCalledWith(P,12);
   expect(m.state.get("B")?.password).toBe("new-hash");expect(m.state.get("B")?.sessionsRevokedAt).toBeInstanceOf(Date);
   expect(m.sessions.get("B1")?.revokedAt).toBeInstanceOf(Date);expect(m.sessions.get("A1")?.revokedAt).toBeNull();
  });
  it("wrong current password: no mutation, no session revocation",async()=>{
-  await expect(changePassword("B","WrongPass1",P)).rejects.toThrow("Неверный текущий пароль");
+  await expect(changePassword(originalAuthRowsPort, "B","WrongPass1",P)).rejects.toThrow("Неверный текущий пароль");
   expect(m.txn).not.toHaveBeenCalled();expect(m.sessions.get("B1")?.revokedAt).toBeNull();
  });
  it("change without installed password rejected before compare",async()=>{
-  await expect(changePassword("A",OLD,P)).rejects.toThrow("Сначала установите пароль");expect(m.compare).not.toHaveBeenCalled();
+  await expect(changePassword(originalAuthRowsPort, "A",OLD,P)).rejects.toThrow("Сначала установите пароль");expect(m.compare).not.toHaveBeenCalled();
  });
  it("change DB refresh failure rolls back password and revocation",async()=>{
-  m.faultRevoke=true;await expect(changePassword("B",OLD,P)).rejects.toThrow("FAKE_DB_REVOKE_FAILURE");
+  m.faultRevoke=true;await expect(changePassword(originalAuthRowsPort, "B",OLD,P)).rejects.toThrow("FAKE_DB_REVOKE_FAILURE");
   expect(m.state.get("B")?.password).toBe("old-hash");expect(m.state.get("B")?.sessionsRevokedAt).toBeNull();expect(m.sessions.get("B1")?.revokedAt).toBeNull();
  });
  it("change failure on stale current hash preserves most recently changed password",async()=>{
   const old=m.state.get("B")!;m.state.set("B",{...old,password:"changed-by-another-client"});
-  await expect(changePassword("B",OLD,P)).rejects.toThrow("Неверный текущий пароль");
+  await expect(changePassword(originalAuthRowsPort, "B",OLD,P)).rejects.toThrow("Неверный текущий пароль");
   expect(m.state.get("B")?.password).toBe("changed-by-another-client");
  });
  it("invalid new password never mutates credentials",async()=>{
-  await expect(changePassword("B",OLD,"weak")).rejects.toThrow();expect(m.hash).not.toHaveBeenCalled();expect(m.txn).not.toHaveBeenCalled();
+  await expect(changePassword(originalAuthRowsPort, "B",OLD,"weak")).rejects.toThrow();expect(m.hash).not.toHaveBeenCalled();expect(m.txn).not.toHaveBeenCalled();
  });
  it("parallel set-password retries CAS to exactly one success and one revocation",async()=>{
-  const results=await Promise.allSettled([setPassword("A",P),setPassword("A","AnotherPass3")]);
+  const results=await Promise.allSettled([setPassword(originalAuthRowsPort, "A",P),setPassword(originalAuthRowsPort, "A","AnotherPass3")]);
   expect(results.filter(x=>x.status==="fulfilled")).toHaveLength(1);
   expect(results.filter(x=>x.status==="rejected")).toHaveLength(1);
   expect(m.revoke).toHaveBeenCalledTimes(1);
   expect(m.state.get("A")?.passwordSetAt).toBeInstanceOf(Date);
  });
  it("parallel change-password with same old hash permits only one commit",async()=>{
-  const results=await Promise.allSettled([changePassword("B",OLD,P),changePassword("B",OLD,"AnotherPass3")]);
+  const results=await Promise.allSettled([changePassword(originalAuthRowsPort, "B",OLD,P),changePassword(originalAuthRowsPort, "B",OLD,"AnotherPass3")]);
   expect(results.filter(x=>x.status==="fulfilled")).toHaveLength(1);
   expect(results.filter(x=>x.status==="rejected")).toHaveLength(1);
   expect(m.revoke).toHaveBeenCalledTimes(1);
   expect(m.state.get("B")?.password).toBe("new-hash");
  });
  it("change mail failure is nonfatal, no tokens leaked from response",async()=>{
-  m.mail.mockRejectedValueOnce(Error("FAKE_MAIL_FAILURE"));await changePassword("B",OLD,P);
+  m.mail.mockRejectedValueOnce(Error("FAKE_MAIL_FAILURE"));await changePassword(originalAuthRowsPort, "B",OLD,P);
   expect(m.state.get("B")?.sessionsRevokedAt).toBeInstanceOf(Date);
  });
 });
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalAuthRowsPort from "@gafus/identity-write-server/auth-rows";
-import { registerAuthRowsPort, type AuthRowsPort } from "./authRowsPort";
-registerAuthRowsPort(originalAuthRowsPort as AuthRowsPort);

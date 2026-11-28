@@ -47,10 +47,10 @@ vi.mock("@/shared/components/VerifiedSessionRecovery", async () => {
 });
 vi.mock("@/shared/stores/resetAll", () => ({ resetUserStores: mocks.resetUserStores }));
 vi.mock("@/shared/lib/api/favoritesQuery", () => ({
-  favoritesQueryOptions: {
-    queryKey: ["favorites"],
+  favoritesForActor: (actor: {ownerId: string; authEpoch: string}) => ({
+    queryKey: ["favorites", actor.ownerId, actor.authEpoch],
     queryFn: () => mocks.favoritesFetch(),
-  },
+  }),
 }));
 vi.mock("@/shared/lib/api/mobile-intro", () => ({ flushMobileIntroEvents: vi.fn() }));
 vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocks.reportClientError }));

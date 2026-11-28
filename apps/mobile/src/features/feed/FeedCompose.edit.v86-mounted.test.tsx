@@ -243,7 +243,8 @@ vi.mock("./FeedPostActions", async () => {
   };
 });
 import { useAuthStore } from "@/shared/stores";
-import { FeedComposeScreen, FeedPublicationQueue } from "./screens";
+import { FeedComposeScreen } from "./FeedComposeScreen";
+import { FeedPublicationQueue } from "./FeedPublicationQueue";
 import type { FeedCommentDto, FeedPostEditorDto } from "@gafus/types";
 const userFixture = (id: string) => ({
   id,

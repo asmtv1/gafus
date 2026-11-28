@@ -38,7 +38,8 @@
     "@gafus/cdn-upload": "workspace:*",
     "@gafus/media-server": "workspace:*",
     "@gafus/questions-write-server": "workspace:*",
-    "@gafus/questions-shared": "workspace:*"
+    "@gafus/questions-shared": "workspace:*",
+    "@gafus/gafus-server": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

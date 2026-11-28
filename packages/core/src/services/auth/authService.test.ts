@@ -161,7 +161,7 @@ describe("resetPassword", () => {
   });
 
   it("resetPassword вызывает resetPasswordByToken", async () => {
-    await resetPassword("tok", validNewPassword);
+    await resetPassword("tok", validNewPassword, undefined!);
     expect(mockResetPasswordByToken).toHaveBeenCalledWith("tok", validNewPassword, undefined);
   });
   it("forwards explicit password-reset port to the reset service without replacing it", async () => {
@@ -177,17 +177,17 @@ describe("changeUsername", () => {
   });
 
   it("throws when username too short", async () => {
-    await expect(changeUsername("user-1", "ab")).rejects.toThrow(/3 символа/);
+    await expect(changeUsername(originalAuthRowsPort, "user-1", "ab")).rejects.toThrow(/3 символа/);
   });
 
   it("throws when username invalid format", async () => {
-    await expect(changeUsername("user-1", "кириллица")).rejects.toThrow(/латиница/);
+    await expect(changeUsername(originalAuthRowsPort, "user-1", "кириллица")).rejects.toThrow(/латиница/);
   });
 
   it("throws when user not found", async () => {
     mockUserFindUnique.mockResolvedValue(null);
 
-    await expect(changeUsername("user-1", "newuser")).rejects.toThrow(
+    await expect(changeUsername(originalAuthRowsPort, "user-1", "newuser")).rejects.toThrow(
       "Пользователь не найден",
     );
   });
@@ -199,7 +199,7 @@ describe("changeUsername", () => {
       email: null,
     });
 
-    await changeUsername("user-1", "sameuser");
+    await changeUsername(originalAuthRowsPort, "user-1", "sameuser");
 
     expect(mockUserUpdate).not.toHaveBeenCalled();
   });
@@ -213,7 +213,7 @@ describe("changeUsername", () => {
       })
       .mockResolvedValueOnce({ id: "other-user" });
 
-    await expect(changeUsername("user-1", "taken")).rejects.toThrow("Логин уже занят");
+    await expect(changeUsername(originalAuthRowsPort, "user-1", "taken")).rejects.toThrow("Логин уже занят");
   });
 
   it("updates username on success", async () => {
@@ -226,7 +226,7 @@ describe("changeUsername", () => {
       .mockResolvedValueOnce(null);
     mockUserUpdate.mockResolvedValue({});
 
-    await changeUsername("user-1", "newuser");
+    await changeUsername(originalAuthRowsPort, "user-1", "newuser");
 
     expect(mockUserUpdate).toHaveBeenCalledWith({
       where: { id: "user-1" },
@@ -244,7 +244,7 @@ describe("changeUsername", () => {
       .mockResolvedValueOnce(null);
     mockUserUpdate.mockRejectedValue(Object.assign(new Error("u"), { code: "P2002" }));
 
-    await expect(changeUsername("user-1", "newuser2")).rejects.toThrow("Логин уже занят");
+    await expect(changeUsername(originalAuthRowsPort, "user-1", "newuser2")).rejects.toThrow("Логин уже занят");
   });
 
   it("отправляет уведомление на email при смене логина", async () => {
@@ -258,7 +258,7 @@ describe("changeUsername", () => {
     mockUserUpdate.mockResolvedValue({});
     mockSendUsernameChangedNoticeEmail.mockResolvedValue(undefined);
 
-    await changeUsername("user-1", "newname");
+    await changeUsername(originalAuthRowsPort, "user-1", "newname");
 
     expect(mockSendUsernameChangedNoticeEmail).toHaveBeenCalledWith("a@b.com", "newname");
   });
@@ -270,26 +270,26 @@ describe("isUsernameAvailable", () => {
   });
 
   it("false при слишком коротком логине", async () => {
-    await expect(isUsernameAvailable("ab")).resolves.toBe(false);
+    await expect(isUsernameAvailable(originalAuthRowsPort, "ab")).resolves.toBe(false);
     expect(mockUserFindUnique).not.toHaveBeenCalled();
   });
 
   it("true если логин совпадает с текущим пользователем", async () => {
     mockUserFindUnique.mockResolvedValue({ username: "same" });
 
-    await expect(isUsernameAvailable("same", "user-1")).resolves.toBe(true);
+    await expect(isUsernameAvailable(originalAuthRowsPort, "same", "user-1")).resolves.toBe(true);
   });
 
   it("true если логин свободен", async () => {
     mockUserFindUnique.mockResolvedValue(null);
 
-    await expect(isUsernameAvailable("freeuser")).resolves.toBe(true);
+    await expect(isUsernameAvailable(originalAuthRowsPort, "freeuser")).resolves.toBe(true);
   });
 
   it("false если логин занят другим", async () => {
     mockUserFindUnique.mockResolvedValue({ id: "other" });
 
-    await expect(isUsernameAvailable("taken", "me")).resolves.toBe(false);
+    await expect(isUsernameAvailable(originalAuthRowsPort, "taken", "me")).resolves.toBe(false);
   });
 });
 
@@ -306,7 +306,7 @@ describe("getAuthUserById", () => {
       phone: "+79001234567",
     });
 
-    await expect(getAuthUserById("u1")).resolves.toEqual({
+    await expect(getAuthUserById(originalAuthRowsPort, "u1")).resolves.toEqual({
       id: "u1",
       username: "n",
       role: "USER",
@@ -314,7 +314,7 @@ describe("getAuthUserById", () => {
     });
 
     mockUserFindUnique.mockResolvedValue(null);
-    await expect(getAuthUserById("x")).resolves.toBeNull();
+    await expect(getAuthUserById(originalAuthRowsPort, "x")).resolves.toBeNull();
   });
 });
 
@@ -327,7 +327,7 @@ describe("validateCredentials", () => {
   it("success: false если пользователь не найден", async () => {
     mockUserFindUnique.mockResolvedValue(null);
 
-    await expect(validateCredentials("nouser", "pw")).resolves.toEqual({ success: false });
+    await expect(validateCredentials(originalAuthRowsPort, "nouser", "pw")).resolves.toEqual({ success: false });
   });
 
   it("success: false если пароль неверный", async () => {
@@ -339,7 +339,7 @@ describe("validateCredentials", () => {
     });
     bcryptMocks.compare.mockResolvedValue(false as unknown as boolean);
 
-    await expect(validateCredentials("u", "wrong")).resolves.toEqual({ success: false });
+    await expect(validateCredentials(originalAuthRowsPort, "u", "wrong")).resolves.toEqual({ success: false });
   });
 
   it("success: true при верном пароле", async () => {
@@ -352,7 +352,7 @@ describe("validateCredentials", () => {
     mockUserFindUnique.mockResolvedValue(userRow);
     bcryptMocks.compare.mockResolvedValue(true as unknown as boolean);
 
-    await expect(validateCredentials("U", "pw")).resolves.toEqual({
+    await expect(validateCredentials(originalAuthRowsPort, "U", "pw")).resolves.toEqual({
       success: true,
       user: userRow,
     });
@@ -372,7 +372,7 @@ describe("refresh token session", () => {
   });
 
   it("createRefreshSession создаёт запись", async () => {
-    await createRefreshSession("u1", "tid", "hash", {
+    await createRefreshSession(originalAuthRowsPort, "u1", "tid", "hash", {
       deviceId: "d",
       userAgent: "ua",
       ipAddress: "1.1.1.1",
@@ -393,7 +393,7 @@ describe("refresh token session", () => {
   });
 
   it("validateRefreshToken: not_found", async () => {
-    await expect(validateRefreshToken("h")).resolves.toEqual({
+    await expect(validateRefreshToken(originalAuthRowsPort, "h")).resolves.toEqual({
       valid: false,
       reason: "not_found",
     });
@@ -408,7 +408,7 @@ describe("refresh token session", () => {
       user: { id: "u1", username: "n", role: "USER" },
     });
 
-    await expect(validateRefreshToken("h")).resolves.toEqual({
+    await expect(validateRefreshToken(originalAuthRowsPort, "h")).resolves.toEqual({
       valid: false,
       reason: "token_reuse",
       userId: "u1",
@@ -420,7 +420,7 @@ describe("refresh token session", () => {
       revokedAt: new Date(), userId: "u1", id: "t", expiresAt,
       user: { id: "u1", username: "n", role: "USER" },
     });
-    await expect(validateRefreshToken("h")).resolves.toEqual({
+    await expect(validateRefreshToken(originalAuthRowsPort, "h")).resolves.toEqual({
       valid: false, reason: "recently_consumed",
     });
   });
@@ -434,7 +434,7 @@ describe("refresh token session", () => {
       user: { id: "u1", username: "n", role: "USER" },
     });
 
-    await expect(validateRefreshToken("h")).resolves.toEqual({
+    await expect(validateRefreshToken(originalAuthRowsPort, "h")).resolves.toEqual({
       valid: false,
       reason: "expired",
     });
@@ -449,7 +449,7 @@ describe("refresh token session", () => {
       user: { id: "u1", username: "n", role: "USER" },
     });
 
-    await expect(validateRefreshToken("h")).resolves.toEqual({
+    await expect(validateRefreshToken(originalAuthRowsPort, "h")).resolves.toEqual({
       valid: true,
       userId: "u1",
       tokenId: "t1",
@@ -459,7 +459,7 @@ describe("refresh token session", () => {
 
   it("rotateRefreshToken вызывает транзакцию", async () => {
     mockTxUserFindUnique.mockResolvedValue({ registrationPending: false });
-    await rotateRefreshToken("old", "u1", "newh", "newid", { expiresAt });
+    await rotateRefreshToken(originalAuthRowsPort, "old", "u1", "newh", "newid", { expiresAt });
 
     expect(mockTransaction).toHaveBeenCalled();
     expect(mockTxRefreshUpdateMany).toHaveBeenCalled();
@@ -469,18 +469,18 @@ describe("refresh token session", () => {
   it("a losing concurrent rotation aborts without creating a second session", async () => {
     mockTxUserFindUnique.mockResolvedValue({ registrationPending: false });
     mockTxRefreshUpdateMany.mockResolvedValueOnce({ count: 0 });
-    await expect(rotateRefreshToken("old", "u1", "newh", "newid", { expiresAt }))
+    await expect(rotateRefreshToken(originalAuthRowsPort, "old", "u1", "newh", "newid", { expiresAt }))
       .rejects.toMatchObject({ name: "RefreshRotationConflictError" });
     expect(mockTxRefreshCreate).not.toHaveBeenCalled();
   });
 
   it("revokeRefreshToken и revokeAllUserTokens", async () => {
-    await revokeRefreshToken("h");
+    await revokeRefreshToken(originalAuthRowsPort, "h");
     expect(mockRefreshTokenUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { tokenHash: "h" } }),
     );
 
-    await revokeAllUserTokens("u1");
+    await revokeAllUserTokens(originalAuthRowsPort, "u1");
     expect(mockTxRefreshUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: "u1", revokedAt: null } }),
     );
@@ -503,7 +503,7 @@ describe("setVkPhone / setPassword / changePassword", () => {
   it("setVkPhone: ошибка если не vk_ телефон", async () => {
     mockUserFindUnique.mockResolvedValue({ phone: "+79001234567" });
 
-    await expect(setVkPhone("u1", "+79001112233")).rejects.toThrow(
+    await expect(setVkPhone(originalAuthRowsPort, "u1", "+79001112233")).rejects.toThrow(
       "Смена номера недоступна через этот метод",
     );
   });
@@ -511,7 +511,7 @@ describe("setVkPhone / setPassword / changePassword", () => {
   it("setVkPhone: ошибка если телефон отсутствует", async () => {
     mockUserFindUnique.mockResolvedValue({ phone: null });
 
-    await expect(setVkPhone("u1", "+79001234567")).rejects.toThrow(
+    await expect(setVkPhone(originalAuthRowsPort, "u1", "+79001234567")).rejects.toThrow(
       "Смена номера недоступна через этот метод",
     );
   });
@@ -520,7 +520,7 @@ describe("setVkPhone / setPassword / changePassword", () => {
     mockUserFindUnique.mockResolvedValue({ phone: "vk_99" });
     mockUserFindFirst.mockResolvedValue(null);
 
-    await setVkPhone("u1", "+79001234567");
+    await setVkPhone(originalAuthRowsPort, "u1", "+79001234567");
 
     expect(mockUserUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -533,13 +533,13 @@ describe("setVkPhone / setPassword / changePassword", () => {
   it("setPassword: ошибка если пароль уже установлен", async () => {
     mockUserFindUnique.mockResolvedValue({ passwordSetAt: new Date() });
 
-    await expect(setPassword("u1", validNewPassword)).rejects.toThrow("уже установлен");
+    await expect(setPassword(originalAuthRowsPort, "u1", validNewPassword)).rejects.toThrow("уже установлен");
   });
 
   it("setPassword: успех", async () => {
     mockUserFindUnique.mockResolvedValue({ passwordSetAt: null });
 
-    await setPassword("u1", validNewPassword);
+    await setPassword(originalAuthRowsPort, "u1", validNewPassword);
 
     expect(bcryptMocks.hash).toHaveBeenCalled();
     expect(mockTxPasswordUserUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -558,7 +558,7 @@ describe("setVkPhone / setPassword / changePassword", () => {
     });
 
     await expect(
-      changePassword("u1", "old", validNewPassword),
+      changePassword(originalAuthRowsPort, "u1", "old", validNewPassword),
     ).rejects.toThrow("Сначала установите пароль");
   });
 
@@ -570,7 +570,7 @@ describe("setVkPhone / setPassword / changePassword", () => {
     bcryptMocks.compare.mockResolvedValue(false as unknown as boolean);
 
     await expect(
-      changePassword("u1", "wrong", validNewPassword),
+      changePassword(originalAuthRowsPort, "u1", "wrong", validNewPassword),
     ).rejects.toThrow("Неверный текущий пароль");
   });
 
@@ -581,7 +581,7 @@ describe("setVkPhone / setPassword / changePassword", () => {
     });
     bcryptMocks.compare.mockResolvedValue(true as unknown as boolean);
 
-    await changePassword("u1", "Oldpass1", validNewPassword);
+    await changePassword(originalAuthRowsPort, "u1", "Oldpass1", validNewPassword);
 
     expect(mockTxPasswordUserUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
       where:{id:"u1",password:"h",passwordSetAt:{not:null}},
@@ -595,5 +595,3 @@ describe("setVkPhone / setPassword / changePassword", () => {
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalAuthRowsPort from "@gafus/identity-write-server/auth-rows";
-import { registerAuthRowsPort, type AuthRowsPort } from "./authRowsPort";
-registerAuthRowsPort(originalAuthRowsPort as AuthRowsPort);

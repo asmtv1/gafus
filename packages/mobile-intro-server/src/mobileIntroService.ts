@@ -77,12 +77,16 @@ export async function recordMobileIntroAuthOutcome(input: {
 }
 
 export async function getMobileIntroReport(range: { start: Date; end: Date }): Promise<MobileIntroReport> {
-  const rows = await prisma.mobileIntroInstallation.findMany({
+  // A constant-size result (at most nine combinations) regardless of
+  // installations in the selected reporting interval.
+  const groups = await prisma.mobileIntroInstallation.groupBy({
+    by: ["completion","authOutcome"],
     where: { openedAt: { gte: range.start, lt: range.end } },
-    select: { completion: true, authOutcome: true },
+    _count: { _all: true },
   });
-  const count = (predicate: (row: (typeof rows)[number]) => boolean) => rows.filter(predicate).length;
-  const openings = rows.length;
+  const count = (predicate: (row: (typeof groups)[number]) => boolean) =>
+    groups.reduce((sum,row)=>sum+(predicate(row)?row._count._all:0),0);
+  const openings = count(()=>true);
   const registered = count((row) => row.authOutcome === "REGISTERED");
   const loggedIn = count((row) => row.authOutcome === "LOGGED_IN");
   return {

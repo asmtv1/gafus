@@ -51,9 +51,9 @@ describe("Reminder packaged boundary: shared keyed/keyless cap5", () => {
       "return createTrainingReminderRow(userId,name,reminderTime,reminderDays,timezone)",
     );
     expect(applicationSource).not.toContain('from "@gafus/prisma"');
-    expect(keyedSource).toContain("requireReminderAG4ReviewRowsPort()");
+    expect(keyedSource).toContain("requireReminderAG4ReviewRowsPort(port)");
     expect(keyedSource).not.toContain("@gafus/identity-write-server/reminder-review-rows");
-    const adapterComposer=readFileSync(new URL("../../modules/reminders/composition/install-ag4-review-rows.review.ts",import.meta.url),"utf8");
+    const adapterComposer=readFileSync(new URL("../../modules/reminders/composition/reminder-rows.ts",import.meta.url),"utf8");
     expect(adapterComposer).toContain("@gafus/identity-write-server/reminder-review-rows");
     for (const impl of [storageSource, keyedRowsSource]) {
       expect(impl).toContain('AND "registrationPending" = false FOR UPDATE');

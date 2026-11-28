@@ -6,5 +6,4 @@ export * from "./registrationUseCases";
 
 export * from "./passwordReset";
 
-export { registerAuthRowsPort } from "./authRowsPort";
 export type { AuthRowsPort } from "./authRowsPort";

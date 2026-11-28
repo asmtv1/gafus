@@ -21,11 +21,11 @@ import { observeCourseContentDbRead, recordCourseCacheEvent } from "./trainingCo
 export async function loadTrainingDayContent(
   courseType: string,
   dayOnCourseId: string,
-  contentRows?: TrainingDayContentReadPort,
+  contentRows: TrainingDayContentReadPort,
 ) {
   const started = performance.now();
   try {
-    return await (contentRows ?? requireTrainingDayContentReadPort()).readTrainingDayContent(courseType, dayOnCourseId);
+    return await (requireTrainingDayContentReadPort(contentRows)).readTrainingDayContent(courseType, dayOnCourseId);
   } catch (error) {
     recordCourseCacheEvent("dbError");
     throw error;
@@ -145,9 +145,9 @@ export function invalidateStepsContentCache(stepIds: readonly string[]): void {
 export async function getTrainingDayContent(
   courseType: string,
   dayOnCourseId: string,
-  contentPorts?: TrainingContentReadPorts,
+  contentPorts: TrainingContentReadPorts,
 ): Promise<TrainingDayContent> {
-  const fetchContent = () => loadTrainingDayContent(courseType, dayOnCourseId, contentPorts?.contentRows);
+  const fetchContent = () => loadTrainingDayContent(courseType, dayOnCourseId, contentPorts.contentRows);
   // Retain the existing rollout gate. Reader freshness now relies only on
   // PostgreSQL's transactionally maintained version, not on Redis reads.
   if (!enabled() || !courseContentSyncEnabled()) {
@@ -166,9 +166,7 @@ export async function getTrainingDayContent(
   // Version probes can resolve out of order: an older in-flight query must not
   // revert a revision newer requests already observed.
   const probeId = ++nextProbeId;
-  const revision = contentPorts
-    ? await getVerifiedCourseContentRevision(contentPorts.revisionRows)
-    : await getVerifiedCourseContentRevision();
+  const revision = await getVerifiedCourseContentRevision(contentPorts.revisionRows);
   if (probeId < latestAppliedProbeId) {
     if (revision === null || revision !== observedRevision) {
       recordCourseCacheEvent("bypassRevision");
@@ -189,7 +187,7 @@ export async function getTrainingDayContent(
     }
   }
 
-  const key = keyFor(courseType, dayOnCourseId, contentPorts?.contentRows);
+  const key = keyFor(courseType, dayOnCourseId, contentPorts.contentRows);
   try {
     const hit = contentCache.get(key);
     if (hit) {

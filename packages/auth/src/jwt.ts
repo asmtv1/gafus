@@ -83,7 +83,15 @@ export async function generateRefreshToken(userId: string, tokenId: string): Pro
 /**
  * Верифицирует access token
  */
-export async function verifyAccessToken(token: string): Promise<AuthUser | null> {
+/** Distinguishes a failed session read from an invalid or revoked token. */
+export class SessionVerificationUnavailableError extends Error {
+  constructor() {
+    super("Session verification unavailable");
+    this.name = "SessionVerificationUnavailableError";
+  }
+}
+
+export async function verifyAccessToken(token: string, options: { propagateSessionErrors?: boolean } = {}): Promise<AuthUser | null> {
   try {
     const { payload } = await jwtVerify(token, getAccessSecret(), {
       issuer: JWT_ISSUER,
@@ -92,13 +100,21 @@ export async function verifyAccessToken(token: string): Promise<AuthUser | null>
       clockTolerance: "30s", // Защита от расхождения времени между серверами
     });
 
-    if (!(await sessionIsCurrent(payload))) return null;
+    let current: boolean;
+    try {
+      current = await sessionIsCurrent(payload);
+    } catch {
+      if (options.propagateSessionErrors) throw new SessionVerificationUnavailableError();
+      return null;
+    }
+    if (!current) return null;
     return {
       id: payload.sub as string,
       username: payload.username as string,
       role: payload.role as AuthUser["role"],
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof SessionVerificationUnavailableError) throw error;
     return null;
   }
 }

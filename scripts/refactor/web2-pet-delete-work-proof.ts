@@ -1,3 +1,5 @@
+import { petRows } from "../../apps/api/src/modules/pets/composition/pet-rows-instance.js";
+import { vetVisitRows } from "../../apps/api/src/modules/pets/composition/vet-visit-rows-instance.js";
 /** Real PostgreSQL WORK owner-pet deletion without any S3 media.
  * Uses only unique synthetic users/pet and always cleans up.
  */
@@ -32,14 +34,14 @@ async function run(){
       {id:owner,username:`web2_delete_${key}_owner`,password:"synthetic"},
       {id:intruder,username:`web2_delete_${key}_other`,password:"synthetic"},
     ]});
-    petId=(await createPet(owner,{name:"WEB2 synthetic pet",type:"DOG",
+    petId=(await createPet(petRows, owner,{name:"WEB2 synthetic pet",type:"DOG",
       breed:"Метис",birthDate:"2020-01-01"})).id;
-    if(await deletePet(petId,intruder))throw Error("WEB2_DELETE_FOREIGN_ACCEPTED");
+    if(await deletePet(petRows, vetVisitRows, petId,intruder))throw Error("WEB2_DELETE_FOREIGN_ACCEPTED");
     if(!(await prisma.pet.findFirst({where:{id:petId,ownerId:owner}})))
       throw Error("WEB2_DELETE_FOREIGN_MUTATED");
-    if(!await deletePet(petId,owner))throw Error("WEB2_DELETE_OWNER_DENIED");
+    if(!await deletePet(petRows, vetVisitRows, petId,owner))throw Error("WEB2_DELETE_OWNER_DENIED");
     if(await prisma.pet.findUnique({where:{id:petId}}))throw Error("WEB2_DELETE_ROW_REMAINS");
-    if(await deletePet(petId,owner))throw Error("WEB2_DELETE_REPEAT_SUCCEEDED");
+    if(await deletePet(petRows, vetVisitRows, petId,owner))throw Error("WEB2_DELETE_REPEAT_SUCCEEDED");
     console.log("WEB2_PG18_PET_OWNER_FOREIGN_DELETE_RELOAD_REPEATED_PASS");
     complete=true;
   }finally{

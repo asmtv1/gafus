@@ -35,7 +35,7 @@ beforeEach(()=>{vi.resetModules();vi.clearAllMocks();access.authorize.mockResolv
 describe("offline video v3 proposed SQL port, never active v2",()=>{
   it("denies a valid proposal without the one-transaction SQL binding",async()=>{
     const service=await import("./offlineVideoPositionV3Service");
-    await expect(service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request}))
+    await expect(service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request},vi.fn()))
       .rejects.toThrow("OFFLINE_VIDEO_SQL_PORT_UNBOUND");
     expect(access.authorize).not.toHaveBeenCalled();
     expect(service.videoPositionV3ErrorEnvelope(new Error("OFFLINE_VIDEO_SQL_PORT_UNBOUND")))
@@ -43,11 +43,12 @@ describe("offline video v3 proposed SQL port, never active v2",()=>{
   });
   it("retains one exact owner Tx for access → unique receipt → revision CAS → persisted ACK",async()=>{
     const port=await import("./offlineVideoSqlPort");const service=await import("./offlineVideoPositionV3Service");
-    const db=adapter();port.registerOfflineVideoSqlPort(db);
-    const receipt=await service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request});
+    const db=adapter();const fixtureOfflineVideoSqlPort = db;
+    const resolveAccess = vi.fn();
+    const receipt=await service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request},resolveAccess, fixtureOfflineVideoSqlPort);
     expect(receipt).toMatchObject({success:true,ack:{protocol:2,eventId,state:"COMMITTED",replayed:false,serverRevision:"1",result:{videoId:"video-1",positionSec:42}}});
     const resourceKey="video:course:day-on-course-1:step-on-day-1:video-1";
-    expect(access.authorize).toHaveBeenCalledWith(tx,"owner-1",request,expect.any(Date));
+    expect(access.authorize).toHaveBeenCalledWith(tx,"owner-1",request,resolveAccess,expect.any(Date));
     expect(db.claimOfflineVideoReceipt).toHaveBeenCalledExactlyOnceWith(tx,"owner-1",eventId,resourceKey,"owner:owner-1:payload:video-1");
     expect(db.reserveOfflineVideoRevision).toHaveBeenCalledExactlyOnceWith(tx,"owner-1",resourceKey);
     expect(db.readOfflineVideoRevision).toHaveBeenCalledExactlyOnceWith(tx,"owner-1",resourceKey);
@@ -59,9 +60,9 @@ describe("offline video v3 proposed SQL port, never active v2",()=>{
   });
   it("rechecks revoked entitlement before looking up previously committed receipt",async()=>{
     const port=await import("./offlineVideoSqlPort");const service=await import("./offlineVideoPositionV3Service");
-    const db=adapter();db.claimOfflineVideoReceipt.mockResolvedValueOnce([]);port.registerOfflineVideoSqlPort(db);
+    const db=adapter();db.claimOfflineVideoReceipt.mockResolvedValueOnce([]);const fixtureOfflineVideoSqlPort = db;
     access.authorize.mockResolvedValue("DENIED");
-    await expect(service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request}))
+    await expect(service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request},vi.fn(), fixtureOfflineVideoSqlPort))
       .rejects.toMatchObject({code:"VIDEO_ACCESS_DENIED"});
     expect(db.claimOfflineVideoReceipt).not.toHaveBeenCalled();
     expect(db.findOfflineVideoStoredReceipt).not.toHaveBeenCalled();
@@ -73,8 +74,8 @@ describe("offline video v3 proposed SQL port, never active v2",()=>{
       payloadHash:"owner:owner-1:payload:video-1",state:"COMMITTED",responseStatus:200,
       responseBody:{success:true,ack:{protocol:2,eventId,operation:"video.position",state:"COMMITTED",replayed:false,
       serverRevision:"1",result:{videoId:"video-1",positionSec:42,recordedAt}}}};
-    db.findOfflineVideoStoredReceipt.mockResolvedValueOnce([stored]);port.registerOfflineVideoSqlPort(db);
-    await expect(service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request}))
+    db.findOfflineVideoStoredReceipt.mockResolvedValueOnce([stored]);const fixtureOfflineVideoSqlPort = db;
+    await expect(service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request},vi.fn(), fixtureOfflineVideoSqlPort))
       .resolves.toMatchObject({ack:{eventId,replayed:true,serverRevision:"1"}});
     expect(db.findOfflineVideoStoredReceipt).toHaveBeenCalledExactlyOnceWith(tx,"owner-1",eventId);
     expect(db.advanceOfflineVideoRevision).not.toHaveBeenCalled();
@@ -84,19 +85,15 @@ describe("offline video v3 proposed SQL port, never active v2",()=>{
     const port=await import("./offlineVideoSqlPort");const service=await import("./offlineVideoPositionV3Service");
     const db=adapter();db.claimOfflineVideoReceipt.mockResolvedValueOnce([]);
     db.findOfflineVideoStoredReceipt.mockResolvedValueOnce([{method:"POST",operation:"video.position",resourceKey:"other-scope",
-      payloadHash:"wrong",state:"COMMITTED",responseStatus:200,responseBody:null}]);port.registerOfflineVideoSqlPort(db);
-    await expect(service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request}))
+      payloadHash:"wrong",state:"COMMITTED",responseStatus:200,responseBody:null}]);const fixtureOfflineVideoSqlPort = db;
+    await expect(service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request},vi.fn(), fixtureOfflineVideoSqlPort))
       .rejects.toMatchObject({code:"IDEMPOTENCY_KEY_CONFLICT"});
     expect(service.videoPositionV3ErrorEnvelope(new service.VideoPositionV3Error("IDEMPOTENCY_KEY_CONFLICT")))
       .toEqual({status:409,body:{success:false,code:"IDEMPOTENCY_KEY_CONFLICT"}});
     db.readOfflineVideoRevision.mockResolvedValueOnce([{revision:1n,videoLastPositionSec:42,videoRecordedAt:null}]);
-    await expect(service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request}))
+    await expect(service.submitVideoPositionV2Proposal({authenticatedOwnerId:"owner-1",request},vi.fn(), fixtureOfflineVideoSqlPort))
       .rejects.toMatchObject({code:"STALE_VIDEO_REVISION"});
     expect(db.commitOfflineVideoReceipt).not.toHaveBeenCalled();
   });
-  it("refuses hot-replacing the authoritative transaction provider",async()=>{
-    const p=await import("./offlineVideoSqlPort");const db=adapter();p.registerOfflineVideoSqlPort(db);
-    p.registerOfflineVideoSqlPort(db);
-    expect(()=>p.registerOfflineVideoSqlPort(adapter())).toThrow("OFFLINE_VIDEO_SQL_PORT_ALREADY_BOUND");
-  });
+
 });

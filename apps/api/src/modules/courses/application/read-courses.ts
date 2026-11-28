@@ -3,16 +3,13 @@
  * HTTP auth, validators, caching, status and JSON mapping remain in Hono;
  * Core is the only owner of course queries and business rules.
  */
-import type {
-  getCoursesWithProgress,
-  getCourseMetadata,
-} from "@gafus/core/services/course";
+import type { CatalogReadService } from "@gafus/core/services/course";
 import type {getCourseReviews} from "@gafus/course-server/reviews";
 import type {getFavoritesCourses} from "@gafus/course-server/favorites";
 
-type CatalogReader = typeof getCoursesWithProgress;
+type CatalogReader = CatalogReadService["getCoursesWithProgress"];
 type FavoritesReader = (userId:string)=>ReturnType<typeof getFavoritesCourses>;
-type MetadataReader = typeof getCourseMetadata;
+type MetadataReader = CatalogReadService["getCourseMetadata"];
 type ReviewsReader = typeof getCourseReviews;
 
 export function createCourseReadApplication(dependencies: {

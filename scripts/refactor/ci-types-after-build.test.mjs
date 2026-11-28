@@ -13,17 +13,22 @@ const verify=(file,jobName)=>{
   assert.ok(step?.run, 'must explicitly compile packages');
   const lines=step.run.split('\n').map(x=>x.trim());
   assert.equal(lines.filter(x=>x===command).length,1,'exactly one mandatory Types test');
-  const build=lines.findIndex(x=>x==='cd packages/types && pnpm build && cd ../..');
+  const build=lines.findIndex(x=>x==="pnpm exec turbo run build --filter='./packages/*' --filter=@gafus/bull-board --filter=@gafus/feed-cloud-runtime --filter=@gafus/gallery-cloud");
   const suite=lines.findIndex(x=>x===command);
-  const dependent=lines.findIndex(x=>x==='cd packages/core && pnpm build && cd ../..');
-  assert.ok(build>=0 && suite>build && dependent>suite, 'Types tests follow built declaration and precede Core build');
+  assert.ok(build>=0 && suite>build, 'Types tests follow the blocking workspace dependency build');
+  assert.ok(lines.includes('set -euo pipefail'));
+  assert.doesNotMatch(lines[build], /&|\|\||--continue/);
+  const turbo=JSON.parse(readFileSync(new URL('turbo.json',root),'utf8'));
+  assert.ok(turbo.tasks.build.dependsOn.includes('^build'), 'Types declaration builds before dependents');
+  const cache=steps.findIndex(s=>s.name==='Cache build artifacts');
+  assert.ok(cache>steps.indexOf(step), 'Types acceptance precedes publishing build cache');
   assert.doesNotMatch(lines[suite],/&|\|\||--if-present|continue-on-error/);
   assert.equal(step['continue-on-error'], undefined);
   assert.equal(step.if, undefined);
   assert.equal(read(file).jobs[jobName]['continue-on-error'], undefined);
   return lines;
 };
-test('root main CI Types 87-test suite is blocking after its own build, before Core',()=>{
+test('root main CI Types 87-test suite is blocking after dependency-ordered workspace build and before cache',()=>{
   const lines=verify('.github/workflows/ci-cd.yml','prepare-deps');
   assert.equal(lines.some(s=>/^\(cd packages\/types && pnpm build\) &/.test(s)),false,'do not lose failure in background');
 });

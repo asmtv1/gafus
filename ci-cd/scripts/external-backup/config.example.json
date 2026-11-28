@@ -1,0 +1,110 @@
+{
+  "sources": {
+    "chat2": {
+      "endpoint": "https://s3.cloud.ru",
+      "bucket": "gafus-chat2-media-2026",
+      "region": "ru-central-1",
+      "profile": "read-chat2"
+    },
+    "documents": {
+      "endpoint": "https://s3.cloud.ru",
+      "bucket": "gafus-documents-private",
+      "region": "ru-central-1",
+      "profile": "read-documents"
+    },
+    "feed": {
+      "endpoint": "https://s3.cloud.ru",
+      "bucket": "gafus-feed-private",
+      "region": "ru-central-1",
+      "profile": "read-feed"
+    },
+    "gallery": {
+      "endpoint": "https://s3.cloud.ru",
+      "bucket": "gafus-gallery-private",
+      "region": "ru-central-1",
+      "profile": "read-gallery"
+    },
+    "ota": {
+      "endpoint": "https://s3.cloud.ru",
+      "bucket": "gafus-ota-updates",
+      "region": "ru-central-1",
+      "profile": "read-ota"
+    },
+    "questions": {
+      "endpoint": "https://s3.cloud.ru",
+      "bucket": "gafus-documents-private",
+      "region": "ru-central-1",
+      "profile": "read-questions"
+    },
+    "questions-v2": {
+      "endpoint": "https://s3.cloud.ru",
+      "bucket": "gafus-questions-public",
+      "region": "ru-central-1",
+      "profile": "read-questions-v2"
+    },
+    "public": {
+      "endpoint": "https://storage.yandexcloud.net",
+      "bucket": "gafus-media",
+      "region": "ru-central1",
+      "profile": "read-public"
+    }
+  },
+  "archive": {
+    "endpoint": "https://backup.example.invalid",
+    "bucket": "gafus-independent-encrypted-backup",
+    "region": "us-east-1",
+    "profile": "archive-only"
+  },
+  "targets": {
+    "chat2": {
+      "endpoint": "https://restore.example.invalid",
+      "bucket": "gafus-restore-example-chat2",
+      "region": "us-east-1",
+      "profile": "restore-only"
+    },
+    "documents": {
+      "endpoint": "https://restore.example.invalid",
+      "bucket": "gafus-restore-example-documents",
+      "region": "us-east-1",
+      "profile": "restore-only"
+    },
+    "feed": {
+      "endpoint": "https://restore.example.invalid",
+      "bucket": "gafus-restore-example-feed",
+      "region": "us-east-1",
+      "profile": "restore-only"
+    },
+    "gallery": {
+      "endpoint": "https://restore.example.invalid",
+      "bucket": "gafus-restore-example-gallery",
+      "region": "us-east-1",
+      "profile": "restore-only"
+    },
+    "ota": {
+      "endpoint": "https://restore.example.invalid",
+      "bucket": "gafus-restore-example-ota",
+      "region": "us-east-1",
+      "profile": "restore-only"
+    },
+    "questions": {
+      "endpoint": "https://restore.example.invalid",
+      "bucket": "gafus-restore-example-questions",
+      "region": "us-east-1",
+      "profile": "restore-only"
+    },
+    "questions-v2": {
+      "endpoint": "https://restore.example.invalid",
+      "bucket": "gafus-restore-example-questions-v2",
+      "region": "us-east-1",
+      "profile": "restore-only"
+    },
+    "public": {
+      "endpoint": "https://restore.example.invalid",
+      "bucket": "gafus-restore-example-public",
+      "region": "us-east-1",
+      "profile": "restore-only"
+    }
+  },
+  "otaOrigin": "https://global.s3.cloud.ru/gafus-ota-updates",
+  "trustedOtaCertificates": {}
+}

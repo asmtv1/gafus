@@ -34,4 +34,4 @@ pnpm --filter @gafus/api build
 
 Локально Web: `pnpm --filter @gafus/web-vite dev`. API/Redis/PostgreSQL запускать только с явно изолированными локальными настройками, не используя боевые данные. Ни одна команда этой документации не выполняет production-деплой.
 
-См. [архитектуру](docs/ARCHITECTURE.md), [разработку](docs/DEVELOPMENT.md), [деплой](docs/DEPLOYMENT.md), [инфраструктуру](docs/INFRASTRUCTURE.md).
+См. [архитектуру](docs/current/ARCHITECTURE.md), [разработку](docs/development/setup.md), [деплой](docs/deployment/docker.md), [инфраструктуру](docs/current/LOCAL_AND_DATA.md).

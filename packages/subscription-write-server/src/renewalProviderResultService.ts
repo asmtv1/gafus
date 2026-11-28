@@ -1,4 +1,5 @@
 import { prisma } from "@gafus/prisma";
+import { applyVerifiedYookassaCancellation } from "@gafus/subscription-payment-server/transitions";
 import { getNextRenewalAttemptAt } from "@gafus/core/services/appSubscription/renewalPolicy";
 
 /** Record a provider failure; retry and subscription state policies belong in core. */
@@ -11,10 +12,12 @@ export async function recordYookassaRenewalFailure(input: {
   pastDue: boolean;
   now: Date;
   attemptCount: number;
+  periodStart: Date;
 }): Promise<void> {
   await prisma.$transaction(async tx => {
-    await tx.appSubscriptionPayment.update({
-      where: { id: input.paymentId },
+    const claimed = await tx.appSubscriptionPayment.updateMany({
+      where: { id: input.paymentId, subscriptionId: input.subscriptionId, provider: "YOOKASSA",
+        status: "PENDING", attemptCount: input.attemptCount },
       data: {
         status: "FAILED",
         failureCode: input.code,
@@ -22,9 +25,10 @@ export async function recordYookassaRenewalFailure(input: {
         ...(input.retry ? { nextAttemptAt: getNextRenewalAttemptAt(input.now, input.attemptCount) } : {}),
       },
     });
-    if (input.pastDue) {
-      await tx.appSubscription.update({
-        where: { id: input.subscriptionId },
+    if (claimed.count === 1 && input.pastDue) {
+      await tx.appSubscription.updateMany({
+        where: { id: input.subscriptionId, provider: "YOOKASSA",
+          status: { in: ["ACTIVE", "PAST_DUE"] }, currentPeriodEnd: input.periodStart },
         data: { status: "PAST_DUE" },
       });
     }
@@ -32,14 +36,13 @@ export async function recordYookassaRenewalFailure(input: {
 }
 
 export async function recordYookassaRenewalProviderId(paymentId: string, providerId: string) {
-  return prisma.appSubscriptionPayment.update({
-    where: { id: paymentId }, data: { yookassaPaymentId: providerId },
+  return prisma.appSubscriptionPayment.updateMany({
+    where: { id: paymentId, provider: "YOOKASSA",
+      OR: [{ yookassaPaymentId: null }, { yookassaPaymentId: providerId }] },
+    data: { yookassaPaymentId: providerId },
   });
 }
 
 export async function recordYookassaRenewalCanceled(paymentId: string, providerId: string) {
-  return prisma.appSubscriptionPayment.update({
-    where: { id: paymentId },
-    data: { status: "CANCELED", yookassaPaymentId: providerId },
-  });
+  return applyVerifiedYookassaCancellation(paymentId, providerId);
 }

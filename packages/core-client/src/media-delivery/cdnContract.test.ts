@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   isCdnOutage, isSignedCdnFailoverActive, isTrustedCdnProbeUrl,
-  MEDIA_CDN_OUTAGE_COOLDOWN_MS, probeCdnOutage,
+  MEDIA_CDN_OUTAGE_COOLDOWN_MS, probeCdnOutage, parseMediaDeliveryStatus,
 } from "./index";
 
 const host = "quepraquiecebquomiel.begetcdn.cloud";
@@ -65,4 +65,9 @@ describe('shared Yandex CDN', () => {
     expect(isTrustedCdnProbeUrl(`https://${h}/chat2/room/owner/00000000-0000-4000-8000-000000000000/v1/image/s.webp`, [h], now)).toBe(true);
     expect(isTrustedCdnProbeUrl(`https://${h}/questions/uploads/questions/v2/owner/00000000-0000-4000-8000-000000000000/v1/image/m.webp`, [h], now)).toBe(true);
   });
+});
+
+ it("rejects coercible non-string remote delivery modes", () => {
+  expect(parseMediaDeliveryStatus({ gallery: ["cloudru"], feed: "cdn" })).toBeNull();
+  expect(parseMediaDeliveryStatus({ gallery: "cloudru", feed: "cdn" })).toEqual({ gallery: "cloudru", feed: "cdn" });
 });

@@ -11,7 +11,15 @@ import {fileURLToPath} from 'node:url';
 import {prepareNativeCandidate,finalizeNativeBuild} from './prepare-self-hosted-native-build.mjs';
 import {computeNativeSourceFingerprint} from './native-source-fingerprint.mjs';
 import {assertGeneratedNativeOta} from './build-ota-175-local.mjs';
+import {verifyIpa as sharedVerifyIpa,verifyAppleStoreProvisioningProfile} from './native-ios-store-artifact.mjs';
+export {verifyAppleStoreProvisioningProfile};
+export function verifyIpa(ipa,d,options){
+  check(d.appVersion==='1.7.5'&&d.runtimeVersion==='1.7.5','REGISTERED_DESCRIPTOR_INVALID');
+  return sharedVerifyIpa(ipa,d,options);
+}
 import {applyNativeSelfHostedProfile} from './self-hosted-native-profile.cjs';
+import {assertEasArchiveRules,expectedEasIgnore} from './native-eas-archive.mjs';
+export {expectedEasIgnore};
 
 const mobile=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const root=path.resolve(mobile,'../..');
@@ -93,31 +101,6 @@ function stageDescriptor(){
   }else fs.writeFileSync(stagedDescriptor,descriptor,{flag:'wx',mode:0o600});
   fs.chmodSync(stagedDescriptor,0o600);
 }
-/** EAS .easignore overrides *all* nested .gitignore files in the monorepo. */
-export function expectedEasIgnore(){
-  let expected='# EAS local Store IPA: mirror root and every nested .gitignore; include only public OTA trust files.\n'+
-    fs.readFileSync(path.join(root,'.gitignore'),'utf8')+'\n';
-  const files=git(['ls-files','--','**/.gitignore']).split('\n').filter(Boolean).sort();
-  for(const filename of files){
-    const dir=path.posix.dirname(filename);
-    expected+=`\n# From ${filename} (scoped to its directory)\n`;
-    for(const line of fs.readFileSync(path.join(root,filename),'utf8').split(/\r?\n/)){
-      if(!line||line.startsWith('#')){if(line.startsWith('#'))expected+=line+'\n';continue;}
-      const neg=line.startsWith('!')?'!':'';
-      const pat=neg?line.slice(1):line;
-      const scoped=pat.startsWith('/')?dir+pat:pat.includes('/')?`${dir}/${pat}`:`${dir}/**/${pat}`;
-      expected+=neg+scoped+'\n';
-    }
-  }
-  expected+='\n# Only public certificate and admin-issued metadata, not signing credentials.\n'+
-    '!apps/mobile/.ota-certs/\napps/mobile/.ota-certs/*\n'+
-    '!apps/mobile/.ota-certs/native.pem\n!apps/mobile/.ota-certs/ios-store-native.json\n!apps/mobile/.ota-certs/android-store-native.json\n';
-  return expected;
-}
-function assertEasArchiveRules(){
-  check(fs.readFileSync(path.join(root,'.easignore'),'utf8')===expectedEasIgnore(),
-    'EASIGNORE_OUT_OF_SYNC');
-}
 function validateProfileFiles(){
   assertEasArchiveRules();
   const eas=JSON.parse(fs.readFileSync(path.join(mobile,'eas.json'),'utf8'));
@@ -174,91 +157,6 @@ function checkBuild(){
     config.updates?.requestHeaders?.['x-gafus-native-fingerprint']===d.nativeFingerprint&&
     config.ios?.buildNumber===d.buildNumber,'OTA_EMBEDDED_CONFIG_INVALID');
   return {descriptor:d,env};
-}
-function readPlistFromIpa(ipa,entry){
-  const raw=execFileSync('unzip',['-p',ipa,entry],{maxBuffer:4*1024*1024});
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gafus-ipa-plist-'));
-  const tmp=path.join(dir,'metadata.plist');
-  try{fs.writeFileSync(tmp,raw);return JSON.parse(execFileSync('plutil',['-convert','json','-o','-',tmp],
-    {encoding:'utf8',maxBuffer:4*1024*1024}));}
-  finally{fs.rmSync(dir,{recursive:true,force:true});}
-}
-/** A decoded Apple profile contains NSDate/NSData values that plutil cannot
- * convert to JSON. Read just the fields needed for Store signature validation.
- */
-export function verifyAppleStoreProvisioningProfile(profilePath){
-  const lint=spawnSync('/usr/bin/plutil',['-lint',profilePath],{encoding:'utf8'});
-  check(!lint.error && lint.status===0,'IPA_PROVISIONING_PLIST_INVALID');
-  const read=(key)=>{
-    const item=spawnSync('/usr/bin/plutil',['-extract',key,'raw','-o','-',profilePath],
-      {encoding:'utf8',maxBuffer:4*1024*1024});
-    if(item.error)throw item.error;
-    return item.status===0?item.stdout.trim():null;
-  };
-  const expiry=read('ExpirationDate');
-  check(read('ProvisionedDevices')===null && read('ProvisionsAllDevices')!=='true' &&
-    read('Entitlements.get-task-allow')==='false' &&
-    read('Entitlements.application-identifier')==='PJQ8PP666S.ru.gafus.app' &&
-    expiry!==null && Number.isFinite(Date.parse(expiry)) && Date.parse(expiry)>Date.now(),
-    'IPA_NOT_APP_STORE_DISTRIBUTION');
-}
-
-/** Verify actual Apple code signing and that provisioning is App Store, not ad hoc.
- * This runs only after the user builds the IPA; synthetic plist tests opt out.
- */
-function verifyAppleStoreSignature(ipa,infoEntry){
-  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'gafus-ios-store-signature-'));
-  try{
-    const prefix=path.dirname(infoEntry);
-    const extracted=spawnSync('unzip',['-q',ipa,`${prefix}/*`,'-d',tmp],
-      {encoding:'utf8',maxBuffer:4*1024*1024});
-    check(extracted.status===0,'IPA_EXTRACT_FOR_SIGNATURE_FAILED');
-    const appDir=path.join(tmp,prefix);
-    const verify=spawnSync('/usr/bin/codesign',['--verify','--deep','--strict','--verbose=2',appDir],
-      {encoding:'utf8',maxBuffer:4*1024*1024});
-    check(verify.status===0,'IPA_APPLE_CODESIGN_INVALID');
-    const provisioning=path.join(appDir,'embedded.mobileprovision');
-    check(fs.existsSync(provisioning),'IPA_APP_STORE_PROVISIONING_MISSING');
-    const profileXml=execFileSync('/usr/bin/security',['cms','-D','-i',provisioning],
-      {maxBuffer:4*1024*1024});
-    const profilePath=path.join(tmp,'provisioning.plist');
-    fs.writeFileSync(profilePath,profileXml);
-    verifyAppleStoreProvisioningProfile(profilePath);
-  }finally{fs.rmSync(tmp,{recursive:true,force:true});}
-}
-
-export function verifyIpa(ipa,d,{metadataOnly=false}={}){
-  check(fs.existsSync(ipa)&&fs.statSync(ipa).size>10_000_000,'IPA_MISSING_OR_TOO_SMALL');
-  const entries=execFileSync('unzip',['-Z','-1',ipa],{encoding:'utf8',maxBuffer:8*1024*1024}).trim().split('\n');
-  const info=entries.find(x=>/^Payload\/[^/]+\.app\/Info\.plist$/.test(x));
-  check(Boolean(info),'IPA_INFO_PLIST_MISSING');
-  const expo=info.replace(/Info\.plist$/,'Expo.plist');
-  check(entries.includes(expo),'IPA_EXPO_PLIST_MISSING');
-  const i=readPlistFromIpa(ipa,info),e=readPlistFromIpa(ipa,expo);
-  check(i.CFBundleIdentifier==='ru.gafus.app'&&i.CFBundleShortVersionString==='1.7.5'&&
-    String(i.CFBundleVersion)===d.buildNumber,'IPA_STORE_VERSION_MISMATCH');
-  // Xcode 27 / iOS 27 kills legacy UIApplicationDelegate binaries at launch.
-  // The actual signed IPA must declare the Expo SDK 57 scene delegate.
-  const scenes=i.UIApplicationSceneManifest;
-  check(scenes?.UIApplicationSupportsMultipleScenes===false&&
-    scenes?.UISceneConfigurations?.UIWindowSceneSessionRoleApplication?.some(
-      scene=>scene.UISceneDelegateClassName==='EXExpoAppSceneDelegate'),
-    'IPA_IOS27_SCENE_LIFECYCLE_REQUIRED');
-  check(e.EXUpdatesRuntimeVersion==='1.7.5'&&e.EXUpdatesURL===d.updateUrl&&
-    e.EXUpdatesCheckOnLaunch==='NEVER'&&
-    e.EXUpdatesRequestHeaders?.['expo-channel-name']==='production'&&
-    e.EXUpdatesRequestHeaders?.['x-gafus-native-fingerprint']===d.nativeFingerprint&&
-    e.EXUpdatesCodeSigningMetadata?.keyid===d.signingKeyId&&
-    e.EXUpdatesCodeSigningMetadata?.alg==='rsa-v1_5-sha256'&&
-    e.EXUpdatesCodeSigningCertificate===d.certificatePem,'IPA_SELF_HOSTED_OTA_MISMATCH');
-  if(!metadataOnly){
-    execFileSync('python3',[path.join(path.dirname(fileURLToPath(import.meta.url)),'verify-native-ota-artifact.py'),ipa],{stdio:'inherit'});
-    verifyAppleStoreSignature(ipa,info);
-  }
-  const digest=crypto.createHash('sha256').update(fs.readFileSync(ipa)).digest('hex');
-  return {ipa,version:i.CFBundleShortVersionString,buildNumber:String(i.CFBundleVersion),
-    otaUrl:e.EXUpdatesURL,channel:'production',nativeReleaseId:d.id,
-    nativeFingerprint:d.nativeFingerprint,sha256:digest};
 }
 function eas(args,env,capture=false){
   const result=spawnSync('npx',['--yes','eas-cli@latest',...args],

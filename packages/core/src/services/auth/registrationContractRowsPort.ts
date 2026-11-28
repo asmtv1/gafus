@@ -30,12 +30,7 @@ export interface RegistrationContractRowsPort {
   }): Promise<RegistrationEmailAttemptRow>;
 
 }
-let bound: Readonly<RegistrationContractRowsPort> | null = null;
-export function registerRegistrationContractRowsPort(port: RegistrationContractRowsPort): void {
-  if (bound !== null && bound !== port) throw new Error("REGISTRATION_CONTRACT_ROWS_PORT_ALREADY_BOUND");
-  bound = port;
-}
-export function requireRegistrationContractRowsPort(): Readonly<RegistrationContractRowsPort> {
-  if (bound === null) throw new Error("REGISTRATION_CONTRACT_ROWS_PORT_UNBOUND");
-  return bound;
+export function requireRegistrationContractRowsPort(port: RegistrationContractRowsPort | undefined): Readonly<RegistrationContractRowsPort> {
+  if (!port) throw new Error("REGISTRATION_CONTRACT_ROWS_PORT_UNBOUND");
+  return port;
 }

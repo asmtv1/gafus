@@ -1,9 +1,15 @@
-/** Disposable PostgreSQL: collect the one source-adapter test, not its imported test a second time. */
-import {defineConfig,mergeConfig} from 'vitest/config';
-import base from './vitest.archqa-payment.realpg.config';
-const config=mergeConfig(base,defineConfig({test:{fileParallelism:false}}));
-if(config.test){
-  config.test.include=['src/services/appSubscription/__tests__/paymentService.coverage.realpg.cover.mjs'];
-  config.test.exclude=[];
-}
-export default config;
+/** Measure the actual payment TypeScript source using the same real-PG cases.
+ * Only this guarded coverage config changes the service resolution. */
+import { defineConfig, mergeConfig } from "vitest/config";
+import { fileURLToPath } from "node:url";
+import base from "./vitest.archqa-payment.realpg.config";
+export default mergeConfig(base, defineConfig({
+  resolve: {
+    alias: {
+      "@gafus/subscription-payment-server/service": fileURLToPath(
+        new URL("../subscription-payment-server/src/paymentService.ts", import.meta.url),
+      ),
+    },
+  },
+  test: { fileParallelism: false },
+}));

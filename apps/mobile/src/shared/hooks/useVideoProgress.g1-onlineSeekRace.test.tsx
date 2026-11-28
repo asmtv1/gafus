@@ -42,11 +42,6 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
     enqueue: vi.fn(async () => ({ eventId: "id" })),
   },
 }));
-vi.mock("@/shared/stores/progressSyncStore", () => ({
-  useProgressSyncStore: {
-    getState: () => ({ queue: mocks.queue, add: mocks.enqueue }),
-  },
-}));
 vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocks.report }));
 
 import { useVideoProgress } from "./useVideoProgress";

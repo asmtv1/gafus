@@ -50,15 +50,15 @@ const {
   updateStepAndDayMock: vi.fn(),
 }));
 
-vi.mock("@gafus/core/services/training", () => ({
+vi.mock("../../modules/training/composition/sql-training-instance.js", () => ({ sqlTraining: {
   getTrainingDays: getTrainingDaysMock,
   getTrainingDayWithMonetizedSteps: getTrainingDayWithMonetizedStepsMock,
   getTrainingDayWithUserSteps: vi.fn(),
   requireCourseStepOperationAccess: requireCourseStepOperationAccessMock,
   syncUserCourseStatusFromDays: syncUserCourseStatusFromDaysMock,
   updateStepAndDay: updateStepAndDayMock,
-  validateTheoryStepForCompletion: validateTheoryStepForCompletionMock,
-}));
+  validateTheoryStepForCompletion: validateTheoryStepForCompletionMock
+} }));
 
 vi.mock("@gafus/core/services/rewardedCredits", () => ({
   SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {
@@ -74,7 +74,7 @@ vi.mock("../../modules/training/composition/diary-rows", () => ({
   saveDiaryEntry: saveDiaryEntryMock,
 }));
 
-vi.mock("@gafus/core/services/course", () => ({
+vi.mock("../../modules/courses/composition/catalog-read-instance.js", () => ({
   checkCourseAccess: checkCourseAccessMock,
 }));
 

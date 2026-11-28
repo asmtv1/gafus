@@ -132,6 +132,48 @@ importers:
         specifier: ^11.23.0
         version: 11.26.17
     devDependencies:
+      '@gafus/auth':
+        specifier: workspace:*
+        version: link:packages/auth
+      '@gafus/consultation-server':
+        specifier: workspace:*
+        version: link:packages/consultation-server
+      '@gafus/consultation-shared':
+        specifier: workspace:*
+        version: link:packages/consultation-shared
+      '@gafus/core-client':
+        specifier: workspace:*
+        version: link:packages/core-client
+      '@gafus/course-server':
+        specifier: workspace:*
+        version: link:packages/course-server
+      '@gafus/feed-cloud':
+        specifier: workspace:*
+        version: link:packages/feed-cloud
+      '@gafus/feed-storage':
+        specifier: workspace:*
+        version: link:packages/feed-storage
+      '@gafus/gallery-storage':
+        specifier: workspace:*
+        version: link:packages/gallery-storage
+      '@gafus/media-shared':
+        specifier: workspace:*
+        version: link:packages/media-shared
+      '@gafus/pets-shared':
+        specifier: workspace:*
+        version: link:packages/pets-shared
+      '@gafus/prisma':
+        specifier: workspace:*
+        version: link:packages/prisma
+      '@gafus/questions-server':
+        specifier: workspace:*
+        version: link:packages/questions-server
+      '@gafus/statistics':
+        specifier: workspace:*
+        version: link:packages/statistics
+      '@gafus/subscription-write-server':
+        specifier: workspace:*
+        version: link:packages/subscription-write-server
       '@asteasolutions/zod-to-openapi':
         specifier: ^8.1.0
         version: 8.4.0(zod@4.6.7)
@@ -246,9 +288,6 @@ importers:
       '@emotion/styled':
         specifier: 11.14.0
         version: 11.14.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.2.1))(@types/react@19.1.9)(react@19.2.1)
-      '@gafus/cdn-upload':
-        specifier: workspace:*
-        version: link:../../packages/cdn-upload
       '@gafus/consultation-shared':
         specifier: workspace:*
         version: link:../../packages/consultation-shared
@@ -361,6 +400,9 @@ importers:
       '@gafus/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@gafus/mailer':
+        specifier: workspace:*
+        version: link:../../packages/mailer
       '@gafus/media-server':
         specifier: workspace:*
         version: link:../../packages/media-server
@@ -814,6 +856,9 @@ importers:
 
   apps/trainer-panel:
     dependencies:
+      '@gafus/core-client':
+        specifier: workspace:*
+        version: link:../../packages/core-client
       '@dnd-kit/core':
         specifier: 6.3.1
         version: 6.3.1(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -826,18 +871,9 @@ importers:
       '@gafus/consultation-shared':
         specifier: workspace:*
         version: link:../../packages/consultation-shared
-      '@gafus/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@gafus/course-progress-server':
-        specifier: workspace:*
-        version: link:../../packages/course-progress-server
       '@gafus/error-handling':
         specifier: workspace:*
         version: link:../../packages/error-handling
-      '@gafus/prisma':
-        specifier: workspace:*
-        version: link:../../packages/prisma
       '@gafus/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -863,6 +899,15 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
+      '@gafus/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@gafus/course-progress-server':
+        specifier: workspace:*
+        version: link:../../packages/course-progress-server
+      '@gafus/prisma':
+        specifier: workspace:*
+        version: link:../../packages/prisma
       '@types/node':
         specifier: 20.4.8
         version: 20.4.8
@@ -890,15 +935,15 @@ importers:
 
   apps/web-vite:
     dependencies:
+      '@gafus/admin-panel':
+        specifier: workspace:*
+        version: link:../admin-panel
       '@emotion/react':
         specifier: 11.14.0
         version: 11.14.0(@types/react@19.1.9)(react@19.2.1)
       '@emotion/styled':
         specifier: 11.14.0
         version: 11.14.0(@emotion/react@11.14.0(@types/react@19.1.9)(react@19.2.1))(@types/react@19.1.9)(react@19.2.1)
-      '@gafus/cdn-upload':
-        specifier: workspace:*
-        version: link:../../packages/cdn-upload
       '@gafus/chat-media-quality':
         specifier: workspace:*
         version: link:../../packages/chat-media-quality
@@ -1239,6 +1284,9 @@ importers:
       '@gafus/prisma':
         specifier: workspace:*
         version: link:../prisma
+      '@gafus/subscription-read-server':
+        specifier: workspace:*
+        version: link:../subscription-read-server
       luxon:
         specifier: ^3.7.2
         version: 3.7.2
@@ -1728,6 +1776,9 @@ importers:
       '@gafus/core':
         specifier: workspace:*
         version: link:../core
+      '@gafus/gafus-server':
+        specifier: workspace:*
+        version: link:../gafus-server
       '@gafus/feed-cloud':
         specifier: workspace:*
         version: link:../feed-cloud
@@ -2055,6 +2106,9 @@ importers:
 
   packages/notifications-server:
     dependencies:
+      '@gafus/consultation-shared':
+        specifier: workspace:*
+        version: link:../consultation-shared
       '@gafus/logger':
         specifier: workspace:*
         version: link:../logger
@@ -2172,6 +2226,9 @@ importers:
       '@gafus/core':
         specifier: workspace:*
         version: link:../core
+      '@gafus/gafus-server':
+        specifier: workspace:*
+        version: link:../gafus-server
       '@gafus/media-server':
         specifier: workspace:*
         version: link:../media-server

@@ -47,6 +47,28 @@ export async function resolveConsultationEmailRecipient(
   return b.client?.email?.trim() || null;
 }
 
+/** Record intent in the SAME transaction as the booking transition. No
+ * provider or Redis operation may occur here. Existing unique (bookingId,type)
+ * also protects mixed-version producers and repeated transitions. */
+export async function stageConsultationEmailIntents(
+  tx: Pick<Prisma.TransactionClient, "consultationBooking" | "consultationEmailLog">,
+  bookingId: string,
+  types: readonly ConsultationEmailType[],
+): Promise<void> {
+  const booking = await tx.consultationBooking.findUnique({
+    where: { id: bookingId },
+    select: {
+      client: { select: { email: true } },
+      cynologist: { select: { user: { select: { email: true } } } },
+    },
+  });
+  if (!booking) throw new Error("CONSULTATION_EMAIL_BOOKING_MISSING");
+  const data = [...new Set(types)].filter(type =>
+    Boolean((isTrainerRecipientType(type) ? booking.cynologist.user.email : booking.client.email)?.trim())
+  ).map(type => ({ bookingId, type, status: ConsultationEmailStatus.PENDING, attempts: 0 }));
+  if (data.length) await tx.consultationEmailLog.createMany({ data, skipDuplicates: true });
+}
+
 /** Stable identity for initial enqueue and an interrupted producer's replay. */
 function addConsultationMailJob(emailLogId: string): Promise<unknown> {
   return consultationMailQueue.add(
@@ -111,4 +133,46 @@ export async function enqueueConsultationEmail(
 
   logger.info("enqueueConsultationEmail", { bookingId, type, emailLogId: log.id });
   return "created";
+}
+
+/** Repair the DB-log -> Redis gap even if the original HTTP request is never
+ * replayed. We only submit never-attempted rows using the original BullMQ id.
+ * A CAS on updatedAt rotates the bounded batch and prevents parallel cron
+ * processes from repeatedly dispatching the same row. It is NOT a provider
+ * send claim; provider ACK/UNKNOWN handling remains in mail delivery.
+ */
+export async function recoverUnstartedConsultationEmails(
+  options: { now?: Date; limit?: number; enqueue?: (emailLogId: string) => Promise<unknown> } = {},
+): Promise<{ checked: number; queued: number; failed: number }> {
+  const now = options.now ?? new Date();
+  const limit = Math.max(1, Math.min(100, Math.trunc(options.limit ?? 50)));
+  const enqueue = options.enqueue ?? addConsultationMailJob;
+  const rows = await prisma.consultationEmailLog.findMany({
+    where: {
+      status: ConsultationEmailStatus.PENDING,
+      attempts: 0,
+      updatedAt: { lte: new Date(now.getTime() - 60_000) },
+    },
+    select: { id: true, updatedAt: true },
+    orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+    take: limit,
+  });
+  let queued = 0;
+  let failed = 0;
+  for (const row of rows) {
+    const claim = await prisma.consultationEmailLog.updateMany({
+      where: { id: row.id, status: ConsultationEmailStatus.PENDING, attempts: 0, updatedAt: row.updatedAt },
+      data: { updatedAt: now },
+    });
+    if (claim.count !== 1) continue;
+    try {
+      await enqueue(row.id);
+      queued++;
+    } catch {
+      // A lost Queue.add ACK is not an email failure. A later scan can
+      // safely re-add the same job id; never mark provider delivery here.
+      failed++;
+    }
+  }
+  return { checked: rows.length, queued, failed };
 }

@@ -83,6 +83,50 @@ class ArtifactTests(unittest.TestCase):
             z.writestr("Payload/Gafus.app/Expo.plist", plistlib.dumps(plist, fmt=plistlib.FMT_BINARY))
         return path
 
+    def test_exact_future_registered_descriptor_android(self):
+        import hashlib
+        d = {"appId":"gafus","platform":"android","bundleId":"ru.gafus.app",
+             "appVersion":"9.8.7","runtimeVersion":"9.8.7","buildNumber":"98701",
+             "environment":"production","channel":"production","updateUrl":URL,
+             "id":"native-test","nativeFingerprint":FINGERPRINT,"signingKeyId":SIGNING["keyid"],
+             "certificatePem":CERT,"certificateSha256":hashlib.sha256(CERT.encode()).hexdigest()}
+        root = guard.aab_element(manifest())
+        root.set("package", "ru.gafus.app")
+        root.set("{"+guard.ANDROID+"}versionName", "9.8.7")
+        root.set("{"+guard.ANDROID+"}versionCode", "98701")
+        embedded = config()
+        embedded.update(version="9.8.7", runtimeVersion={"policy":"appVersion"}, android={"versionCode":98701})
+        self.assertEqual(guard.check_android(root, embedded, "production", d), URL)
+        for field, bad in [("buildNumber","98702"),("nativeFingerprint","b"*64),("id","other")]:
+            changed = dict(d, **{field:bad})
+            with self.assertRaises(ValueError):
+                guard.check_android(root, embedded, "production", changed)
+        root.set("{"+guard.ANDROID+"}versionCode", "98702")
+        with self.assertRaisesRegex(ValueError, "native package/version/build"):
+            guard.check_android(root, embedded, "production", d)
+
+    def test_exact_registered_ipa_checks_runtime_and_build(self):
+        import hashlib
+        d = {"appId":"gafus","platform":"ios","bundleId":"ru.gafus.app",
+             "appVersion":"9.8.7","runtimeVersion":"9.8.7","buildNumber":"98701",
+             "environment":"production","channel":"production","updateUrl":URL,
+             "id":"native-test","nativeFingerprint":FINGERPRINT,"signingKeyId":SIGNING["keyid"],
+             "certificatePem":CERT,"certificateSha256":hashlib.sha256(CERT.encode()).hexdigest()}
+        path = Path(self.tmp.name) / "registered.ipa"
+        def write(build, runtime):
+            with zipfile.ZipFile(path,"w") as z:
+                z.writestr("Payload/Gafus.app/Expo.plist",plistlib.dumps(ios(EXUpdatesRuntimeVersion=runtime)))
+                z.writestr("Payload/Gafus.app/Info.plist",plistlib.dumps({
+                    "CFBundleIdentifier":"ru.gafus.app","CFBundleShortVersionString":"9.8.7","CFBundleVersion":build}))
+        write("98701","9.8.7")
+        self.assertEqual(guard.verify(path,"production",d),URL)
+        write("98702","9.8.7")
+        with self.assertRaisesRegex(ValueError,"iOS native build identity"):
+            guard.verify(path,"production",d)
+        write("98701","1.7.5")
+        with self.assertRaisesRegex(ValueError,"iOS native runtime"):
+            guard.verify(path,"production",d)
+
     def test_good_aab_and_ipa(self):
         self.assertEqual(guard.verify(self.make_aab(manifest(), config())), URL)
         self.assertEqual(guard.verify(self.make_ipa(ios())), URL)

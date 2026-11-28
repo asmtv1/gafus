@@ -34,14 +34,7 @@ export interface TrainingDayRowsPort {
   deleteTrainingDayRows(dayIds: string[], actor?: TrainingDayActor): Promise<{courseIds:string[];deletedDayIds:string[]} | null>;
   listVisibleTrainingDays(authorId: string | null, isAdminOrModerator: boolean): Promise<TrainingDayVisibleRow[]>;
 }
-let installedTrainingDayRowsPort: Readonly<TrainingDayRowsPort> | null = null;
-export function registerTrainingDayRowsPort(port: TrainingDayRowsPort): void {
-  if (installedTrainingDayRowsPort !== null && installedTrainingDayRowsPort !== port) {
-    throw new Error("TRAINING_DAY_ROWS_PORT_ALREADY_BOUND");
-  }
-  installedTrainingDayRowsPort = port;
-}
-export function requireTrainingDayRowsPort(): Readonly<TrainingDayRowsPort> {
-  if (!installedTrainingDayRowsPort) throw new Error("TRAINING_DAY_ROWS_PORT_UNBOUND");
-  return installedTrainingDayRowsPort;
+export function requireTrainingDayRowsPort(port: TrainingDayRowsPort | undefined): Readonly<TrainingDayRowsPort> {
+  if (!port) throw new Error("TRAINING_DAY_ROWS_PORT_UNBOUND");
+  return port;
 }

@@ -3,7 +3,7 @@ import {QueryClient,QueryClientProvider,useQueryClient} from "@tanstack/react-qu
 import {CURRENT_USER_QUERY_KEY} from "../../shared/auth/useAuth";
 import type {AuthUser} from "../../shared/auth/authApi";
 import {RouteLink} from "../../shared/router/location";
-import {GalleryAlbums} from "./GalleryAlbums";
+import { GalleryAlbums } from "./GalleryAlbums";
 import type {AlbumSummary,AlbumPhoto,GalleryPage} from "./galleryApi";
 
 type Props={

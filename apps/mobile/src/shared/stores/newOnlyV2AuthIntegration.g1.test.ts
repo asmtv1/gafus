@@ -20,7 +20,8 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
     getItem: mocks.getItem,
     setItem: mocks.setItem,
-    removeItem: vi.fn(),
+    getAllKeys: async () => [...mocks.kv.keys()],
+    removeItem: async (key: string) => { mocks.kv.delete(key); },
   },
 }));
 vi.mock("expo-secure-store", () => ({
@@ -167,7 +168,7 @@ describe("AG3-OFF021 Phase1 native adapter + verified auth lifecycle", () => {
     expect(newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch).toBe(firstEpoch);
     expect(await ownerPending()).toHaveLength(1);
     const oldKey = `gafus-progress-v2:USER_A:${firstEpoch}`;
-    const oldBytes = mocks.kv.get(oldKey);
+    const oldEnvelope = JSON.parse(mocks.kv.get(oldKey)!);
     await useAuthStore.getState().logout();
     await vi.waitFor(() => expect(newOnlyV2NativeQueues.getVerifiedBinding()).toBeNull());
     expect(await ownerPending()).toEqual([]);
@@ -177,8 +178,12 @@ describe("AG3-OFF021 Phase1 native adapter + verified auth lifecycle", () => {
     const secondEpoch = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch;
     expect(secondEpoch).toBe(epochs[2]);
     expect(secondEpoch).not.toBe(firstEpoch);
-    expect(await ownerPending()).toEqual([]);
-    expect(mocks.kv.get(oldKey)).toBe(oldBytes);
+    // Same owner must recover unacknowledged work into the new verified epoch.
+    expect(await ownerPending()).toEqual([{ eventId: epochs[1], stepIndex: 0 }]);
+    expect(mocks.kv.has(oldKey)).toBe(false);
+    const migrated = JSON.parse(mocks.kv.get(`gafus-progress-v2:USER_A:${secondEpoch}`)!);
+    expect(migrated.entries).toEqual(oldEnvelope.entries);
+    expect(migrated.authEpoch).toBe(secondEpoch);
   });
 
   it("fails closed for v2 if SecureStore epoch cannot be persisted, without failing ordinary login", async () => {

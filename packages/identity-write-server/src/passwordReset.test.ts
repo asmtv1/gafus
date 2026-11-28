@@ -6,7 +6,7 @@ vi.mock("@gafus/prisma",()=>({prisma:{
 import {consumePasswordResetReceipt,ResetReceiptUnavailableError,lookupPhoneByNormalizedUsername} from "./passwordReset.js";
 const valid={id:"receipt-1",userId:"owner",createdAt:new Date(Date.now()-1000),expiresAt:new Date(Date.now()+120000)};
 beforeEach(()=>{
- vi.clearAllMocks();m.lock.mockResolvedValue([{id:"receipt-1"}]);m.find.mockResolvedValue(valid);
+ vi.clearAllMocks();m.lock.mockResolvedValue([{id:"owner"}]);m.find.mockResolvedValue(valid);
  m.updateUser.mockResolvedValue({count:1});m.lookup.mockResolvedValue({email:"owner@example.test"});m.revoke.mockResolvedValue({count:2});m.delete.mockResolvedValue({id:"receipt-1"});
  m.tx.mockImplementation(async(fn:(tx:unknown)=>Promise<unknown>)=>fn({
   $queryRaw:m.lock,passwordResetToken:{findUnique:m.find,delete:m.delete},
@@ -17,7 +17,8 @@ describe("password reset adapter verifies and consumes token atomically",()=>{
  it("locks a hashed token, updates only its owner, revokes sessions and then deletes the receipt",async()=>{
   const result=await consumePasswordResetReceipt({kind:"token",tokenHash:"sha256:test"},"already-bcrypt");
   expect(result).toBe("owner@example.test");
-  expect(m.find).toHaveBeenCalledExactlyOnceWith({where:{id:"receipt-1"}});
+  expect(m.find).toHaveBeenNthCalledWith(1,{where:{token:"sha256:test"}});
+  expect(m.find).toHaveBeenNthCalledWith(2,{where:{id:"receipt-1"}});
   expect(m.updateUser).toHaveBeenCalledExactlyOnceWith({where:{id:"owner",OR:[{passwordSetAt:null},{passwordSetAt:{lt:valid.createdAt}}]},data:{password:"already-bcrypt",passwordSetAt:expect.any(Date),sessionsRevokedAt:expect.any(Date)}});
   expect(m.revoke).toHaveBeenCalledExactlyOnceWith({where:{userId:"owner",revokedAt:null},data:{revokedAt:expect.any(Date)}});
   expect(m.delete).toHaveBeenCalledExactlyOnceWith({where:{id:"receipt-1"}});
@@ -35,17 +36,23 @@ describe("password reset adapter verifies and consumes token atomically",()=>{
   expect(m.delete).toHaveBeenCalledOnce();expect(m.revoke).toHaveBeenCalledOnce();
  });
  it("missing/expired receipt rejects without touching any accounts",async()=>{
-  m.lock.mockResolvedValueOnce([]);
+  m.find.mockResolvedValueOnce(null);
   await expect(consumePasswordResetReceipt({kind:"token",tokenHash:"sha256:missing"},"hash")).rejects.toBeInstanceOf(ResetReceiptUnavailableError);
   expect(m.updateUser).not.toHaveBeenCalled();
-  m.find.mockResolvedValueOnce({...valid,expiresAt:new Date(0)});
+  m.find.mockResolvedValueOnce(valid).mockResolvedValueOnce({...valid,expiresAt:new Date(0)});
   await expect(consumePasswordResetReceipt({kind:"shortCode",shortCode:"expired"},"hash")).rejects.toBeInstanceOf(ResetReceiptUnavailableError);
   expect(m.revoke).not.toHaveBeenCalled();
  });
  it("legacy raw-token lookup is attempted only when explicitly supplied and hashed lookup failed",async()=>{
-  m.lock.mockResolvedValueOnce([]).mockResolvedValueOnce([{id:"receipt-1"}]);
+  m.find.mockResolvedValueOnce(null).mockResolvedValueOnce(valid).mockResolvedValueOnce(valid);
   await consumePasswordResetReceipt({kind:"token",tokenHash:"sha256:missing",legacyRawToken:"a".repeat(43)},"hash");
-  expect(m.lock).toHaveBeenCalledTimes(2);
+  expect(m.lock).toHaveBeenCalledOnce();
+  expect(m.find).toHaveBeenCalledTimes(3);
+ });
+ it("rejects a receipt deleted by an email change while waiting for the owner lock",async()=>{
+  m.find.mockResolvedValueOnce(valid).mockResolvedValueOnce(null);
+  await expect(consumePasswordResetReceipt({kind:"token",tokenHash:"sha256:old-email"},"hash")).rejects.toBeInstanceOf(ResetReceiptUnavailableError);
+  expect(m.updateUser).not.toHaveBeenCalled();
  });
  it("failure revoking refresh sessions bubbles up and prevents token removal",async()=>{
   m.revoke.mockRejectedValueOnce(new Error("SQL_ABORT"));

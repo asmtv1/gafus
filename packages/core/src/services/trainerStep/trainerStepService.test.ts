@@ -49,7 +49,7 @@ describe("trainerStepService", () => {
   it("only lists non-daily-course steps for regular training day creation", async () => {
     mocks.stepFindMany.mockResolvedValue([]);
 
-    await getVisibleSteps("trainer-1", false);
+    await getVisibleSteps("trainer-1", false, undefined, fixtureTrainerStepRowsPort);
 
     expect(mocks.stepFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -64,7 +64,7 @@ describe("trainerStepService", () => {
   it("lists only daily-course steps when requested", async () => {
     mocks.stepFindMany.mockResolvedValue([]);
 
-    await getVisibleSteps("trainer-1", false, { isDailyCourse: true });
+    await getVisibleSteps("trainer-1", false, { isDailyCourse: true }, fixtureTrainerStepRowsPort);
 
     expect(mocks.stepFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -104,7 +104,7 @@ describe("step content invalidation after trainer mutations", () => {
   });
 
   it("invalidates an edited step only after a successful write", async () => {
-    const result = await updateStep(validStep);
+    const result = await updateStep(validStep, undefined, fixtureTrainerStepRowsPort);
 
     expect(result.success).toBe(true);
     expect(mocks.invalidateSteps).toHaveBeenCalledExactlyOnceWith(["step-1"]);
@@ -114,7 +114,7 @@ describe("step content invalidation after trainer mutations", () => {
   it("does not invalidate when editing a step fails", async () => {
     mocks.stepUpdate.mockRejectedValue(new Error("db down"));
 
-    const result = await updateStep(validStep);
+    const result = await updateStep(validStep, undefined, fixtureTrainerStepRowsPort);
 
     expect(result.success).toBe(false);
     expect(mocks.invalidateSteps).not.toHaveBeenCalled();
@@ -122,7 +122,7 @@ describe("step content invalidation after trainer mutations", () => {
   });
 
   it("invalidates deleted steps after the delete succeeds", async () => {
-    const result = await deleteSteps({ stepIds: ["step-1"] });
+    const result = await deleteSteps({ stepIds: ["step-1"] }, undefined, fixtureTrainerStepRowsPort);
 
     expect(result.success).toBe(true);
     expect(mocks.invalidateSteps).toHaveBeenCalledExactlyOnceWith(["step-1"]);
@@ -132,7 +132,7 @@ describe("step content invalidation after trainer mutations", () => {
   it("does not invalidate if deleting a step fails", async () => {
     mocks.stepDeleteMany.mockRejectedValue(new Error("db down"));
 
-    const result = await deleteSteps({ stepIds: ["step-1"] });
+    const result = await deleteSteps({ stepIds: ["step-1"] }, undefined, fixtureTrainerStepRowsPort);
 
     expect(result.success).toBe(false);
     expect(mocks.invalidateSteps).not.toHaveBeenCalled();
@@ -142,7 +142,7 @@ describe("step content invalidation after trainer mutations", () => {
   it("invalidates a step when its referenced image is removed", async () => {
     mocks.stepFindUnique.mockResolvedValue({ imageUrls: ["a.jpg", "b.jpg"] });
 
-    const result = await removeStepImageUrl("step-1", "a.jpg");
+    const result = await removeStepImageUrl("step-1", "a.jpg", fixtureTrainerStepRowsPort);
 
     expect(result.success).toBe(true);
     expect(mocks.stepUpdate).toHaveBeenCalledWith({
@@ -156,7 +156,7 @@ describe("step content invalidation after trainer mutations", () => {
   it("does not invalidate when a requested image was already absent", async () => {
     mocks.stepFindUnique.mockResolvedValue({ imageUrls: ["b.jpg"] });
 
-    const result = await removeStepImageUrl("step-1", "a.jpg");
+    const result = await removeStepImageUrl("step-1", "a.jpg", fixtureTrainerStepRowsPort);
 
     expect(result.success).toBe(true);
     expect(mocks.invalidateSteps).not.toHaveBeenCalled();
@@ -166,5 +166,5 @@ describe("step content invalidation after trainer mutations", () => {
 
 // AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
 import * as originalTrainerStepRowsPort from "@gafus/course-progress-server/trainer-step-rows";
-import { registerTrainerStepRowsPort, type TrainerStepRowsPort } from "./trainerStepRowsPort";
-registerTrainerStepRowsPort(originalTrainerStepRowsPort as TrainerStepRowsPort);
+import { type TrainerStepRowsPort } from "./trainerStepRowsPort";
+const fixtureTrainerStepRowsPort = originalTrainerStepRowsPort as TrainerStepRowsPort;

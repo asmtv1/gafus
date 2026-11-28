@@ -3,7 +3,7 @@
  * Endpoints для работы с экзаменами
  */
 import { Hono, type TypedResponse } from "hono";
-import type { ExamResultRead } from "../../../../../packages/types/src/data/exam";
+import type { ExamResultRead } from "@gafus/types/exam";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 

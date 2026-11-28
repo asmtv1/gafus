@@ -1,3 +1,4 @@
+import { MeasuredVideoView } from "@/shared/components/MeasuredVideoView";
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { ActivityIndicator, AppState, Modal, View, StyleSheet, Pressable } from "react-native";
 import { useEvent, useEventListener } from "expo";
@@ -38,6 +39,7 @@ interface PendingQualitySwitch {
 
 interface VideoPlayerProps {
   uri: string;
+  frameSurface?: "training" | "preview";
   poster?: string;
   onComplete?: () => void;
   onRetry?: () => void;
@@ -69,6 +71,7 @@ function getVideoSource(uri: string): VideoSource {
  */
 export function VideoPlayer({
   uri,
+  frameSurface = "training",
   poster,
   onComplete,
   onRetry,
@@ -524,7 +527,7 @@ export function VideoPlayer({
         onTouchEnd={nativeControls ? undefined : handleVideoTouchEnd}
       >
         <View style={styles.videoWrapper}>
-          <VideoView
+          <MeasuredVideoView frameSurface={frameSurface}
             ref={videoViewRef}
             player={player}
             style={styles.video}

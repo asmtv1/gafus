@@ -150,3 +150,37 @@ export function verifyRiskCoverageReceipt(root,domain,coverageDir,receiptFile,ba
   if(JSON.stringify(recorded)!==JSON.stringify(calculated))throw Error('COVERAGE_RISK_RECEIPT_DRIFT');
   return calculated;
 }
+
+/** Historical measurements may be compared only for identical source and denominator.
+ * Missing/invalid historical records remain errors; changed code is not a coverage regression
+ * measurement. Current receipts are always independently verified. */
+export function compareHistoricalRiskCoverage(files, previous, current, previousPath) {
+  if (current.previousBaseline?.file !== previousPath || previous.head !== current.head)
+    throw Error('invalid explicit previous coverage baseline');
+  const sums={lines:{total:0,covered:0},branches:{total:0,covered:0}};
+  const changed=[];
+  const sourceDeltas=files.map(f=>{
+    const prior=previous.sources?.[f.path];
+    const baseline=current.sources?.[f.path];
+    if(!prior || !baseline || !/^[a-f0-9]{64}$/.test(prior.sourceSha256||'') ||
+       prior.sourceSha256!==baseline.sourceSha256)
+      throw Error('invalid historical baseline source: '+f.path);
+    for(const k of ['lines','branches']){
+      const old=prior[k], expected=baseline[k];
+      if(!Number.isInteger(old?.total)||old.total<=0||!Number.isInteger(old?.covered)||
+         old.covered<0||old.covered>old.total||old.total!==expected?.total)
+        throw Error('invalid historical baseline counters: '+f.path+' '+k);
+      sums[k].total+=old.total;sums[k].covered+=old.covered;
+    }
+    const reasons=[];
+    if(prior.sourceSha256!==f.sourceSha256) reasons.push('source-changed');
+    if(['lines','branches'].some(k=>prior[k].total!==f[k].total)) reasons.push('denominator-changed');
+    if(reasons.length) changed.push({path:f.path,reasons});
+    return {path:f.path,lines:{...prior.lines,deltaCovered:f.lines.covered-prior.lines.covered},
+      branches:{...prior.branches,deltaCovered:f.branches.covered-prior.branches.covered}};
+  });
+  for(const k of ['lines','branches']) sums[k].pct=sums[k].total>0?
+    Number((100*sums[k].covered/sums[k].total).toFixed(2)):null;
+  if(changed.length) return {source:previousPath,status:'not-comparable',historicalTotals:sums,changed};
+  return {source:previousPath,status:'comparable',totals:sums,sourceDeltas};
+}

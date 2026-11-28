@@ -7,7 +7,7 @@ import { z } from "zod/v3";
 import type {
   TrainerCourseDraftRead,
   TrainerCourseEditorSnapshotRead,
-} from "../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 import type { PanelActor } from "./consultationContract";
 
 const safeId = /^[A-Za-z0-9_-]{1,128}$/;

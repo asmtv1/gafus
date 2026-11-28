@@ -55,6 +55,12 @@ describe("AG3-PROFILE-031 pet photo and document shared multipart transport", ()
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("does not upload a selected photo after the originating session changes", async () => {
+    await expect(petsApi.uploadPhoto("pet-1","file:///photo.jpg","image/jpeg","photo.jpg",()=>false))
+      .resolves.toMatchObject({success:false,code:"G05_SESSION_CHANGED"});
+    expect(mocks.multipart).not.toHaveBeenCalled();
+  });
+
   it("uploads a pet photo through the shared bounded multipart transport with fresh retries", async () => {
     mocks.multipart.mockResolvedValue({
       success: true,
@@ -157,4 +163,21 @@ describe("AG3-PROFILE-031 pet photo and document shared multipart transport", ()
       expect(fetch).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("guarded document selection", () => {
+  it("never uploads a document after account rotation", async () => {
+    vi.clearAllMocks();
+    mocks.token.mockResolvedValue("changed-account");
+    await expect(petsApi.uploadDocument("pet-1", "file:///private.pdf", "application/pdf", "private.pdf", () => false))
+      .resolves.toMatchObject({ success: false, code: "G05_SESSION_CHANGED" });
+    expect(mocks.multipart).not.toHaveBeenCalled();
+  });
+  it("passes the captured actor guard to multipart retries", async () => {
+    vi.clearAllMocks();
+    mocks.token.mockResolvedValue("original-account");
+    const guard = () => true;
+    await petsApi.uploadDocument("pet-1", "file:///private.pdf", "application/pdf", "private.pdf", guard);
+    expect(mocks.multipart).toHaveBeenCalledExactlyOnceWith("/api/v1/pets/pet-1/documents", expect.any(Function), guard);
+  });
 });

@@ -1,3 +1,5 @@
+import { beforeEach as mediaBeforeEach, afterEach as mediaAfterEach } from "vitest";
+import { installMediaCredentialFixture } from "../../../tests/support/media-credentials-fixture.cjs";
 import { describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import {
@@ -298,3 +300,7 @@ describe('shared Yandex feed signing', () => {
     expect(() => signFeedCdnUrl('https://cdn.gafus.ru', 'posts/owner/post/incoming/source.jpg', expires, secret, now, 'yandex')).toThrow();
   });
 });
+
+let mediaFixture: ReturnType<typeof installMediaCredentialFixture>;
+mediaBeforeEach(() => { mediaFixture = installMediaCredentialFixture(); });
+mediaAfterEach(() => mediaFixture?.restore());

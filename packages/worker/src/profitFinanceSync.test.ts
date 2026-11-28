@@ -48,6 +48,7 @@ describe("profit historical reconciliation", () => {
     ]);
     mocks.findUnique.mockResolvedValue({ updatedAt });
     mocks.updateMany.mockResolvedValue({ count: 1 });
+    mocks.refundUpsert.mockImplementation(async ({ create }) => create);
   });
   const response = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
   it("defaults to dry-run without any database mutation", async () => {
@@ -71,6 +72,12 @@ describe("profit historical reconciliation", () => {
     const result = await syncProfitFinance(true);
     expect(result.refundsRecorded).toBe(1);
     expect(mocks.refundUpsert).toHaveBeenCalledOnce();
+    expect(mocks.refundUpsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { providerRefundId: "ref1" },
+      create: { providerRefundId: "ref1", paymentId: "local1", amountKopecks: 100000,
+        refundedAt: new Date(refund.created_at) },
+      update: {},
+    }));
     expect(mocks.updateMany).toHaveBeenCalledWith({
       where: { id: "local1", updatedAt },
       data: { financeRefundsIncomplete: false },

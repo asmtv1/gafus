@@ -15,6 +15,7 @@ export function inspectIosPaymentExport(exportRoot) {
   const blockedStrings = [
     "/yookassa/start",
     "/promo-code/preview",
+    "/registration-promo-preview",
     "startYookassa",
     "yookassaAppSubscriptionPurchase",
     "yookassaPriceRubCheckout",

@@ -34,10 +34,10 @@ describe("Core registration-context Persistence port without VK OAuth", () => {
   it("reads SQL registration status, using one transaction for promo selection", async () => {
     const core = await import("./registrationUseCases");
     const p = adapter();
-    core.registerRegistrationContextPort(p);
-    await expect(core.isRegistrationCompleted("owner-B")).resolves.toBe(false);
+    const fixtureRegistrationContextPort = p;
+    await expect(core.isRegistrationCompleted("owner-B", fixtureRegistrationContextPort)).resolves.toBe(false);
     expect(p.readIsRegistrationCompleted).toHaveBeenCalledExactlyOnceWith("owner-B");
-    await expect(core.previewRegistrationPromoCode("WINTER")).resolves.toEqual({
+    await expect(core.previewRegistrationPromoCode("WINTER", fixtureRegistrationContextPort)).resolves.toEqual({
       id: "promo-A", normalizedCode: "WINTER",
     });
     expect(p.withRegistrationTransaction).toHaveBeenCalledTimes(1);
@@ -60,12 +60,5 @@ describe("Core registration-context Persistence port without VK OAuth", () => {
     await expect(core.isRegistrationCompleted("unbound")).rejects.toThrow("REGISTRATION_CONTEXT_PORT_UNBOUND");
   });
 
-  it("prohibits replacement of a running registration adapter", async () => {
-    const core = await import("./registrationUseCases");
-    const p = adapter();
-    core.registerRegistrationContextPort(p);
-    core.registerRegistrationContextPort(p);
-    expect(() => core.registerRegistrationContextPort(adapter()))
-      .toThrow("REGISTRATION_CONTEXT_PORT_ALREADY_BOUND");
-  });
+
 });

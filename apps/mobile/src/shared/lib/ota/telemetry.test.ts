@@ -60,6 +60,37 @@ describe("anonymous on-device OTA telemetry",()=>{
     expect(m.fetch).toHaveBeenCalledTimes(3);
     expect(JSON.parse(m.records.get("@gafus/ota/telemetry-queue-v1")||"[]")).toHaveLength(0);
   });
+  it("drops only unsupported additive events on old API 400 and delivers the legacy queue",async()=>{
+    const {trackOtaEvent}=await import("./telemetry");
+    await trackOtaEvent("MANDATORY_ATTEMPT",undefined,undefined,true);
+    await trackOtaEvent("SIGNATURE_REJECTED",undefined,undefined,true);
+    m.fetch.mockResolvedValueOnce({status:400}).mockResolvedValueOnce({status:400});
+    await trackOtaEvent("CHECKED");
+    expect(m.fetch.mock.calls.map(x=>JSON.parse(x[1].body).event)).toEqual(["MANDATORY_ATTEMPT","SIGNATURE_REJECTED","CHECKED"]);
+    expect(JSON.parse(m.records.get("@gafus/ota/telemetry-queue-v1")||"[]")).toEqual([]);
+  });
+  it("persists download while telemetry HTTP is stalled and does not erase a newer queue entry",async()=>{
+    const {trackOtaEvent}=await import("./telemetry");
+    let release!: (value:{status:number})=>void;
+    m.fetch.mockImplementationOnce(()=>new Promise(resolve=>{release=resolve;}));
+    const sending=trackOtaEvent("CHECKED");
+    await vi.waitFor(()=>expect(m.fetch).toHaveBeenCalledTimes(1));
+    await trackOtaEvent("DOWNLOADED",undefined,undefined,true);
+    const queued=()=>JSON.parse(m.records.get("@gafus/ota/telemetry-queue-v1")||"[]");
+    expect(queued().map((x:{event:string})=>x.event)).toEqual(["CHECKED","DOWNLOADED"]);
+    release({status:202});await sending;
+    expect(queued().map((x:{event:string})=>x.event)).toEqual(["DOWNLOADED"]);
+    await trackOtaEvent("LAUNCHED");
+    expect(queued()).toEqual([]);
+  });
+  it("preserves new reports across transient server failure",async()=>{
+    const {trackOtaEvent}=await import("./telemetry");
+    m.fetch.mockResolvedValueOnce({status:503});
+    await trackOtaEvent("MANDATORY_INCOMPLETE");
+    expect(JSON.parse(m.records.get("@gafus/ota/telemetry-queue-v1")||"[]")).toHaveLength(1);
+    await trackOtaEvent("CHECKED");
+    expect(m.fetch.mock.calls.map(x=>JSON.parse(x[1].body).event)).toEqual(["MANDATORY_INCOMPLETE","MANDATORY_INCOMPLETE","CHECKED"]);
+  });
   it("never submits existing EAS events",async()=>{
     m.active=false;
     const {trackOtaEvent}=await import("./telemetry");

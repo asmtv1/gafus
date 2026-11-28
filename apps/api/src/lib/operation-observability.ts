@@ -1,5 +1,7 @@
+import { firstFrameMetrics } from "./video-first-frame-metrics.js";
 import { renderDatabaseMetrics, renderDependencyMetrics, renderServerDiagnosticOtlpMetrics, writeCorrelatedDiagnostic, recordPrismaPoolWaitHistogram, invalidatePrismaPoolWaitHistogram } from "@gafus/logger/server-telemetry";
 import { randomUUID, timingSafeEqual } from "node:crypto";
+import { clientTraceAttributes } from "./client-trace-context.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { MiddlewareHandler } from "hono";
 import {
@@ -79,7 +81,8 @@ export const operationMetricsMiddleware: MiddlewareHandler = async (c, next) => 
     kind: "server",
     operationId,
     parent: traceParent,
-    attributes: { "http.request.method": method, "gafus.request_id": requestId },
+    attributes: { "http.request.method": method, "gafus.request_id": requestId,
+      ...clientTraceAttributes(name => c.req.header(name)) },
   });
   const sdkTraceId = span.spanContext().traceId;
   // NoopTracer has all-zero trace IDs when OTLP is intentionally disabled.
@@ -112,12 +115,12 @@ export const operationMetricsMiddleware: MiddlewareHandler = async (c, next) => 
     });
     throw error;
   } finally {
+    span.updateName?.(method + " " + knownRoute(c.req.routePath));
     span.setAttribute("http.response.status_code", c.res.status);
     if (c.res.status >= 500) markServerSpanError(span, "HTTP_5XX");
     span.end();
     inFlight--;
     const route = knownRoute(c.req.routePath);
-    const method = /^(GET|POST|PUT|PATCH|DELETE|HEAD)$/.test(c.req.method) ? c.req.method : "OTHER";
     const status = String(Math.floor(c.res.status / 100)) + "xx";
     const key = method + "|" + route + "|" + status;
     if (counters.has(key) || counters.size < MAX_ROUTES) {
@@ -198,7 +201,7 @@ export function renderOperationMetrics(): string {
     lines.push("http_request_duration_seconds_sum{" + base + "} " + data.sum);
     lines.push("http_request_duration_seconds_count{" + base + "} " + data.count);
   }
-  return lines.join("\n") + "\n" + renderDatabaseMetrics() + renderDependencyMetrics() + renderServerDiagnosticOtlpMetrics();
+  return lines.join("\n") + "\n" + renderDatabaseMetrics() + renderDependencyMetrics() + renderServerDiagnosticOtlpMetrics() + firstFrameMetrics.render();
 }
 export function authorizedOperationMetrics(
   authorization: string | undefined,

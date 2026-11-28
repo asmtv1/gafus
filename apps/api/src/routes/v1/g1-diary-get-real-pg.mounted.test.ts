@@ -14,11 +14,11 @@ const blocked = vi.hoisted(() =>
     throw Error("UNUSED_DIARY_GET_SIDE_EFFECT_FORBIDDEN");
   }),
 );
-vi.mock("@gafus/core/services/training", () => ({
+vi.mock("../../modules/training/composition/sql-training-instance.js", () => ({ sqlTraining: {
   requireCourseStepOperationAccess: blocked,
   syncUserCourseStatusFromDays: blocked,
-  validateTheoryStepForCompletion: blocked,
-}));
+  validateTheoryStepForCompletion: blocked
+} }));
 vi.mock("@gafus/core/services/rewardedCredits", () => ({
   requirePremiumOrRewardedAccessForVideoUrl: blocked,
   SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {},

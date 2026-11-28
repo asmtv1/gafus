@@ -30,12 +30,7 @@ export interface GafusUnlockRowsPort {
   readGafusUnlockReplayTx(tx: GafusTx, key: string): Promise<GafusUnlockReplayRow | null>;
   insertGafusUnlockGrantTx(tx: GafusTx, grant: GafusUnlockGrant): Promise<unknown>;
 }
-let bound: Readonly<GafusUnlockRowsPort> | null = null;
-export function registerGafusUnlockRowsPort(port: GafusUnlockRowsPort): void {
-  if (bound !== null && bound !== port) throw new Error("GAFUS_UNLOCK_PORT_ALREADY_BOUND");
-  bound = port;
-}
-export function requireGafusUnlockRowsPort(): Readonly<GafusUnlockRowsPort> {
-  if (!bound) throw new Error("GAFUS_UNLOCK_PORT_UNBOUND");
-  return bound;
+export function requireGafusUnlockRowsPort(port: GafusUnlockRowsPort | undefined): Readonly<GafusUnlockRowsPort> {
+  if (!port) throw new Error("GAFUS_UNLOCK_PORT_UNBOUND");
+  return port;
 }

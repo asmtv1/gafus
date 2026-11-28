@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FeedPostEditorDto } from "@gafus/types";
-import { createFeedPublicationManager } from "./publication-client";
+import { createFeedPublicationManager } from "@gafus/core-client/feed/publication-client";
 
 const editor = (status: FeedPostEditorDto["status"]): FeedPostEditorDto =>
   ({ id: "test-post", status, version: 0, attachments: [], pendingRevision: null }) as FeedPostEditorDto;

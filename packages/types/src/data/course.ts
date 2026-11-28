@@ -75,6 +75,20 @@ type CourseJsonValue<T> =
 
 export type CourseWithProgressWire = CourseJsonValue<CourseWithProgressData>;
 
+/** Bounded personalized card page, negotiated independently of the legacy DTO.
+ * Description and author name preserve full-text mobile filtering; reviews
+ * are represented by their count, not their bodies or authors. */
+export type CourseCatalogCardWire = Pick<CourseWithProgressWire,
+  "id" | "name" | "type" | "description" | "shortDesc" | "duration" | "logoImg" |
+  "isPrivate" | "isPaid" | "hasAccess" | "avgRating" | "trainingLevel" |
+  "equipment" | "createdAt" | "updatedAt" | "authorUsername" | "authorAvatarUrl" |
+  "userStatus" | "startedAt" | "completedAt" | "isFavorite"
+> & { startedUsersCount: number; reviewsCount: number };
+export interface CourseCatalogCardPageWire {
+  items: CourseCatalogCardWire[];
+  next: { id: string; createdAt: string } | null;
+}
+
 export interface CourseWithProgressWireResponse {
   success: true;
   data: CourseWithProgressWire[];

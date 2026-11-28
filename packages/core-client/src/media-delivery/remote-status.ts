@@ -8,9 +8,9 @@ export const MEDIA_DELIVERY_HEALTH_MAX_AGE_MS = 55_000;
 export function parseMediaDeliveryStatus(value: unknown): MediaDeliveryStatus | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
-  if (!["cdn", "cloudru"].includes(String(record.gallery)) ||
-      !["cdn", "cloudru"].includes(String(record.feed))) return null;
-  return { gallery: record.gallery as MediaDeliveryMode, feed: record.feed as MediaDeliveryMode };
+  if ((record.gallery !== "cdn" && record.gallery !== "cloudru") ||
+      (record.feed !== "cdn" && record.feed !== "cloudru")) return null;
+  return { gallery: record.gallery, feed: record.feed };
 }
 
 // Stale/missing state must never force storage bypass. Existing client 504

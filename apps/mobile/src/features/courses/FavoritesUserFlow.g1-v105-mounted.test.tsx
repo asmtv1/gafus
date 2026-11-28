@@ -174,15 +174,15 @@ vi.mock("@/shared/lib/api/client", () => ({
   },
 }));
 vi.mock("@/shared/lib/api/favoritesQuery", () => ({
-  favoritesQueryOptions: {
-    queryKey: ["favorites"],
+  favoritesForActor: (actor: {ownerId: string; authEpoch: string}) => ({
+    queryKey: ["favorites", actor.ownerId, actor.authEpoch],
     queryFn: async () => {
       const result = await m.get();
       if (!result || typeof result !== "object" || !(result as { success: boolean }).success)
         throw Error("FAVORITES_FETCH_FAILED");
       return result;
     },
-  },
+  }),
 }));
 vi.mock("@/shared/config", () => ({
   COLORS: {

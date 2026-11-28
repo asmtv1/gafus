@@ -1,6 +1,6 @@
 /** AG4-approved design, SOURCE REVIEW ONLY. Shared migration NOT permitted. */
 import { createHash } from "node:crypto";
-import { requireReminderAG4ReviewRowsPort } from "./reminderAG4ReviewPort";
+import { requireReminderAG4ReviewRowsPort, type ReminderAG4ReviewRowsPort } from "./reminderAG4ReviewPort";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -115,52 +115,56 @@ export async function createReminderAG4(
   owner: string,
   draft: Draft,
   rawKey: string,
+  port?: ReminderAG4ReviewRowsPort,
 ): Promise<CreateOutcome> {
   const key = validateKey(rawKey),
     normalized = normalizeDraft(draft);
   const hash = fingerprintDraft(normalized);
   if (!owner) throw new ReminderInvalidError();
+  const storage = requireReminderAG4ReviewRowsPort(port);
   try {
-    return await requireReminderAG4ReviewRowsPort().withAG4ReminderCreateTx(async (tx) => {
-      const users = await requireReminderAG4ReviewRowsPort().lockAG4ReminderOwner(tx, owner);
+    return await storage.withAG4ReminderCreateTx(async (tx) => {
+      const users = await storage.lockAG4ReminderOwner(tx, owner);
       if (users.length !== 1) throw new ReminderInvalidError();
-      const prior = await requireReminderAG4ReviewRowsPort().readAG4ReminderReceipt(tx, owner, key);
+      const prior = await storage.readAG4ReminderReceipt(tx, owner, key);
       if (prior[0]) {
         // Tombstone and expired key MUST NOT authorize new creation.
         if (!current(prior[0])) throw new ReminderUnknownError();
         if (prior[0].operationKind !== "CREATE" || prior[0].fingerprint !== hash) {
           throw new ReminderConflictError();
         }
-        const present = await requireReminderAG4ReviewRowsPort().checkOwnerTrainingReminder(owner, prior[0].reminderId!, tx);
+        const present = await storage.checkOwnerTrainingReminder(owner, prior[0].reminderId!, tx);
         if (!present) throw new ReminderUnknownError();
         return { kind: "idempotent_replay", reminder: snapshot(prior[0].responseJson) };
       }
       // PENDING row + Reminder + COMMITTED response all in ONE PG transaction.
-      await requireReminderAG4ReviewRowsPort().beginAG4ReminderReceipt(tx, owner, key, hash, new Date(Date.now() + RETAIN_MS));
-      const count = await requireReminderAG4ReviewRowsPort().countAG4TrainingReminders(tx, owner);
+      await storage.beginAG4ReminderReceipt(tx, owner, key, hash, new Date(Date.now() + RETAIN_MS));
+      const count = await storage.countAG4TrainingReminders(tx, owner);
       if (count >= 5) throw new ReminderCapError();
-      const created = await requireReminderAG4ReviewRowsPort().createAG4Reminder(tx, owner, normalized);
+      const created = await storage.createAG4Reminder(tx, owner, normalized);
       const response = snapshot(created);
-      const updated = await requireReminderAG4ReviewRowsPort().commitAG4ReminderReceipt(tx, owner, key, created.id, response);
+      const updated = await storage.commitAG4ReminderReceipt(tx, owner, key, created.id, response);
       if (updated !== 1) throw new ReminderUnknownError();
       return { kind: "created", reminder: response };
     });
   } catch (error) {
     // Unexpected concurrent writer with a unique constraint: never leak P2002
     // as HTTP 500. Return 409 UNKNOWN, client must do authenticated GET only.
-    if (requireReminderAG4ReviewRowsPort().isReminderUniqueConstraintError(error)) throw new ReminderUnknownError();
+    if (storage.isReminderUniqueConstraintError(error)) throw new ReminderUnknownError();
     throw error;
   }
 }
 export async function lookupReminderAG4(
   owner: string,
   rawKey: string,
+  port?: ReminderAG4ReviewRowsPort,
 ): Promise<OperationCommitted> {
   const key = validateKey(rawKey);
   if (!owner) throw new ReminderInvalidError();
-  const rows = await requireReminderAG4ReviewRowsPort().readAG4ReminderReceiptForLookup(owner, key);
+  const storage = requireReminderAG4ReviewRowsPort(port);
+  const rows = await storage.readAG4ReminderReceiptForLookup(owner, key);
   if (!rows[0] || !current(rows[0])) throw new ReminderUnknownError();
-  const present = await requireReminderAG4ReviewRowsPort().checkOwnerTrainingReminder(owner, rows[0].reminderId!);
+  const present = await storage.checkOwnerTrainingReminder(owner, rows[0].reminderId!);
   if (!present) throw new ReminderUnknownError();
   return { status: "COMMITTED", reminder: snapshot(rows[0].responseJson) };
 }

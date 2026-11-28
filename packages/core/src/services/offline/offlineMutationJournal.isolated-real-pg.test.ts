@@ -4,8 +4,14 @@
 import { randomUUID } from "node:crypto";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { findNewOfflineMutationReceipt, submitNewOfflinePracticeMutation } from "./offlineMutationJournal";
+import { findNewOfflineMutationReceipt as coreLookup, submitNewOfflinePracticeMutation as coreSubmit } from "./offlineMutationJournal";
 
+import { sqlTraining } from "../../../../../apps/api/src/modules/training/composition/sql-training-instance";
+import { offlineMutationRows } from "../../../../../apps/api/src/modules/offline/composition/offline-mutation-rows-instance";
+const submitNewOfflinePracticeMutation = (input: Parameters<typeof coreSubmit>[0]) =>
+  coreSubmit(input, { applyStepDayAndCourseTx: sqlTraining.applyStepDayAndCourseTx as unknown as NonNullable<Parameters<typeof coreSubmit>[1]>["applyStepDayAndCourseTx"] }, offlineMutationRows);
+const findNewOfflineMutationReceipt = (ownerId: string, eventId: string) =>
+  coreLookup(ownerId, eventId, offlineMutationRows);
 const DB = "gafus_refactor_offline_accept_20261026_g1";
 const ROOT = "/Users/asmtv1/Desktop/gafus-refactor";
 const enabled = process.env.GAFUS_OFFLINE_ISOLATED_ACCEPT === "1";

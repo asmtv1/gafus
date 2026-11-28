@@ -1,3 +1,9 @@
+import { readOtaOperationalTelemetry } from "@gafus/mobile-ota-server/telemetry";
+import { renderOtaOperationalMetrics } from "./ota-operational-metrics";
+import { readWalkGpsOperationalMetrics } from "@gafus/tracking-server/walks";
+import { renderWalkGpsMetrics } from "./walk-gps-metrics";
+import { readMediaCdnPurgeMetrics } from "@gafus/media-server/purge-repository";
+import { renderMediaCdnPurgeMetrics } from "./media-cdn-purge-metrics";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import { createWorkerLogger } from "@gafus/logger";
@@ -17,7 +23,7 @@ const HEALTH_BODY = '{"ok":true}';
  * Лёгкий HTTP-сервер для /health (liveness).
  * Использует только node:http, без внешних зависимостей.
  */
-export function startHealthServer(): Server {
+export function startHealthServer(beforeShutdown: () => Promise<void> = async () => {}): Server {
   const port = parseInt(process.env.WORKER_HEALTH_PORT ?? "3003", 10);
   const log = createWorkerLogger("health-server");
 
@@ -57,6 +63,8 @@ export function startHealthServer(): Server {
         renderMediaProcessingMetricsPrometheus(),
         chat2OutboxMetricsSnapshot(),
         renderQuestionsLegacyDeletionMetricsPrometheus(),
+        readMediaCdnPurgeMetrics().then(renderMediaCdnPurgeMetrics,
+          () => renderMediaCdnPurgeMetrics(null)),
       ])
         .then((parts) => {
           const metrics = [...parts, chat2OutboxExecutionMetrics.render()].join("\n");
@@ -79,8 +87,13 @@ export function startHealthServer(): Server {
 
     // Bounded SDK57 ingest/export metrics, kept independent from product queues.
     if ((method === "GET" || method === "HEAD") && path === "/metrics/mobile-telemetry") {
-      renderMobileTelemetryMetricsPrometheus().then((metrics) => {
-        const body = metrics + renderServerDiagnosticOtlpMetrics();
+      Promise.all([
+        renderMobileTelemetryMetricsPrometheus(),
+        readOtaOperationalTelemetry().then(renderOtaOperationalMetrics,
+          () => renderOtaOperationalMetrics(null)),
+        readWalkGpsOperationalMetrics().then(renderWalkGpsMetrics, () => renderWalkGpsMetrics(null)),
+      ]).then(([metrics, ota, gps]) => {
+        const body = metrics + ota + gps + renderServerDiagnosticOtlpMetrics();
         res.writeHead(200, {"Content-Type":"text/plain; version=0.0.4; charset=utf-8",
           "Cache-Control":"no-store"});
         res.end(method === "GET" ? body : undefined);
@@ -101,10 +114,10 @@ export function startHealthServer(): Server {
           });
           res.end(method === "GET" ? metrics : undefined);
         })
-        .catch((error) => {
-          log.error("Mail metrics render failed", error as Error);
-          res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
-          res.end("# mail_metrics_error 1\n");
+        .catch(() => {
+          log.error("Mail metrics render failed", Error("MAIL_METRICS_UNAVAILABLE"));
+          res.writeHead(200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8", "Cache-Control": "no-store" });
+          res.end(method === "GET" ? "# TYPE gafus_mail_metrics_available gauge\ngafus_mail_metrics_available 0\n" : undefined);
         });
       return;
     }
@@ -137,18 +150,27 @@ export function startHealthServer(): Server {
     log.info(`Health server listening on 0.0.0.0:${port}`);
   });
 
-  process.on("SIGTERM", () => {
-    setTimeout(() => {
-      server.close(() => {
-        // A telemetry outage is never allowed to block Worker termination.
-        // Normal exporter timeout is 5s; this cap leaves room for other
-        // container shutdown hooks without logging sensitive provider errors.
-        void Promise.race([
-          flushServerTelemetry().catch(() => undefined),
-          new Promise<void>(resolve => setTimeout(resolve, 4_500)),
-        ]).finally(() => process.exit(0));
-      });
-    }, 2000);
+  let shuttingDown = false;
+  const shutdown = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    server.close();
+    // Stop taking new jobs immediately. Bound draining so a stuck provider
+    // cannot prevent the container from restarting; unfinished leases retry.
+    void Promise.race([
+      Promise.resolve().then(beforeShutdown).catch(() => log.error("Worker shutdown failed")),
+      new Promise<void>(resolve => setTimeout(resolve, 4_000)),
+    ]).then(() => Promise.race([
+      flushServerTelemetry().catch(() => undefined),
+      new Promise<void>(resolve => setTimeout(resolve, 4_500)),
+    ])).finally(() => process.exit(0));
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
+  server.once("close", () => {
+    if (shuttingDown) return;
+    process.removeListener("SIGTERM", shutdown);
+    process.removeListener("SIGINT", shutdown);
   });
 
   return server;

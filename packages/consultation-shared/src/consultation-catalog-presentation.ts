@@ -35,3 +35,34 @@ export function cynologistDisplayInitials(displayName: string | null): string {
   }
   return s.slice(0, 2).toUpperCase() || "К";
 }
+
+/** Matches the former Next catalog: already absolute URLs or original CDN-backed relative media keys. */
+export function cynologistAvatarSrc(value: string | null | undefined): string | null {
+  const path = value?.trim();
+  if (
+    !path ||
+    [...path].some((char) => {
+      const code = char.charCodeAt(0);
+      return code <= 31 || code === 127;
+    })
+  )
+    return null;
+  if (/^https?:\/\//i.test(path)) {
+    try {
+      const url = new URL(path);
+      return url.username || url.password ? null : path;
+    } catch {
+      return null;
+    }
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith("//") || path.includes("\\")) {
+    return null;
+  }
+  // Relative media keys are scoped to our public bucket, not arbitrary
+  // sibling buckets. Reject traversal (including URL-normalized escapes).
+  const relative = path.startsWith("/") ? path.slice(1) : path;
+  const base = "https://storage.yandexcloud.net/gafus-media/";
+  const resolved = new URL(base + relative);
+  if (!resolved.pathname.startsWith("/gafus-media/")) return null;
+  return base + relative;
+}

@@ -37,6 +37,7 @@ function areCourseCardFieldsEqual(prev: CourseListItem, next: CourseListItem): b
     prev.authorUsername === next.authorUsername &&
     prev.authorAvatarUrl === next.authorAvatarUrl &&
     prev.avgRating === next.avgRating &&
+    prev.reviewsCount === next.reviewsCount &&
     prev.startedUsersCount === next.startedUsersCount &&
     replaceEqualDeep(prev.userCourses, next.userCourses) === prev.userCourses &&
     replaceEqualDeep(prev.reviews, next.reviews) === prev.reviews &&

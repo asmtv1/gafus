@@ -221,15 +221,21 @@ test('pnpm store cache integrity is never disabled in any CI job', () => {
 });
 
 
-test('parallel package builds wait on each child PID and fail the release on any error', () => {
- const ci=read('ci-cd');
- assert(!/^\s+wait\s*$/m.test(ci), 'A bare wait loses individual child exit codes');
- for (const name of ['queues_pid', 'cdn_pid', 'video_pid']) {
-  assert(ci.includes(`wait "$${name}" || parallel_failed=1`), `Unobserved ${name} failure`);
- }
- assert(ci.includes("REQUIRED_PARALLEL_PACKAGE_BUILD_FAILED"));
+test('prepare-deps uses one fail-closed Turbo graph instead of repeated manual package builds',()=>{
+ const ci=parse('ci-cd');
+ const steps=ci.jobs['prepare-deps'].steps;
+ const step=steps.find(s=>s.name==='Build packages');
+ assert.match(step.run,/^set -euo pipefail\n/);
+ assert.equal((step.run.match(/pnpm exec turbo run build/g)||[]).length,1);
+ assert.doesNotMatch(step.run,/cd packages\/|--filter=!@gafus\//);
+ assert(!steps.some(s=>s.name==='Generate Prisma Client'));
+ assert.match(step.run,/pnpm --filter @gafus\/types test/);
+ assert(step.run.indexOf('turbo run build')<step.run.indexOf('types test'));
+ const tasks=JSON.parse(readFileSync('turbo.json')).tasks;
+ assert(tasks.build.dependsOn.includes('^build'));
+ assert(tasks.build.dependsOn.includes('prisma:generate'));
+ assert(!/^generator erd \{/m.test(readFileSync('packages/prisma/schema.prisma','utf8')));
 });
-
 
 test('dependency validation is blocking (cannot echo and continue)', () => {
  const ci=read('ci-cd');
@@ -238,19 +244,41 @@ test('dependency validation is blocking (cannot echo and continue)', () => {
 });
 
 
-test('core-client is built before Core to prevent cached CDN transport drift', () => {
- const ci=read('ci-cd');
- const dependency=ci.indexOf('cd packages/core-client && pnpm build');
- const dependent=ci.indexOf('pnpm exec turbo run build --filter=@gafus/*');
- assert(dependency > 0 && dependent > dependency, 'Core cannot load a stale core-client/dist');
- assert(ci.includes('--filter=!@gafus/core-client'), 'Do not rebuild Core dependency out of order');
+test('Core dependency order is represented by the real package graph',()=>{
+ const core=JSON.parse(readFileSync('packages/core/package.json'));
+ const client=JSON.parse(readFileSync('packages/core-client/package.json'));
+ const types=JSON.parse(readFileSync('packages/types/package.json'));
+ const prisma=JSON.parse(readFileSync('packages/prisma/package.json'));
+ const mailer=JSON.parse(readFileSync('packages/mailer/package.json'));
+ assert.equal(core.dependencies['@gafus/core-client'],'workspace:*');
+ assert.equal(client.dependencies['@gafus/types'],'workspace:*');
+ assert.equal(types.dependencies['@gafus/logger'],'workspace:*');
+ assert.equal(prisma.dependencies['@gafus/logger'],'workspace:*');
+ assert.equal(mailer.dependencies['@gafus/prisma'],'workspace:*');
+ assert(JSON.parse(readFileSync('turbo.json')).tasks.build.dependsOn.includes('^build'));
 });
 
 test('Core is built before Auth in the clean dependency build', () => {
  const step=parse('ci-cd').jobs['prepare-deps'].steps.find(step=>step.name==='Build packages');
  assert.match(step.run,/^set -euo pipefail\n/);
- assert.match(step.run,/pnpm exec turbo run build --filter=@gafus\/\*/);
+ assert.match(step.run,/pnpm exec turbo run build --filter=\x27\.\/packages\/\*\x27/);
  assert.doesNotMatch(step.run,/cd packages\/(core|auth) && pnpm build|--filter=!@gafus\/(core|auth)(\s|$)/);
  assert.equal(JSON.parse(readFileSync('packages/auth/package.json')).dependencies['@gafus/core'], 'workspace:*');
  assert(JSON.parse(readFileSync('turbo.json')).tasks.build.dependsOn.includes('^build'));
+});
+
+test("prepare-deps excludes redundant release app builds without dropping auxiliary gates",()=>{
+ const ci=parse('ci-cd');
+ const prep=ci.jobs['prepare-deps'].steps.find(step=>step.name==='Build packages').run;
+ const build=ci.jobs['build-apps'].steps.find(step=>step.name==='Build, test, typecheck apps').run;
+ assert.match(prep,/--filter='\.\/packages\/\*'/);
+ assert.doesNotMatch(prep,/--filter=@gafus\/\*/);
+ for(const app of ['bull-board','feed-cloud-runtime','gallery-cloud'])
+   assert(prep.includes('--filter=@gafus/'+app));
+ for(const app of ['web-vite','trainer-panel','admin-panel','api']) {
+   assert(!prep.includes('--filter=@gafus/'+app));
+   assert(build.includes("--filter='./apps/"+app+"'"));
+ }
+ assert([].concat(ci.jobs['build-apps'].needs).includes('prepare-deps'));
+ assert.match(build,/turbo run build test typecheck/);
 });

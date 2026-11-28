@@ -4,12 +4,12 @@
  */
 import { Hono } from "hono";
 import type { CourseWithProgressWireConformance } from
-  "../../../../../packages/types/src/data/course";
+  "@gafus/types/course";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
 import { createWebLogger } from "@gafus/logger";
-import { courseReadApplication } from "../../modules/courses/composition/read-courses.js";
+import { courseReadApplication, getCatalogCardPage } from "../../modules/courses/composition/read-courses.js";
 import { readCourseAccessApplication } from "../../modules/courses/composition/read-access.js";
 import { writeCoursePersonalizationApplication } from "../../modules/courses/composition/write-personalization.js";
 import { writeFavoriteApplication } from "../../modules/courses/composition/write-favorite.js";
@@ -27,6 +27,16 @@ coursesRoutes.get("/", async (c) => {
   c.header("Referrer-Policy", "no-referrer");
   try {
     const user = c.get("user");
+    if (c.req.header("Accept") === "application/vnd.gafus.course-cards+json") {
+      const id = c.req.query("afterId");
+      const date = c.req.query("before");
+      if (id !== undefined || date !== undefined) {
+        if (!id || !/^[a-zA-Z0-9_-]{1,128}$/.test(id) || !z.string().datetime().safeParse(date).success)
+          return c.json({ success: false, code: "INVALID_CURSOR" }, 400);
+      }
+      const cursor = id && date ? { id, createdAt: new Date(date) } : undefined;
+      return c.json({ success: true, data: await getCatalogCardPage(user.id, cursor) });
+    }
     const courses = await courseReadApplication.getCatalog({ actorUserId: user.id });
 
     const body = { success: true as const, data: courses };

@@ -22,7 +22,8 @@ const mock = vi.hoisted(() => {
     chat2OutboxEvent,
     user: { findUnique: fn(), findFirst: fn() },
     entitlement: fn(),
-    courseAccess: fn(),
+    courses: { findMany: fn(), findUnique: fn() },
+    allowedCourses: fn(),
     mediaUrl: fn(),
     avatarSignedUrl: fn(),
   };
@@ -37,6 +38,7 @@ vi.mock("@gafus/prisma", () => ({
     chat2Media: mock.chat2Media,
     chat2OutboxEvent: mock.chat2OutboxEvent,
     user: mock.user,
+    course: mock.courses,
     $transaction: async (f: (tx: unknown) => Promise<unknown>) =>
       f({
         chat2Member: mock.chat2Member,
@@ -54,7 +56,7 @@ vi.mock("@gafus/prisma", () => ({
   },
 }));
 vi.mock("./revocation.js", () => ({ revokeLiveRoomSubscription: vi.fn() }));
-vi.mock("@gafus/core/services/course", () => ({ checkCourseAccessById: mock.courseAccess }));
+vi.mock("../content-access/composition/content-policy-instance.js", () => ({ allowedCourseIds: mock.allowedCourses }));
 vi.mock("@gafus/core/services/appSubscription", () => ({
   getCynologistEntitlements: mock.entitlement,
 }));
@@ -104,7 +106,7 @@ beforeEach(() => {
   mock.chat2Member.findUnique.mockResolvedValue(member());
   mock.chat2Member.findFirst.mockResolvedValue({ userId: "other" });
   mock.entitlement.mockResolvedValue({ canUseCynologistChat: true });
-  mock.courseAccess.mockResolvedValue({ hasAccess: true });
+  mock.allowedCourses.mockResolvedValue(new Set());
 });
 describe("Default common chat membership", () => {
   const community = {
@@ -201,6 +203,20 @@ describe("Default common chat membership", () => {
       where: { id: "default-membership" },
       data: { role: "MEMBER", hiddenAt: null },
     });
+  });
+
+  it("reads avatar metadata once for 60 rooms and rechecks deletion before reusing signatures", async () => {
+    const rooms = Array.from({length:60}, (_,n) => ({ ...community, id: String(n), avatarMediaId: "avatar-" + n,
+      _count: {members: 1}, members: [] }));
+    mock.chat2Conversation.findMany.mockResolvedValue(rooms);
+    const media = rooms.map(r => ({id:r.avatarMediaId, objectKey:"object-" + r.id}));
+    mock.chat2Media.findMany.mockResolvedValueOnce(media).mockResolvedValueOnce(media.slice(1));
+    mock.mediaUrl.mockImplementation(async key => "signed-" + key);
+    expect((await discover("actor")).map(r => r.id)).toEqual(rooms.map(r => r.id));
+    expect(mock.chat2Media.findMany).toHaveBeenCalledTimes(1);
+    expect((await discover("actor"))[0].avatarUrl).toBeNull();
+    expect(mock.chat2Media.findMany).toHaveBeenCalledTimes(2);
+    expect(mock.mediaUrl).toHaveBeenCalledTimes(60);
   });
 
   it("offers the community through discovery for a user who opted out", async () => {
@@ -639,7 +655,7 @@ describe("Chat2 message reactions", () => {
     mock.chat2Member.findFirst.mockResolvedValue({ userId: "other" });
     mock.chat2Block.findFirst.mockResolvedValue(null);
     mock.user.findFirst.mockResolvedValue(null);
-    mock.courseAccess.mockResolvedValue({ hasAccess: true });
+    mock.allowedCourses.mockResolvedValue(new Set());
     mock.chat2Message.findFirst.mockResolvedValue({ id: "message" });
     mock.chat2MessageReaction.findUnique.mockResolvedValue(null);
     mock.chat2MessageReaction.findMany.mockResolvedValue([]);

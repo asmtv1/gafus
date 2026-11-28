@@ -16,6 +16,13 @@ vi.mock("@gafus/prisma", () => ({
     },
   },
 }));
+// SQL fencing and broker behavior are under test; telemetry is covered separately.
+vi.mock("@gafus/logger", () => ({createWorkerLogger: () => ({warn:vi.fn(),error:vi.fn(),info:vi.fn()})}));
+vi.mock("@gafus/logger/server-telemetry", () => ({
+  configureServerTelemetry:vi.fn(),startCorrelatedSpan:() => ({end:vi.fn()}),
+  withServerSpan:async (_span: unknown, action:()=>Promise<unknown>)=>action(),
+  markServerSpanError:vi.fn(),
+}));
 vi.mock("@gafus/queues", () => ({ pushQueue: { add: vi.fn() } }));
 vi.mock("@gafus/cdn-upload", () => ({
   chat2DeletePrivateMedia: vi.fn(), chat2V2DeleteObjects: vi.fn(),
@@ -51,6 +58,7 @@ describe("Chat2 outbox crash/fencing/DLQ", () => {
     const call = send.mock.calls as unknown as Array<[string, { body: string }]>;
     const body = JSON.parse(call[0]![1].body);
     expect(body.data.eventId).toBe("evt_test_chat_123");
+    expect(body.idempotency_key).toBe(body.data.eventId);
     expect(body.data).not.toHaveProperty("privatePayload");
   });
   it("DLQs an exhausted attempt instead of continuously resending", async () => {

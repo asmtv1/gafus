@@ -5,7 +5,7 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf
 const feedViewer = read("../../../features/feed/FeedMediaViewer.tsx");
 const feedInline = read("../../../features/feed/FeedV2Media.tsx");
 const socialControls = read("./SocialVideoControls.tsx");
-const chat = read("../../../features/chat2/Chat2RoomScreen.tsx");
+const chat = ["../../../features/chat2/Chat2RoomScreen.tsx", "../../../features/chat2/Chat2RoomComposer.tsx", "../../../features/chat2/chat2RoomStyles.ts", "../../../features/chat2/Chat2RoomMedia.tsx"].map(read).join("\n");
 const questions = read("../../../features/questions/ui.tsx");
 const training = read("../../../features/training/components/AccordionStep.tsx");
 const gallery = read("../../../features/gallery/viewer.tsx");
@@ -30,6 +30,6 @@ describe("Mobile fullscreen media swipe coverage", () => {
     expect(socialControls).toContain('accessibilityLabel="Развернуть видео"');
     expect(feedInline).toContain('accessibilityLabel="Закрыть видео"');
     expect(feedInline).toContain("<SwipeDismissMedia onDismiss={() => setExpanded(false)}>");
-    expect(feedInline).toContain("<VideoView player={player} style={s.expandedVideo}");
+    expect(feedInline).toContain("<MeasuredVideoView frameSurface=\"moments\" player={player} style={s.expandedVideo}");
   });
 });

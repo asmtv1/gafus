@@ -1,10 +1,11 @@
+import { transactionalContentPolicy } from "../../../../../apps/api/src/modules/content-access/composition/transactional-policy-instance";
 /** Local synthetic DB only. Exact occurrence grant checks; no cloud/provider calls. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { hasActiveGafusCourseStepAccess, hasAllowedVideoCourseStepAccess } from "./index";
-import { registerCourseOccurrenceReadsPort } from "./index";
+import { hasActiveGafusCourseStepAccess as coreActiveGrant, hasAllowedVideoCourseStepAccess as coreAllowedVideo } from "./index";
 import { readActiveCourseStepGafusGrant, readAllowedVideoCourseStepAccess } from "@gafus/entitlements-server";
-registerCourseOccurrenceReadsPort({ readActiveCourseStepGafusGrant, readAllowedVideoCourseStepAccess });
+const occurrenceReadPort = { readActiveCourseStepGafusGrant, readAllowedVideoCourseStepAccess };
+const hasActiveGafusCourseStepAccess = (input: Parameters<typeof coreActiveGrant>[0]) => coreActiveGrant(input, occurrenceReadPort);
 
 
 const db = process.env.DATABASE_URL ?? "";
@@ -198,3 +199,5 @@ suite("course and step occurrence entitlements with real PostgreSQL", () => {
     ).toBe(false);
   });
 });
+
+function hasAllowedVideoCourseStepAccess(userId:string, dayOnCourseId:string, stepOnDayId:string, now:Date) { return coreAllowedVideo(userId, dayOnCourseId, stepOnDayId, now, transactionalContentPolicy.resolveCourseStepAccessTx, occurrenceReadPort); }

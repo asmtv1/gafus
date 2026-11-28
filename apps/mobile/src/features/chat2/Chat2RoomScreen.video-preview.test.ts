@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync(new URL("./Chat2RoomScreen.tsx", import.meta.url), "utf8");
+const source = ["Chat2RoomScreen.tsx", "Chat2RoomComposer.tsx", "chat2RoomStyles.ts", "Chat2RoomMedia.tsx"].map(file => readFileSync(new URL("./" + file, import.meta.url), "utf8")).join("\n");
 const player = source.slice(source.indexOf("function NativeChat2VideoPlayer("), source.indexOf("function NativeChat2Video("));
 const preview = source.slice(source.indexOf("function NativeChat2Video("));
 

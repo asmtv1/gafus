@@ -2,7 +2,7 @@
  * Консультации с кинологом (mobile + паритет с web Route Handlers).
  */
 import type { AuthRole } from "@gafus/auth";
-import { listAdminBookings } from "@gafus/consultation-server/admin-bookings";
+import { listAdminBookings, listAdminBookingPage, ADMIN_BOOKING_STATUSES } from "@gafus/consultation-server/admin-bookings";
 import {
   prepareConsultationCall, createConsultationCallAdmission, signConsultationOneTimeKey,
 } from "@gafus/consultation-server/vox";
@@ -555,9 +555,20 @@ consultationsRoutes.put(
 
 consultationsRoutes.get("/admin/bookings", requireRole("ADMIN"), async (c) => {
   try {
+    if (c.req.query("page") !== undefined) {
+      const parsed=z.object({
+        page:z.coerce.number().int().min(1).max(10000),
+        pageSize:z.coerce.number().int().refine(v=>[25,50,100].includes(v)).default(25),
+        search:z.string().trim().max(128).default(""),
+        status:z.enum(ADMIN_BOOKING_STATUSES).default("ALL"),
+      }).safeParse(c.req.query());
+      if (!parsed.success) return c.json({success:false,code:"INVALID_PAGE"},400);
+      return c.json({success:true,data:await listAdminBookingPage(c.get("user").id,parsed.data)});
+    }
     const data = await listAdminBookings();
     return c.json({ success: true, data });
   } catch (error) {
+    if(error instanceof Error && error.message==="FORBIDDEN")return c.json({success:false,code:"FORBIDDEN"},403);
     return handleConsultationError(c, error);
   }
 });

@@ -205,3 +205,5 @@ describe("AG1 pet routes and signed document metadata: private error logging (Co
     expect(m.logger).not.toHaveBeenCalled();
   });
 });
+
+vi.mock("../../modules/pets/composition/pet-rows-instance.js", () => ({ petRows: {} }));

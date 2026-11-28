@@ -60,34 +60,93 @@ function recordSignedCdnOutage(url: string, now = Date.now()): void {
   if (kind) cdnFailedUntil[kind] = now + MEDIA_CDN_OUTAGE_COOLDOWN_MS;
 }
 
-/** HEAD probes are required because <img> and native players omit HTTP error status. */
-export async function probeCdnOutage(
+/** In-flight status probes only; never cache a storage grant or share across
+ * different transports, failure semantics or signed URL identities. */
+const pendingProbes = new WeakMap<typeof fetch, Map<string, Promise<boolean>>>();
+
+/** HEAD probes are required because image/native players omit HTTP status. */
+export function probeCdnOutage(
   url: string,
   options: { fetcher?: typeof fetch; timeoutMs?: number; nativeNetwork?: boolean } = {},
 ): Promise<boolean> {
   const timeoutMs = options.timeoutMs ?? 3500;
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 10000) return false;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 10000) return Promise.resolve(false);
   let target: URL;
-  try { target = new URL(url); } catch { return false; }
-  if (target.protocol !== 'https:' || target.username || target.password) return false;
-  const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
-  try {
-    const response = await (options.fetcher ?? fetch)(url, {
-      method: 'HEAD', signal: controller.signal, cache: 'no-store', credentials: 'omit', redirect: 'error',
-    });
-    const outage = isCdnOutage({ status: response.status });
-    // Cache only verified 5xx (410 may refer to one retired object, not the whole CDN). Native network failures and browser CORS errors
-    // are ambiguous; their one-request fallback must not poison all media.
-    if (outage && response.status >= 500) recordSignedCdnOutage(url);
-    return outage;
-  } catch {
-    // Web uses an authenticated Hono status proxy. If *that* fetch fails or
-    // times out, we cannot establish the CDN's real HTTP status: fail closed.
-    // Native requests have no browser CORS ambiguity and can recover per item.
-    return options.nativeNetwork === true && isCdnOutage({ timedOut, networkFailed: !timedOut });
-  } finally { clearTimeout(timer); }
+  try { target = new URL(url); } catch { return Promise.resolve(false); }
+  if (target.protocol !== 'https:' || target.username || target.password) return Promise.resolve(false);
+  const fetcher = options.fetcher ?? fetch;
+  const nativeNetwork = options.nativeNetwork === true;
+  const key = JSON.stringify([url, timeoutMs, nativeNetwork]);
+  let pending = pendingProbes.get(fetcher);
+  if (!pending) {
+    pending = new Map();
+    pendingProbes.set(fetcher, pending);
+  }
+  const existing = pending.get(key);
+  if (existing) return existing;
+  const operation = (async () => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
+    try {
+      // Some native fetch implementations ignore abort. Race the actual
+      // transport against a deadline, and ignore any late HTTP result.
+      const response = await Promise.race([
+        Promise.resolve().then(() => fetcher(url, {
+          method: 'HEAD', signal: controller.signal, cache: 'no-store',
+          credentials: 'omit', redirect: 'error',
+        })),
+        new Promise<null>(resolve => {
+          timer = setTimeout(() => {
+            timedOut = true;
+            resolve(null);
+            controller.abort();
+          }, timeoutMs);
+        }),
+      ]);
+      if (timedOut || response === null) return nativeNetwork;
+      const outage = isCdnOutage({ status: response.status });
+      // Only a verified 5xx on an exact signed CDN path may open a circuit.
+      if (outage && response.status >= 500) recordSignedCdnOutage(url);
+      return outage;
+    } catch {
+      // Browser proxy failure is ambiguous; native recovery is per object.
+      return nativeNetwork;
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+      controller.abort();
+    }
+  })();
+  pending.set(key, operation);
+  void operation.finally(() => {
+    if (pending.get(key) === operation) pending.delete(key);
+  });
+  return operation;
+}
+
+/** The same exact public Questions V2 object must be returned by the API.
+ * A CDN 403/404 never authorizes this alternate origin. Web must pass its
+ * authenticated status proxy; native may also recover on transport failure.
+ */
+export function allowQuestionsS3Fallback(
+  cdnUrl: string, fallbackUrl?: string, http: typeof fetch = fetch, nativeNetwork = false,
+): Promise<boolean> {
+  const deny = () => Promise.resolve(false);
+  if (!fallbackUrl) return deny();
+  let primary: URL, fallback: URL;
+  try { primary = new URL(cdnUrl); fallback = new URL(fallbackUrl); }
+  catch { return deny(); }
+  const variant = /^\/questions\/uploads\/questions\/v2\/[A-Za-z0-9_-]{1,128}\/[0-9a-f-]{36}\/v1\/image\/[sm]\.webp$/i;
+  if (
+    primary.protocol !== "https:" || primary.port || primary.username || primary.password ||
+    primary.search || primary.hash ||
+    !["ebiteskukingusk.begetcdn.cloud", "cdn.gafus.ru"].includes(primary.hostname) ||
+    !variant.test(primary.pathname) ||
+    fallback.origin !== "https://gafus-questions-public.s3.cloud.ru" ||
+    fallback.username || fallback.password || fallback.search || fallback.hash ||
+    fallback.pathname !== primary.pathname
+  ) return deny();
+  return probeCdnOutage(primary.toString(), { fetcher: http, timeoutMs: 4000, nativeNetwork });
 }
 /** Validate known signed Gallery/Feed URLs or exact public Chat2/Questions
  * final-object paths before the authenticated Hono server probes a CDN HEAD.

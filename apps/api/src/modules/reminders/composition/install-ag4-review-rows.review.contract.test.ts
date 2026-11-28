@@ -23,12 +23,12 @@ describe("AG4 reminder source-review-only API SQL composer",()=>{
   expect(app).not.toContain("install-ag4-review-rows.review");
   expect(app).not.toContain("g1-reminders-v2-unmounted.review");
   const route=readFileSync(fileURLToPath(new URL("../../../routes/v1/reminders.ts",import.meta.url)),"utf8");
-  expect(route).toContain('import "../../modules/reminders/composition/install-ag4-review-rows.review.js";');
-  await import("./install-ag4-review-rows.review");
+  expect(route).toContain('import { reminderRows } from "../../modules/reminders/composition/reminder-rows.js";');
+  const { reminderRows } = await import("./reminder-rows");
   const core=await import("@gafus/core/services/reminders");
   await expect(core.createReminderAG4("owner-1",{
     name:"Dog walk",reminderTime:"09:00",reminderDays:"1,3",timezone:"Europe/Moscow",
-  },"00000000-0000-4000-8000-000000000001")).resolves.toMatchObject({kind:"created"});
+  },"00000000-0000-4000-8000-000000000001", reminderRows)).resolves.toMatchObject({kind:"created"});
   expect(sql.tx).toHaveBeenCalledTimes(1);
   expect(sql.create).toHaveBeenCalledTimes(1);
  });

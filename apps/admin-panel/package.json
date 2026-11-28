@@ -11,7 +11,6 @@
     "test": "vitest run src/admin-live --maxWorkers=1"
   },
   "dependencies": {
-    "@gafus/cdn-upload": "workspace:*",
     "@gafus/consultation-shared": "workspace:*",
     "@gafus/types": "workspace:*",
     "@mui/icons-material": "7.1.0",
@@ -31,5 +30,11 @@
     "@types/react": "19.1.9",
     "@types/react-dom": "19.1.7",
     "jsdom": "26.1.0"
+  },
+  "exports": {
+    "./mount-in-web": {
+      "types": "./src/admin-live/mountInWeb.tsx",
+      "default": "./src/admin-live/mountInWeb.tsx"
+    }
   }
 }

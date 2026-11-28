@@ -36,7 +36,7 @@ async function avatarUrlForProfile(value: string | null): Promise<string | null>
  * Получает профиль пользователя по ID
  */
 export async function getUserProfile(userId: string, rows?: ProfileRowsPort) {
-  const profile = await (rows ?? requireProfileRowsPort()).readUserProfileRow(userId);
+  const profile = await (requireProfileRowsPort(rows)).readUserProfileRow(userId);
   return profile;
 }
 
@@ -84,7 +84,7 @@ export async function updateUserProfile(userId: string, data: NormalizedProfileD
     }
   }
 
-  const result = await (rows ?? requireProfileRowsPort()).upsertProfileFields(userId, updateData, createData);
+  const result = await (requireProfileRowsPort(rows)).upsertProfileFields(userId, updateData, createData);
 
   return result;
 }
@@ -93,7 +93,7 @@ export async function updateUserProfile(userId: string, data: NormalizedProfileD
  * Проверяет существование пользователя по ID
  */
 export async function existsUser(userId: string, rows?: ProfileRowsPort): Promise<boolean> {
-  const user = await (rows ?? requireProfileRowsPort()).readProfileActorExists(userId);
+  const user = await (requireProfileRowsPort(rows)).readProfileActorExists(userId);
   return !!user;
 }
 
@@ -101,7 +101,7 @@ export async function existsUser(userId: string, rows?: ProfileRowsPort): Promis
  * Получает userId по username (для fallback при несоответствии session.id)
  */
 export async function getUserIdByUsername(username: string, rows?: ProfileRowsPort): Promise<string | null> {
-  const user = await (rows ?? requireProfileRowsPort()).readUserIdByUsernameRow(username);
+  const user = await (requireProfileRowsPort(rows)).readUserIdByUsernameRow(username);
   return user?.id ?? null;
 }
 
@@ -113,7 +113,7 @@ export async function getUserIdByUsername(username: string, rows?: ProfileRowsPo
 export async function getPublicProfile(username: string, rows?: ProfileRowsPort): Promise<PublicProfile | null> {
   if (!username) throw new Error("username is required");
 
-  const user = await (rows ?? requireProfileRowsPort()).readPublicProfileRow(username);
+  const user = await (requireProfileRowsPort(rows)).readPublicProfileRow(username);
 
   if (!user) return null;
 
@@ -151,7 +151,7 @@ export async function getPublicProfile(username: string, rows?: ProfileRowsPort)
           avatarUrl: await avatarUrlForProfile(user.profile.avatarUrl),
         }
       : null,
-    chatRole: await getChatDisplayRole(user, (id, at) => (rows ?? requireProfileRowsPort()).readPaidChatDisplayEntitlement(id, at)),
+    chatRole: await getChatDisplayRole(user, (id, at) => (requireProfileRowsPort(rows)).readPaidChatDisplayEntitlement(id, at)),
     courses,
     diplomas: user.diplomas
       .filter((d) => d.issuedAt !== null)
@@ -192,7 +192,7 @@ export async function updateAvatar(userId: string, file: File, rows?: ProfileRow
   let oldAvatarUrl: string | null = null;
 
   try {
-    oldAvatarUrl = await (rows ?? requireProfileRowsPort()).replaceProfileAvatarRow(userId, avatarUrl);
+    oldAvatarUrl = await (requireProfileRowsPort(rows)).replaceProfileAvatarRow(userId, avatarUrl);
   } catch (error) {
     // Failed database commit: avoid leaking the newly uploaded object.
     try {
@@ -245,7 +245,7 @@ export async function updateAvatar(userId: string, file: File, rows?: ProfileRow
  * Получает пользователя с тренировками и курсами для API/веб.
  */
 export async function getUserWithTrainings(userId: string, rows?: ProfileRowsPort): Promise<UserWithTrainings | null> {
-  const user = await (rows ?? requireProfileRowsPort()).readUserWithTrainingsRow(userId);
+  const user = await (requireProfileRowsPort(rows)).readUserWithTrainingsRow(userId);
 
   if (!user) return null;
 
@@ -305,7 +305,7 @@ export interface UserProfileForApi {
  * Получает профиль пользователя для API (GET /profile).
  */
 export async function getUserProfileForApi(userId: string, rows?: ProfileRowsPort): Promise<UserProfileForApi | null> {
-  const user = await (rows ?? requireProfileRowsPort()).readUserProfileForApiRow(userId);
+  const user = await (requireProfileRowsPort(rows)).readUserProfileForApiRow(userId);
   if (!user) return null;
   const { passwordSetAt, onboardingTourCompletedAt, accounts: _accounts, ...userRest } = user;
   const p = user.profile;
@@ -332,7 +332,7 @@ export interface OnboardingTourStatusDto {
 }
 
 export async function getOnboardingTourStatus(userId: string, rows?: ProfileRowsPort): Promise<OnboardingTourStatusDto> {
-  const user = await (rows ?? requireProfileRowsPort()).readOnboardingTourStatusRow(userId);
+  const user = await (requireProfileRowsPort(rows)).readOnboardingTourStatusRow(userId);
   const completedAt = user?.onboardingTourCompletedAt ?? null;
   return {
     hasSeenV1: completedAt !== null,
@@ -341,7 +341,7 @@ export async function getOnboardingTourStatus(userId: string, rows?: ProfileRows
 }
 
 export async function markOnboardingTourSeen(userId: string, rows?: ProfileRowsPort): Promise<OnboardingTourStatusDto> {
-  const updated = await (rows ?? requireProfileRowsPort()).markOnboardingTourSeenRow(userId);
+  const updated = await (requireProfileRowsPort(rows)).markOnboardingTourSeenRow(userId);
 
   return {
     hasSeenV1: true,

@@ -7,6 +7,8 @@ export type PendingTimer = {
   status: Status;
   eventId: string;
   remainingSec: number | null;
+  occurrenceId?: string;
+  originalStepId?: string;
 };
 const kinds: Record<string, Status> = {
   startStep: "IN_PROGRESS",
@@ -21,7 +23,7 @@ export function reducePendingTimers(
   courseId: string,
   dayId: string,
 ): PendingTimer[] {
-  const latest = new Map<number, PendingTimer>();
+  const latest = new Map<string, PendingTimer>();
   for (const event of events) {
     const status = kinds[event.kind];
     if (
@@ -52,7 +54,10 @@ export function reducePendingTimers(
         (event.payload.durationSec as number) < 0)
     )
       continue;
-    const previous = latest.get(step as number);
+    const occurrenceId = typeof event.payload.expectedStepOnDayId === "string" ? event.payload.expectedStepOnDayId : undefined;
+    const originalStepId = typeof event.payload.expectedStepId === "string" ? event.payload.expectedStepId : undefined;
+    const key = occurrenceId && originalStepId ? JSON.stringify([occurrenceId, originalStepId]) : "legacy:" + step;
+    const previous = latest.get(key);
     const remainingSec =
       event.kind === "pauseStep"
         ? (event.payload.timeLeftSec as number)
@@ -65,7 +70,8 @@ export function reducePendingTimers(
                 ? event.payload.durationSec
                 : null
               : null;
-    latest.set(step as number, {
+    latest.set(key, {
+      ...(occurrenceId && originalStepId ? { occurrenceId, originalStepId } : {}),
       stepIndex: step as number,
       status,
       eventId: event.eventId,

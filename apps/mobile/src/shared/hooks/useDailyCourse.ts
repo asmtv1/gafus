@@ -1,3 +1,4 @@
+import { hasPendingStepWrite } from "@/shared/lib/offline/pendingStepWrite";
 import { useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
@@ -64,7 +65,7 @@ export function useDailyCourseDay(scheduleId: string) {
 export function useDailyCourseStartStep() {
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.startStep>[0]) => {
-      if (getIsOffline()) {
+      if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
         if (
           typeof variables.scheduleId !== "string" ||
           !/^c[a-z0-9]{8,}$/.test(variables.scheduleId) ||
@@ -94,7 +95,7 @@ export function useDailyCourseStartStep() {
 export function useDailyCoursePauseStep() {
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.pauseStep>[0]) => {
-      if (getIsOffline()) {
+      if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
         if (
           typeof variables.scheduleId !== "string" ||
           !/^c[a-z0-9]{8,}$/.test(variables.scheduleId) ||
@@ -120,7 +121,7 @@ export function useDailyCoursePauseStep() {
 export function useDailyCourseResumeStep() {
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.resumeStep>[0]) => {
-      if (getIsOffline()) {
+      if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
         if (
           typeof variables.scheduleId !== "string" ||
           !/^c[a-z0-9]{8,}$/.test(variables.scheduleId) ||
@@ -144,7 +145,7 @@ export function useDailyCourseResumeStep() {
 export function useDailyCourseResetStep() {
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.resetStep>[0]) => {
-      if (getIsOffline()) {
+      if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
         if (
           typeof variables.scheduleId !== "string" ||
           !/^c[a-z0-9]{8,}$/.test(variables.scheduleId) ||
@@ -168,7 +169,7 @@ export function useDailyCourseResetStep() {
 export function useDailyCourseCompleteStep() {
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.completeStep>[0]) => {
-      if (getIsOffline()) {
+      if (getIsOffline() || await hasPendingStepWrite(newOnlyV2NativeQueues, variables) || getIsOffline()) {
         if (
           typeof variables.scheduleId !== "string" ||
           !/^c[a-z0-9]{8,}$/.test(variables.scheduleId) ||
@@ -179,7 +180,12 @@ export function useDailyCourseCompleteStep() {
         await commitVerifiedDailyCompletion(
           newOnlyV2NativeQueues,
           useAuthStore.getState().user?.id ?? null,
-          { scheduleId: variables.scheduleId, stepIndex: variables.stepIndex },
+          { scheduleId: variables.scheduleId, stepIndex: variables.stepIndex,
+            ...(variables.expectedBundleStepId && variables.expectedStepId ? {
+              expectedBundleStepId: variables.expectedBundleStepId, expectedStepId: variables.expectedStepId,
+              ...(variables.offlineProgressVersion ? { offlineProgressVersion: variables.offlineProgressVersion } : {}),
+            } : {}),
+          },
           () => useAuthStore.getState().user?.id ?? null,
         );
         return { success: true, code: "OFFLINE_QUEUED" as const };

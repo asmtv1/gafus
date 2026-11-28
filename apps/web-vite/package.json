@@ -16,10 +16,11 @@
   "dependencies": {
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.0",
-    "@gafus/cdn-upload": "workspace:*",
+    "@gafus/admin-panel": "workspace:*",
     "@gafus/chat-media-quality": "workspace:*",
     "@gafus/consultation-shared": "workspace:*",
     "@gafus/core-client": "workspace:*",
+    "@gafus/error-handling": "workspace:*",
     "@gafus/types": "workspace:*",
     "@gafus/ui-components": "workspace:*",
     "@mui/icons-material": "7.1.0",
@@ -32,8 +33,7 @@
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "react-markdown": "10.1.0",
-    "remark-gfm": "4.0.1",
-    "@gafus/error-handling": "workspace:*"
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@gafus/core": "workspace:*",

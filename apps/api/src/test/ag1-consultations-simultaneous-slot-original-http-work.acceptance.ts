@@ -1,3 +1,4 @@
+import { authRows } from "../modules/auth/composition/auth-rows-instance.js";
 /** AG1 consultation positive signed Hono/WORK SQL, synthetic no-recipient accounts. */
 import { randomBytes, randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
@@ -53,7 +54,7 @@ async function actor(suffix: string, role: "USER" | "TRAINER") {
   actors.push(v);
   const inDb = await prisma.user.findUnique({where:{username:v.username.toLowerCase()},select:{id:true,password:true,registrationPending:true}});
   const selfCompare = inDb ? await bcrypt.compare(password,inDb.password) : false;
-  const coreValidation = await validateCredentials(v.username,password);
+  const coreValidation = await validateCredentials(authRows, v.username,password);
   console.warn("AG1_CONS_SYNTH_AUTH_LOCAL_SQL_FOUND="+Boolean(inDb)+";BCRYPT="+selfCompare+";CORE_VALID="+coreValidation.success+";PENDING="+String(inDb?.registrationPending));
   ensure(inDb?.id===v.id&&selfCompare&&coreValidation.success,"LOCAL_SQL_CREDENTIALS_INVARIANT");
   const res = await http("/auth/login", "POST", undefined, { username: v.username, password });

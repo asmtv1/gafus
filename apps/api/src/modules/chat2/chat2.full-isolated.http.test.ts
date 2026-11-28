@@ -12,7 +12,8 @@ import { connection, pushQueue } from '@gafus/queues';
 import { generateAccessToken } from '@gafus/auth/jwt';
 import { startChat2OutboxWorker } from '../../../../../packages/worker/src/chat2-outbox-worker';
 import { startHealthServer } from '../../../../../packages/worker/src/health-server';
-import { withGafusUserLock, changeGafusBalanceTx } from "@gafus/core/services/gafus";
+import { gafusLock } from "../gafus/composition/wallet-lock-instance.js";
+import { gafusWallet } from "../gafus/composition/wallet-instance.js";
 import {
   chat2SubscriptionForConnection, chat2SubscriptionTransportOptions,
 } from "@gafus/core-client/chat2/realtime-subscription";
@@ -224,11 +225,11 @@ describe('real isolated Hono → PostgreSQL outbox worker → signed Centrifugo 
     });
     const spendKey='wallet_qa_'+randomUUID();
     try {
-      const seeded=await withGafusUserLock(user.id,tx=>changeGafusBalanceTx(tx,{
+      const seeded=await gafusLock.withGafusUserLock(user.id,tx=>gafusWallet.changeGafusBalanceTx(tx,{
         userId:user.id, amount:3, kind:'EARN', idempotencyKey:'seed_'+randomUUID(),
       }));
       expect(seeded.balance).toBe(3);
-      const spend=()=>withGafusUserLock(user.id,tx=>changeGafusBalanceTx(tx,{
+      const spend=()=>gafusLock.withGafusUserLock(user.id,tx=>gafusWallet.changeGafusBalanceTx(tx,{
         userId:user.id, amount:-1, kind:'SPEND', idempotencyKey:spendKey,
         targetType:'ARTICLE', targetKey:'same-purchase',
       }));
@@ -240,11 +241,11 @@ describe('real isolated Hono → PostgreSQL outbox worker → signed Centrifugo 
         where:{userId:user.id,kind:'SPEND',idempotencyKey:spendKey},
       })).toBe(1);
       expect((await prisma.gafusWallet.findUnique({where:{userId:user.id}}))?.balance).toBe(2);
-      await expect(withGafusUserLock(user.id,tx=>changeGafusBalanceTx(tx,{
+      await expect(gafusLock.withGafusUserLock(user.id,tx=>gafusWallet.changeGafusBalanceTx(tx,{
         userId:user.id, amount:-2, kind:'SPEND',idempotencyKey:spendKey,
         targetType:'ARTICLE',targetKey:'different-purchase',
       }))).rejects.toMatchObject({code:'GAFUS_IDEMPOTENCY_CONFLICT'});
-      await expect(withGafusUserLock(user.id,tx=>changeGafusBalanceTx(tx,{
+      await expect(gafusLock.withGafusUserLock(user.id,tx=>gafusWallet.changeGafusBalanceTx(tx,{
         userId:user.id, amount:-100, kind:'SPEND',idempotencyKey:'insufficient_'+randomUUID(),
       }))).rejects.toMatchObject({code:'GAFUS_INSUFFICIENT_BALANCE'});
       expect((await prisma.gafusWallet.findUnique({where:{userId:user.id}}))?.balance).toBe(2);

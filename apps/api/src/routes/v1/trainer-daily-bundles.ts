@@ -10,7 +10,7 @@ import type {
   TrainerDailyBundleStepCandidatesRead,
   TrainerDailyScheduleRangeRead,
   TrainerDailyCandidatesRead,
-} from "../../../../../packages/types/src/data/trainer-read-contracts";
+} from "@gafus/types/trainer-read-contracts";
 import { dailyCourseRangeSchema } from "../../modules/daily-course/composition/dailyCourseApplication.js";
 import { readTrainerDailyApplication } from "../../modules/trainer-daily/composition/read-trainer-daily.js";
 

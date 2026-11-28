@@ -34,12 +34,3 @@ export interface RewardedAccessReadPort {
   readRewardedCourseVideoOccurrences(videoUrl: string): Promise<RewardedVideoOccurrenceRow[]>;
   readPendingRewardedStepNotificationUrl(userId: string, day: number, stepIndex: number): Promise<{url:string|null} | null>;
 }
-let bound: Readonly<RewardedAccessReadPort> | null = null;
-export function registerRewardedAccessReadPort(port: RewardedAccessReadPort): void {
-  if (bound !== null && bound !== port) throw new Error("REWARDED_ACCESS_READ_PORT_ALREADY_BOUND");
-  bound = port;
-}
-export function requireRewardedAccessReadPort(): Readonly<RewardedAccessReadPort> {
-  if (!bound) throw new Error("REWARDED_ACCESS_READ_PORT_UNBOUND");
-  return bound;
-}

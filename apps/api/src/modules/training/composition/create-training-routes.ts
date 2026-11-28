@@ -3,7 +3,7 @@ import { createTrainingRoutes } from "../../../routes/v1/training.js";
 import { createReadTrainingDaysApplication } from "../application/read-training-days.js";
 import { createReadTrainingDayApplication } from "../application/read-training-day.js";
 import { createWriteStepProgressApplication } from "../application/write-step-progress.js";
-import { checkCourseAccess } from "@gafus/core/services/course";
+import { checkCourseAccess } from "../../courses/composition/catalog-read-instance.js";
 import { withCorrelatedUseCase } from "../../../lib/operation-observability.js";
 import type { TrainingRoutesPorts } from "../../../routes/v1/training.js";
 

@@ -2,22 +2,22 @@ import {previewVersionPublication,publishVersionUpdate,PublicationError} from "@
 import { Hono } from "hono";
 import { listMandatoryOtaControls, updateMandatoryOtaControl, MandatoryControlError } from "@gafus/mobile-ota-server/mandatory-control";
 import { listOtaTelemetrySummaries } from "@gafus/mobile-ota-server/telemetry";
-import { listNativeOtaAudit, listNativeOtaReleases, listMobileOtaReleases, listMobileOtaPatchDefinitions, listMobileOtaAudit } from "../../modules/mobile-ota/queries.js";
+import { listNativeOtaAudit, listNativeOtaReleases, listMobileOtaReleases, listMobileOtaPatchDefinitions, listMobileOtaAudit } from "@gafus/mobile-ota-server/queries";
 import { patchDefinitionSchema, patchApplicationSchema, MobileOtaPatchError,
   registerSourcePatchDefinition, registerSourcePatchApplication,
   listSourcePatchApplications,
-} from "../../modules/mobile-ota/patch-commands.js";
+} from "@gafus/mobile-ota-server/patch-commands";
 import {
   nativeReleaseInput, verifyNativeInput, MobileOtaNativeError,
   registerNativeCandidate, verifyNativeCandidate,
-} from "../../modules/mobile-ota/native-release-admin.js";
+} from "@gafus/mobile-ota-server/native-release-admin";
 import { z } from "zod/v3";
 import { requireRole } from "../../middleware/auth.js";
 import { readAdminActorRole } from "../../modules/admin-users/composition/service.js";
 import {
   listMobileOtaDeployments, MobileOtaDeploymentError, updateMobileOtaDeployment,
   createMobileOtaDeployment,
-} from "../../modules/mobile-ota/deployment-commands.js";
+} from "@gafus/mobile-ota-server/deployment-commands";
 
 const UUID = z.string().uuid();
 const actionInput = z.object({

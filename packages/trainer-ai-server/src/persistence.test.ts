@@ -35,10 +35,18 @@ describe("Trainer AI persistence owns actor-scoped queries and atomic transactio
   expect(await readTrainerAIStreamConfig("actor",["TRAINER","ADMIN"])).toEqual({model:"safe-model",enabled:true,apiKey:"secret-synthetic"});
  });
  it("bounds the history query to the authenticated trainer",async()=>{
+  m.count.mockResolvedValueOnce(25);
   const result=await readTrainerAIHistoryRows("actor",20,10,["TRAINER"]);
-  expect(result).toEqual({total:0,messages:[]});
+  expect(result).toEqual({total:25,messages:[]});
   expect(m.messages).toHaveBeenCalledExactlyOnceWith({where:{trainerId:"actor",trainer:{role:{in:["TRAINER"]}}},orderBy:[{createdAt:"desc"},{id:"desc"}],take:10,skip:20,
    select:{id:true,role:true,content:true,tokensUsed:true,attachments:true,createdAt:true}});
+ });
+ it("does not issue an out-of-range SQL offset or accept invalid pagination",async()=>{
+  m.count.mockResolvedValue(1000);
+  expect(await readTrainerAIHistoryRows("actor",Number.MAX_SAFE_INTEGER,100,["TRAINER"])).toEqual({total:1000,messages:[]});
+  expect(m.messages).not.toHaveBeenCalled();
+  await expect(readTrainerAIHistoryRows("actor",NaN,100,["TRAINER"])).rejects.toThrow("INVALID_HISTORY_PAGE");
+  await expect(readTrainerAIHistoryRows("actor",0,101,["TRAINER"])).rejects.toThrow("INVALID_HISTORY_PAGE");
  });
  it("fails closed before reading settings/history without eligible roles",async()=>{
    expect(await readTrainerAIStreamConfig("actor",[])).toBeNull();

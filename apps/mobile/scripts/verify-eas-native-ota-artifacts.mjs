@@ -8,6 +8,8 @@ const profile=process.env.EAS_BUILD_PROFILE;
 if (['development','development-device'].includes(profile)) process.exit(0);
 const platform=process.env.EAS_BUILD_PLATFORM;
 const environment=process.env.APP_ENV;
+const descriptor=process.env.GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR;
+if(!descriptor||!existsSync(resolve(root,descriptor))) throw Error('GAFUS_EAS_REGISTERED_DESCRIPTOR_REQUIRED');
 if(!['android','ios'].includes(platform) || !['production','preview'].includes(environment))
   throw Error('GAFUS_EAS_RELEASE_CONTEXT_REQUIRED');
 function collect(dir,pattern) {
@@ -22,7 +24,7 @@ const artifacts=platform==='android'
   : collect(resolve(root,'ios/build'),/\.ipa$/i);
 if(!artifacts.length) throw Error('GAFUS_EAS_FINAL_OTA_ARTIFACT_MISSING');
 for(const artifact of artifacts){
-  const check=spawnSync('python3',[resolve(root,'scripts/verify-native-ota-artifact.py'),artifact,'--environment',environment],{stdio:'inherit'});
+  const check=spawnSync('python3',[resolve(root,'scripts/verify-native-ota-artifact.py'),artifact,'--environment',environment,'--descriptor',resolve(root,descriptor)],{stdio:'inherit'});
   if(check.error) throw check.error;
   if(check.status!==0) throw Error('GAFUS_EAS_FINAL_OTA_ARTIFACT_INVALID:'+artifact);
 }

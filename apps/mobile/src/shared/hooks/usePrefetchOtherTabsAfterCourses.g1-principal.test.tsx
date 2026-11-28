@@ -52,7 +52,7 @@ vi.mock("@/shared/lib/api/articlesQuery", () => ({
   articlesQueryOptions: { queryKey: ["articles"] },
 }));
 vi.mock("@/shared/lib/api/favoritesQuery", () => ({
-  favoritesQueryOptions: { queryKey: ["favorites"] },
+  favoritesForActor: (actor: {ownerId: string; authEpoch: string}) => ({ queryKey: ["favorites", actor.ownerId, actor.authEpoch] }),
 }));
 vi.mock("@/shared/lib/utils/notifications", () => ({
   getVerifiedPushActor: () =>

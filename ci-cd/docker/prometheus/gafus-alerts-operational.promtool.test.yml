@@ -1,0 +1,105 @@
+rule_files:
+  - gafus-alerts.yml
+evaluation_interval: 1m
+tests:
+  - name: reset_zero_traffic_is_not_stalled
+    interval: 1m
+    input_series:
+      - series: 'gafus_mail_reset_queue_stalled'
+        values: '0+0x20'
+      - series: 'gafus_mail_reset_attempt_stalled_1h'
+        values: '0+0x20'
+      - series: 'gafus_mail_metrics_available'
+        values: '1+0x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: GafusPasswordResetMailStalled
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: GafusMailMetricsUnavailable
+        exp_alerts: []
+  - name: reset_stalled_then_recovers
+    interval: 1m
+    input_series:
+      - series: 'gafus_mail_reset_attempt_stalled_1h'
+        values: '1+0x4 0+0x10'
+      - series: 'gafus_mail_reset_queue_stalled'
+        values: '0+0x15'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: GafusPasswordResetMailStalled
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: GafusPasswordResetMailStalled
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              owner: identity-mail
+            exp_annotations:
+              summary: "Password reset delivery is stalled or provider acceptance is unresolved"
+              runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#password-reset"
+      - eval_time: 8m
+        alertname: GafusPasswordResetMailStalled
+        exp_alerts: []
+  - name: missing_mail_metrics_not_false_reset_failure
+    interval: 1m
+    input_series: []
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: GafusMailMetricsUnavailable
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              owner: identity-mail
+            exp_annotations:
+              summary: "Mail monitoring unavailable; no-data is not successful delivery"
+              runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"
+      - eval_time: 11m
+        alertname: GafusPasswordResetMailStalled
+        exp_alerts: []
+  - name: first_frame_slow_with_traffic_floor
+    interval: 1m
+    input_series:
+      - series: 'gafus_video_first_frame_seconds_bucket{surface="chat",platform="ios",le="5"}'
+        values: '0+0x30'
+      - series: 'gafus_video_first_frame_seconds_bucket{surface="chat",platform="ios",le="10"}'
+        values: '0+10x30'
+      - series: 'gafus_video_first_frame_seconds_bucket{surface="chat",platform="ios",le="+Inf"}'
+        values: '0+10x30'
+      - series: 'gafus_video_first_frame_seconds_count{surface="chat",platform="ios"}'
+        values: '0+10x30'
+      - series: 'gafus_video_first_frame_seconds_bucket{surface="chat",platform="android",le="5"}'
+        values: '0+0x30'
+      - series: 'gafus_video_first_frame_seconds_bucket{surface="chat",platform="android",le="10"}'
+        values: '0+1x30'
+      - series: 'gafus_video_first_frame_seconds_bucket{surface="chat",platform="android",le="+Inf"}'
+        values: '0+1x30'
+      - series: 'gafus_video_first_frame_seconds_count{surface="chat",platform="android"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: GafusVideoFirstFrameSlow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              owner: media-client
+              surface: chat
+              platform: ios
+            exp_annotations:
+              summary: "Observed p95 time to first rendered frame exceeds five seconds"
+              runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#first-frame"
+  - name: exporter_drops_observable
+    interval: 1m
+    input_series:
+      - series: 'gafus_server_diagnostic_otlp_dropped_total'
+        values: '0+1x15'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: GafusServerDiagnosticExportDrops
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              owner: observability
+            exp_annotations:
+              summary: "Server diagnostic exporter dropped observations; inspect coverage"
+              runbook_url: "https://github.com/asmtv1/gafus/blob/main/docs/current/OPERATIONAL_SIGNALS.md#telemetry"

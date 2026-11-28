@@ -1,3 +1,4 @@
+import { petRows } from "../../modules/pets/composition/pet-rows-instance.js";
 /** Actual Hono signed-JWT and Cookie Origin with mock persistence only. */
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
@@ -37,7 +38,7 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   vi.clearAllMocks();
-  updatePet.mockImplementation(async (_pet: string, id: string, data: object) => ({
+  updatePet.mockImplementation(async (_rows: unknown, _pet: string, id: string, data: object) => ({
     id: "pet-X", ownerId: id, ...data,
   }));
   updateProfile.mockImplementation(async (id: string, data: object) => ({
@@ -54,10 +55,10 @@ describe("Pet/profile nullable clear JWT bearer/cookie real Hono contract", () =
   it("JWT01 Bearer owner A and B write only their server-verified owner", async () => {
     expect((await put(petPath, { neckGirthCm: null, ownerId: "owner-B" }, a)).status)
       .toBe(200);
-    expect(updatePet).toHaveBeenCalledWith("pet-X", "owner-A", { neckGirthCm: null });
+    expect(updatePet).toHaveBeenCalledWith(petRows, "pet-X", "owner-A", { neckGirthCm: null });
     expect((await put(petPath, { bellyGirthCm: null, ownerId: "owner-A" }, b)).status)
       .toBe(200);
-    expect(updatePet).toHaveBeenLastCalledWith("pet-X", "owner-B", { bellyGirthCm: null });
+    expect(updatePet).toHaveBeenLastCalledWith(petRows, "pet-X", "owner-B", { bellyGirthCm: null });
   });
   it("JWT02 cookie without/wrong Origin 403, trusted Origin 200", async () => {
     expect((await put(profilePath, { city: "" }, a, true)).status).toBe(403);
@@ -73,3 +74,5 @@ describe("Pet/profile nullable clear JWT bearer/cookie real Hono contract", () =
     expect(updatePet).not.toHaveBeenCalled();
   });
 });
+
+vi.mock("../../modules/pets/composition/pet-rows-instance.js", () => ({ petRows: {} }));

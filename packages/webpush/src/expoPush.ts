@@ -16,10 +16,8 @@ const expoClient = new Expo({
   useFcmV1: true,
 });
 
-const DELETABLE_ERROR_CODES = new Set(["DeviceNotRegistered", "InvalidCredentials"]);
-
 function shouldDeleteByCode(code?: string): boolean {
-  return Boolean(code && DELETABLE_ERROR_CODES.has(code));
+  return code === "DeviceNotRegistered";
 }
 
 export interface ExpoSendResult {
@@ -29,14 +27,16 @@ export interface ExpoSendResult {
   temporaryFailureCount: number;
 }
 
-async function deleteInvalidSubscriptions(endpoints: string[]): Promise<number> {
-  if (endpoints.length === 0) return 0;
-  const result = await prisma.pushSubscription.deleteMany({
-    where: {
-      endpoint: { in: endpoints },
-    },
-  });
-  return result.count;
+export async function deleteInvalidPushRegistrations(subscriptions: PushSubscriptionJSON[], endpoints: ReadonlySet<string>) {
+  const registrations = subscriptions.flatMap(({ endpoint, registration }) =>
+    endpoints.has(endpoint) && registration ? [{ endpoint, ...registration }] : []);
+  if (!registrations.length) return 0;
+  let deleted = 0;
+  for (let start = 0; start < registrations.length; start += 100) {
+    const result = await prisma.pushSubscription.deleteMany({ where: { OR: registrations.slice(start, start + 100) } });
+    deleted += result.count;
+  }
+  return deleted;
 }
 
 export async function sendExpoPushNotifications(
@@ -104,13 +104,17 @@ export async function sendExpoPushNotifications(
       const ticketIndex = receiptToTokenIndex.get(receiptId);
       if (ticketIndex == null) continue;
 
+      successCount--;
+      failureCount++;
       if (shouldDeleteByCode(receipt.details?.error)) {
         invalidEndpoints.add(expoTokens[ticketIndex]!);
+      } else {
+        temporaryFailureCount++;
       }
     }
   }
 
-  const deletedCount = await deleteInvalidSubscriptions(Array.from(invalidEndpoints));
+  const deletedCount = await deleteInvalidPushRegistrations(subscriptions, invalidEndpoints);
 
   logger.info("Expo push batch completed", {
     total: expoTokens.length,

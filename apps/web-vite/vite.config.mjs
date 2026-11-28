@@ -1,5 +1,4 @@
 import { defineConfig } from "vite";
-import { fileURLToPath } from "node:url";
 import { assertSafeDevApiBaseUrl } from "../../scripts/refactor/dev-api-config.mjs";
 
 /**
@@ -34,6 +33,9 @@ export default defineConfig(({ command, isPreview }) => {
     process.env.GAFUS_QA_FRESH_BROWSER_E2E === "1" &&
     /^gafusqa[a-f0-9]{12}$/.test(process.env.GAFUS_QA_PROJECT ?? "") &&
     process.env.GAFUS_QA_WEB_PORT !== undefined;
+  if (freshBrowser && (allGallery || questionsQa || process.env.GAFUS_CHAT2_LOCAL_MEDIA_QA === "1")) {
+    throw new Error("Fresh browser QA cannot share another local API or media relay");
+  }
   const qaPort = (value) => {
     if (!/^[1-9][0-9]{3,4}$/.test(value ?? "") || Number(value) < 1024 || Number(value) > 65535) {
       throw new Error("Invalid browser QA loopback port");
@@ -52,16 +54,6 @@ export default defineConfig(({ command, isPreview }) => {
     oxc: { jsx: { runtime: "automatic" } },
     // Pure shared CDN helpers compile to CommonJS in dist. Serve source as ESM
     // for the lazy Admin shell without modifying shared package output.
-    resolve: {
-      alias: [
-        {
-          find: /^@gafus\/cdn-upload\/utils$/,
-          replacement: fileURLToPath(
-            new URL("../../packages/cdn-upload/src/utils.ts", import.meta.url),
-          ),
-        },
-      ],
-    },
     // Isolated client: no SW, no Workbox, no PWA manifest, no plugins.
     root: import.meta.dirname,
     build: { outDir: "dist", emptyOutDir: true,
@@ -110,7 +102,7 @@ export default defineConfig(({ command, isPreview }) => {
               } : {}),
               // Explicit Chat2 cutover: Hono 3003 is strict loopback-only and
               // shares the dev JWT signer; every other /api/v1 stays on 3001.
-              ...(requestedMode === "local-hono" && !allGallery && !questionsQa &&
+              ...(requestedMode === "local-hono" && !allGallery && !questionsQa && !freshBrowser &&
                   process.env.GAFUS_CHAT2_LOCAL_MEDIA_QA !== "1" ? {
                 "/api/v1/chats": {
                   target: "http://127.0.0.1:3003", changeOrigin: false,

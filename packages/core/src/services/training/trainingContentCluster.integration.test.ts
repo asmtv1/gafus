@@ -29,11 +29,13 @@ async function createProcessCache() {
   // Each simulated process has its own module registry and must compose
   // its own DB read adapter after reset, as API startup does in production.
   vi.resetModules();
-  const { registerTrainingDayContentReadPort } = await import("./trainingDayContentReadPort");
   const { readTrainingDayContent } = await import("@gafus/course-read-server");
-  registerTrainingDayContentReadPort({ readTrainingDayContent });
   const module = await import("./trainingDayContent");
-  return module.getTrainingDayContent;
+  const ports = {
+    contentRows: { readTrainingDayContent },
+    revisionRows: { readDurableCourseContentRevision: async () => shared.revision },
+  };
+  return (courseType: string, dayOnCourseId: string) => module.getTrainingDayContent(courseType, dayOnCourseId, ports);
 }
 
 describe("multi-process course content contract (simulated committed DB revision)", () => {

@@ -1,14 +1,14 @@
 /** AG1-002: erased-only exact whole GET /daily-course/day JSON producer. */
 import type { JSONParsed } from "hono/utils/types";
 import type { DailyCourseDayResponse, DailyCourseStepDto } from "../../modules/daily-course/composition/dailyCourseApplication.js";
-import type { TrainingStatus } from "../../../../../packages/types/src/utils/training-status";
+import type { TrainingStatus } from "@gafus/types/training-status";
 import type {
   DailyCourseDayWire,
   DailyCourseDayStepWire,
   DailyCourseDayRead,
   DailyCourseBoundDayWire,
   DailyCourseBoundStepWire,
-} from "../../../../../packages/types/src/data/training";
+} from "@gafus/types/training";
 import type { createDayAndStepCommandsApplication } from "../../modules/learner-daily/application/day-and-step-commands";
 
 type Same<A, B> =
@@ -32,7 +32,7 @@ type Found = NonNullable<ApplicationDay>;
 export type ProducerIsActualCoreDay = Assert<ExactShape<Found, DailyCourseDayResponse>>;
 // The new opt-in response contains the stable occurrence key; the legacy
 // projection explicitly strips that key and preserves the old exact wire.
-type LegacyStep = Omit<DailyCourseStepDto, "bundleStepId" | "timerSnapshot">;
+type LegacyStep = Omit<DailyCourseStepDto, "bundleStepId" | "timerSnapshot" | "offlineProgressVersion">;
 type LegacyDay = Omit<Found, "steps" | "serverNow"> & { steps: LegacyStep[] };
 export type WholeDayMatchesHonoJson = Assert<ExactShape<JSONParsed<LegacyDay>, DailyCourseDayWire>>;
 export type AllStepsMatchHonoJson = Assert<

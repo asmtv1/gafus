@@ -121,7 +121,7 @@ describe("AG4-approved Reminder V2 applied route + mounted signed JWT and mock C
     });
     expect(r.status).toBe(200);
     privateResponse(r);
-    expect(m.keyed).toHaveBeenCalledWith("owner-A", { ...draft, timezone: undefined }, uuid);
+    expect(m.keyed).toHaveBeenCalledWith("owner-A", { ...draft, timezone: undefined }, uuid, expect.any(Object));
     expect(m.legacy).not.toHaveBeenCalled();
   });
   it("R03 replay same response, not new keyless record", async () => {
@@ -170,7 +170,7 @@ describe("AG4-approved Reminder V2 applied route + mounted signed JWT and mock C
     expect(ok.status).toBe(200);
     privateResponse(ok);
     expect((await ok.json()).data.reminder.id).toBe("keyed");
-    expect(m.lookup).toHaveBeenCalledWith("owner-A", uuid);
+    expect(m.lookup).toHaveBeenCalledWith("owner-A", uuid, expect.any(Object));
     const { ReminderUnknownError } = await import("@gafus/core/services/reminders");
     m.lookup.mockRejectedValueOnce(new ReminderUnknownError());
     const missing = await request("GET", tokenB);

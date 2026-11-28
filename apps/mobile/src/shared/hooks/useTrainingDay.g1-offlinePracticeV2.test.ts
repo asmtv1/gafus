@@ -58,7 +58,6 @@ const args: CompleteStepParams = {
 };
 type Hook = ReturnType<typeof useCompletePracticeStep> & {
   mutationFn: (variables: CompleteStepParams) => Promise<unknown>;
-  onMutate: (variables: CompleteStepParams) => Promise<unknown>;
   onSuccess: (response: unknown, variables: CompleteStepParams) => void;
 };
 
@@ -93,7 +92,6 @@ describe("AG3 P1 offline practice completion uses awaited NEW-only durable stora
 
   it("writes ONLY the exact server practice fields to v2, awaits persistence before optimistic success", async () => {
     const op = options();
-    await op.onMutate(args);
     expect(mocks.completeLocal).not.toHaveBeenCalled();
     let done!: (v: unknown) => void;
     mocks.enqueue.mockReturnValueOnce(
@@ -131,8 +129,7 @@ describe("AG3 P1 offline practice completion uses awaited NEW-only durable stora
     const op = options();
     for (const code of ["V2_SESSION_UNVERIFIED", "disk-full"]) {
       mocks.enqueue.mockRejectedValueOnce(new Error(code));
-      await op.onMutate(args);
-      await expect(op.mutationFn(args)).rejects.toThrow(code);
+        await expect(op.mutationFn(args)).rejects.toThrow(code);
       expect(mocks.completeLocal).not.toHaveBeenCalled();
       expect(mocks.legacyAdd).not.toHaveBeenCalled();
       expect(mocks.serverComplete).not.toHaveBeenCalled();
@@ -149,12 +146,35 @@ describe("AG3 P1 offline practice completion uses awaited NEW-only durable stora
 
   it("keeps unchanged online behavior and does not create v2 events when online", async () => {
     mocks.offline = false;
+    mocks.getPending.mockResolvedValue([]);
     const op = options();
-    await op.onMutate(args);
+    expect(mocks.completeLocal).not.toHaveBeenCalled();
+    const response = await op.mutationFn(args);
+    expect(response).toEqual({ success: true });
+    expect(mocks.completeLocal).not.toHaveBeenCalled();
+    op.onSuccess(response, args);
     expect(mocks.completeLocal).toHaveBeenCalledOnce();
-    expect(await op.mutationFn(args)).toEqual({ success: true });
     expect(mocks.serverComplete).toHaveBeenCalledWith(args);
     expect(mocks.enqueue).not.toHaveBeenCalled();
     expect(mocks.legacyAdd).not.toHaveBeenCalled();
   });
+  it("does not overtake a pending command when connectivity has returned", async () => {
+    mocks.offline = false;
+    const op = options();
+    const response = await op.mutationFn(args);
+    expect(response).toEqual({success:true,code:"OFFLINE_QUEUED"});
+    expect(mocks.serverComplete).not.toHaveBeenCalled();
+    expect(mocks.completeLocal).not.toHaveBeenCalled();
+    op.onSuccess(response,args);
+    expect(mocks.completeLocal).toHaveBeenCalledOnce();
+  });
+  it("does not project a rejected server completion", async () => {
+    mocks.offline=false;
+    mocks.getPending.mockResolvedValue([]);
+    mocks.serverComplete.mockResolvedValueOnce({success:false,code:"FORBIDDEN"});
+    const op=options();
+    op.onSuccess(await op.mutationFn(args),args);
+    expect(mocks.completeLocal).not.toHaveBeenCalled();
+  });
+
 });

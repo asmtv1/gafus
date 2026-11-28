@@ -136,27 +136,7 @@ export interface PreventionRowsPort {
         lastNotifiedForRemindAt: Date | null;
     }>;
 }
-let installed: Readonly<PreventionRowsPort> | null = null;
-export function registerPreventionRowsPort(port: PreventionRowsPort): void {
-    if (installed && installed !== port)
-        throw new Error("PREVENTION_ROWS_PORT_ALREADY_BOUND");
-    installed = port;
+export function requirePreventionRowsPort(port: PreventionRowsPort | undefined): Readonly<PreventionRowsPort> {
+  if (!port) throw new Error("PREVENTION_ROWS_PORT_UNBOUND");
+  return port;
 }
-function requireRows(): Readonly<PreventionRowsPort> {
-    if (!installed)
-        throw new Error("PREVENTION_ROWS_PORT_UNBOUND");
-    return installed;
-}
-export const readOwnedPreventionPet: PreventionRowsPort["readOwnedPreventionPet"] = (...args) => requireRows().readOwnedPreventionPet(...args);
-export const readOwnedPreventionEntryForUpdate: PreventionRowsPort["readOwnedPreventionEntryForUpdate"] = (...args) => requireRows().readOwnedPreventionEntryForUpdate(...args);
-export const readOwnedPreventionEntryId: PreventionRowsPort["readOwnedPreventionEntryId"] = (...args) => requireRows().readOwnedPreventionEntryId(...args);
-export const createPreventionRow: PreventionRowsPort["createPreventionRow"] = (...args) => requireRows().createPreventionRow(...args);
-export const updateOwnedPreventionRow: PreventionRowsPort["updateOwnedPreventionRow"] = (...args) => requireRows().updateOwnedPreventionRow(...args);
-export const deleteOwnedPreventionRow: PreventionRowsPort["deleteOwnedPreventionRow"] = (...args) => requireRows().deleteOwnedPreventionRow(...args);
-export const readPreventionRowsByPet: PreventionRowsPort["readPreventionRowsByPet"] = (...args) => requireRows().readPreventionRowsByPet(...args);
-export const readOwnedPreventionPetIds: PreventionRowsPort["readOwnedPreventionPetIds"] = (...args) => requireRows().readOwnedPreventionPetIds(...args);
-export const readPreventionRowsByPets: PreventionRowsPort["readPreventionRowsByPets"] = (...args) => requireRows().readPreventionRowsByPets(...args);
-export const withPreventionTransaction: PreventionRowsPort["withPreventionTransaction"] = (...args) => requireRows().withPreventionTransaction(...args);
-export const readExistingPreventionClientRow: PreventionRowsPort["readExistingPreventionClientRow"] = (...args) => requireRows().readExistingPreventionClientRow(...args);
-export const createPreventionRowTx: PreventionRowsPort["createPreventionRowTx"] = (...args) => requireRows().createPreventionRowTx(...args);
-export const updateOwnedPreventionRowTx: PreventionRowsPort["updateOwnedPreventionRowTx"] = (...args) => requireRows().updateOwnedPreventionRowTx(...args);

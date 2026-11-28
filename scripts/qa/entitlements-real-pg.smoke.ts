@@ -4,7 +4,7 @@ import {prisma} from "@gafus/prisma";
 import {
  readAccessActorRole,hasCurrentPaidSubscription,hasAssignedPrivateCourse,hasActiveGafusArticleAccess,hasPaidChatDisplaySubscription,
 } from "@gafus/entitlements-server/policy-reads";
-import {resolveCourseEntitlement,resolveArticleEntitlement} from "../../packages/core/src/services/contentAccess/policy.js";
+import {resolveCourseEntitlement,resolveArticleEntitlement} from "../../apps/api/src/modules/content-access/composition/content-policy-instance.js";
 import {getChatDisplayRole} from "../../packages/core/src/services/user/chatDisplayRole.js";
 const url=new URL(process.env.DATABASE_URL??"http://invalid");
 if(process.env.GAFUS_LOCAL_ISOLATED_API!=="1" || process.env.GAFUS_ENTITLEMENTS_REAL_PG!=="1" ||
@@ -40,7 +40,7 @@ async function main(){
  await prisma.appSubscriptionPayment.update({where:{id:payment.id},data:{amount:100}});
  assert.equal(await hasPaidChatDisplaySubscription(user.id,now),true);
  assert.equal(await hasPaidChatDisplaySubscription(other.id,now),false);
- assert.equal(await getChatDisplayRole({id:user.id,role:"USER"},now),"subscriber");
+ assert.equal(await getChatDisplayRole({id:user.id,role:"USER"},hasPaidChatDisplaySubscription,now),"subscriber");
  await prisma.appSubscription.update({where:{id:subscription.id},data:{currentPeriodEnd:now}});
  assert.equal(await hasCurrentPaidSubscription(user.id,now),false,"period equal to now is expired");
  assert.equal(await hasPaidChatDisplaySubscription(user.id,now),false);

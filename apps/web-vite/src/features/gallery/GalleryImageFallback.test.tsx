@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
-import { GalleryImage } from "./GalleryAlbums";
+import { GalleryImage } from "./GalleryImage";
 
 const signed =
   "https://fupiquafifeswu.begetcdn.cloud/" +

@@ -41,17 +41,16 @@ describe("API profile owner SQL bootstrap and private/public projection",()=>{
     await expect(core.existsUser("owner-1")).rejects.toThrow("PROFILE_ROWS_PORT_UNBOUND");
     await expect(core.getUserProfileForApi("owner-1")).rejects.toThrow("PROFILE_ROWS_PORT_UNBOUND");
   });
-  it("binds exact actor identity before Core UserProfile DTO and refuses replacement",async()=>{
+  it("binds exact actor identity before Core UserProfile DTO",async()=>{
     const core=await import("@gafus/core/services/user");
-    await import("./install-profile-rows");
-    await expect(core.existsUser("owner-1")).resolves.toBe(true);
+    const { profileRows } = await import("./profile-rows-instance");
+    await expect(core.existsUser("owner-1", profileRows)).resolves.toBe(true);
     expect(sql.owner).toHaveBeenCalledExactlyOnceWith("owner-1");
-    await expect(core.getUserProfileForApi("owner-1")).resolves.toMatchObject({
+    await expect(core.getUserProfileForApi("owner-1", profileRows)).resolves.toMatchObject({
       id:"owner-1",role:"USER",hasAppPassword:false,profile:{birthDate:null},
     });
-    expect((await core.getUserProfileForApi("owner-1"))).not.toHaveProperty("hasVkLinked");
+    expect((await core.getUserProfileForApi("owner-1", profileRows))).not.toHaveProperty("hasVkLinked");
     expect(sql.profile).toHaveBeenCalledTimes(2);
     expect(sql.profile).toHaveBeenLastCalledWith("owner-1");
-    expect(()=>core.registerProfileRowsPort({} as never)).toThrow("PROFILE_ROWS_PORT_ALREADY_BOUND");
   });
 });

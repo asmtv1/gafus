@@ -403,34 +403,7 @@ export interface TrainerStepRowsPort {
         icon: string | null;
     }>;
 }
-let installed: Readonly<TrainerStepRowsPort> | null = null;
-export function registerTrainerStepRowsPort(port: TrainerStepRowsPort): void {
-    if (installed && installed !== port)
-        throw new Error("TRAINER_STEP_ROWS_PORT_ALREADY_BOUND");
-    installed = port;
+export function requireTrainerStepRowsPort(port: TrainerStepRowsPort | undefined): Readonly<TrainerStepRowsPort> {
+  if (!port) throw new Error("TRAINER_STEP_ROWS_PORT_UNBOUND");
+  return port;
 }
-function requireRows(): Readonly<TrainerStepRowsPort> {
-    if (!installed)
-        throw new Error("TRAINER_STEP_ROWS_PORT_UNBOUND");
-    return installed;
-}
-export const readTrainerVideoRows: TrainerStepRowsPort["readTrainerVideoRows"] = (...args) => requireRows().readTrainerVideoRows(...args);
-export const readTrainerStepForEdit: TrainerStepRowsPort["readTrainerStepForEdit"] = (...args) => requireRows().readTrainerStepForEdit(...args);
-export const readTrainerStepMediaRow: TrainerStepRowsPort["readTrainerStepMediaRow"] = (...args) => requireRows().readTrainerStepMediaRow(...args);
-export const readTrainerStepImageRow: TrainerStepRowsPort["readTrainerStepImageRow"] = (...args) => requireRows().readTrainerStepImageRow(...args);
-export const readTrainerStepDeletionRows: TrainerStepRowsPort["readTrainerStepDeletionRows"] = (...args) => requireRows().readTrainerStepDeletionRows(...args);
-export const readVisibleTrainerSteps: TrainerStepRowsPort["readVisibleTrainerSteps"] = (...args) => requireRows().readVisibleTrainerSteps(...args);
-export const createTrainerStepRecord: TrainerStepRowsPort["createTrainerStepRecord"] = (...args) => requireRows().createTrainerStepRecord(...args);
-export const updateTrainerStepRecord: TrainerStepRowsPort["updateTrainerStepRecord"] = (...args) => requireRows().updateTrainerStepRecord(...args);
-export const updateTrainerStepImageRow: TrainerStepRowsPort["updateTrainerStepImageRow"] = (...args) => requireRows().updateTrainerStepImageRow(...args);
-export const deleteLegacyTrainerStepRows: TrainerStepRowsPort["deleteLegacyTrainerStepRows"] = (...args) => requireRows().deleteLegacyTrainerStepRows(...args);
-export const deleteOwnedTrainerStepRows: TrainerStepRowsPort["deleteOwnedTrainerStepRows"] = (...args) => requireRows().deleteOwnedTrainerStepRows(...args);
-export const readTrainerTemplateForDisplay: TrainerStepRowsPort["readTrainerTemplateForDisplay"] = (...args) => requireRows().readTrainerTemplateForDisplay(...args);
-export const readTrainerTemplateForCreation: TrainerStepRowsPort["readTrainerTemplateForCreation"] = (...args) => requireRows().readTrainerTemplateForCreation(...args);
-export const readPublicTrainerStepTemplates: TrainerStepRowsPort["readPublicTrainerStepTemplates"] = (...args) => requireRows().readPublicTrainerStepTemplates(...args);
-export const searchPublicTrainerStepTemplates: TrainerStepRowsPort["searchPublicTrainerStepTemplates"] = (...args) => requireRows().searchPublicTrainerStepTemplates(...args);
-export const readPublicTrainerStepCategories: TrainerStepRowsPort["readPublicTrainerStepCategories"] = (...args) => requireRows().readPublicTrainerStepCategories(...args);
-export const createStepFromTemplateRow: TrainerStepRowsPort["createStepFromTemplateRow"] = (...args) => requireRows().createStepFromTemplateRow(...args);
-export const deleteTrainerTemplateRow: TrainerStepRowsPort["deleteTrainerTemplateRow"] = (...args) => requireRows().deleteTrainerTemplateRow(...args);
-export const createTrainerTemplateRow: TrainerStepRowsPort["createTrainerTemplateRow"] = (...args) => requireRows().createTrainerTemplateRow(...args);
-export const createTrainerStepCategoryRow: TrainerStepRowsPort["createTrainerStepCategoryRow"] = (...args) => requireRows().createTrainerStepCategoryRow(...args);

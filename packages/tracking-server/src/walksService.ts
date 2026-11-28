@@ -1,4 +1,4 @@
-import { prisma } from "@gafus/prisma";
+import { prisma, type Prisma } from "@gafus/prisma";
 
 export interface CompletedDogWalkInput {
   clientId: string;
@@ -45,42 +45,97 @@ function toDto(record: {
 /** Server data is merged into the phone by clientId; the phone wins collisions. */
 export async function listCompletedDogWalks(ownerId: string) {
   await assertWalkHistoryAccess(ownerId);
-  const tombstones=await prisma.dogWalkTombstone.findMany({where:{userId:ownerId},select:{clientId:true}});
-  const deletedIds=tombstones.map(row=>row.clientId);
-  const data = await prisma.dogWalkRecord.findMany({
-    where: { userId: ownerId, ...(deletedIds.length ? {clientId:{notIn:deletedIds}} : {}) },
-    orderBy: { startedAt: "desc" }, take: 2000,
-  });
-  return data.map(toDto);
+  return readWalkHistory(prisma, ownerId);
 }
 
-/** Idempotent, owner-scoped upsert. No userId/role accepted in payload. */
-export async function syncCompletedDogWalks(ownerId: string, walks: CompletedDogWalkInput[]) {
-  await assertWalkHistoryAccess(ownerId);
-  if (walks.length) {
-    // Serializable isolation prevents a concurrent offline upsert from racing a
-    // deletion tombstone and recreating already deleted private tracks.
-    await prisma.$transaction(async tx=>{
-      const tombstones=await tx.dogWalkTombstone.findMany({
-        where:{userId:ownerId,clientId:{in:walks.map(w=>w.clientId)}},select:{clientId:true},
-      });
-      const deleted=new Set(tombstones.map(row=>row.clientId));
-      for(const walk of walks) {
-        if(deleted.has(walk.clientId))continue;
-        const data={
-          startedAt:new Date(walk.startedAt), finishedAt:new Date(walk.finishedAt),
-          durationSeconds:walk.durationSeconds,steps:walk.steps,estimatedMeters:walk.estimatedMeters,
-          timerMode:walk.timerMode,incompleteSteps:walk.incompleteSteps,
-          gpsEnabled:walk.gpsEnabled??false,gpsMeters:walk.gpsMeters??null,
-        };
-        await tx.dogWalkRecord.upsert({
-          where:{userId_clientId:{userId:ownerId,clientId:walk.clientId}},
-          create:{userId:ownerId,clientId:walk.clientId,...data},update:data,
-        });
-      }
-    },{isolationLevel:'Serializable'});
+type WalkRow = Parameters<typeof toDto>[0];
+async function readWalkHistory(db: Pick<typeof prisma, "$queryRaw">, ownerId: string) {
+  // Both clientId columns are NOT NULL. Read the owner-local exclusion set
+  // once in this SQL snapshot, before sorting/limiting the visible walks.
+  const rows = await db.$queryRaw<WalkRow[]>`
+    SELECT w."clientId", w."startedAt", w."finishedAt", w."durationSeconds", w.steps,
+           w."estimatedMeters", w."timerMode", w."incompleteSteps", w."gpsEnabled", w."gpsMeters"
+    FROM "DogWalkRecord" w
+    WHERE w."userId" = ${ownerId} AND w."clientId" NOT IN (
+      SELECT d."clientId" FROM "DogWalkTombstone" d WHERE d."userId" = ${ownerId}
+    ) ORDER BY w."startedAt" DESC, w."clientId" DESC LIMIT 2000`;
+  return rows.map(toDto);
+}
+
+async function walkTransaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try { return await prisma.$transaction(work, { isolationLevel: "Serializable" }); }
+    catch (error) {
+      const dbError = error as { code?: string; meta?: { code?: string } };
+      if (attempt >= 3 || !(dbError.code === "P2034" ||
+          (dbError.code === "P2010" && ["40001", "40P01"].includes(dbError.meta?.code ?? "")))) throw error;
+      await new Promise(resolve => setTimeout(resolve, 10 * attempt + Math.random() * 15));
+    }
   }
-  return listCompletedDogWalks(ownerId);
+}
+
+export async function writeCompletedDogWalks(ownerId: string, walks: CompletedDogWalkInput[]) {
+  await assertWalkHistoryAccess(ownerId);
+  if (walks.length > 100) throw new Error("WALK_BATCH_TOO_LARGE");
+  if (!walks.length) return;
+  await walkTransaction(async tx => {
+    // Also used by deletes. The serializable snapshot protects against older
+    // writers that have not yet adopted the advisory lock.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('gafus/walk/' || ${ownerId}::text, 0))`;
+    await tx.$executeRaw`
+      INSERT INTO "DogWalkRecord" AS w
+        (id, "userId", "clientId", "startedAt", "finishedAt", "durationSeconds", steps,
+         "estimatedMeters", "timerMode", "incompleteSteps", "gpsEnabled", "gpsMeters", "updatedAt")
+      SELECT gen_random_uuid()::text, ${ownerId}, x."clientId", x."startedAt" AT TIME ZONE 'UTC',
+        x."finishedAt" AT TIME ZONE 'UTC', x."durationSeconds", x.steps, x."estimatedMeters",
+        x."timerMode", x."incompleteSteps", COALESCE(x."gpsEnabled", false), x."gpsMeters", CURRENT_TIMESTAMP
+      FROM jsonb_to_recordset(${JSON.stringify(walks)}::jsonb) AS x("clientId" text, "startedAt" timestamptz,
+        "finishedAt" timestamptz, "durationSeconds" int, steps int, "estimatedMeters" int,
+        "timerMode" text, "incompleteSteps" boolean, "gpsEnabled" boolean, "gpsMeters" int)
+      WHERE NOT EXISTS (SELECT 1 FROM "DogWalkTombstone" d WHERE d."userId" = ${ownerId} AND d."clientId" = x."clientId")
+      ORDER BY x."clientId"
+      ON CONFLICT ("userId", "clientId") DO UPDATE SET
+        ("startedAt","finishedAt","durationSeconds",steps,"estimatedMeters","timerMode","incompleteSteps","gpsEnabled","gpsMeters","updatedAt") =
+        (EXCLUDED."startedAt",EXCLUDED."finishedAt",EXCLUDED."durationSeconds",EXCLUDED.steps,EXCLUDED."estimatedMeters",
+         EXCLUDED."timerMode",EXCLUDED."incompleteSteps",EXCLUDED."gpsEnabled",EXCLUDED."gpsMeters",EXCLUDED."updatedAt")
+      WHERE (w."startedAt",w."finishedAt",w."durationSeconds",w.steps,w."estimatedMeters",w."timerMode",w."incompleteSteps",w."gpsEnabled",w."gpsMeters")
+        IS DISTINCT FROM (EXCLUDED."startedAt",EXCLUDED."finishedAt",EXCLUDED."durationSeconds",EXCLUDED.steps,EXCLUDED."estimatedMeters",
+         EXCLUDED."timerMode",EXCLUDED."incompleteSteps",EXCLUDED."gpsEnabled",EXCLUDED."gpsMeters")`;
+  });
+}
+
+export async function syncCompletedDogWalks(ownerId: string, walks: CompletedDogWalkInput[]) {
+  await writeCompletedDogWalks(ownerId, walks);
+  return readWalkHistory(prisma, ownerId);
+}
+
+/** Snapshot and cursor share one PG snapshot, including when this is the first sync after OTA. */
+export async function readDogWalkChanges(ownerId: string, after?: bigint) {
+  await assertWalkHistoryAccess(ownerId);
+  return prisma.$transaction(async tx => {
+    const head = await tx.dogWalkChange.findFirst({
+      where: { userId: ownerId }, orderBy: { version: "desc" }, select: { version: true },
+    });
+    const version = head?.version ?? 0n;
+    if (after === undefined || after > version) {
+      const walks = await readWalkHistory(tx, ownerId);
+      const markers = await tx.dogWalkTombstone.findMany({ where: { userId: ownerId }, select: { clientId: true } });
+      return { reset: true, walks, deleted: markers.map(row => row.clientId), cursor: version.toString(), more: false };
+    }
+    const changes = await tx.dogWalkChange.findMany({
+      where: { userId: ownerId, version: { gt: after } }, orderBy: { version: "asc" }, take: 101,
+      select: { version: true, clientId: true },
+    });
+    const page = changes.slice(0, 100);
+    const ids = page.map(row => row.clientId);
+    const rows = ids.length ? await tx.dogWalkRecord.findMany({ where: { userId: ownerId, clientId: { in: ids } } }) : [];
+    const markers = ids.length ? await tx.dogWalkTombstone.findMany({
+      where: { userId: ownerId, clientId: { in: ids } }, select: { clientId: true },
+    }) : [];
+    const deleted = new Set(markers.map(row => row.clientId));
+    return { reset: false, walks: rows.filter(row => !deleted.has(row.clientId)).map(toDto), deleted: [...deleted],
+      cursor: (page.at(-1)?.version ?? after).toString(), more: changes.length > page.length };
+  }, { isolationLevel: "RepeatableRead" });
 }
 
 export interface DogWalkTrackInput {
@@ -142,11 +197,46 @@ export async function listDeletedDogWalkIds(ownerId:string):Promise<string[]> {
 }
 export async function deleteDogWalk(ownerId:string,clientId:string):Promise<void> {
   await assertWalkHistoryAccess(ownerId);
-  await prisma.$transaction([
-    prisma.dogWalkTombstone.upsert({
-      where:{userId_clientId:{userId:ownerId,clientId}},
-      create:{userId:ownerId,clientId},update:{deletedAt:new Date()},
-    }),
-    prisma.dogWalkRecord.deleteMany({where:{userId:ownerId,clientId}}),
-  ],{isolationLevel:'Serializable'});
+  await walkTransaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('gafus/walk/' || ${ownerId}::text, 0))`;
+    await tx.dogWalkTombstone.upsert({
+      where: { userId_clientId: { userId: ownerId, clientId } },
+      create: { userId: ownerId, clientId }, update: {},
+    });
+    await tx.dogWalkRecord.deleteMany({ where: { userId: ownerId, clientId } });
+  });
+}
+
+export type WalkGpsSnapshot = {
+  eligible: number;
+  noPoints: number;
+  insufficientFix: number;
+};
+
+/**
+ * One-hour cohort of GPS-enabled walks first synced 10–70 minutes ago.
+ * Grace allows track chunks to arrive after the metadata. Not a device-loss
+ * rate: unsynced walks are excluded and late uploads can correct the gauges.
+ */
+export async function readWalkGpsOperationalMetrics(): Promise<WalkGpsSnapshot> {
+  const [row] = await prisma.$queryRaw<WalkGpsSnapshot[]>`
+    WITH cohort AS (
+      SELECT "userId", "clientId", "gpsMeters"
+      FROM "DogWalkRecord"
+      WHERE "gpsEnabled" = true AND "durationSeconds" >= 120
+        AND "createdAt" > timezone('UTC', now()) - interval '70 minutes'
+        AND "createdAt" <= timezone('UTC', now()) - interval '10 minutes'
+    ), classified AS (
+      SELECT "gpsMeters", EXISTS (
+        SELECT 1 FROM "DogWalkTrackPoint" p
+        WHERE p."userId" = cohort."userId" AND p."walkClientId" = cohort."clientId"
+      ) AS has_points
+      FROM cohort
+    )
+    SELECT count(*)::int AS eligible,
+      count(*) FILTER (WHERE NOT has_points)::int AS "noPoints",
+      count(*) FILTER (WHERE has_points AND "gpsMeters" IS NULL)::int AS "insufficientFix"
+    FROM classified
+  `;
+  return row ?? { eligible: 0, noPoints: 0, insufficientFix: 0 };
 }

@@ -2,7 +2,7 @@
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
-import type { PublicCourseCatalogItem } from "../../../../../packages/types/src/data/course";
+import type { PublicCourseCatalogItem } from "@gafus/types/course";
 
 // Isolate unrelated Core barrel imports, NOT the target original Core function:
 // the real publicCatalogService and its original Prisma query execute unmocked.

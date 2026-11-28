@@ -10,7 +10,7 @@ interface SlaJobData {
   bookingId: string;
 }
 
-export function startConsultationSlaWorker(): void {
+export function startConsultationSlaWorker() {
   const worker = new Worker<SlaJobData>(
     "consultation-sla",
     async (job: Job<SlaJobData>) => {
@@ -29,4 +29,5 @@ export function startConsultationSlaWorker(): void {
     logger.error("consultation-sla worker error", err);
   });
   logger.success("consultation-sla worker запущен");
+  return worker;
 }

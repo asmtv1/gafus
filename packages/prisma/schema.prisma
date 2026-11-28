@@ -413,6 +413,7 @@ model User {
   refreshTokens                    RefreshToken[]
   reminders                        Reminder[]
   dogWalks                         DogWalkRecord[]
+  dogWalkChanges                   DogWalkChange[]
   dogWalkTombstones                DogWalkTombstone[]
   reminderMutationReceipts         ReminderMutationReceipt[]
   createdSteps                     Step[]
@@ -1387,6 +1388,7 @@ model AppSubscriptionPayment {
   appleWebOrderLineItemId    String?
 
   confirmationUrl String?
+  yookassaCheckoutReturnUrl String?
   failureCode     String?
   failureReason   String?
   succeededAt     DateTime?
@@ -1818,6 +1820,11 @@ model PushSubscription {
 }
 
 model StepNotification {
+  consultationBookingId   String?
+  consultationReminderKey String?
+  consultationRetryAt     DateTime?
+  consultationBooking     ConsultationBooking? @relation(fields: [consultationBookingId], references: [id], onDelete: Cascade)
+
   id           String   @id @default(uuid())
   userId       String
   day          Int
@@ -1841,6 +1848,7 @@ model StepNotification {
 
   @@index([userId])
   @@index([day, stepIndex])
+  @@unique([consultationBookingId, consultationReminderKey], map: "StepNotification_booking_reminder_key")
   @@index([userId, dayOnCourseId, stepOnDayId], map: "StepNotification_bound_occurrence_idx")
   @@index([type])
 }
@@ -2698,6 +2706,7 @@ model ConsultationBooking {
   cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
   slot       ConsultationSlot       @relation(fields: [slotId], references: [id], onDelete: Restrict)
   emailLogs  ConsultationEmailLog[]
+  reminderPushes StepNotification[]
 
   @@index([slotId])
   @@index([cynologistId, status])
@@ -3734,12 +3743,14 @@ model TransactionalMailAttempt {
   id                String   @id @default(cuid())
   providerMessageId String?  @unique
   recipientCount    Int
+  category          String   @default("general")
   status            String   @default("PENDING")
   errorCode         String?
   createdAt         DateTime @default(now())
   acceptedAt        DateTime?
 
   @@index([createdAt])
+  @@index([category, createdAt])
 }
 
 // AES-256-GCM encrypted deferred transactional email. Never store plaintext
@@ -3774,6 +3785,8 @@ model TransactionalMailEvent {
   errorCode         String?
 
   @@index([providerMessageId, occurredAt])
+  // Append-only webhook receipt time; bounded rolling operational reads.
+  @@index([receivedAt], type: Brin)
 }
 
 // Durable course/lesson cache version, advanced transactionally by PostgreSQL
@@ -4186,6 +4199,16 @@ model VideoPlaybackQualityEvent {
 
 /// Completed dog walks synchronised from a phone. The client-generated ID makes
 /// retries idempotent; owner is always the authenticated principal on the API.
+model DogWalkChange {
+  userId   String
+  clientId String @db.VarChar(64)
+  version  BigInt @default(autoincrement())
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, clientId])
+  @@unique([userId, version])
+}
+
 model DogWalkRecord {
   id              String   @id @default(cuid())
   userId          String
@@ -4206,6 +4229,7 @@ model DogWalkRecord {
 
   @@unique([userId, clientId])
   @@index([userId, startedAt(sort: Desc)])
+  @@index([gpsEnabled, createdAt])
 }
 
 /// Raw and classified GPS fixes. Not public or stored on the map tile CDN.

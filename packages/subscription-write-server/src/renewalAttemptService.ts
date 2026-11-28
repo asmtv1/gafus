@@ -102,8 +102,9 @@ export async function prepareYookassaRenewalAttempt({
           return { kind: "processed" as const };
         } else if (payment.status === "CANCELED") {
           if (payment.attemptCount >= MAX_RENEWAL_ATTEMPTS) {
-            await prisma.appSubscription.update({
-              where: { id: row.id },
+            await prisma.appSubscription.updateMany({
+              where: { id: row.id, provider: "YOOKASSA",
+                status: { in: ["ACTIVE", "PAST_DUE"] }, currentPeriodEnd: periodStart },
               data: { status: "PAST_DUE" },
             });
             return { kind: "skipped" as const };
@@ -155,8 +156,9 @@ export async function prepareYookassaRenewalAttempt({
           });
         } else {
           if (payment.attemptCount >= MAX_RENEWAL_ATTEMPTS) {
-            await prisma.appSubscription.update({
-              where: { id: row.id },
+            await prisma.appSubscription.updateMany({
+              where: { id: row.id, provider: "YOOKASSA",
+                status: { in: ["ACTIVE", "PAST_DUE"] }, currentPeriodEnd: periodStart },
               data: { status: "PAST_DUE" },
             });
             return { kind: "skipped" as const };
@@ -165,8 +167,9 @@ export async function prepareYookassaRenewalAttempt({
             return { kind: "skipped" as const };
           }
           attemptCountForThisRun = payment.attemptCount + 1;
-          await prisma.appSubscriptionPayment.update({
-            where: { id: payment.id },
+          const retryClaim = await prisma.appSubscriptionPayment.updateMany({
+            where: { id: payment.id, provider: "YOOKASSA",
+              status: payment.status, attemptCount: payment.attemptCount },
             data: {
               status: "PENDING",
               attemptCount: { increment: 1 },
@@ -176,6 +179,7 @@ export async function prepareYookassaRenewalAttempt({
               failureReason: null,
             },
           });
+          if (retryClaim.count !== 1) return { kind: "skipped" as const };
         }
         if (!payment) {
           return { kind: "skipped" as const };
