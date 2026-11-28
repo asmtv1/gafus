@@ -1,0 +1,7 @@
+Job e47c878d63607224029939fd375cac7235ab61752109ec88; exit 0, no timeout.
+PG15.20 synthetic restored baseline; separate transaction holds SHARE ROW EXCLUSIVE lock on TransactionalMailEvent.
+Migration psql -X -v ON_ERROR_STOP=1 -f packages/prisma/migrations/20261127170000_mail_event_received_at_brin/migration.sql
+ERROR: canceling statement due to lock timeout
+expected_lock_timeout_rc=3
+Assert index absent after rollback, wait for lock holder, reapply same SQL, assert pg_index.indisvalid.
+BRIN_LOCK_TIMEOUT_NO_PARTIAL_INDEX_RETRY_PASS
