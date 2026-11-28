@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
 import {PREVIEW_SIGNING_KEY_ID} from './verify-ota-preview-native-trust.mjs';
 import {PRODUCTION_SIGNING_KEY_ID} from './prepare-self-hosted-native-build.mjs';
 import {readSignedEmbeddedUpdateId} from './native-store-diagnostic-archive.mjs';
@@ -46,29 +47,21 @@ export async function hashNativePackage(filename,platform) {
  * not from a fresh independent export. This check validates identity and
  * receipt integrity; it does not substitute for build provenance. */
 export async function verifyEmbeddedSymbolReceipt(directory,native,embeddedUpdateId,artifactSha256) {
-  const {planPrivateSymbolUpload}=await import('../../../packages/cdn-upload/scripts/upload-mobile-private-symbols.mjs');
-  const plan=planPrivateSymbolUpload(directory);
-  const manifestRecord=plan.records.at(-1);
-  const manifest=JSON.parse(fs.readFileSync(manifestRecord.file,'utf8'));
-  required(manifest.revision===0&&manifest.environment===native.environment&&
-    manifest.platform===native.platform&&manifest.runtimeVersion===native.runtimeVersion&&
-    manifest.sourceSha===native.sourceSha&&manifest.updateId===embeddedUpdateId&&
-    manifest.nativeBuild===native.buildNumber&&manifest.nativeArtifactSha256===artifactSha256,
-    'EMBEDDED_SYMBOL_SCOPE_MISMATCH');
-  const receiptFile=path.join(path.resolve(directory),'private-symbol-delivery-evidence.json');
-  const stat=fs.lstatSync(receiptFile);
-  required(stat.isFile()&&!stat.isSymbolicLink()&&(stat.mode&0o077)===0&&stat.size<100000,
-    'EMBEDDED_SYMBOL_RECEIPT_INSECURE');
-  const receipt=JSON.parse(fs.readFileSync(receiptFile,'utf8'));
-  required(receipt.state==='IMMUTABLE_PRIVATE_SYMBOLS_VERIFIED'&&receipt.environment===manifest.environment&&
-    receipt.platform===manifest.platform&&receipt.runtimeVersion===manifest.runtimeVersion&&
-    receipt.updateId===manifest.updateId&&receipt.sourceSha===manifest.sourceSha&&
-    receipt.manifestSha256===manifestRecord.sha256&&Array.isArray(receipt.report)&&
-    receipt.report.length===plan.records.length&&plan.records.every(record=>
-      receipt.report.filter(item=>item.verified===true&&item.key===record.key&&
-        item.sha256===record.sha256&&item.size===record.size).length===1),
-    'EMBEDDED_SYMBOL_RECEIPT_MISMATCH');
-  return 'symbols-s3:'+manifestRecord.sha256;
+  const cli=fileURLToPath(new URL('../../../packages/cdn-upload/scripts/verify-embedded-symbol-receipt.mjs',import.meta.url));
+  // The CDN release CLI owns local symbol validation; no server package enters the mobile runtime.
+  const {environment,platform,runtimeVersion,sourceSha,buildNumber}=native;
+  const result=spawnSync(process.execPath,[cli],{
+    input:JSON.stringify({directory,native:{environment,platform,runtimeVersion,sourceSha,buildNumber},embeddedUpdateId,artifactSha256}),encoding:'utf8',
+    timeout:30000,maxBuffer:4096,
+  });
+  if(result.status!==0){
+    const code=result.stderr?.trim();
+    throw Error(/^(?:SYMBOLS_[A-Z_]+|OTA_NATIVE_VERIFICATION_[A-Z_]+)$/.test(code??'')
+      ? code : 'OTA_NATIVE_VERIFICATION_EMBEDDED_SYMBOL_RECEIPT_READ_FAILED');
+  }
+  const ref=result.stdout.trim();
+  required(/^symbols-s3:[a-f0-9]{64}$/.test(ref),'EMBEDDED_SYMBOL_RECEIPT_MISMATCH');
+  return ref;
 }
 export async function prepareNativeVerification({native,evidence,packageFile,symbolsDirectory}) {
   required(native&&UUID.test(native.id)&& (native.verified===false || (native.verified===true && (!native.embeddedUpdateId || !!symbolsDirectory)))&&

@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {PutObjectCommand,HeadObjectCommand,GetObjectCommand} from '@aws-sdk/client-s3';
 import {planPrivateSymbolUpload,uploadPrivateSymbols,verifyConfig} from './upload-mobile-private-symbols.mjs';
 const digest=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
@@ -20,6 +22,15 @@ function fixture(t){
  fs.writeFileSync(path.join(root,'private-symbol-manifest.json'),JSON.stringify(m),{mode:0o600});
  return {root,hash};
 }
+test('standalone CLI dry run plans private symbols without uploading or creating a delivery receipt',t=>{
+ const {root}=fixture(t);
+ const cli=fileURLToPath(new URL('./upload-mobile-private-symbols.mjs',import.meta.url));
+ const result=JSON.parse(execFileSync(process.execPath,[cli,'--directory',root],{
+  env:{...process.env,SYMBOLS_UPLOAD_EXECUTE:'0'},encoding:'utf8'}));
+ assert.equal(result.state,'PRIVATE_SYMBOLS_DRY_RUN_NOT_UPLOADED');
+ assert.equal(result.count,2);
+ assert.equal(fs.existsSync(path.join(root,'private-symbol-delivery-evidence.json')),false);
+});
 test('private map plan uses immutable keys, never public OTA or CDN keys',t=>{
  const x=fixture(t),p=planPrivateSymbolUpload(x.root);
  assert.equal(p.records.length,2);

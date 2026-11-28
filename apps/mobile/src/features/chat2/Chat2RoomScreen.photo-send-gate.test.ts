@@ -27,14 +27,27 @@ describe("Chat 2.0 photo upload consent gate", () => {
     expect(source).toContain("Готово к отправке");
   });
   it("uploads only from the send handler, then sends confirmed attachments", () => {
-    expect(send).toContain("const attachment = await chat2.upload(id, {");
-    expect(send.indexOf("const attachment = await chat2.upload(id, {")).toBeLessThan(
-      send.indexOf("await chat2.send(id, value, attempt.clientMessageId, reply?.id, attachmentIds)"));
-    expect(send).toContain("if (!file.sourcePhoto) continue;");
-    expect(send).toContain("preparedVariants: variants");
-    expect(send).toContain("setMedia(previous => previous.map(item =>");
-    expect(send).toContain("item.localId === file.localId");
+    const photoStart = send.indexOf("if (!file.sourcePhoto) continue;");
+    const idsStart = send.indexOf("const attachmentIds = confirmed.flatMap(");
+    const messageSend = send.match(/await\s+measureMobileOperation\(\s*"CHAT_SEND",\s*\(\)\s*=>\s*chat2\.send\(id, value, attempt\.clientMessageId, reply\?\.id, attachmentIds\)\s*\)/);
+    expect(photoStart).toBeGreaterThanOrEqual(0);
+    expect(idsStart).toBeGreaterThan(photoStart);
+    expect(messageSend).not.toBeNull();
+    expect(idsStart).toBeLessThan(messageSend!.index!);
+    const photo = send.slice(photoStart, idsStart);
+    expect(photo).toMatch(/if \(!variants\) throw new Error/);
+    expect(photo).toMatch(/const attachment = await chat2\.upload\(id, \{\s*uri: variants\.medium\.uri/);
+    expect(photo).toContain("preparedVariants: variants");
+    expect(photo).toContain("confirmed[index] = { ...file, attachment, failure: undefined }");
+    expect(photo).toContain("setMedia(previous => previous.map(item =>");
+    expect(photo).toContain("item.localId === file.localId");
+    expect(photo).toContain("? { ...item, attachment, failure: undefined } : item");
+    expect(photo).toMatch(/catch \(cause\) \{[\s\S]*throw cause;/);
+    expect(send).toContain("confirmed.flatMap(file => file.attachment ? [file.attachment.id] : [])");
+    expect(send).toContain("if (file.attachment) continue;");
+    expect(send).toContain("media.some(file => !file.attachment && !file.preparedPhoto && !file.preparedVideo)) return;");
     expect(send).toContain("sendingRef.current = true");
+    expect(source).toContain("onSend={() => void send()}");
   });
   it("retains retries and releases temporary encodes on cancel/unmount/success", () => {
     expect(source).toContain("activePhotos.current.delete(file.localId)");

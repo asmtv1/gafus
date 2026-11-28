@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {prepareNativeVerification,hashNativePackage} from './prepare-self-hosted-native-verification.mjs';
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'gafus-native-artifact-qa-'));
 const binary=path.join(root,'signed.ipa');
@@ -121,6 +123,23 @@ test('embedded symbols receipt must match exact artifact, build, update and immu
   const input={native:descriptor,packageFile:binary,evidence:{...evidence,embeddedUpdateId:updateId},symbolsDirectory:dir};
   const result=await prepareNativeVerification(input);
   assert.equal(result.evidence.embeddedSymbolsRef,'symbols-s3:'+sha(manifestBytes));
+  // Run the documented entry point from outside its source directory.
+  const descriptorFile=path.join(dir,'descriptor.json'), evidenceFile=path.join(dir,'evidence.json');
+  const out=path.join(dir,'verification.json');
+  fs.writeFileSync(descriptorFile,JSON.stringify(descriptor),{mode:0o600});
+  fs.writeFileSync(evidenceFile,JSON.stringify(input.evidence),{mode:0o600});
+  const cli=fileURLToPath(new URL('./prepare-self-hosted-native-verification.mjs',import.meta.url));
+  const report=JSON.parse(execFileSync(process.execPath,[cli,descriptorFile,binary,evidenceFile,out,dir],{
+    cwd:root,env:{...process.env,SYMBOLS_UPLOAD_EXECUTE:'0'},encoding:'utf8'}));
+  assert.equal(report.state,'NATIVE_QA_ATTESTATION_PREPARED_FOR_ADMIN_REVIEW');
+  assert.deepEqual(JSON.parse(fs.readFileSync(out,'utf8')),result);
+  assert.equal(fs.statSync(out).mode&0o077,0);
+  fs.chmodSync(receiptFile,0o644);
+  await assert.rejects(()=>prepareNativeVerification(input),/EMBEDDED_SYMBOL_RECEIPT_INSECURE/);
+  fs.chmodSync(receiptFile,0o600);
+  fs.chmodSync(path.join(dir,filename),0o644);
+  await assert.rejects(()=>prepareNativeVerification(input),/SYMBOLS_PRIVATE_MAP_INSECURE/);
+  fs.chmodSync(path.join(dir,filename),0o600);
   await assert.rejects(()=>prepareNativeVerification({...input,native:{...descriptor,buildNumber:'104'}}),/EMBEDDED_SYMBOL_SCOPE_MISMATCH/);
   await assert.rejects(()=>prepareNativeVerification({...input,evidence:{...input.evidence,embeddedUpdateId:crypto.randomUUID()}}),/EMBEDDED_SYMBOL_SCOPE_MISMATCH/);
   fs.writeFileSync(receiptFile,JSON.stringify({...receipt,report:receipt.report.map(r=>({...r,verified:false}))}));
